@@ -1,0 +1,11 @@
+build/*
+doxygen/*
+cmakeDownloads/*
+*~
+dependencies/*
+.vscode/*
+nbproject/*
+.kdev4/*
+*.kdev4
+system/platforms/*
+!system/platforms/keepfolder
