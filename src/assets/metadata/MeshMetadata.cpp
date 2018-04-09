@@ -29,7 +29,6 @@
 #include "assets/metadata/MeshMetadata.hpp"
 #include "core/filesystem/File.hpp"
 #include <stdexcept>
-#include "database/sqlite3.h"
 #include "utilities/hashing/Hashing.hpp"
 
 namespace iyf {

@@ -28,7 +28,7 @@ Before you can build the IYFEngine, you must create a *dependencies* folder in t
 
 Create sub-folders named after these libraries in the "depedencies" folder. You can use the following command on Linux:
 
-    mkdir gli glm sol2 recastnavigation physfs
+    mkdir gli glm sol2 recastnavigation physfs sqlite
 
 Next, download and put the appropriate libraries into those folders. Each folder should contain the root of the appropriate library. Moreover, as mentioned before, try to use the stable versions.
 
@@ -38,6 +38,7 @@ Next, download and put the appropriate libraries into those folders. Each folder
 3. [recastnavigation](https://github.com/recastnavigation/recastnavigation/)
 4. [physfs](https://icculus.org/physfs/): make sure to use version 3 or newer.
 5. [rapidjson](https://github.com/Tencent/rapidjson.git)
+6. [sqlite](https://www.sqlite.org/download.html): using the amalgamation.
 
 If you receive compilation errors that talk about missing headers or source files, look into the *CMakeLists.txt* files for hints. If you cloned the repositories directly into the created folders, it's possible that you ended up with something like *dependencies/glm/glm/glm/glm.hpp* (note the extra subdirectory) when you actually needed *dependencies/glm/glm/glm.hpp*.
     
@@ -54,11 +55,8 @@ Unless you're one of IYFEngine's developers or **really** need a newer version, 
  * *stb\_true\_type.h*
             
     stb libraries are stored in the source tree because of Dear Imgui.
-2. [sqlite](https://www.sqlite.org/download.html): using the amalgamation. Stored in *include/database* and *src/database* folders. I really have no idea why I put it there.
-   
-  **TODO** figure out why I put it there and, if possible, move it to the *dependencies* folder
-3. [fmt](https://github.com/fmtlib/fmt): stored in *include/format* and *src/format*. The default include directory of fmt contains additional header files with conflicting names. Keeping the fmt library in the *dependencies* folder and adding it to the include path causes trouble and should not be done.
-4. [miniz](https://github.com/richgel999/miniz/releases): stored in *include/miniz* and *src/miniz*.
+2. [fmt](https://github.com/fmtlib/fmt): stored in *include/format* and *src/format*. The default include directory of fmt contains additional header files with conflicting names. Keeping the fmt library in the *dependencies* folder and adding it to the include path causes trouble and should not be done.
+3. [miniz](https://github.com/richgel999/miniz/releases): stored in *include/miniz* and *src/miniz*.
     
 ##Future dependencies
 0. stb\_vorbis for audio effect decompression and music decompression. Only an option. I may need to look into something that supports more formats or use opus instead. Need to research things first.

@@ -30,7 +30,7 @@
 #include "core/Logger.hpp"
 #include "core/Constants.hpp"
 
-#include "database/sqlite3.h"
+#include "sqlite3.h"
 
 #include <cstring>
 

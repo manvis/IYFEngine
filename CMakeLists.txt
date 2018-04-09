@@ -158,6 +158,8 @@ include_directories(dependencies/recastnavigation/DetourCrowd/Include)
 include_directories(dependencies/recastnavigation/DetourTileCache/Include)
 # recast navigation debug utilities (recast navigation)
 include_directories(dependencies/recastnavigation/DebugUtils/Include)
+# sqlite
+include_directories(dependencies/sqlite)
 
 option(GLEW_DYNAMIC "Look for and link a dynamic version of the glew library, only valid when using OpenGL" OFF)
 

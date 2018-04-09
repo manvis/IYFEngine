@@ -76,8 +76,6 @@ core/ProductID.cpp
 core/Project.cpp
 core/TransformationComponent.cpp
 core/World.cpp
-#------- database directory
-database/sqlite3.c
 #------- filesystem directory
 core/filesystem/physfs/physfsrwops.c
 core/filesystem/File.cpp
@@ -135,6 +133,8 @@ utilities/Compression.cpp
 utilities/stbImpl.cpp
 utilities/Regexes.cpp
 #------- separately stored third party dependencies
+#--------------------- sqlite
+../dependencies/sqlite/sqlite3.c
 #--------------------- recast
 ../dependencies/recastnavigation/Recast/Source/Recast.cpp
 ../dependencies/recastnavigation/Recast/Source/RecastAlloc.cpp

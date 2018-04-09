@@ -28,7 +28,6 @@
 
 #include "assets/metadata/AudioMetadata.hpp"
 #include <stdexcept>
-#include "database/sqlite3.h"
 
 namespace iyf {
 std::uint16_t AudioMetadata::getLatestSerializedDataVersion() const {

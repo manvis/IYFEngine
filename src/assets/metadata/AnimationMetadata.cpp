@@ -28,7 +28,6 @@
 
 #include "assets/metadata/AnimationMetadata.hpp"
 #include <stdexcept>
-#include "database/sqlite3.h"
 
 namespace iyf {
 std::uint16_t AnimationMetadata::getLatestSerializedDataVersion() const {

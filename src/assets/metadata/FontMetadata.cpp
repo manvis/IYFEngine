@@ -28,7 +28,6 @@
 
 #include "assets/metadata/FontMetadata.hpp"
 #include <stdexcept>
-#include "database/sqlite3.h"
 
 namespace iyf {
 std::uint16_t FontMetadata::getLatestSerializedDataVersion() const {
