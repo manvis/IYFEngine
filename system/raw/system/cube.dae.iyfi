@@ -1,0 +1,9 @@
+{
+	"fileContents": "ImporterSettingsJSON",
+	"assetType": 1,
+	"importerSettingsVersion": 1,
+	"sourceFileHash": 11277719361460342030,
+	"use32BitIndices": true,
+	"exportAnimations": true,
+	"scale": 1.0
+}

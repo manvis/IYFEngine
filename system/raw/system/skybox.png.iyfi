@@ -1,0 +1,15 @@
+{
+	"fileContents": "ImporterSettingsJSON",
+	"assetType": 2,
+	"importerSettingsVersion": 1,
+	"sourceFileHash": 8934687428782156951,
+	"premultiplyAlpha": true,
+	"sRGB": true,
+	"noMipMaps": false,
+	"importMode": 0,
+	"filteringMethod": 2,
+	"xTiling": 1,
+	"yTiling": 1,
+	"quality": 0.05000000074505806,
+	"preferredAnisotropy": 0
+}
