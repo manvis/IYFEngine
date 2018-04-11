@@ -171,6 +171,7 @@ public:
     /// be translated.
     void setBaseLocale(std::string locale);
 private:
+    Project(fs::path root, bool deserializeFile);
     fs::path root;
     
     std::string companyName;
