@@ -39,6 +39,8 @@ extern const std::regex FunctionAndFileNameRegex;
 /// \warning in case whatwg release an update, don't copy the provided regex blindly. You need to remove the first and the
 /// last forward slashes AND escape all the backslashes
 extern const std::regex EmailValidationRegex;
+/// Validates locales in POSIX format (e.g., lt_LT, en_US)
+extern const std::regex LocaleValidationRegex;
 }
 
 #endif // IYF_REGEXES_HPP

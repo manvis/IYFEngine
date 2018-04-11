@@ -31,4 +31,5 @@
 namespace iyf::regex {
 const std::regex FunctionAndFileNameRegex = std::regex("[a-zA-Z][a-zA-Z0-9]*");
 const std::regex EmailValidationRegex = std::regex("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$");
+const std::regex LocaleValidationRegex = std::regex("[a-z]{2,3}_[A-Z]{2}");
 }
