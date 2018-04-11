@@ -160,7 +160,9 @@ bool Project::serialize() const {
     PrettyStringWriter pw(sb);
     
     pw.SetIndent('\t', 1);
+    pw.StartObject();
     serializeJSON(pw);
+    pw.EndObject();
     
     const char* jsonString = sb.GetString();
     const std::size_t jsonByteCount = sb.GetSize();
