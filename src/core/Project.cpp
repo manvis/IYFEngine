@@ -46,12 +46,81 @@ static const char* GAME_VERSION_MINOR_FIELD_NAME = "game_version_minor";
 static const char* GAME_VERSION_PATCH_FIELD_NAME = "game_version_patch";
 static const char* BASE_LOCALE_FIELD_NAME = "base_locale";
 
-Project::CreationResult Project::Create(fs::path newProjectPath, const std::string& projectName, std::function<void(const std::string&)> callback, const std::string& baseLocale) {
-    return CreationResult::EmptyPath;
+Project::CreationResult Project::Create(const fs::path& newProjectPath, const std::string& projectName, std::function<void(const std::string&)> callback, 
+                                        const std::string& baseLocale, bool createDirectories) {
+    if (newProjectPath.empty()) {
+        return CreationResult::EmptyPath;
+    }
+    
+    if (projectName.empty()) {
+        return CreationResult::EmptyName;
+    }
+    
+    const fs::file_status status = fs::status(newProjectPath);
+    if (!fs::exists(status) || !fs::is_directory(status)) {
+        return CreationResult::NotADirectory;
+    }
+    
+    const fs::path finalPath = newProjectPath / projectName;
+    const bool finalPathExists = fs::exists(finalPath);
+    
+    if (finalPathExists && !fs::is_empty(finalPath)) {
+        return CreationResult::NonEmptyDirectory;
+    } else if (!finalPathExists) {
+        fs::create_directories(finalPath);
+    }
+    
+    if (createDirectories) {
+        if (!CreateImportedAssetDirectories(finalPath) || !CreateImportsDirectory(finalPath)) {
+            return CreationResult::FolderCreationFailed;
+        }
+    }
+    
+    Project project(finalPath);
+    project.setGameName(projectName);
+    project.setCompanyName("Your Company");
+    project.setVersion(Version(0, 1, 0));
+    project.setBaseLocale(baseLocale);
+    project.setFirstWorldName(con::DefaultWorldFile);
+    
+    if (!project.serialize()) {
+        return CreationResult::ProjectFileCreationFailed;
+    }
+    
+    return CreationResult::CreatedSuccessfully;
+}
+
+bool Project::CreateImportedAssetDirectories(const fs::path& path) {
+    for (std::size_t i = 0; i < static_cast<std::size_t>(AssetType::COUNT); ++i) {
+        const fs::path assetTypeSubdir = path / con::AssetTypeToPath(static_cast<AssetType>(i));
+        
+        boost::system::error_code ec;
+        fs::create_directories(assetTypeSubdir, ec);
+        
+        if (ec) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+bool Project::CreateImportsDirectory(const fs::path& path) {
+    boost::system::error_code ec;
+    fs::create_directories(path / con::ImportPath, ec);
+    
+    if (ec) {
+        return false;
+    } else {
+        return true;
+    }
 }
 
 Project::Project(fs::path root) : root(root) {
-    deserialize();
+    if (!deserialize()) {
+        LOG_E("Failed to deserialize the project file" << " from " << (root / con::ProjectFile));
+        throw std::runtime_error("Failed to deserialize the project file");
+    }
 }
 
 Project::~Project() {}
@@ -71,10 +140,18 @@ bool Project::serialize() const {
     
     if (!jsonFile.is_open()) {
         LOG_E("Failed to open a project file " << finalPath << " for serialization.");
-        throw std::runtime_error("Failed to open a project file for serialization.");
+        
+        return false;
     }
     
     jsonFile.write(jsonString, jsonByteCount);
+    if (!jsonFile.good()) {
+        LOG_E("Failed to serialize data to the project file " << finalPath);
+        
+        return false;
+    }
+    
+    return true;
 }
 
 bool Project::deserialize() {
@@ -84,7 +161,8 @@ bool Project::deserialize() {
     
     if (!jsonFile.is_open()) {
         LOG_E("Failed to open a project file " << finalPath << " for deserialization.");
-        throw std::runtime_error("Failed to open a project file for deserialization.");
+        
+        return false;
     }
     
     const auto wholeFile = util::ReadWholeFile(jsonFile);
@@ -92,6 +170,8 @@ bool Project::deserialize() {
     rj::Document document;
     document.Parse(wholeFile.first.get(), wholeFile.second - 1);
     deserializeJSON(document);
+    
+    return true;
 }
 
 void Project::serializeJSON(PrettyStringWriter& pw) const {

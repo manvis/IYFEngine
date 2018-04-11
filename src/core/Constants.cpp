@@ -57,10 +57,12 @@ const std::string MetadataExtension = u8".iyfd";
 const std::string TextMetadataExtension = u8".iyfjd";
 const std::string ImportSettingsExtension = u8".iyfi";
 const std::string PackFileExtension = u8".iyfpak";
+const std::string WorldFileExtension = u8".iyfw";
 
 const std::string SystemAssetPackName = u8"system" + PackFileExtension;
 const std::string DefaultReleasePackName = u8"assets" + PackFileExtension;
 
+const std::string DefaultWorldFile = u8"DefaultEmptyWorld" + WorldFileExtension;
 const std::string ProjectFile = u8"Project" + ProjectFileExtension;
 const std::string EngineBaseConfigFile = u8"EngineBaseConfig.lua";
 

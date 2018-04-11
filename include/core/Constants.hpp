@@ -227,6 +227,9 @@ extern const std::string ImportSettingsExtension;
 /// \brief The extension used by asset file packages
 extern const std::string PackFileExtension;
 
+/// \brief The extension used by files that store the world data
+extern const std::string WorldFileExtension;
+
 // -----------------------------------------------------------------------------
 // Default files 
 // -----------------------------------------------------------------------------
@@ -248,6 +251,9 @@ extern const std::string EngineBaseConfigFile;
 /// \brief the name of a file that contains core project settings. This file should exist in the root dir 
 /// of all projects.
 extern const std::string ProjectFile;
+
+/// \brief The name of the default world file that is stored in the system assets.
+extern const std::string DefaultWorldFile;
 
 extern const std::string SystemAssetPackName;
 extern const std::string DefaultReleasePackName;

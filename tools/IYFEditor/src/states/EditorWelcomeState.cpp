@@ -430,34 +430,22 @@ void EditorWelcomeState::frame(float delta) {
                         messageText = "Project creation failed:\n";
                         switch (result) {
                             case Project::CreationResult::EmptyPath:
-                                messageText += "The project directory cannot be empty.";
+                                messageText += "The project directory parameter cannot be empty.";
                                 break;
                             case Project::CreationResult::EmptyName:
-                                messageText += "The project name cannot be empty.";
+                                messageText += "The project name parameter cannot be empty.";
                                 break;
                             case Project::CreationResult::NotADirectory:
-                                messageText += "The project path exists, but it is not a directory.";
+                                messageText += "The project directory does not exist or it exists, but it is not a directory (e.g., you specified a file).";
                                 break;
-                            case Project::CreationResult::NonEmptyFolder:
-                                messageText += "The project folder exists, but it is not empty.";
-                                break;
-                            case Project::CreationResult::PermissionError:
-                                messageText += "You don't have write permissions in the selected folder.";
+                            case Project::CreationResult::NonEmptyDirectory:
+                                messageText += "The final project directory exists, but it is not empty.";
                                 break;
                             case Project::CreationResult::FolderCreationFailed:
                                 messageText += "Failed to create required project folders.";
                                 break;
-                            case Project::CreationResult::DataCopyFailed:
-                                messageText += "Failed to copy initial data.";
-                                break;
-                            case Project::CreationResult::ConfigurationFailed:
-                                messageText += "Failed to create initial configuration.";
-                                break;
-                            case Project::CreationResult::StringDatabaseFailed:
-                                messageText += "Failed to create the string database.";
-                                break;
-                            case Project::CreationResult::ProjectDatabaseFailed:
-                                messageText += "Failed to create the project database.";
+                            case Project::CreationResult::ProjectFileCreationFailed:
+                                messageText += "Failed to create the Project file.";
                                 break;
                             case Project::CreationResult::CreatedSuccessfully:
                                 break;

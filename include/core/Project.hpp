@@ -46,13 +46,9 @@ public:
         EmptyPath,
         EmptyName,
         NotADirectory,
-        NonEmptyFolder,
-        PermissionError,
+        NonEmptyDirectory,
         FolderCreationFailed,
-        DataCopyFailed,
-        ConfigurationFailed,
-        StringDatabaseFailed,
-        ProjectDatabaseFailed,
+        ProjectFileCreationFailed,
         CreatedSuccessfully
     };
     
@@ -64,9 +60,14 @@ public:
     /// \param[in] baseLocale the default project locale. Use the language_COUNTRY format, e.g., "en_US", "lt_LT",
     /// etc. If the game is available in multiple languages, the language file corresponding to the base locale will be
     /// the one that defines all strings that need to be translated into other languages.
+    /// \param[in] createDirectories should this function create the dirctory tree that the project expects, or not. If not, only
+    /// the project file will be created
     /// \return new project object that can be used by EditorState or classed deriving from it
-    static CreationResult Create(fs::path newProjectPath, const std::string& projectName, std::function<void(const std::string&)> callback, 
-                                 const std::string& baseLocale = "en_US");
+    static CreationResult Create(const fs::path& newProjectPath, const std::string& projectName, std::function<void(const std::string&)> callback, 
+                                 const std::string& baseLocale = "en_US", bool createDirectories = true);
+    
+    static bool CreateImportedAssetDirectories(const fs::path& path);
+    static bool CreateImportsDirectory(const fs::path& path);
     
     /// Sets the project root to the specified path and automatically deserializes (by calling deserialize()) the project configuration
     /// file from there. This must be a real file system path.
