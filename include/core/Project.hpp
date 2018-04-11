@@ -75,7 +75,8 @@ public:
     /// \param[in] projectName the name of the project
     /// \param[in] companyName the name of your company
     /// \param[in] baseLocale the default locale
-    static bool CreateProjectFile(const fs::path& newProjectPath, const std::string& projectName, const std::string& companyName, const std::string& baseLocale);
+    /// \param[in] version the starting version to use
+    static bool CreateProjectFile(const fs::path& newProjectPath, const std::string& projectName, const std::string& companyName, const std::string& baseLocale, const Version& version = Version(0, 0, 0));
     
     /// Sets the project root to the specified path and automatically deserializes (by calling deserialize()) the project configuration
     /// file from there. This must be a real file system path.

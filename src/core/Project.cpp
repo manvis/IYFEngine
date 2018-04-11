@@ -92,7 +92,7 @@ Project::CreationResult Project::Create(const fs::path& newProjectPath, const st
     return CreationResult::CreatedSuccessfully;
 }
 
-bool Project::CreateProjectFile(const fs::path& path, const std::string& projectName, const std::string& companyName, const std::string& baseLocale) {
+bool Project::CreateProjectFile(const fs::path& path, const std::string& projectName, const std::string& companyName, const std::string& baseLocale, const Version& version) {
     if (path.empty() || projectName.empty() || companyName.empty() || baseLocale.empty()) {
         LOG_E("Couldn't create a new project file. At least one of the provided parameters was empty.");
         return false;
@@ -106,7 +106,7 @@ bool Project::CreateProjectFile(const fs::path& path, const std::string& project
     Project project(path, false);
     project.setGameName(projectName);
     project.setCompanyName(companyName);
-    project.setVersion(Version(0, 0, 0));
+    project.setVersion(version);
     project.setBaseLocale(baseLocale);
     project.setFirstWorldName(con::DefaultWorldFile);
     

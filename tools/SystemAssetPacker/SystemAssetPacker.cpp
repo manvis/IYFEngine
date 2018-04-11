@@ -180,7 +180,7 @@ void SystemAssetPacker::pack() {
         fs::copy_file(archivePath, filesystem->getBaseDirectory() / systemArchiveName, fs::copy_option::overwrite_if_exists);
         
         // Create a project file for the editor, otherwise, it won't start.
-        if (!Project::CreateProjectFile(filesystem->getBaseDirectory(), "IYFEditor", "The IYFEngine Team", "en_US")) {
+        if (!Project::CreateProjectFile(filesystem->getBaseDirectory(), "IYFEditor", "The IYFEngine Team", "en_US", con::EditorVersion)) {
             LOG_E("Failed to create the project file in " << filesystem->getBaseDirectory());
             throw std::runtime_error("Failed to create the project file ");
         }
