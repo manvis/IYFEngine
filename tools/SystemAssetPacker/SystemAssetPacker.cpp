@@ -31,6 +31,7 @@
 #include "core/filesystem/FileSystem.hpp"
 #include "core/filesystem/File.hpp"
 #include "core/Logger.hpp"
+#include "core/Project.hpp"
 #include "core/serialization/VirtualFileSystemSerializer.hpp"
 #include "core/serialization/MemorySerializer.hpp"
 #include "utilities/hashing/Hashing.hpp"
@@ -144,9 +145,8 @@ void SystemAssetPacker::pack() {
     LOG_D("Creating asset data directories for current platform: " << pathToCreate);
     fs::create_directories(pathToCreate);
     
-    for (std::size_t i = 0; i < static_cast<std::size_t>(AssetType::COUNT); ++i) {
-        const fs::path assetTypeSubdir = pathToCreate / con::AssetTypeToPath(static_cast<AssetType>(i));
-        fs::create_directories(assetTypeSubdir);
+    if (!Project::CreateImportedAssetDirectories(pathToCreate)) {
+        throw std::runtime_error("Failed to create imported asset directories");
     }
     
     recursiveExport("raw/system", cm, currentPlatform);
