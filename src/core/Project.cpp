@@ -30,6 +30,7 @@
 #include "core/Constants.hpp"
 #include "core/Logger.hpp"
 #include "utilities/ReadWholeFile.hpp"
+#include "utilities/Regexes.hpp"
 
 #include <fstream>
 
@@ -46,8 +47,10 @@ static const char* GAME_VERSION_MINOR_FIELD_NAME = "game_version_minor";
 static const char* GAME_VERSION_PATCH_FIELD_NAME = "game_version_patch";
 static const char* BASE_LOCALE_FIELD_NAME = "base_locale";
 
-Project::CreationResult Project::Create(const fs::path& newProjectPath, const std::string& projectName, std::function<void(const std::string&)> callback, 
-                                        const std::string& baseLocale, bool createDirectories) {
+Project::CreationResult Project::Create(const fs::path& newProjectPath, const std::string& projectName, const std::string& companyName,
+                                        std::function<void(const std::string&)> callback, const std::string& baseLocale) {
+    callback("Validating parameters");
+    
     if (newProjectPath.empty()) {
         return CreationResult::EmptyPath;
     }
@@ -64,30 +67,54 @@ Project::CreationResult Project::Create(const fs::path& newProjectPath, const st
     const fs::path finalPath = newProjectPath / projectName;
     const bool finalPathExists = fs::exists(finalPath);
     
+    callback("Looking for existing directories");
+    
     if (finalPathExists && !fs::is_empty(finalPath)) {
         return CreationResult::NonEmptyDirectory;
     } else if (!finalPathExists) {
         fs::create_directories(finalPath);
     }
     
-    if (createDirectories) {
-        if (!CreateImportedAssetDirectories(finalPath) || !CreateImportsDirectory(finalPath)) {
-            return CreationResult::FolderCreationFailed;
-        }
+    callback("Creating new directories");
+    
+    if (!CreateImportedAssetDirectories(finalPath) || !CreateImportsDirectory(finalPath)) {
+        return CreationResult::FolderCreationFailed;
     }
     
-    Project project(finalPath);
+    callback("Creating the project file");
+    
+    if (!CreateProjectFile(finalPath, projectName, companyName, baseLocale)) {
+        return CreationResult::ProjectFileCreationFailed;
+    }
+    
+    callback("Done");
+    
+    return CreationResult::CreatedSuccessfully;
+}
+
+bool Project::CreateProjectFile(const fs::path& path, const std::string& projectName, const std::string& companyName, const std::string& baseLocale) {
+    if (path.empty() || projectName.empty() || companyName.empty() || baseLocale.empty()) {
+        LOG_E("Couldn't create a new project file. At least one of the provided parameters was empty.");
+        return false;
+    }
+    
+    if (!std::regex_match(baseLocale, regex::LocaleValidationRegex)) {
+        LOG_E("Couldn't create a new project file. The base locale did not match the regex.");
+        return false;
+    }
+    
+    Project project(path);
     project.setGameName(projectName);
-    project.setCompanyName("Your Company");
-    project.setVersion(Version(0, 1, 0));
+    project.setCompanyName(companyName);
+    project.setVersion(Version(0, 0, 0));
     project.setBaseLocale(baseLocale);
     project.setFirstWorldName(con::DefaultWorldFile);
     
     if (!project.serialize()) {
-        return CreationResult::ProjectFileCreationFailed;
+        return false;
+    } else {
+        return true;
     }
-    
-    return CreationResult::CreatedSuccessfully;
 }
 
 bool Project::CreateImportedAssetDirectories(const fs::path& path) {

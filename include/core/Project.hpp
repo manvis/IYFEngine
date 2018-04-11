@@ -57,17 +57,25 @@ public:
     ///
     /// \param[in] newProjectPath this is the directory where the project folder will be created
     /// \param[in] projectName this is the name of the project and the folder that will be created in the newProjectPath
-    /// \param[in] baseLocale the default project locale. Use the language_COUNTRY format, e.g., "en_US", "lt_LT",
+    /// \param[in] companyName the name of your company
+    /// \param[in] baseLocale the default locale. Use the language_TERRITORY format, e.g., "en_US", "lt_LT",
     /// etc. If the game is available in multiple languages, the language file corresponding to the base locale will be
     /// the one that defines all strings that need to be translated into other languages.
-    /// \param[in] createDirectories should this function create the dirctory tree that the project expects, or not. If not, only
-    /// the project file will be created
     /// \return new project object that can be used by EditorState or classed deriving from it
-    static CreationResult Create(const fs::path& newProjectPath, const std::string& projectName, std::function<void(const std::string&)> callback, 
-                                 const std::string& baseLocale = "en_US", bool createDirectories = true);
+    static CreationResult Create(const fs::path& newProjectPath, const std::string& projectName, const std::string& companyName, 
+                                 std::function<void(const std::string&)> callback, const std::string& baseLocale);
     
     static bool CreateImportedAssetDirectories(const fs::path& path);
     static bool CreateImportsDirectory(const fs::path& path);
+    
+    /// Creates and serializes a new Project file with some default values set.
+    /// 
+    /// \param[in] newProjectPath A real filesystem path to the directory where the project file will be created. Unlike Create(), this will not append
+    /// the projectName to the provided path
+    /// \param[in] projectName the name of the project
+    /// \param[in] companyName the name of your company
+    /// \param[in] baseLocale the default locale
+    static bool CreateProjectFile(const fs::path& newProjectPath, const std::string& projectName, const std::string& companyName, const std::string& baseLocale);
     
     /// Sets the project root to the specified path and automatically deserializes (by calling deserialize()) the project configuration
     /// file from there. This must be a real file system path.

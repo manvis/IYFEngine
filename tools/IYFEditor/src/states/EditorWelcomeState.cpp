@@ -378,7 +378,7 @@ void EditorWelcomeState::frame(float delta) {
             
             std::function<void(const std::string&)> callbackFunc = std::bind(&EditorWelcomeState::updateCreationProgress, this, std::placeholders::_1);
             projectCreationFuture = std::async(std::launch::async, [this, callbackFunc]() {
-                return Project::Create(std::string(pathBuffer.data()), std::string(nameBuffer.data()), callbackFunc);
+                return Project::Create(std::string(pathBuffer.data()), std::string(nameBuffer.data()), "Your Company", callbackFunc, "en_US");
             });
         }
         
