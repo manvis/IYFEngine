@@ -200,7 +200,7 @@ bool Project::deserialize() {
     const auto wholeFile = util::ReadWholeFile(jsonFile);
     
     rj::Document document;
-    document.Parse(wholeFile.first.get(), wholeFile.second - 1);
+    document.Parse(wholeFile.first.get(), wholeFile.second);
     deserializeJSON(document);
     
     return true;
