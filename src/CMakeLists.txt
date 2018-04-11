@@ -131,6 +131,7 @@ sound/SoundAPI.cpp
 #------- utilities folder
 utilities/Compression.cpp
 utilities/stbImpl.cpp
+utilities/ReadWholeFile.cpp
 utilities/Regexes.cpp
 #------- separately stored third party dependencies
 #--------------------- sqlite
