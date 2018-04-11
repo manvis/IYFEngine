@@ -29,7 +29,9 @@
 #include "core/Project.hpp"
 #include "core/Constants.hpp"
 #include "core/Logger.hpp"
-#include "core/filesystem/File.hpp"
+#include "utilities/ReadWholeFile.hpp"
+
+#include <fstream>
 
 // TODO validate the inputs
 namespace iyf {
@@ -65,18 +67,30 @@ bool Project::serialize() const {
     const std::size_t jsonByteCount = sb.GetSize();
     const fs::path finalPath = root / con::ProjectFile;
     
-    File output(finalPath, File::OpenMode::Write);
-    output.writeBytes(jsonString, jsonByteCount);
+    std::ofstream jsonFile(finalPath.string(), std::ios_base::out|std::ios_base::trunc|std::ios_base::binary);
+    
+    if (!jsonFile.is_open()) {
+        LOG_E("Failed to open a project file " << finalPath << " for serialization.");
+        throw std::runtime_error("Failed to open a project file for serialization.");
+    }
+    
+    jsonFile.write(jsonString, jsonByteCount);
 }
 
 bool Project::deserialize() {
     const fs::path finalPath = root / con::ProjectFile;
     
-    File jsonFile(finalPath, File::OpenMode::Read);
-    const auto wholeFile = jsonFile.readWholeFile();
+    std::ifstream jsonFile(finalPath.string(), std::ios_base::in|std::ios_base::binary);
+    
+    if (!jsonFile.is_open()) {
+        LOG_E("Failed to open a project file " << finalPath << " for deserialization.");
+        throw std::runtime_error("Failed to open a project file for deserialization.");
+    }
+    
+    const auto wholeFile = util::ReadWholeFile(jsonFile);
     
     rj::Document document;
-    document.Parse(wholeFile.first.get(), wholeFile.second);
+    document.Parse(wholeFile.first.get(), wholeFile.second - 1);
     deserializeJSON(document);
 }
 
