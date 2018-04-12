@@ -33,6 +33,7 @@
 #include "assetImport/TextureConverter.hpp"
 #include "assetImport/FontConverter.hpp"
 #include "assetImport/ShaderConverter.hpp"
+#include "assetImport/LocalizationStringConverter.hpp"
 
 #include <algorithm>
 #include <variant>
@@ -80,6 +81,7 @@ const std::unordered_map<std::string, AssetType> ConverterManager::ExtensionToTy
     {".geom", AssetType::Shader},
     {".frag", AssetType::Shader},
     {".comp", AssetType::Shader},
+    {".csv", AssetType::Strings},
 };
 
 ConverterManager::ConverterManager(const FileSystem* fileSystem, fs::path assetDestination) : fileSystem(fileSystem), assetDestination(assetDestination) {
@@ -87,6 +89,7 @@ ConverterManager::ConverterManager(const FileSystem* fileSystem, fs::path assetD
     typeToConverter[AssetType::Texture] = std::make_unique<TextureConverter>(this);
     typeToConverter[AssetType::Font] = std::make_unique<FontConverter>(this);
     typeToConverter[AssetType::Shader] = std::make_unique<ShaderConverter>(this);
+    typeToConverter[AssetType::Strings] = std::make_unique<LocalizationStringConverter>(this);
 }
 
 ConverterManager::~ConverterManager() {}

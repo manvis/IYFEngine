@@ -23,6 +23,7 @@ add_library(IYFTools STATIC
     states/EditorWelcomeState.cpp
     assetImport/ConverterState.cpp
     assetImport/Converter.cpp
+    assetImport/LocalizationStringConverter.cpp
     assetImport/MeshConverter.cpp
     assetImport/ShaderConverter.cpp
     assetImport/TextureConverter.cpp
