@@ -37,6 +37,7 @@
 #include "TestBase.hpp"
 #include "FileMonitorTests.hpp"
 #include "MemorySerializerTests.hpp"
+#include "CSVParserTests.hpp"
 //#include "did/InitState.h"
 
 // If true, some tests will output additional debug data
@@ -98,7 +99,8 @@ int main(int, char*[]) {
 //     //gameEngine.changeState(GameInitState::instance());
     
 //     ADD_TESTS(FileMonitorTests)
-    ADD_TESTS(MemorySerializerTests)
+//     ADD_TESTS(MemorySerializerTests)
+    ADD_TESTS(CSVParserTests)
     
     runner.runTests();
     

@@ -119,6 +119,7 @@ graphics/vulkan/VulkanAPI.cpp
 graphics/vulkan/VulkanDebug.cpp
 graphics/vulkan/VulkanInitializationAndSwapchain.cpp
 #------- localization directory
+localization/LocalizationCSVParser.cpp
 localization/TextLocalization.cpp
 #--------------------- miniz library
 miniz/miniz.c
