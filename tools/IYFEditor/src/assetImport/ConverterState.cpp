@@ -206,4 +206,23 @@ void ShaderConverterState::deserializeJSONImpl(JSONObject& jo, std::uint64_t ver
     stage = static_cast<ShaderStageFlagBits>(jo[STAGAE_FIELD_NAME].GetUint());
 }
 
+static const char* PRIORITY_FIELD_NAME = "priority";
+
+std::uint64_t LocalizationStringConverterState::getLatestSerializedDataVersion() const {
+    return 1;
+}
+
+void LocalizationStringConverterState::serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const {
+    assert(version == 1);
+    
+    pw.String(PRIORITY_FIELD_NAME);
+    pw.Uint(priority);
+}
+
+void LocalizationStringConverterState::deserializeJSONImpl(JSONObject& jo, std::uint64_t version) {
+    assert(version == 1);
+    
+    priority = jo[PRIORITY_FIELD_NAME].GetUint();
+}
+
 }

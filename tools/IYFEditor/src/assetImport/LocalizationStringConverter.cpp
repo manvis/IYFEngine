@@ -27,10 +27,40 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assetImport/LocalizationStringConverter.hpp"
+#include "core/filesystem/File.hpp"
+#include "core/Logger.hpp"
+#include "localization/LocalizationCSVParser.hpp"
+#include "utilities/Regexes.hpp"
+
+#include <string_view>
 
 namespace iyf::editor {
+class LocalizationConverterInternalState : public InternalConverterState {
+public:
+    LocalizationConverterInternalState(const Converter* converter) : InternalConverterState(converter) {}
+    
+    std::unique_ptr<char[]> data;
+    std::size_t size;
+    
+    std::vector<CSVLine> parsedLines;
+};
+
 std::unique_ptr<ConverterState> LocalizationStringConverter::initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const {
-    return nullptr;
+    std::unique_ptr<LocalizationConverterInternalState> internalState = std::make_unique<LocalizationConverterInternalState>(this);
+    
+    if (!std::regex_match(inPath.filename().string(), regex::LocalizationFileNameValidationRegex)) {
+        LOG_E("The name of the string file did not match the expected format. You need something like \"filename.en_US.csv\"");
+        return nullptr;
+    }
+    
+    File inFile(inPath, File::OpenMode::Read);
+    auto data = inFile.readWholeFile();
+    internalState->data = std::move(data.first);
+    internalState->size = data.second;
+    
+    const hash64_t sourceFileHash = HF(internalState->data.get(), internalState->size);
+    
+    return std::unique_ptr<LocalizationStringConverterState>(new LocalizationStringConverterState(platformID, std::move(internalState), inPath, sourceFileHash));
 }
 
 bool LocalizationStringConverter::convert(ConverterState& state) const {
