@@ -41,6 +41,9 @@ extern const std::regex FunctionAndFileNameRegex;
 extern const std::regex EmailValidationRegex;
 /// Validates locales in POSIX format (e.g., lt_LT, en_US)
 extern const std::regex LocaleValidationRegex;
+/// Validates localization file names. They must start with a name (any symbols), followed by a period, followed by a locale,
+/// followed by the .csv extension, e.g.: name.en_US.csv or šito_daikto_pavadinimas.lt_LT.csv
+extern const std::regex LocalizationFileNameValidationRegex;
 }
 
 #endif // IYF_REGEXES_HPP
