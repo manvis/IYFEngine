@@ -33,7 +33,7 @@
 #include <string_view>
 
 namespace iyf {
-struct CSVLine {
+struct CSVRow {
     std::string_view key;
     std::string_view stringNamespace;
     std::string_view value;
@@ -81,10 +81,14 @@ public:
     /// type in pretty unicode ones.
     /// 4. Check "Save cell content as shown" and uncheck everything else.
     ///
-    /// \todo Check if it everything works with files written by Excel.
+    /// \warning This doesn't work on files exported by excel or Google Docs
     ///
-    /// \return a pair of the result and the number of lines that were parsed successfully
-    std::pair<Result, std::size_t> parse(const char* bytes, std::size_t length, std::vector<CSVLine>& parsedLines) const;
+    /// \todo Either improve this parser, tell people (in the docs) to use LibreOffice or build a custom localization file editor 
+    /// that would save in the right format
+    ///
+    /// \return a pair of the result and a number. If the result is Success, it will be the number of rows that were parsed successfully
+    /// if result reported a failure, you'll obtain the number of the row where the error occurded.
+    std::pair<Result, std::size_t> parse(const char* bytes, std::size_t length, std::vector<CSVRow>& parsedRows) const;
     
     std::string resultToErrorString(Result result) const;
 };

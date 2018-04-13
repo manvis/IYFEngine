@@ -31,12 +31,6 @@
 #include <cassert>
 
 namespace iyf {
-// enum class LineState {
-//     Key,
-//     Namespace,
-//     Value
-// };
-
 inline LocalizationCSVParser::Result extractColumn(const char* bytes, const char* lastByte, std::size_t maxLength, std::size_t& current, std::string_view& view, int columnID) {
     std::size_t count = 0;
     const char* start = bytes + current;
@@ -45,6 +39,12 @@ inline LocalizationCSVParser::Result extractColumn(const char* bytes, const char
         const bool inQuotes = (*start == '\"');
         const char delimiter = inQuotes ? '\"' : '\n';
         
+        // Skip the current quote
+        if (inQuotes) {
+            count++;
+            current++;
+        }
+        
         while ((start + count < lastByte) && (*(start + count) != delimiter)) {
             count++;
             current++;
@@ -52,7 +52,27 @@ inline LocalizationCSVParser::Result extractColumn(const char* bytes, const char
         
         // Move one (or more, if quoted) symbols forward or back 
         if (inQuotes) {
-            //
+            std::size_t currentAppend = 1;
+            if (start + count + 1 < lastByte) {
+                if (*(start + count + 1) == '\n') {
+                    currentAppend += 1;
+                } else if (*(start + count + 1) == '\r') {
+                    if ((start + count + 2 < lastByte) && (*(start + count + 2) == '\n')) {
+                        currentAppend += 2;
+                    } else {
+                        LOG_D("A" << static_cast<std::size_t>(*(start + count + 1)))
+                        return LocalizationCSVParser::Result::UnknownError;
+                    }
+                } else {
+                    LOG_D("B" << static_cast<std::size_t>(*(start + count + 1)))
+                    return LocalizationCSVParser::Result::UnknownError;
+                }
+            }
+            
+            // Skip the delimiting double quotes and newline
+            start++;
+            count--;
+            current += currentAppend;
         } else {
             // Make sure carriage returns (if used in the file) don't end up in the translated string
             if (*(start + count - 1) == '\r') {
@@ -104,52 +124,38 @@ inline LocalizationCSVParser::Result extractColumn(const char* bytes, const char
     return LocalizationCSVParser::Result::Success;
 }
 
-std::pair<LocalizationCSVParser::Result, std::size_t> LocalizationCSVParser::parse(const char* bytes, std::size_t length, std::vector<CSVLine>& parsedLines) const {
+std::pair<LocalizationCSVParser::Result, std::size_t> LocalizationCSVParser::parse(const char* bytes, std::size_t length, std::vector<CSVRow>& parsedRows) const {
     if (bytes == nullptr) {
         LOG_E("The bytes pointer passed to LocalizationCSVParser can't be nullptr");
         return {Result::NullPointer, 0};
     }
     
     std::size_t counter = 0;
-    std::size_t lineNumber = 0;
+    std::size_t rowNumber = 0;
     
     while (counter < length) {
-        CSVLine line;
+        CSVRow row;
         
-        Result result = extractColumn(bytes, bytes + length, 128, counter, line.key, 0);
+        Result result = extractColumn(bytes, bytes + length, 128, counter, row.key, 0);
         if (result != Result::Success) {
-            return {result, lineNumber};
+            return {result, rowNumber};
         }
         
-        result = extractColumn(bytes, bytes + length, 128, counter, line.stringNamespace, 1);
+        result = extractColumn(bytes, bytes + length, 128, counter, row.stringNamespace, 1);
         if (result != Result::Success) {
-            return {result, lineNumber};
+            return {result, rowNumber};
         }
         
-        result = extractColumn(bytes, bytes + length, -1, counter, line.value, 2);
+        result = extractColumn(bytes, bytes + length, -1, counter, row.value, 2);
         if (result != Result::Success) {
-            return {result, lineNumber};
+            return {result, rowNumber};
         }
         
-        parsedLines.push_back(std::move(line));
-        lineNumber++;
+        parsedRows.push_back(std::move(row));
+        rowNumber++;
     }
-//     LineState state = LineState::Key;
-//     std::size_t counter = 0;
-//     for (std::size_t i = 0; i < length; ++i) {
-//         const char byte = bytes[i];
-//         
-//         switch (state) {
-//             case LineState::Key:
-//                 break;
-//             case LineState::Namespace:
-//                 break;
-//             case LineState::Value:
-//                 break;
-//         }
-//     }
     
-    return {Result::Success, lineNumber};
+    return {Result::Success, rowNumber};
 }
 
 std::string LocalizationCSVParser::resultToErrorString(Result result) const {

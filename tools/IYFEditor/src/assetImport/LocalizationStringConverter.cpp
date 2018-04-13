@@ -42,7 +42,7 @@ public:
     std::unique_ptr<char[]> data;
     std::size_t size;
     
-    std::vector<CSVLine> parsedLines;
+    std::vector<CSVRow> parsedRows;
 };
 
 std::unique_ptr<ConverterState> LocalizationStringConverter::initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const {

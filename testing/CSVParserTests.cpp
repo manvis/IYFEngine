@@ -30,7 +30,28 @@
 #include "localization/LocalizationCSVParser.hpp"
 
 namespace iyf::test {
-// These tests check if 
+inline std::string printRows(const std::vector<CSVRow>& rows) {
+    std::stringstream ss;
+            
+    if (!rows.empty()) {
+        std::size_t rowNumber = 0;
+        for (const CSVRow& row : rows) {
+            ss << "\n\t\tROW: " << rowNumber;
+            ss << "\n\t\t\tKey(" << row.key.length() << "): ";
+            ss.write(row.key.data(), row.key.length());
+            ss << "\n\t\t\tNamespace(" << row.stringNamespace.length() << "): ";
+            ss.write(row.stringNamespace.data(), row.stringNamespace.length());
+            ss << "\n\t\t\tText(" << row.value.length() << "): ";
+            ss.write(row.value.data(), row.value.length());
+            rowNumber++;
+        }
+    } else {
+        ss << "\n\t\tNONE";
+    }
+    
+    return ss.str();
+}
+
 CSVParserTests::CSVParserTests(bool verbose) : iyf::test::TestBase(verbose) {}
 CSVParserTests::~CSVParserTests() {}
 
@@ -48,46 +69,35 @@ void CSVParserTests::initialize() {
     CSVs.emplace_back("Key\tTest", LocalizationCSVParser::Result::ColumnMissing);
     
     CSVs.emplace_back("Key\t\tTest\nKey2\t\tTest2\r\nKey3\tNamespace\tTest3", LocalizationCSVParser::Result::Success);
+    
+    CSVs.emplace_back("Key\t\tTest\nKey2\t\t\"Test2\nNewline\"\r\nKey3\tNS\t\"Another\ntime\"\nKey4\tNamespace\tTest4", LocalizationCSVParser::Result::Success);
+    
+    CSVs.emplace_back("Key\t\t\"Te\nst\"", LocalizationCSVParser::Result::Success);
 }
 
 TestResults CSVParserTests::run() {
     const LocalizationCSVParser parser;
     
     for (const auto& CSV : CSVs) {
-        std::vector<CSVLine> lines;
+        std::vector<CSVRow> rows;
         
-        auto result = parser.parse(CSV.csv.c_str(), CSV.csv.length(), lines);
+        auto result = parser.parse(CSV.csv.c_str(), CSV.csv.length(), rows);
         
         if (result.first != CSV.expectedResult) {
             std::stringstream ss;
             ss << "When parsing this CSV string:\n--\n" << CSV.csv << "\n--\n\t";
             ss << "expected the parser to return \"" << parser.resultToErrorString(CSV.expectedResult) << "\", it returned \"" 
-               << parser.resultToErrorString(result.first) << "\"";
+               << parser.resultToErrorString(result.first) << "\" with row count " << result.second;
+            ss << "\n\t\tRows that were parsed successfully: " << printRows(rows);
             
             return TestResults(false, ss.str());
         }
         
         if (isOutputVerbose()) {
-            std::stringstream sl;
-            
-            if (!lines.empty()) {
-                std::size_t lineNumber = 0;
-                for (const CSVLine& line : lines) {
-                    sl << "\n\t\tLINE: " << lineNumber;
-                    sl << "\n\t\t\tKey(" << line.key.length() << "): ";
-                    sl.write(line.key.data(), line.key.length());
-                    sl << "\n\t\t\tNamespace(" << line.stringNamespace.length() << "): ";
-                    sl.write(line.stringNamespace.data(), line.stringNamespace.length());
-                    sl << "\n\t\t\tText(" << line.value.length() << "): ";
-                    sl.write(line.value.data(), line.value.length());
-                    lineNumber++;
-                }
-            } else {
-                sl << "\n\t\tNONE";
-            }
+            std::string printedRows = printRows(rows);
             
             LOG_V("Parsed the following CSV string:\n--\n" << CSV.csv << "\n--\n\tAs expected, the parser returned \""
-                  << parser.resultToErrorString(result.first) << "\"\n\tPARSED LINES: " << sl.str());
+                  << parser.resultToErrorString(result.first) << "\"\n\tPARSED ROWS: " << printedRows);
         }
     }
     
