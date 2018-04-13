@@ -41,6 +41,18 @@ struct CSVLine {
 
 class LocalizationCSVParser {
 public:
+    enum class Result {
+        UnknownError,
+        NullPointer,
+        TooManyBytesInKey,
+        TooManyBytesInNamespace,
+        InvalidCharacterInKey,
+        InvalidCharacterInNamespace,
+        KeyEmpty,
+        ColumnMissing,
+        Success
+    };
+    
     LocalizationCSVParser() {}
     
     /// Parses a preloaded CSV file that contains localized strings. All such files must conform to certain specific rules
@@ -70,7 +82,11 @@ public:
     /// 4. Check "Save cell content as shown" and uncheck everything else.
     ///
     /// \todo Check if it everything works with files written by Excel.
-    bool parse(const char* bytes, std::size_t length, std::vector<CSVLine>& parsedLines) const;
+    ///
+    /// \return a pair of the result and the number of lines that were parsed successfully
+    std::pair<Result, std::size_t> parse(const char* bytes, std::size_t length, std::vector<CSVLine>& parsedLines) const;
+    
+    std::string resultToErrorString(Result result) const;
 };
 
 }

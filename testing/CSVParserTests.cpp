@@ -27,22 +27,75 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CSVParserTests.hpp"
+#include "localization/LocalizationCSVParser.hpp"
 
 namespace iyf::test {
+// These tests check if 
 CSVParserTests::CSVParserTests(bool verbose) : iyf::test::TestBase(verbose) {}
 CSVParserTests::~CSVParserTests() {}
 
 void CSVParserTests::initialize() {
+    CSVs.emplace_back("", LocalizationCSVParser::Result::Success);
     
+    CSVs.emplace_back("\t\tTest1", LocalizationCSVParser::Result::KeyEmpty);
+    CSVs.emplace_back("\tNamespace\tTest", LocalizationCSVParser::Result::KeyEmpty);
+    
+    CSVs.emplace_back("Key\t\tTest", LocalizationCSVParser::Result::Success);
+    
+    CSVs.emplace_back("11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111\tnamespace\ttest", LocalizationCSVParser::Result::Success);
+    CSVs.emplace_back("111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111\tnamespace\ttest", LocalizationCSVParser::Result::TooManyBytesInKey);
+    
+    CSVs.emplace_back("Key\tTest", LocalizationCSVParser::Result::ColumnMissing);
+    
+    CSVs.emplace_back("Key\t\tTest\nKey2\t\tTest2\r\nKey3\tNamespace\tTest3", LocalizationCSVParser::Result::Success);
 }
 
 TestResults CSVParserTests::run() {
+    const LocalizationCSVParser parser;
+    
+    for (const auto& CSV : CSVs) {
+        std::vector<CSVLine> lines;
+        
+        auto result = parser.parse(CSV.csv.c_str(), CSV.csv.length(), lines);
+        
+        if (result.first != CSV.expectedResult) {
+            std::stringstream ss;
+            ss << "When parsing this CSV string:\n--\n" << CSV.csv << "\n--\n\t";
+            ss << "expected the parser to return \"" << parser.resultToErrorString(CSV.expectedResult) << "\", it returned \"" 
+               << parser.resultToErrorString(result.first) << "\"";
+            
+            return TestResults(false, ss.str());
+        }
+        
+        if (isOutputVerbose()) {
+            std::stringstream sl;
+            
+            if (!lines.empty()) {
+                std::size_t lineNumber = 0;
+                for (const CSVLine& line : lines) {
+                    sl << "\n\t\tLINE: " << lineNumber;
+                    sl << "\n\t\t\tKey(" << line.key.length() << "): ";
+                    sl.write(line.key.data(), line.key.length());
+                    sl << "\n\t\t\tNamespace(" << line.stringNamespace.length() << "): ";
+                    sl.write(line.stringNamespace.data(), line.stringNamespace.length());
+                    sl << "\n\t\t\tText(" << line.value.length() << "): ";
+                    sl.write(line.value.data(), line.value.length());
+                    lineNumber++;
+                }
+            } else {
+                sl << "\n\t\tNONE";
+            }
+            
+            LOG_V("Parsed the following CSV string:\n--\n" << CSV.csv << "\n--\n\tAs expected, the parser returned \""
+                  << parser.resultToErrorString(result.first) << "\"\n\tPARSED LINES: " << sl.str());
+        }
+    }
     
     return TestResults(true, "");
 }
 
 void CSVParserTests::cleanup() {
-    
+    CSVs.clear();
 }
 
 }

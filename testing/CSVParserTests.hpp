@@ -30,6 +30,7 @@
 #define IYF_CSV_PARSER_TESTS_HPP
 
 #include "TestBase.hpp"
+#include "localization/LocalizationCSVParser.hpp"
 
 #include <vector>
 #include <string>
@@ -49,7 +50,14 @@ public:
     virtual TestResults run() final override;
     virtual void cleanup() final override;
 private:
-    std::vector<std::string> CSVs;
+    struct ParseTest {
+        ParseTest(std::string csv, LocalizationCSVParser::Result expectedResult) : csv(std::move(csv)), expectedResult(expectedResult) {}
+        
+        std::string csv;
+        LocalizationCSVParser::Result expectedResult;
+    };
+    
+    std::vector<ParseTest> CSVs;
 };
 
 }
