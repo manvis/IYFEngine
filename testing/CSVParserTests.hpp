@@ -50,11 +50,22 @@ public:
     virtual TestResults run() final override;
     virtual void cleanup() final override;
 private:
+    struct ExpectedValues {
+        ExpectedValues(std::string key, std::string stringNamespace, std::string value) 
+            : key(key), stringNamespace(stringNamespace), value(value) {}
+        
+        std::string key;
+        std::string stringNamespace;
+        std::string value;
+    };
+    
     struct ParseTest {
-        ParseTest(std::string csv, LocalizationCSVParser::Result expectedResult) : csv(std::move(csv)), expectedResult(expectedResult) {}
+        ParseTest(std::string csv, LocalizationCSVParser::Result expectedResult) 
+            : csv(std::move(csv)), expectedResult(expectedResult) {}
         
         std::string csv;
         LocalizationCSVParser::Result expectedResult;
+        std::vector<ExpectedValues> expectedValues;
     };
     
     std::vector<ParseTest> CSVs;

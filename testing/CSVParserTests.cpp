@@ -52,10 +52,19 @@ inline std::string printRows(const std::vector<CSVRow>& rows) {
     return ss.str();
 }
 
+inline std::string makeValueMismatchError(const std::string& csv, const std::string& columnName, const std::string_view& expected, const std::string_view& returned, std::size_t lineNumber) {
+    std::stringstream ss;
+    ss << "When parsing line " << lineNumber << " of the following CSV string:\n--\n" << csv << "\n--\n\t";
+    ss << "expected the " << columnName <<" to be " << expected << ", but the parser returned " << returned << " instead.";
+    
+    return ss.str();
+}
+
 CSVParserTests::CSVParserTests(bool verbose) : iyf::test::TestBase(verbose) {}
 CSVParserTests::~CSVParserTests() {}
 
 void CSVParserTests::initialize() {
+    
     CSVs.emplace_back("", LocalizationCSVParser::Result::Success);
     
     CSVs.emplace_back(",,Test1", LocalizationCSVParser::Result::KeyEmpty);
@@ -64,33 +73,86 @@ void CSVParserTests::initialize() {
     CSVs.emplace_back(";Namespace;Test", LocalizationCSVParser::Result::KeyEmpty);
     
     CSVs.emplace_back("Key,,Test", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("Key", "", "Test");
+    
     CSVs.emplace_back("Key;;Test", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("Key", "", "Test");
     
     CSVs.emplace_back("11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111,namespace,test", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111", "namespace", "test");
+    
     CSVs.emplace_back("111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111,namespace,test", LocalizationCSVParser::Result::TooManyBytesInKey);
+    
     CSVs.emplace_back("11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111;namespace;test", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111", "namespace", "test");
+    
     CSVs.emplace_back("111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111;namespace;test", LocalizationCSVParser::Result::TooManyBytesInKey);
     
     CSVs.emplace_back("Key,Test", LocalizationCSVParser::Result::ColumnMissing);
     CSVs.emplace_back("Key;Test", LocalizationCSVParser::Result::ColumnMissing);
     
     CSVs.emplace_back("Key,,Test\nKey2,,Test2\r\nKey3,Namespace,Test3", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("Key", "", "Test");
+    CSVs.back().expectedValues.emplace_back("Key2", "", "Test2");
+    CSVs.back().expectedValues.emplace_back("Key3", "Namespace", "Test3");
+    
     CSVs.emplace_back("Key,,Test\nKey2,,\"Test2\nNewline\"\r\nKey3,NS,\"Another\ntime\"\nKey4,Namespace,Test4", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("Key", "", "Test");
+    CSVs.back().expectedValues.emplace_back("Key2", "", "Test2\nNewline");
+    CSVs.back().expectedValues.emplace_back("Key3", "NS", "Another\ntime");
+    CSVs.back().expectedValues.emplace_back("Key4", "Namespace", "Test4");
+    
     CSVs.emplace_back("Key,,\"Te\nst\"", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("Key", "", "Te\nst");
+    
     CSVs.emplace_back("Key;;Test\nKey2;;Test2\r\nKey3;Namespace;Test3", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("Key", "", "Test");
+    CSVs.back().expectedValues.emplace_back("Key2", "", "Test2");
+    CSVs.back().expectedValues.emplace_back("Key3", "Namespace", "Test3");
+    
     CSVs.emplace_back("Key;;Test\nKey2;;\"Test2\nNewline\"\r\nKey3;NS;\"Another\ntime\"\nKey4;Namespace;Test4", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("Key", "", "Test");
+    CSVs.back().expectedValues.emplace_back("Key2", "", "Test2\nNewline");
+    CSVs.back().expectedValues.emplace_back("Key3", "NS", "Another\ntime");
+    CSVs.back().expectedValues.emplace_back("Key4", "Namespace", "Test4");
+    
     CSVs.emplace_back("Key;;\"Te\nst\"", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("Key", "", "Te\nst");
     
     CSVs.emplace_back("Key;Ultraquotes-:D;\"\"\"\"\"\"\"\"\"\"", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("Key", "Ultraquotes-:D", "\"\"\"\"");
     
     // This was created by Google Sheets. The CSV export there didn't have any settings to adjust.
     CSVs.emplace_back("Key1,,Value1\r\nKey2,namespace,\"Value2;\r\nWith a break\"\r\nKey3,,\"Value3, \"\"With quotes\"\"\"\r\nKey4,namespace,Value4\r\nKey5,,\"Va,lue5\"\r\nKey6,namespace2,Value;6\r\nKey7,namespace2,Value7", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("Key1", "", "Value1");
+    CSVs.back().expectedValues.emplace_back("Key2", "namespace", "Value2;\nWith a break");
+    CSVs.back().expectedValues.emplace_back("Key3", "", "Value3, \"With quotes\"");
+    CSVs.back().expectedValues.emplace_back("Key4", "namespace", "Value4");
+    CSVs.back().expectedValues.emplace_back("Key5", "", "Va,lue5");
+    CSVs.back().expectedValues.emplace_back("Key6", "namespace2", "Value;6");
+    CSVs.back().expectedValues.emplace_back("Key7", "namespace2", "Value7");
     
     // This was created by LibreOffice with default settings (, as a field delimiter and " as a text delimiter)
     CSVs.emplace_back("Key1,,Value1\nKey2,namespace,\"Value2;\nWith a break\"\nKey3,,\"Value3, \"\"With quotes\"\"\"\nKey4,namespace,Value4\nKey5,,\"Va,lue5\"\nKey6,namespace2,Value;6\nKey7,namespace2,Value7\n", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("Key1", "", "Value1");
+    CSVs.back().expectedValues.emplace_back("Key2", "namespace", "Value2;\nWith a break");
+    CSVs.back().expectedValues.emplace_back("Key3", "", "Value3, \"With quotes\"");
+    CSVs.back().expectedValues.emplace_back("Key4", "namespace", "Value4");
+    CSVs.back().expectedValues.emplace_back("Key5", "", "Va,lue5");
+    CSVs.back().expectedValues.emplace_back("Key6", "namespace2", "Value;6");
+    CSVs.back().expectedValues.emplace_back("Key7", "namespace2", "Value7");
     
     // This was created by Excel
     CSVs.emplace_back("Key1;;Value1\r\nKey2;namespace;\"Value2;\nWith a break\"\r\nKey3;;\"Value3, \"\"With quotes\"\"\"\r\nKey4;namespace;Value4\r\nKey5;;Va,lue5\r\nKey6;namespace2;\"Value;6\"\r\nKey7;namespace2;Value7", LocalizationCSVParser::Result::Success);
+    CSVs.back().expectedValues.emplace_back("Key1", "", "Value1");
+    CSVs.back().expectedValues.emplace_back("Key2", "namespace", "Value2;\nWith a break");
+    CSVs.back().expectedValues.emplace_back("Key3", "", "Value3, \"With quotes\"");
+    CSVs.back().expectedValues.emplace_back("Key4", "namespace", "Value4");
+    CSVs.back().expectedValues.emplace_back("Key5", "", "Va,lue5");
+    CSVs.back().expectedValues.emplace_back("Key6", "namespace2", "Value;6");
+    CSVs.back().expectedValues.emplace_back("Key7", "namespace2", "Value7");
+    
+    // CSVs.back().expectedValues.emplace_back("", "", "");
 }
 
 TestResults CSVParserTests::run() {
@@ -109,6 +171,31 @@ TestResults CSVParserTests::run() {
             ss << "\n\t\tRows that were parsed successfully: " << printRows(rows);
             
             return TestResults(false, ss.str());
+        }
+        
+        if (result.second != CSV.expectedValues.size()) {
+            std::stringstream ss;
+            ss << "When parsing this CSV string:\n--\n" << CSV.csv << "\n--\n\t";
+            ss << "expected the parser to return " << CSV.expectedValues.size() << " row(s). It returned " << result.second << " row(s) instead.";
+            ss << "\n\t\tRows that were parsed successfully: " << printRows(rows);
+            
+            return TestResults(false, ss.str());
+        }
+        
+        for (std::size_t i = 0; i < result.second; ++i) {
+            if (rows[i].key != CSV.expectedValues[i].key) {
+                return TestResults(false, makeValueMismatchError(CSV.csv, "key", CSV.expectedValues[i].key, rows[i].key, i));
+            }
+            
+            
+            if (rows[i].stringNamespace != CSV.expectedValues[i].stringNamespace) {
+                return TestResults(false, makeValueMismatchError(CSV.csv, "stringNamespace", CSV.expectedValues[i].stringNamespace, rows[i].stringNamespace, i));
+            }
+            
+            
+            if (rows[i].getValue() != CSV.expectedValues[i].value) {
+                return TestResults(false, makeValueMismatchError(CSV.csv, "value", CSV.expectedValues[i].value, rows[i].getValue(), i));
+            }
         }
         
         if (isOutputVerbose()) {
