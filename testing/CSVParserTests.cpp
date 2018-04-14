@@ -88,6 +88,9 @@ void CSVParserTests::initialize() {
     
     // This was created by LibreOffice with default settings (, as a field delimiter and " as a text delimiter)
     CSVs.emplace_back("Key1,,Value1\nKey2,namespace,\"Value2;\nWith a break\"\nKey3,,\"Value3, \"\"With quotes\"\"\"\nKey4,namespace,Value4\nKey5,,\"Va,lue5\"\nKey6,namespace2,Value;6\nKey7,namespace2,Value7\n", LocalizationCSVParser::Result::Success);
+    
+    // This was created by Excel
+    CSVs.emplace_back("Key1;;Value1\r\nKey2;namespace;\"Value2;\nWith a break\"\r\nKey3;;\"Value3, \"\"With quotes\"\"\"\r\nKey4;namespace;Value4\r\nKey5;;Va,lue5\r\nKey6;namespace2;\"Value;6\"\r\nKey7;namespace2;Value7", LocalizationCSVParser::Result::Success);
 }
 
 TestResults CSVParserTests::run() {
