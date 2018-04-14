@@ -38,6 +38,7 @@ inline std::pair<LocalizationCSVParser::Result, std::variant<std::string_view, s
     std::size_t count = 0;
     const char* start = bytes + current;
     std::size_t quoteCount = 0;
+    std::size_t carriageReturnCount = 0;
     
     if (columnID == 2) {
         const bool inQuotes = (*start == '\"');
@@ -91,6 +92,8 @@ inline std::pair<LocalizationCSVParser::Result, std::variant<std::string_view, s
                     
                     break;
                 }
+            } else if (*(start + count) == '\r') {
+                carriageReturnCount++;
             }
             
             count++;
@@ -133,7 +136,7 @@ inline std::pair<LocalizationCSVParser::Result, std::variant<std::string_view, s
         assert(0);
     }
     
-    if (quoteCount != 0) {
+    if (quoteCount != 0 || carriageReturnCount != 0) {
         assert(columnID == 2);
         
         const std::string_view tempView(start, count);
@@ -146,6 +149,9 @@ inline std::pair<LocalizationCSVParser::Result, std::variant<std::string_view, s
                 // Quotes eat each other and only one remains
                 finalString += '\"';
                 i++;
+                continue;
+            } else if (tempView[i] == '\r') {
+                // Skip carriage returns. We only use \n to indicate newlines
                 continue;
             } else {
                 finalString += tempView[i];
