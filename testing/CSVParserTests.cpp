@@ -41,8 +41,8 @@ inline std::string printRows(const std::vector<CSVRow>& rows) {
             ss.write(row.key.data(), row.key.length());
             ss << "\n\t\t\tNamespace(" << row.stringNamespace.length() << "): ";
             ss.write(row.stringNamespace.data(), row.stringNamespace.length());
-            ss << "\n\t\t\tText(" << row.value.length() << "): ";
-            ss.write(row.value.data(), row.value.length());
+            ss << "\n\t\t\tText(" << row.getValue().length() << "): ";
+            ss.write(row.getValue().data(), row.getValue().length());
             rowNumber++;
         }
     } else {
@@ -58,21 +58,36 @@ CSVParserTests::~CSVParserTests() {}
 void CSVParserTests::initialize() {
     CSVs.emplace_back("", LocalizationCSVParser::Result::Success);
     
-    CSVs.emplace_back("\t\tTest1", LocalizationCSVParser::Result::KeyEmpty);
-    CSVs.emplace_back("\tNamespace\tTest", LocalizationCSVParser::Result::KeyEmpty);
+    CSVs.emplace_back(",,Test1", LocalizationCSVParser::Result::KeyEmpty);
+    CSVs.emplace_back(",Namespace,Test", LocalizationCSVParser::Result::KeyEmpty);
+    CSVs.emplace_back(";;Test1", LocalizationCSVParser::Result::KeyEmpty);
+    CSVs.emplace_back(";Namespace;Test", LocalizationCSVParser::Result::KeyEmpty);
     
-    CSVs.emplace_back("Key\t\tTest", LocalizationCSVParser::Result::Success);
+    CSVs.emplace_back("Key,,Test", LocalizationCSVParser::Result::Success);
+    CSVs.emplace_back("Key;;Test", LocalizationCSVParser::Result::Success);
     
-    CSVs.emplace_back("11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111\tnamespace\ttest", LocalizationCSVParser::Result::Success);
-    CSVs.emplace_back("111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111\tnamespace\ttest", LocalizationCSVParser::Result::TooManyBytesInKey);
+    CSVs.emplace_back("11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111,namespace,test", LocalizationCSVParser::Result::Success);
+    CSVs.emplace_back("111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111,namespace,test", LocalizationCSVParser::Result::TooManyBytesInKey);
+    CSVs.emplace_back("11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111;namespace;test", LocalizationCSVParser::Result::Success);
+    CSVs.emplace_back("111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111;namespace;test", LocalizationCSVParser::Result::TooManyBytesInKey);
     
-    CSVs.emplace_back("Key\tTest", LocalizationCSVParser::Result::ColumnMissing);
+    CSVs.emplace_back("Key,Test", LocalizationCSVParser::Result::ColumnMissing);
+    CSVs.emplace_back("Key;Test", LocalizationCSVParser::Result::ColumnMissing);
     
-    CSVs.emplace_back("Key\t\tTest\nKey2\t\tTest2\r\nKey3\tNamespace\tTest3", LocalizationCSVParser::Result::Success);
+    CSVs.emplace_back("Key,,Test\nKey2,,Test2\r\nKey3,Namespace,Test3", LocalizationCSVParser::Result::Success);
+    CSVs.emplace_back("Key,,Test\nKey2,,\"Test2\nNewline\"\r\nKey3,NS,\"Another\ntime\"\nKey4,Namespace,Test4", LocalizationCSVParser::Result::Success);
+    CSVs.emplace_back("Key,,\"Te\nst\"", LocalizationCSVParser::Result::Success);
+    CSVs.emplace_back("Key;;Test\nKey2;;Test2\r\nKey3;Namespace;Test3", LocalizationCSVParser::Result::Success);
+    CSVs.emplace_back("Key;;Test\nKey2;;\"Test2\nNewline\"\r\nKey3;NS;\"Another\ntime\"\nKey4;Namespace;Test4", LocalizationCSVParser::Result::Success);
+    CSVs.emplace_back("Key;;\"Te\nst\"", LocalizationCSVParser::Result::Success);
     
-    CSVs.emplace_back("Key\t\tTest\nKey2\t\t\"Test2\nNewline\"\r\nKey3\tNS\t\"Another\ntime\"\nKey4\tNamespace\tTest4", LocalizationCSVParser::Result::Success);
+    CSVs.emplace_back("Key;Ultraquotes-:D;\"\"\"\"\"\"\"\"\"\"", LocalizationCSVParser::Result::Success);
     
-    CSVs.emplace_back("Key\t\t\"Te\nst\"", LocalizationCSVParser::Result::Success);
+    // This was created by Google Sheets. The CSV export there didn't have any settings to adjust.
+    CSVs.emplace_back("Key1,,Value1\r\nKey2,namespace,\"Value2;\r\nWith a break\"\r\nKey3,,\"Value3, \"\"With quotes\"\"\"\r\nKey4,namespace,Value4\r\nKey5,,\"Va,lue5\"\r\nKey6,namespace2,Value;6\r\nKey7,namespace2,Value7", LocalizationCSVParser::Result::Success);
+    
+    // This was created by LibreOffice with default settings (, as a field delimiter and " as a text delimiter)
+    CSVs.emplace_back("Key1,,Value1\nKey2,namespace,\"Value2;\nWith a break\"\nKey3,,\"Value3, \"\"With quotes\"\"\"\nKey4,namespace,Value4\nKey5,,\"Va,lue5\"\nKey6,namespace2,Value;6\nKey7,namespace2,Value7\n", LocalizationCSVParser::Result::Success);
 }
 
 TestResults CSVParserTests::run() {

@@ -30,13 +30,25 @@
 #define IYF_LOCALIZATION_CSV_PARSER_HPP
 
 #include <vector>
+#include <variant>
+#include <string>
 #include <string_view>
 
 namespace iyf {
 struct CSVRow {
     std::string_view key;
     std::string_view stringNamespace;
-    std::string_view value;
+    /// Using a variant because it's impossible to escape quotes within the string view
+    std::variant<std::string_view, std::string> value;
+    
+    inline std::string_view getValue() const {
+        if (value.index() == 0) {
+            return std::get<std::string_view>(value);
+        } else {
+            // strings can be implicitly converted to string views
+            return std::get<std::string>(value);
+        }
+    }
 };
 
 class LocalizationCSVParser {
@@ -60,31 +72,24 @@ public:
     ///
     /// 0. Each file must contain 3 columns. The first column is the key, the second is an optional namespace, the third is
     /// the translated string.
-    /// 1. The files must use the UTF-8 encoding.
-    /// 2. The key, namespace and translated string columns must be separated by a tab character.
+    /// 1. The files must use the UTF-8 encoding **WITHOUT A BOM**.
+    /// 2. The key, namespace and translated string columns must be separated by commas (0x2c) or semicolons (0x3b). Semicolons
+    /// are an Excel specific quirk on many locales. They will parse successfully, but commas are preferred.
     /// 3. The length of the key must be between 1 and 128 **bytes**. That is, be careful when using mutibyte UTF-8 characters
     /// (e.g. CJK).
     /// 4. The length of the namespace must be between 0 (since it's optional) and 128 **bytes**.
-    /// 5. The key and the namespace **MUST NOT** conain newlines, tabs or regular ASCII double quotes (").
-    /// 6. The translated string column must be followed by a newline. It indicates the end of the row.
-    /// 7. The translated string may contain tabs or newlines, however, if it does, it must be delimited by double quotes.
-    /// The first double quote goes directly after the tab that separated the namespace from the translated string. The second
-    /// one goes right before the newline that indicates the end of the row.
-    /// 8. The translated string must not contain regular ASCII double quotes ("). Pretty UTF-8 double quotes that are inserted
-    /// automatically (usually) by your spreadsheet software are OK.
-    /// 
-    /// Most of the formatting requirements will be automatically fulfilled by LibreOffice. When saving the csv:
-    ///
-    /// 1. Set the character set to Unicode (UTF-8)
-    /// 2. Set the field delimiter to {Tab}
-    /// 3. Set the text delimiter to double quotes ("). Use regular double quotes provided in the drop-down. Do not manually
-    /// type in pretty unicode ones.
-    /// 4. Check "Save cell content as shown" and uncheck everything else.
-    ///
-    /// \warning This doesn't work on files exported by excel or Google Docs
-    ///
-    /// \todo Either improve this parser, tell people (in the docs) to use LibreOffice or build a custom localization file editor 
-    /// that would save in the right format
+    /// 5. The key and the namespace **MUST NOT** conain newlines (0x0a), carriage returns (0x0d), horizontal tabs (0x09) or double
+    /// quotes (0x22). Likewise, they shouldn't contain commas (0x2c) or semicolons (0x3b) because they will be interpreted as
+    /// column delimiters.
+    /// 6. The translated string column must be followed by a newline (0x0a) or a carriage return and a newline (0x0d 0x0a). 
+    /// Those symbols indicate the end of the row.
+    /// 7. If the translated string contains newlines (0x0a), carriage returns (0x0d), double quotes (0x22) or the delimiters that
+    /// were used to separate the columns of this line (either semicolons (0x3b) or commas (0x2c)), it must be delimited by double
+    /// quotes (0x22). The first double quote goes directly after the separator that separated the namespace from the translated
+    /// string. The second one goes right before the newline (0x0a) or a carriage return and a newline (0x0d 0x0a) that indicate the
+    /// end of the row.
+    /// 8. The translated string may contain double quotes (0x22). However, each double quote chatacter must be immediately followed
+    /// by an another double quote chatacter (0x22), e.g., this is a full line: "Start ""quoted name "" end"
     ///
     /// \return a pair of the result and a number. If the result is Success, it will be the number of rows that were parsed successfully
     /// if result reported a failure, you'll obtain the number of the row where the error occurded.

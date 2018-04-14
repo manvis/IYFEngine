@@ -27,10 +27,12 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assetImport/LocalizationStringConverter.hpp"
+#include "assetImport/ConverterManager.hpp"
 #include "core/filesystem/File.hpp"
 #include "core/Logger.hpp"
 #include "localization/LocalizationCSVParser.hpp"
 #include "utilities/Regexes.hpp"
+#include "utilities/hashing/HashCombine.hpp"
 
 #include <string_view>
 
@@ -41,8 +43,6 @@ public:
     
     std::unique_ptr<char[]> data;
     std::size_t size;
-    
-    std::vector<CSVRow> parsedRows;
 };
 
 std::unique_ptr<ConverterState> LocalizationStringConverter::initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const {
@@ -59,11 +59,79 @@ std::unique_ptr<ConverterState> LocalizationStringConverter::initializeConverter
     internalState->size = data.second;
     
     const hash64_t sourceFileHash = HF(internalState->data.get(), internalState->size);
-    
     return std::unique_ptr<LocalizationStringConverterState>(new LocalizationStringConverterState(platformID, std::move(internalState), inPath, sourceFileHash));
 }
 
 bool LocalizationStringConverter::convert(ConverterState& state) const {
+    LocalizationStringConverterState& locState = dynamic_cast<LocalizationStringConverterState&>(state);
+    LocalizationConverterInternalState* internalState = dynamic_cast<LocalizationConverterInternalState*>(locState.getInternalState());
+    assert(internalState != nullptr);
+    
+    std::vector<CSVRow> rows;
+    
+    const LocalizationCSVParser parser;
+    auto result = parser.parse(internalState->data.get(), internalState->size, rows);
+    
+    if (result.first != LocalizationCSVParser::Result::Success) {
+        LOG_E("Failed to parse a localization string file " << state.getSourceFilePath() << ". Parser reported an error: "
+              << parser.resultToErrorString(result.first));
+        
+        return false;
+    }
+    
+    if (state.isDebugOutputRequested()) {
+        LOG_V("Loaded " << result.second << " strings.");
+    }
+    
+    std::unordered_map<hash32_t, const CSVRow&> strings;
+    
+    for (const CSVRow& row : rows) {
+        hash32_t seed(0);
+        
+        const hash32_t keyHash = HS(row.key.data(), row.key.length());
+        util::HashCombine(seed, keyHash);
+        
+        if (row.stringNamespace.length() != 0) {
+            const hash32_t namespaceHash = HS(row.stringNamespace.data(), row.stringNamespace.length());
+            util::HashCombine(seed, namespaceHash);
+        }
+        
+        auto string = strings.find(seed);
+        if (string != strings.end()) {
+            std::stringstream ss;
+            ss << "The string with key \"" << std::string(row.key) << "\" ";
+            
+            if (row.stringNamespace.length() != 0) {
+                ss << "from namespace \"" << std::string(row.stringNamespace) << "\" ";
+            }
+            
+            if (row.key == string->second.key && row.stringNamespace == string->second.stringNamespace) {
+                ss << "repeats multiple times. Only the last value will be recorded.";
+            } else {
+                ss << "has a hash collision with \"" << std::string(string->second.key) << "\" ";
+                
+                if (string->second.stringNamespace.length() != 0) {
+                    ss << "from namespace \"" << std::string(string->second.stringNamespace) << "\" ";
+                }
+                
+                ss << "adjust the keys or the namespaces.";
+            }
+            
+            LOG_W(ss.str());
+        }
+    }
+    //HS();
+    
+    fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
+    
+    // TODO use the file you build dummy
+//     hash64_t hash = HF(reinterpret_cast<const char*>(internalState->data.get()), internalState->size);
+//     FontMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash());
+//     ImportedAssetData iad(state.getType(), metadata, outputPath);
+//     state.getImportedAssets().push_back(std::move(iad));
+//     
+//     File fw(outputPath, File::OpenMode::Write);
+//     fw.writeBytes(internalState->data.get(), internalState->size);
     return false;
 }
 }
