@@ -43,6 +43,8 @@
 #include "core/filesystem/File.hpp"
 #include "core/filesystem/cppFilesystem.hpp"
 
+#include "utilities/Regexes.hpp"
+
 namespace iyf {
 namespace editor {
 const std::unordered_map<std::string, AssetType> ConverterManager::ExtensionToType = {
@@ -113,8 +115,26 @@ std::unique_ptr<ConverterState> ConverterManager::initializeConverter(const fs::
     return converterState;
 }
 
+fs::path ConverterManager::makeLocaleStringPath(const fs::path& sourcePath, const fs::path& directory, PlatformIdentifier platformID) const {
+    if (!std::regex_match(sourcePath.filename().string(), regex::LocalizationFileNameValidationRegex)) {
+        LOG_E("String files need to match a specific pattern filename.{LOCALE}.csv, where {LOCALE} is en_US, lt_LT, etc.");
+        throw std::runtime_error("Invalid source path format (check log)");
+    }
+    
+    std::string locale = sourcePath.stem().extension().string().substr(1);
+    return getAssetDestinationPath(platformID) / directory / (locale + "." + std::to_string(HS(sourcePath.c_str())));
+}
+
 fs::path ConverterManager::makeFinalPathForAsset(const fs::path& sourcePath, AssetType type, PlatformIdentifier platformID) const {
-    return getAssetDestinationPath(platformID) / con::AssetTypeToPath(type) / std::to_string(HS(sourcePath.c_str()));
+    if (type == AssetType::Strings) {
+        return makeLocaleStringPath(sourcePath, con::AssetTypeToPath(type), platformID);
+    } else {
+        return getAssetDestinationPath(platformID) / con::AssetTypeToPath(type) / std::to_string(HS(sourcePath.c_str()));
+    }
+}
+
+fs::path ConverterManager::makeFinalPathForSystemStrings(const fs::path& sourcePath, PlatformIdentifier platformID) const {
+    return makeLocaleStringPath(sourcePath, con::SystemStringPath, platformID);
 }
 
 fs::path ConverterManager::getRealPath(const fs::path& path) const {

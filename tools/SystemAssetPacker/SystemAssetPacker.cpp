@@ -83,8 +83,11 @@ void SystemAssetPacker::recursiveExport(const fs::path& path, const editor::Conv
                 continue;
             }
             
-            AssetType type = cm.getAssetType(sourcePath);
-            fs::path destinationPath = cm.makeFinalPathForAsset(sourcePath, type, platformID);
+            const AssetType type = cm.getAssetType(sourcePath);
+            
+            // System localization strings require a different path
+            fs::path destinationPath = (type == AssetType::Strings) ? cm.makeFinalPathForSystemStrings(sourcePath, platformID)
+                                                                    : cm.makeFinalPathForAsset(sourcePath, type, platformID);
             
             LOG_V("IMPORTING FILE: " << sourcePath <<
                   "\n\t\tHash: " << HS(sourcePath.generic_string()) <<
@@ -101,6 +104,10 @@ void SystemAssetPacker::recursiveExport(const fs::path& path, const editor::Conv
                 throw std::runtime_error("Failed to initialize the ConversionSettings for a system asset (Check log)");
             }
             
+            if (converterState->getType() == AssetType::Strings) {
+                editor::LocalizationStringConverterState* lcs = dynamic_cast<editor::LocalizationStringConverterState*>(converterState.get());
+                lcs->systemTranslations = true;
+            }
 //             if (converterState->getType() == AssetType::Texture) {
 //                 LOG_V("Requesting debug output of textures");
 //                 converterState->setDebugOutputRequested(true);

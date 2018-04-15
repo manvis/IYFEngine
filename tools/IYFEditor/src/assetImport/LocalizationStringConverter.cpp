@@ -83,7 +83,7 @@ bool LocalizationStringConverter::convert(ConverterState& state) const {
         LOG_V("Loaded " << result.second << " strings.");
     }
     
-    std::unordered_map<hash32_t, const CSVRow&> strings;
+    std::unordered_map<hash32_t, CSVRow> strings;
     
     for (const CSVRow& row : rows) {
         hash32_t seed(0);
@@ -99,7 +99,7 @@ bool LocalizationStringConverter::convert(ConverterState& state) const {
         auto string = strings.find(seed);
         if (string != strings.end()) {
             std::stringstream ss;
-            ss << "The string with key \"" << std::string(row.key) << "\" ";
+            ss << "The string key \"" << std::string(row.key) << "\" ";
             
             if (row.stringNamespace.length() != 0) {
                 ss << "from namespace \"" << std::string(row.stringNamespace) << "\" ";
@@ -118,13 +118,18 @@ bool LocalizationStringConverter::convert(ConverterState& state) const {
             }
             
             LOG_W(ss.str());
+        } else {
+            strings[seed] = row;
         }
     }
-    //HS();
     
-    fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
+    for (const auto& string : strings) {
+        string.first;
+    }
     
-    // TODO use the file you build dummy
+    const fs::path outputPath = locState.systemTranslations ? manager->makeFinalPathForSystemStrings(state.getSourceFilePath(), state.getPlatformIdentifier())
+                                                            : manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
+    
 //     hash64_t hash = HF(reinterpret_cast<const char*>(internalState->data.get()), internalState->size);
 //     FontMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash());
 //     ImportedAssetData iad(state.getType(), metadata, outputPath);

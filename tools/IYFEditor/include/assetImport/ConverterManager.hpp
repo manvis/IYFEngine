@@ -66,6 +66,9 @@ public:
     /// \param type the type of the asset that's being imported. Can be determined by calling getAssetType() with the same sourcePath
     fs::path makeFinalPathForAsset(const fs::path& sourcePath, AssetType type, PlatformIdentifier platformID) const;
     
+    /// System localization strings need a slightly different path.
+    fs::path makeFinalPathForSystemStrings(const fs::path& sourcePath, PlatformIdentifier platformID) const;
+    
     /// Turns the sourcePath into an import settings path. Since source files and importer settings files exist side by side, this function
     /// simply replaces the current extension with an appropriate one.
     fs::path makeImporterSettingsFilePath(const fs::path& sourcePath) const;
@@ -99,6 +102,8 @@ public:
     /// \return If any previous settings existed or not.
     bool deserializeSettings(ConverterState& state) const;
 protected:
+    fs::path makeLocaleStringPath(const fs::path& sourcePath, const fs::path& directory, PlatformIdentifier platformID) const;
+    
     static const std::unordered_map<std::string, AssetType> ExtensionToType;
     std::unordered_map<AssetType, std::unique_ptr<Converter>> typeToConverter;
     

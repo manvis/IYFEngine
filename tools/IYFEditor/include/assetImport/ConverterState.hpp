@@ -270,6 +270,12 @@ class LocalizationStringConverterState : public ConverterState {
 public:
     std::int32_t priority;
     
+    /// If this is true, the resulting localization files will be stored in a special directory, designated for system string localizer.
+    /// Check LOC_SYS in TextLocalization.hpp for more info.
+    ///
+    /// \warning Do not expose this value in the editor and do not serialize it
+    bool systemTranslations;
+    
     virtual std::uint64_t getLatestSerializedDataVersion() const final override;
     
     virtual AssetType getType() const final override {
@@ -281,16 +287,13 @@ public:
     }
 private:
     friend class LocalizationStringConverter;
-    /// Used to tag some translations as "system"
-    friend class SystemAssetPacker;
-    
     std::string locale;
     
     virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
     
     LocalizationStringConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, hash64_t sourceFileHash) :
-        ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash), priority(0) {}
+        ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash), priority(0), systemTranslations(false) {}
 };
 
 }
