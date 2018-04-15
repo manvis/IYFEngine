@@ -169,7 +169,7 @@ extern const fs::path FontPath;
 /// Corresponds to AssetType::Audio
 extern const fs::path AudioPath;
 
-///  Location where the Engine expects to find all video files.
+/// Location where the Engine expects to find all video files.
 /// Corresponds to AssetType::Video
 extern const fs::path VideoPath;
 
@@ -189,7 +189,7 @@ extern const fs::path ShaderPath;
 /// Corresponds to AssetType::Pipeline
 extern const fs::path PipelinePath;
 
-/// Location where the Engine expects to find all localization related files (e.g., string database).
+/// Location where the Engine expects to find localized strings for the game.
 /// Corresponds to AssetType::Strings
 extern const fs::path StringPath;
 
@@ -201,6 +201,10 @@ extern const fs::path CustomPath;
 /// Location where the Engine expects to find material deifinitions
 /// Corresponds to AssetType::Material
 extern const fs::path MaterialPath;
+
+/// Location where the Engine expects to find localized strings for the editor, tools
+/// and internal systems
+extern const fs::path SystemStringPath;
 
 // -----------------------------------------------------------------------------
 // Default file extensions 
@@ -262,17 +266,17 @@ extern const std::string DefaultReleasePackName;
 // Asset data mappings
 // -----------------------------------------------------------------------------
 /// \brief Default paths for each AssetType. AssetType::Any and AssetType::COUNT return empty strings they are helper values.
-extern const fs::path& AssetTypeToPath(AssetType type);
+const fs::path& AssetTypeToPath(AssetType type);
 
 /// \brief Default translation strings for each AssetType. Usage: submit these to LOC macro and get the human readable string in current language
-extern const std::string& AssetTypeToTranslationString(AssetType type);
+const std::string& AssetTypeToTranslationString(AssetType type);
 
 // -----------------------------------------------------------------------------
 // Compressed texture data
 // -----------------------------------------------------------------------------
 
 /// \return the size of a mipmap level in bytes or 0 if TextureCompressionFormat::NotCompressed is provided
-extern std::size_t CompressedTextureMipmapLevelSize(TextureCompressionFormat format, std::size_t width, std::size_t height);
+std::size_t CompressedTextureMipmapLevelSize(TextureCompressionFormat format, std::size_t width, std::size_t height);
 
 // -----------------------------------------------------------------------------
 // Editor and DB specific constants. DO NOT EDIT
