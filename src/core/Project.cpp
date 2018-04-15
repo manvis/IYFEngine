@@ -129,6 +129,13 @@ bool Project::CreateImportedAssetDirectories(const fs::path& path) {
         }
     }
     
+    boost::system::error_code ec;
+    fs::create_directories(path / con::SystemStringPath, ec);
+    
+    if (ec) {
+        return false;
+    }
+    
     return true;
 }
 

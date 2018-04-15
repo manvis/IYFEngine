@@ -49,7 +49,7 @@ const fs::path PipelinePath = AssetPath / u8"pipelines";
 const fs::path StringPath = AssetPath / u8"strings";
 const fs::path CustomPath = AssetPath / u8"custom";
 const fs::path MaterialPath = AssetPath / u8"materials";
-const fs::path SystemStringPath = u8"systemStrings";
+const fs::path SystemStringPath = AssetPath / u8"systemStrings";
 
 const std::string AnimationFormatExtension = u8".iyfa";
 const std::string MeshFormatExtension = u8".iyfm";
