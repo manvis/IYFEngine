@@ -279,7 +279,7 @@ public:
     virtual std::uint64_t getLatestSerializedDataVersion() const final override;
     
     virtual AssetType getType() const final override {
-        return AssetType::Shader;
+        return AssetType::Strings;
     }
     
     const std::string& getLocale() const {

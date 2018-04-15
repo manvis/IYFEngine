@@ -111,6 +111,8 @@ std::unique_ptr<ConverterState> ConverterManager::initializeConverter(const fs::
         return nullptr;
     }
     
+    assert(type == converterState->getType());
+    
     deserializeSettings(*converterState);
     return converterState;
 }
