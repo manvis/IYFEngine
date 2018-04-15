@@ -94,8 +94,6 @@ void SystemAssetPacker::recursiveExport(const fs::path& path, const editor::Conv
                   "\n\t\tType: " << con::AssetTypeToTranslationString(type) <<
                   "\n\t\tDestination: " << destinationPath);
             
-            assert(destinationPath.stem() == std::to_string(HS(sourcePath.generic_string())));
-            
             std::vector<editor::ImportedAssetData> iad;
             std::unique_ptr<editor::ConverterState> converterState = cm.initializeConverter(sourcePath, platformID);
             
