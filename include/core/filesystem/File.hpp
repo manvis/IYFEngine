@@ -270,7 +270,7 @@ public:
     /// \remark This method never writes the null terminators to the file.
     ///
     /// \return Number of bytes that were written. Should be equal to StringLengthIndicator length + the length of the string.
-    std::int64_t writeString(std::string_view stringView, StringLengthIndicator indicator = StringLengthIndicator::None);
+    std::int64_t writeString(const std::string_view& stringView, StringLengthIndicator indicator = StringLengthIndicator::None);
     
     /// Writes a char array with an optional length indicator prefix.
     ///

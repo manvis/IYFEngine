@@ -125,7 +125,7 @@ std::int64_t File::writeString(const std::string& string, StringLengthIndicator 
     return writeString(string.data(), string.length(), indicator);
 }
 
-std::int64_t File::writeString(std::string_view stringView, StringLengthIndicator indicator) {
+std::int64_t File::writeString(const std::string_view& stringView, StringLengthIndicator indicator) {
     return writeString(stringView.data(), stringView.length(), indicator);
 }
 
