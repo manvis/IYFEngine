@@ -257,12 +257,27 @@ public:
     std::pair<std::unique_ptr<char[]>, std::int64_t> readWholeFile();
     
     // File write methods -------------------------------------------------------------------------
+    
     /// Writes a string with an optional length indicator prefix.
     ///
     /// \remark This method never writes the null terminators to the file.
     ///
     /// \return Number of bytes that were written. Should be equal to StringLengthIndicator length + the length of the string.
     std::int64_t writeString(const std::string& string, StringLengthIndicator indicator = StringLengthIndicator::None);
+    
+    /// Writes a string_view with an optional length indicator prefix.
+    ///
+    /// \remark This method never writes the null terminators to the file.
+    ///
+    /// \return Number of bytes that were written. Should be equal to StringLengthIndicator length + the length of the string.
+    std::int64_t writeString(std::string_view stringView, StringLengthIndicator indicator = StringLengthIndicator::None);
+    
+    /// Writes a char array with an optional length indicator prefix.
+    ///
+    /// \remark This method never writes the null terminators to the file and they should not be included in length
+    ///
+    /// \return Number of bytes that were written. Should be equal to StringLengthIndicator length + the length of the string.
+    std::int64_t writeString(const char* string, std::size_t length, StringLengthIndicator indicator = StringLengthIndicator::None);
     
     inline std::int64_t writeBytes(const void* bytes, std::uint64_t count) {
         return PHYSFS_writeBytes(file, bytes, count);
