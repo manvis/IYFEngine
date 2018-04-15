@@ -62,6 +62,8 @@ public:
     // Write methods ----------------------------
     
     virtual std::int64_t writeString(const std::string& string, StringLengthIndicator indicator = StringLengthIndicator::None) = 0;
+    virtual std::int64_t writeString(const std::string_view& stringView, StringLengthIndicator indicator = StringLengthIndicator::None) = 0;
+    virtual std::int64_t writeString(const char* string, std::size_t length, StringLengthIndicator indicator = StringLengthIndicator::None) = 0;
     virtual std::int64_t writeBytes(const void* bytes, std::uint64_t count) = 0;
     virtual bool writeInt8(std::int8_t val) = 0;
     virtual bool writeUInt8(std::uint8_t val) = 0;

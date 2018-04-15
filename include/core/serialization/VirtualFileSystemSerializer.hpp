@@ -82,6 +82,14 @@ public:
         return file.writeString(string, indicator);
     }
     
+    virtual std::int64_t writeString(const std::string_view& stringView, StringLengthIndicator indicator = StringLengthIndicator::None) final override {
+        return file.writeString(stringView, indicator);
+    }
+    
+    virtual std::int64_t writeString(const char* string, std::size_t length, StringLengthIndicator indicator = StringLengthIndicator::None) final override {
+        return file.writeString(string, length, indicator);
+    }
+    
     virtual std::int64_t writeBytes(const void* bytes, std::uint64_t count) final override {
         return file.writeBytes(bytes, count);
     }

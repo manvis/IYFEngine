@@ -54,7 +54,7 @@ void MemorySerializer::reserve(std::size_t newCapacity) {
     }
 }
 
-std::int64_t MemorySerializer::writeString(const std::string& string, StringLengthIndicator indicator) {
+std::int64_t MemorySerializer::writeString(const char* string, std::size_t length, StringLengthIndicator indicator) {
     // This is an almost unchanged copy from File::writeString
     bool result;
     int lengthIncrement;
@@ -65,19 +65,19 @@ std::int64_t MemorySerializer::writeString(const std::string& string, StringLeng
             lengthIncrement = 0;
             break;
         case StringLengthIndicator::UInt8:
-            result = writeUInt8(static_cast<std::uint8_t>(string.length()));
+            result = writeUInt8(static_cast<std::uint8_t>(length));
             lengthIncrement = 1;
             break;
         case StringLengthIndicator::UInt16:
-            result = writeUInt16(static_cast<std::uint16_t>(string.length()));
+            result = writeUInt16(static_cast<std::uint16_t>(length));
             lengthIncrement = 2;
             break;
         case StringLengthIndicator::UInt32:
-            result = writeUInt32(static_cast<std::uint32_t>(string.length()));
+            result = writeUInt32(static_cast<std::uint32_t>(length));
             lengthIncrement = 4;
             break;
         case StringLengthIndicator::UInt64:
-            result = writeUInt64(static_cast<std::uint64_t>(string.length()));
+            result = writeUInt64(static_cast<std::uint64_t>(length));
             lengthIncrement = 8;
             break;
     }
@@ -86,7 +86,15 @@ std::int64_t MemorySerializer::writeString(const std::string& string, StringLeng
         throw SerializerException("Failed to serialize a string length indicator to memory");
     }
     
-    return writeBytes(string.c_str(), sizeof(char) * string.length()) + lengthIncrement;
+    return writeBytes(string, sizeof(char) * length) + lengthIncrement;
+}
+
+std::int64_t MemorySerializer::writeString(const std::string& string, StringLengthIndicator indicator) {
+    return writeString(string.data(), string.length(), indicator);
+}
+
+std::int64_t MemorySerializer::writeString(const std::string_view& stringView, StringLengthIndicator indicator) {
+    return writeString(stringView.data(), stringView.length(), indicator);
 }
 
 std::int64_t MemorySerializer::readString(std::string& string, StringLengthIndicator indicator, std::uint64_t count) {

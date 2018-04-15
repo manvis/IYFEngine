@@ -101,6 +101,8 @@ public:
     // Write methods ----------------------------
     
     virtual std::int64_t writeString(const std::string& string, StringLengthIndicator indicator) final override;
+    virtual std::int64_t writeString(const std::string_view& stringView, StringLengthIndicator indicator = StringLengthIndicator::None) final override;
+    virtual std::int64_t writeString(const char* string, std::size_t length, StringLengthIndicator indicator = StringLengthIndicator::None) final override;
     
     virtual std::int64_t writeBytes(const void* bytes, std::uint64_t count) final override {
         std::size_t newPosition = position + count;
