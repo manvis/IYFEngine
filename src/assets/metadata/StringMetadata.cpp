@@ -30,27 +30,42 @@
 #include <stdexcept>
 
 namespace iyf {
+static const char* PRIORITY_FIELD_NAME = "priority";
+static const char* LOCALE_FIELD_NAME = "locale";
+
 std::uint16_t StringMetadata::getLatestSerializedDataVersion() const {
     return 1;
 }
 
 void StringMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const {
     assert(version == 1);
-    throw std::runtime_error("Method not yet implemented");
+    
+    fw.writeInt32(priority);
+    fw.writeString(locale, StringLengthIndicator::UInt8);
 }
 
 void StringMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
     assert(version == 1);
-    throw std::runtime_error("Method not yet implemented");
+    
+    priority = fr.readInt32();
+    locale.clear();
+    fr.readString(locale, StringLengthIndicator::UInt8);
 }
 
 void StringMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
     assert(version == 1);
-    throw std::runtime_error("Method not yet implemented");
+    
+    pw.String(PRIORITY_FIELD_NAME);
+    pw.Int(priority);
+    
+    pw.String(LOCALE_FIELD_NAME);
+    pw.String(locale.data(), locale.length(), true);
 }
 
 void StringMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
     assert(version == 1);
-    throw std::runtime_error("Method not yet implemented");
+
+    priority = jo[PRIORITY_FIELD_NAME].GetInt();
+    locale = jo[LOCALE_FIELD_NAME].GetString();
 }
 }

@@ -35,15 +35,26 @@ namespace iyf {
 class StringMetadata : public MetadataBase {
 public:
     inline StringMetadata() : MetadataBase(AssetType::Strings) {}
-    inline StringMetadata(hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash)
-        : MetadataBase(AssetType::Strings, fileHash, sourceAsset, sourceFileHash, true) {}
+    inline StringMetadata(hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash, std::string locale, std::int32_t priority)
+        : MetadataBase(AssetType::Strings, fileHash, sourceAsset, sourceFileHash, true), locale(std::move(locale)), priority(priority) {}
     
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
+    
+    const std::string& getLocale() const {
+        return locale;
+    }
+    
+    std::int32_t getPriority() const {
+        return priority;
+    }
 private:
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
     virtual void deserializeImpl(Serializer& fr, std::uint16_t version) final override;
     virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const final override;
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint16_t version) final override;
+    
+    std::string locale;
+    std::int32_t priority;
 };
 }
 
