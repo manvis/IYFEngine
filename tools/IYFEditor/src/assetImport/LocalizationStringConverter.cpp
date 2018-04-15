@@ -30,6 +30,7 @@
 #include "assetImport/ConverterManager.hpp"
 #include "core/filesystem/File.hpp"
 #include "core/Logger.hpp"
+#include "core/serialization/MemorySerializer.hpp"
 #include "localization/LocalizationCSVParser.hpp"
 #include "utilities/Regexes.hpp"
 #include "utilities/hashing/HashCombine.hpp"
@@ -59,7 +60,10 @@ std::unique_ptr<ConverterState> LocalizationStringConverter::initializeConverter
     internalState->size = data.second;
     
     const hash64_t sourceFileHash = HF(internalState->data.get(), internalState->size);
-    return std::unique_ptr<LocalizationStringConverterState>(new LocalizationStringConverterState(platformID, std::move(internalState), inPath, sourceFileHash));
+    auto locState = std::unique_ptr<LocalizationStringConverterState>(new LocalizationStringConverterState(platformID, std::move(internalState), inPath, sourceFileHash));
+    locState->priority = 0;
+    locState->locale = inPath.stem().extension().string().substr(1);
+    return locState;
 }
 
 bool LocalizationStringConverter::convert(ConverterState& state) const {
@@ -123,20 +127,33 @@ bool LocalizationStringConverter::convert(ConverterState& state) const {
         }
     }
     
-    for (const auto& string : strings) {
-        string.first;
-    }
-    
     const fs::path outputPath = locState.systemTranslations ? manager->makeFinalPathForSystemStrings(state.getSourceFilePath(), state.getPlatformIdentifier())
                                                             : manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
     
-//     hash64_t hash = HF(reinterpret_cast<const char*>(internalState->data.get()), internalState->size);
-//     FontMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash());
-//     ImportedAssetData iad(state.getType(), metadata, outputPath);
-//     state.getImportedAssets().push_back(std::move(iad));
-//     
-//     File fw(outputPath, File::OpenMode::Write);
-//     fw.writeBytes(internalState->data.get(), internalState->size);
-    return false;
+    const std::array<char, 4> magicNumber = {'I', 'Y', 'F', 'S'};
+    MemorySerializer ms(4096);
+    
+    ms.writeBytes(magicNumber.data(), magicNumber.size());
+    ms.writeUInt32(1); // File format version
+    ms.writeInt32(locState.priority);
+    
+    for (const auto& string : strings) {
+        ms.writeUInt32(string.first);
+        ms.writeString(string.second.getValue(), StringLengthIndicator::UInt32);
+    }
+    
+    LOG_D("OP: " << outputPath << " " << locState.systemTranslations);
+    
+    const hash64_t hash = HF(ms.data(), ms.size());
+    StringMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), locState.getLocale(), locState.priority);
+    ImportedAssetData iad(state.getType(), metadata, outputPath);
+    state.getImportedAssets().push_back(std::move(iad));
+    
+    LOG_D("OP: " << outputPath << " " << locState.systemTranslations << " " << static_cast<std::size_t>(state.getType()));
+    
+    File file(outputPath, File::OpenMode::Write);
+    file.writeBytes(ms.data(), ms.size());
+    
+    return true;
 }
 }
