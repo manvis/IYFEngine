@@ -51,11 +51,6 @@ namespace iyf {
 /// For performance reasons, the functions of this class are not protected by mutexes, however you can safely call the operator()(hash32_t key, Args ... args)
 /// from multiple threads for as long as you can ensure that other methods are only called from the main thread and all other tasks that require localized strings
 /// have already been completed for that frame.
-///
-/// \todo Retrieval of paginated data for string editor
-/// \todo The functions of this class like to throw exceptions and do not return results. This needs to change because the editor will have to gracefully react and
-/// handle all these cases
-/// \todo test, test, test
 class TextLocalizer {
 public:
     TextLocalizer();
