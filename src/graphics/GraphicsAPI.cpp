@@ -312,7 +312,7 @@ void GraphicsAPI::openWindow() {
 
     std::uint32_t flags = SDL_WINDOW_SHOWN;
     
-    std::string windowName = engine->isEditorMode() ? LOC_SYS(HS("applicationName")) : LOC(HS("applicationName"));
+    std::string windowName = engine->isEditorMode() ? LOC_SYS(LH("gameName")) : LOC(LH("gameName"));
     
     window = SDL_CreateWindow 
         (windowName.c_str(),

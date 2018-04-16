@@ -45,6 +45,7 @@
 #include "core/interfaces/GarbageCollecting.hpp"
 #include "utilities/ChunkedVector.hpp"
 #include "utilities/IntegerPacking.hpp"
+#include "localization/LocalizationHandle.hpp"
 
 namespace iyf {
 /// \todo Is 8192 as good chunk size?
@@ -363,7 +364,7 @@ public:
     /// E.g., GraphicsSystem must return GraphicsComponent::COUNT here.
     virtual std::size_t getSubTypeCount() const = 0;
     
-    inline hash32_t getManagedComponentTypeName() const {
+    inline LH getManagedComponentTypeName() const {
         return con::ComponentBaseTypeNames[static_cast<std::size_t>(getManagedComponentType())];
     }
     

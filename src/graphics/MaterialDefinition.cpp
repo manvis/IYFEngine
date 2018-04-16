@@ -34,12 +34,10 @@
 
 namespace iyf {
 
-const std::array<hash32_t, static_cast<std::size_t>(MaterialRenderMode::COUNT)> MaterialRenderModeNames = {
-    HS("opaqueRenderMode"),      // 0
-    HS("transparentRenderMode"), // 1
+const std::array<LH, static_cast<std::size_t>(MaterialRenderMode::COUNT)> MaterialRenderModeNames = {
+    LH("opaqueRenderMode"),      // 0
+    LH("transparentRenderMode"), // 1
 };
-
-static_assert(sizeof(hash32_t) == 4, "Hash must be a 32 bit value");
 
 void MaterialDefinition::serialize(Serializer& fw) const {
     assert(components.size() <= 255);

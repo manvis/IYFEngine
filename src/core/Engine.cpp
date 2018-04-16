@@ -151,7 +151,7 @@ void Engine::init() {
     // Can't use make_unique because the constructor is private and accessed via a friend declaration.
     inputState = std::unique_ptr<InputState>(new InputState(this, config.get()));
 
-    LOG_D(LOC_SYS(HS("test"), "Alpha", 1));
+    LOG_D(LOC_SYS(LH("test"), "Alpha", 1));
 // TODO joystick management
 //	SDL_GameController *ctrl;
 //	SDL_Joystick *joy;

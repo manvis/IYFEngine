@@ -34,7 +34,9 @@
 #include <vector>
 #include <unordered_map>
 
+#include "utilities/TypeHelpers.hpp"
 #include "utilities/hashing/Hashing.hpp"
+#include "localization/LocalizationHandle.hpp"
 #include "core/Constants.hpp"
 #include "format/format.h"
 
@@ -44,7 +46,6 @@ struct sqlite3;
 struct sqlite3_stmt;
 
 namespace iyf {
-
 /// The TextLocalizer is responsible for managing and updating a database of localization strings.
 /// 
 /// For performance reasons, the functions of this class are not protected by mutexes, however you can safely call the operator()(hash32_t key, Args ... args)
@@ -66,13 +67,13 @@ public:
     /// \param [in] args a variable list of arguments that are passed to the string formatter
     /// \return A localized string
     template<typename ... Args>
-    std::string operator()(hash32_t key, Args ... args) const {
-        auto str = stringMap.find(key);
+    std::string operator()(LocalizationHandle key, Args ... args) const {
+        auto str = stringMap.find(key.getHashValue());
         if (str == stringMap.end()) {
 #ifdef THROW_IF_MISSING
-            throw std::runtime_error("Localized string for hashed key '" + std::to_string(key.value()) + "' not found for locale '" + localeString + "'");
+            throw std::runtime_error("Localized string for hashed key '" + std::to_string(key.getHashValue().value()) + "' not found for locale '" + localeString + "'");
 #else
-            return logAndReturnMissingKey(key);
+            return logAndReturnMissingKey(key.getHashValue());
 #endif
         } else {
             return fmt::format(str->second, args ...);
@@ -163,13 +164,13 @@ TextLocalizer& SystemLocalizer();
 TextLocalizer& GameLocalizer();
 
 template<typename ... Args>
-std::string LOC_SYS(hash32_t handle, Args ... args) {
-    return SystemLocalizer()(handle, args...);
+inline std::string LOC_SYS(LocalizationHandle lh, Args ... args) {
+    return SystemLocalizer()(lh, args...);
 }
 
 template<typename ... Args>
-std::string LOC(hash32_t handle, Args ... args) {
-    return GameLocalizer()(handle, args...);
+inline std::string LOC(LocalizationHandle lh, Args ... args) {
+    return GameLocalizer()(lh, args...);
 }
 
 }

@@ -26,28 +26,40 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "core/ComponentType.hpp"
+#ifndef IYF_LOCALIZATION_HANDLE_HPP
+#define IYF_LOCALIZATION_HANDLE_HPP
 
-namespace iyf::con {
-const std::array<LH, static_cast<std::size_t>(ComponentBaseType::COUNT)> ComponentBaseTypeNames = {
-    LH("graphicsComponentFamily"),
-    LH("physicsComponentFamily"),
+#include "utilities/hashing/HashCombine.hpp"
+
+namespace iyf {
+class LocalizationHandle {
+public:
+    explicit inline LocalizationHandle(const char* key) : LocalizationHandle(key, "") {}
+    explicit inline LocalizationHandle(const char* key, const char* strNamespace) {
+        hash32_t seed(0);
+        
+        const hash32_t keyHash = HS(key);
+        util::HashCombine(seed, keyHash);
+        
+        std::size_t namespaceStringLength = std::strlen(strNamespace);
+        if (namespaceStringLength != 0) {
+            const hash32_t namespaceHash = HS(strNamespace, namespaceStringLength);
+            util::HashCombine(seed, namespaceHash);
+        }
+        
+        handle = seed;
+    }
+    
+    explicit inline constexpr LocalizationHandle(hash32_t handle) : handle(handle) {}
+    
+    inline constexpr hash32_t getHashValue() const {
+        return handle;
+    }
+private:
+    hash32_t handle;
 };
 
-const std::array<std::vector<LH>, static_cast<std::size_t>(ComponentBaseType::COUNT)> ComponentNames = {
-    // ComponentBaseType::Graphics
-    {
-    {LH("meshComponent"),             // GraphicsComponent::Mesh
-     LH("skeletalMeshComponent"),     // GraphicsComponent::SkeletalMesh
-     LH("directionalLightComponent"), // GraphicsComponent::DirectionalLight
-     LH("pointLightComponent"),       // GraphicsComponent::PointLight
-     LH("spotLightComponent"),        // GraphicsComponent::SpotLight
-     LH("particleSystemComponent"),   // GraphicsComponent::ParticleSystem
-     LH("cameraComponent"),           // GraphicsComponent::Camera
-    },// ComponentBaseType::Physics
-    {LH("colliderComponent"), // PhysicsComponent::CollisionShape
-    },
-    },
-};
-
+using LH = LocalizationHandle;
 }
+
+#endif // IYF_LOCALIZATION_HANDLE_HPP
