@@ -205,11 +205,24 @@ std::pair<std::unique_ptr<char[]>, std::int64_t> File::readWholeFile() {
     return {std::move(buffer), size};
 }
 
+bool File::close() {
+    bool result = PHYSFS_close(file);
+    
+    if (result) {
+        isOpen = false;
+        file = nullptr;
+    } else {
+        LOG_E("Failed to close a file: " << path); 
+    }
+    
+    return result;
+}
+
 File::~File() {
     if (isOpen) {
         int result = PHYSFS_close(file);
         if (result == 0) {
-            
+            LOG_E("Error when closing a file");
         }
     }
 }

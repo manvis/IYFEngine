@@ -74,12 +74,30 @@ public:
     
     ~File();
     
+    File(File&& other) : file(other.file), path(std::move(other.path)), openMode(other.openMode), isOpen(other.isOpen) {
+        other.file = nullptr;
+        other.isOpen = false;
+    }
+    
+    File& operator =(File&& other) {
+        if (this != &other) {
+            close();
+            
+            file = other.file;
+            path = std::move(other.path);
+            isOpen = other.isOpen;
+            openMode = other.openMode;
+            
+            other.file = nullptr;
+            other.isOpen = false;
+        }
+        
+        return *this;
+    }
+    
     /// Closes the file. Normallly, the destructor takes care of that. Closing the file and performing any other operations on it
     /// invokes undefined behaviour
-    inline bool close() {
-        isOpen = false;
-        return PHYSFS_close(file);
-    }
+    bool close();
     
     /// \todo Quite a few engine functions read or write many small values and may benefit from buffered I/O.
     /// Asses the performance impact and start using this function where appropriate.
