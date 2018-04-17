@@ -136,6 +136,7 @@ bool LocalizationStringConverter::convert(ConverterState& state) const {
     ms.writeBytes(magicNumber.data(), magicNumber.size());
     ms.writeUInt32(1); // File format version
     ms.writeInt32(locState.priority);
+    ms.writeUInt32(strings.size());
     
     for (const auto& string : strings) {
         ms.writeUInt32(string.first);
