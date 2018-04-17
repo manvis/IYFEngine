@@ -222,7 +222,7 @@ File::~File() {
     if (isOpen) {
         int result = PHYSFS_close(file);
         if (result == 0) {
-            LOG_E("Error when closing a file");
+            LOG_E("Error when closing a PHYSFS file. Path: " << path);
         }
     }
 }
