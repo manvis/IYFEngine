@@ -33,6 +33,8 @@
 #include <stdexcept>
 #include <vector>
 #include <unordered_map>
+#include <atomic>
+#include <mutex>
 
 #include "utilities/TypeHelpers.hpp"
 #include "utilities/hashing/Hashing.hpp"
@@ -46,6 +48,8 @@ struct sqlite3;
 struct sqlite3_stmt;
 
 namespace iyf {
+class FileSystem;
+
 /// The TextLocalizer is responsible for managing and updating a database of localization strings.
 /// 
 /// For performance reasons, the functions of this class are not protected by mutexes, however you can safely call the operator()(hash32_t key, Args ... args)
@@ -55,6 +59,59 @@ class TextLocalizer {
 public:
     TextLocalizer();
     ~TextLocalizer();
+    
+    enum class LoadResult {
+        /// Another set of localization strings is being loaded. You should wait for a second (or a few, depending on the number of strings)
+        /// before attempting to load the strings again.
+        AnotherLoadInProgress,
+        /// Another set of localization strings has been loaded, but it's waiting to be swapped in. This will happen before the start of the
+        /// next frame and you'll be able to use the new set of strings then.
+        PendingSwap,
+        /// Everything went smoothly. The new strings will be swapped in before the start of the next frame
+        LoadSuccessful,
+        /// Self explanatory. 
+        NoFilesForLocale,
+        /// This error may have many reasons (check log). Some possibilites: invalid or damaged localization files, failure to access the virtual
+        /// filesystem, OS errors, etc. If you get this, you should either continue with the strings that were loaded for the current locale
+        /// (if any) or abort because it's very unlikely the error will resolve without human intervention.
+        Failure
+    };
+    
+    enum class StringCheckResult {
+        /// Same string value was passed for locales A and B
+        SameLocale,
+        /// A is not a locale (you need something like en_US, lt_LT, etc.)
+        AIsNotALocale,
+        /// B is not a locale (you need something like en_US, lt_LT, etc.)
+        BIsNotALocale,
+        /// Didn't find any string filed for locale A
+        NoFilesForLocaleA,
+        /// Didn't find any string filed for locale B
+        NoFilesForLocaleB,
+        /// Creitical failure when trying to load files for locale A (check log)
+        FailedToLoadLocaleA,
+        /// Creitical failure when trying to load files for locale B (check log)
+        FailedToLoadLocaleB,
+        /// Not all strings had a corresponding value. Check the missingStrings for a full list
+        MissingStringsDetected,
+        /// Check passed successfully
+        NoMissingStrings
+    };
+    
+    enum class MissingFrom : std::uint32_t {
+        LocaleA, LocaleB
+    };
+    
+    struct MissingString {
+        inline MissingString(LH handle, MissingFrom missingFrom) : handle(handle), missingFrom(missingFrom) {}
+        
+        LH handle;
+        MissingFrom missingFrom;
+    };
+    
+    inline const std::string& getLocale() const {
+        return localeString;
+    }
     
     /// Get a localized and formatted string from the string map.
     ///
@@ -75,84 +132,63 @@ public:
         }
     }
     
-    /// Fetches all strings that match the specifed locale into an unordered_map used for quick string lookups. This function will automatically hash all strings that
-    /// are missing hash values or have hashes of an incompatible type (may happen after compile flag changes).
+    /// Fetches strings from all files that match the specifed locale into the tempStringMap.
+    ///
+    /// You should always call this function from a separate thread. It will do its thing and, once done, set the swapPending
+    /// flag to true. Before the start of the next frame, when (hopefully) nothing is doing any string lookups (e.g. from a long
+    /// running separate thread), our friend, the Engine, will call executePendingSwap(). The function will notice the flag and 
+    /// do swap the tempStringMap
+    ///
+    /// I don't like this. This is potentially racy and will cause bugs for someone someday. However, I ABSOLUTELY don't want to
+    /// use a mutex in the string lookup operator. It would get locked many times every frame. That would be both wasteful and
+    /// useless because C++ containers can be safely read from multiple threads.
+    ///
+    /// \todo Look into ways to make this class more thread-safe without introducing big performance penalties
     /// 
-    /// \throws std::runtime_error thrown if the database file wasn't found, the locale is not supported by the database or sqlite fails to perform any of the required database operations.
-    /// 
-    /// \param[in] databasePath path to the string database
-    /// \param[in] locale a locale that will be used after update
-    void loadStringDatabase(const std::string& databasePath, const std::string& locale);
+    /// \param[in] fs A filesystem pointer. Used to obtain a list of localization files that reside in the specified path
+    /// \param[in] localizationFileDirectory A path to the directory (in the virtual filesystem) that stores localized string files
+    /// \param[in] locale A locale that you wish to use
+    /// \param[in] clearIfNone Should the current strings be removed if no strings are found for the requested locale? 
+    /// LoadResult::NoFilesForLocale will be returned regardless.
+    LoadResult loadStringsForLocale(const FileSystem* fs, const fs::path& localizationFileDirectory, const std::string& locale, bool clearIfNone);
     
-    /// Adds or updates a lookup key.
+    /// A debug function that loads and compares the string maps of two locales. It returns a vector that contains the hashes of any missing strings.
     ///
-    /// \param[in] key The key that will be used during localized string lookups.
-    void addLookupKey(const std::string& key);
+    /// \todo Would be nice if this worked for multiple locales simultaneously instead of checking pairs.
+    static StringCheckResult checkForMissingStrings(const FileSystem* fs, const fs::path& localizationFileDirectory, const std::string& localeA, const std::string& localeB, std::vector<MissingString>& missingStrings);
     
-    /// Adds a description to a lookup key if such key exists. Does nothing otherwise.
-    ///
-    /// \param[in] key The key that will be used during localized string lookups.
-    /// \param[in] description A description of the key. Typically used to provided more context to the localization teams. 
-    void setLookupKeyDescription(const std::string& key, const std::string& description);
-    
-    /// Removes a specifed lookup key.
-    ///
-    /// \warning This will clean up all values that depend on this key.
-    void removeLookupKey(const std::string& key);
-    
-    /// Adds or updates a specifed localized string. This will affect both the SQLite database (always) and the string map (if the locale matches the current one).
-    ///
-    /// \param[in] key The key that will be used during localized string lookups. If this key hasn't been used before, it will be added to the database automatically.
-    /// \param[in] value The localized string for the specifed locale.
-    /// \param[in] locale The locale of the value.
-    void addLocalizedString(const std::string& key, const std::string& value, const std::string& locale);
-    
-    void removeLocalizedString(const std::string& key, const std::string& locale);
-    
-    /// Creates a new locale.
-    void addLocale(const std::string& locale);
-    
-    /// Removes a specifed locale.
-    ///
-    /// \throw std::invalid_argument If locale matches the currently active locale.
-    ///
-    /// \warning This will clean up all values that depend on this locale.
-    void removeLocale(const std::string& locale);
-    
-    /// Imports localization strings of the specifed locale from a CSV file
-    /// \warning This method has not been implemented yet and calling it will crash the engine
-    /// \todo implement
-    void importCSV(const std::string& filePath, const std::string& locale);
-    
-    /// Exports localization strings of the specifed locale into a CSV file
-    /// \warning This method has not been implemented yet and calling it will crash the engine
-    /// \todo implement
-    void exportCSV(const std::string& filePath, const std::string& locale);
+    std::string loadResultToErrorString(LoadResult result) const; 
+protected:
+    static LoadResult loadToMap(const FileSystem* fs, const fs::path& localizationFileDirectory, const std::string& locale, std::unordered_map<hash32_t, std::string>& map);
     
     std::string logAndReturnMissingKey(hash32_t hash) const;
-protected:
-    void hashAndUpdate();
-    void initialize();
-    void dispose();
+    
+    friend class Engine;
+    bool executePendingSwap() {
+        if (pendingSwap) {
+            std::lock_guard<std::mutex> lock(mapMutex);
+            
+            stringMap.swap(tempStringMap);
+            localeString.swap(tempLocaleString);
+            
+            tempStringMap.clear();
+            tempLocaleString.clear();
+            
+            pendingSwap = false;
+            
+            return true;
+        }
+        
+        return false;
+    }
 
     std::string localeString;
     std::unordered_map<hash32_t, std::string> stringMap;
-    std::string path;
     
-    sqlite3* db;
-    
-    sqlite3_stmt* selectNotHashedStmt;
-    sqlite3_stmt* updateNotHashedStmt;
-    sqlite3_stmt* selectAllStringsForLocaleStmt;
-    sqlite3_stmt* selectLocaleStmt;
-    sqlite3_stmt* insertLocaleStmt;
-    sqlite3_stmt* deleteLocaleStmt;
-    sqlite3_stmt* selectLookupKeyStmt;
-    sqlite3_stmt* insertLookupKeyStmt;
-    sqlite3_stmt* updateLookupKeyDescriptionStmt;
-    sqlite3_stmt* deleteLookupKeyStmt;
-    sqlite3_stmt* insertLocalizedStringStmt;
-    sqlite3_stmt* deleteLocalizedStringStmt;
+    std::mutex mapMutex;
+    std::atomic<bool> pendingSwap;
+    std::string tempLocaleString;
+    std::unordered_map<hash32_t, std::string> tempStringMap;
 };
 
 TextLocalizer& SystemLocalizer();
