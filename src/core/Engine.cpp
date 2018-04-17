@@ -144,9 +144,16 @@ void Engine::init() {
     LOG_D("Returned value: " << returnedValue);
     config->serialize();
     
-    //DEFAULT LOCALE TO CONFIG
     std::string locale = config->getValue(ConfigurationValueHandle(HS("text_locale"), ConfigurationValueFamily::Localization));
-    SystemLocalizer().loadStringDatabase((con::StringPath / con::LocalizationDatabase).string(), locale);
+    TextLocalizer::LoadResult result = SystemLocalizer().loadStringsForLocale(fileSystem.get(), con::SystemStringPath, locale, false);
+    if (result != TextLocalizer::LoadResult::LoadSuccessful) {
+        LOG_E("Failed to load system strings. Error: " << SystemLocalizer().loadResultToErrorString(result));
+        throw std::runtime_error("Failed to load system strings (check log)");
+    }
+    
+    if (!SystemLocalizer().executePendingSwap()) {
+        throw std::runtime_error("Failed to swap in loaded strings");
+    }
     
     // Can't use make_unique because the constructor is private and accessed via a friend declaration.
     inputState = std::unique_ptr<InputState>(new InputState(this, config.get()));
@@ -314,6 +321,11 @@ void Engine::executeMainLoop() {
         if (stateStack.empty()) {
             LOG_I("No more states in the stack. Quitting.")
             break;
+        }
+        
+        // Swap string maps if the language has changed
+        if (GameLocalizer().executePendingSwap()) {
+            LOG_V("Changed the string locale to: " << GameLocalizer().getLocale());
         }
         
         inputState->pollInput(); //TODO really here?
