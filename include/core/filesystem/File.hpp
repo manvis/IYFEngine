@@ -79,7 +79,7 @@ public:
         other.isOpen = false;
     }
     
-    File& operator =(File&& other) {
+    File& operator=(File&& other) {
         if (this != &other) {
             close();
             
