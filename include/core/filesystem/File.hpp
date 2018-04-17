@@ -39,6 +39,7 @@
 #include "core/filesystem/cppFilesystem.hpp"
 #include "core/exceptions/FileException.hpp"
 #include "core/StringLengthIndicator.hpp"
+#include "utilities/NonCopyable.hpp"
 
 namespace iyf {
 
@@ -51,7 +52,7 @@ namespace iyf {
 /// like in the filesystem library
 ///
 /// \todo Start using size_t here and in serializers (for sizes)
-class File {
+class File : private NonCopyable {
 friend class Engine;
 public:
     enum class OpenMode {
