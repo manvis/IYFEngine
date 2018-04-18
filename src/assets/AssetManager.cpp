@@ -36,12 +36,17 @@
 
 namespace iyf {
 using namespace iyf::literals;
-// TODO localize all the errors and messages
 void TypeManagerBase::logLeakedAsset(std::size_t id, hash32_t nameHash, std::uint32_t count) {
     LOG_W("Asset with id " << id << " loaded from path " << manager->getAssetPath(nameHash) << " still has " << count << " live references. ")
 }
 
-AssetManager::AssetManager(Engine* engine) : engine(engine), isInit(false) { }
+AssetManager::AssetManager(Engine* engine) : engine(engine), isInit(false) {
+    if (std::atomic<std::uint32_t>::is_always_lock_free) {
+        LOG_V("std::uint32_t is lock free on this system");
+    } else {
+        LOG_W("std::uint32_t is NOT lock free on this system");
+    }
+}
 
 AssetManager::~AssetManager() { }
 
