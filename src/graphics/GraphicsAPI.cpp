@@ -42,10 +42,6 @@
 
 #include <glm/glm.hpp>
 
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
-
 namespace iyf {
 
 ConstantMapper<Format, std::string, static_cast<size_t>(Format::COUNT)> formatName = {

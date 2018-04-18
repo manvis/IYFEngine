@@ -223,17 +223,12 @@ elseif (GRAPHICS_BACKEND MATCHES "OpenGL")
     include_directories(${OPENGL_INCLUDE_DIRS})
 endif (GRAPHICS_BACKEND MATCHES "Vulkan")
 
-# TODO load auxiliary meshes from binary engine format and make sure Assimp is only used when building tools
-find_package(Assimp REQUIRED)
-include_directories(${ASSIMP_INCLUDE_DIR})
-
 # Target name IYFEngine
 add_subdirectory(src)
 
 if(BUILD_TOOLS_AND_TESTS)
-    # TODO enable when Assimp is no longer required for auxiliary mesh loading 
-    #find_package(Assimp REQUIRED)
-    #include_directories(${ASSIMP_INCLUDE_DIR})
+    find_package(Assimp REQUIRED)
+    include_directories(${ASSIMP_INCLUDE_DIR})
     include_directories(testing)
     add_subdirectory(tools/IYFEditor/src)
 endif()
