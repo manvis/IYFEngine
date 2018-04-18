@@ -950,10 +950,6 @@ public:
         return window;
     }
     
-    const AuxiliaryMeshData* getAuxiliaryMeshData() const {
-        return &auxiliaryMeshData;
-    }
-    
     RenderPassHnd getWriteToScreenRenderPass() const {
         return writeToScreenPass;
     }
@@ -988,7 +984,6 @@ protected:
     void createHelperMeshesAndObjects();
     void destroyHelperMeshesAndObjectsaryMeshes();
     
-    AuxiliaryMeshData auxiliaryMeshData;
     RenderPassHnd writeToScreenPass;
     RenderPassCreateInfo rpciScreen;
 };

@@ -412,126 +412,7 @@ void GraphicsAPI::printWMInfo() {
 }
 
 void GraphicsAPI::createHelperMeshesAndObjects() {
-    Assimp::Importer importer;
-    const aiScene *scene = importer.ReadFile("data/meshes/auxiliaryMeshes.dae", aiProcessPreset_TargetRealtime_Quality | aiProcess_ConvertToLeftHanded);
-    
-    if (!scene) {
-        throw std::runtime_error(importer.GetErrorString());
-    }
-    
-    std::uint64_t totalVertices = 0;
-    std::uint64_t totalFaces = 0;
-    
-    for (std::uint32_t i = 0; i < scene->mNumMeshes; ++i) {
-        aiMesh* mesh = scene->mMeshes[i];
-        if (!mesh->HasFaces()) {
-            LOG_E("Mesh \"" << scene->mMeshes[i]->mName.C_Str() << "\" lacks faces.");
-            std::runtime_error("Mesh lacks faces");
-        }
-        
-        totalVertices += mesh->mNumVertices;
-        totalFaces += mesh->mNumFaces;
-    }
-    
-    std::vector<float> vertices;
-    std::vector<std::uint32_t> indices;
-    
-    vertices.reserve(totalVertices * 3);
-    indices.reserve(totalFaces * 3);
-    
-    std::uint32_t startingVertex = 0;
-    std::uint32_t startingIndex = 0;
-
-    for (std::uint32_t i = 0; i < scene->mNumMeshes; ++i) {
-        aiMesh* mesh = scene->mMeshes[i];
-        
-        AuxiliaryMesh* mi = nullptr;
-        bool listVerts = false;
-        
-        if (std::strcmp(mesh->mName.C_Str(), "SphereHighRes") == 0) {
-            mi = &auxiliaryMeshData.sphereHighRes;
-        } else if (std::strcmp(mesh->mName.C_Str(), "SphereLowRes") == 0) {
-            mi = &auxiliaryMeshData.sphereLowRes;
-        } else if (std::strcmp(mesh->mName.C_Str(), "Cube") == 0) {
-            mi = &auxiliaryMeshData.cube;
-        } else if (std::strcmp(mesh->mName.C_Str(), "ArrowX") == 0) {
-            mi = &auxiliaryMeshData.arrowX;
-        } else if (std::strcmp(mesh->mName.C_Str(), "ArrowY") == 0) {
-            mi = &auxiliaryMeshData.arrowY;
-        } else if (std::strcmp(mesh->mName.C_Str(), "ArrowZ") == 0) {
-            mi = &auxiliaryMeshData.arrowZ;
-        } else if (std::strcmp(mesh->mName.C_Str(), "FullScreenQuad") == 0) {
-            mi = &auxiliaryMeshData.fullScreenQuad;
-        }
-        
-        if (mi == nullptr) {
-            throw std::runtime_error("Unknown mesh in file.");
-        }
-        //MeshData meshData;
-        //meshData.numVertices = mesh->mNumVertices;
-        //meshData.firstVertex = startingVertex;
-        //meshData.diffuseTexture = rb->createImage(finalPathDiffuse);
-        //meshData.diffuseView = rb->createDefaultImageView(meshData.diffuseTexture);
-        //meshData.normalTexture = rb->createImage(finalPathNormal);
-        //meshData.normalView = rb->createDefaultImageView(meshData.normalTexture);
-        mi->vboOffset = startingVertex;
-        mi->vboCount = mesh->mNumVertices;
-        startingVertex += mesh->mNumVertices;
-
-        //meshData.numIndices = mesh->mNumFaces * 3;
-        //meshData.firstIndex = startingIndex;
-        mi->iboOffset = startingIndex;
-        mi->iboCount = mesh->mNumFaces * 3;
-        startingIndex += mesh->mNumFaces * 3;
-        
-        if (listVerts) {
-            std::cout << "Vertices:\n";
-            for (std::uint32_t j = 0; j < mesh->mNumVertices; ++j) {
-                vertices.push_back(mesh->mVertices[j].x);
-                vertices.push_back(mesh->mVertices[j].y);
-                vertices.push_back(mesh->mVertices[j].z);
-                
-                std::cout << mesh->mVertices[j].x << ", " << mesh->mVertices[j].y << ", " << mesh->mVertices[j].z << "\n";
-            }
-
-            std::cout << "Indices:\n";
-            for (unsigned int m = 0; m < mesh->mNumFaces; ++m) {
-                indices.push_back(mesh->mFaces[m].mIndices[0]);
-                indices.push_back(mesh->mFaces[m].mIndices[1]);
-                indices.push_back(mesh->mFaces[m].mIndices[2]);
-                
-                std::cout << mesh->mFaces[m].mIndices[0] << ", " << mesh->mFaces[m].mIndices[1] << ", " << mesh->mFaces[m].mIndices[2] << "\n";
-            }
-        } else {
-            for (std::uint32_t j = 0; j < mesh->mNumVertices; ++j) {
-                vertices.push_back(mesh->mVertices[j].x);
-                vertices.push_back(mesh->mVertices[j].y);
-                vertices.push_back(mesh->mVertices[j].z);
-            }
-
-            for (unsigned int m = 0; m < mesh->mNumFaces; ++m) {
-                indices.push_back(mesh->mFaces[m].mIndices[0]);
-                indices.push_back(mesh->mFaces[m].mIndices[1]);
-                indices.push_back(mesh->mFaces[m].mIndices[2]);
-            }
-        }
-        
-        
-    }
-
-    // TODO MOVE TO GPU MEMORY
-    std::vector<Buffer> vboibo;
-    std::vector<BufferCreateInfo> bci;
-    bci.emplace_back(BufferUsageFlagBits::VertexBuffer, Bytes(vertices.size() * sizeof(float)));
-    bci.emplace_back(BufferUsageFlagBits::IndexBuffer,  Bytes(indices.size() * sizeof(std::uint32_t)));
-    
-    createBuffers(bci, MemoryType::HostVisible, vboibo);
-    updateHostVisibleBuffer(vboibo[0], {{0, 0, vertices.size() * sizeof(float)}}, vertices.data());
-    updateHostVisibleBuffer(vboibo[1], {{0, 0, indices.size() * sizeof(std::uint32_t)}}, indices.data());
-    
-    auxiliaryMeshData.vbo = vboibo[0];//createVertexBuffer(vertices.size() * sizeof(float), BufferUpdateFrequency::Never, vertices.data());
-    auxiliaryMeshData.ibo = vboibo[1];//createIndexBuffer(indices.size() * sizeof(std::uint32_t), IndexType::UInt32, BufferUpdateFrequency::Never, indices.data());
-    
+    // TODO render passes should be built inside the renderers
 //    VkAttachmentDescription ad[2]; // 0 - color, 1 - depth
 //    ad[0].flags          = 0;
 //    ad[0].format         = surfaceFormat;
@@ -648,13 +529,6 @@ void GraphicsAPI::createHelperMeshesAndObjects() {
 }
 
 void GraphicsAPI::destroyHelperMeshesAndObjectsaryMeshes() {
-    std::vector<Buffer> buffers;
-    buffers.push_back(auxiliaryMeshData.vbo);
-    buffers.push_back(auxiliaryMeshData.ibo);
-    destroyBuffers(buffers);
-//    destroyVertexBuffer(auxiliaryMeshData.vbo);
-//    destroyIndexBuffer(auxiliaryMeshData.ibo);
-    
     destroyRenderPass(writeToScreenPass);
 }
 

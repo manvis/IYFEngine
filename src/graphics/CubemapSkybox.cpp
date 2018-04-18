@@ -90,13 +90,13 @@ void CubemapSkybox::initialize() {
     
     skyPipeline = api->createPipeline(pci);
     
-    const AuxiliaryMeshData* auxMeshData = api->getAuxiliaryMeshData();
-    auxVBOHandle = auxMeshData->vbo;
-    auxIBOHandle = auxMeshData->ibo;
-    skySphereOffsetVBO = auxMeshData->sphereHighRes.vboOffset;
-    skySphereOffsetIBO = auxMeshData->sphereHighRes.iboOffset;
-    skySphereSizeVBO = auxMeshData->sphereHighRes.vboCount;
-    skySphereSizeIBO = auxMeshData->sphereHighRes.iboCount;
+//     const AuxiliaryMeshData* auxMeshData = api->getAuxiliaryMeshData();
+//     auxVBOHandle = auxMeshData->vbo;
+//     auxIBOHandle = auxMeshData->ibo;
+//     skySphereOffsetVBO = auxMeshData->sphereHighRes.vboOffset;
+//     skySphereOffsetIBO = auxMeshData->sphereHighRes.iboOffset;
+//     skySphereSizeVBO = auxMeshData->sphereHighRes.vboCount;
+//     skySphereSizeIBO = auxMeshData->sphereHighRes.iboCount;
     
     isInit = true;
 }
@@ -127,18 +127,18 @@ void CubemapSkybox::draw(CommandBuffer* commandBuffer, const Camera* camera) con
     if (!isInit) {
         throw std::runtime_error("Attempted to render a non-initialized skybox.");
     }
-    
-    commandBuffer->bindPipeline(skyPipeline);
-    
-    commandBuffer->bindVertexBuffers(0, auxVBOHandle);
-    commandBuffer->bindIndexBuffer(auxIBOHandle, IndexType::UInt32);
-    
-    glm::mat4 mvp = camera->getProjection() * glm::mat4(glm::mat3(camera->getViewMatrix()));
-
-    commandBuffer->pushConstants(skyPipelineLayout, ShaderStageFlagBits::Vertex, 0, sizeof(glm::mat4), &mvp);
-    commandBuffer->bindDescriptorSets(PipelineBindPoint::Graphics, skyPipelineLayout, 0, {skyTextureDescriptorSet}, {});
-    
-    commandBuffer->drawIndexed(skySphereSizeIBO, 1, skySphereOffsetIBO, skySphereOffsetVBO, 0);
+    // TODO fix and re-enable
+//     commandBuffer->bindPipeline(skyPipeline);
+//     
+//     commandBuffer->bindVertexBuffers(0, auxVBOHandle);
+//     commandBuffer->bindIndexBuffer(auxIBOHandle, IndexType::UInt32);
+//     
+//     glm::mat4 mvp = camera->getProjection() * glm::mat4(glm::mat3(camera->getViewMatrix()));
+// 
+//     commandBuffer->pushConstants(skyPipelineLayout, ShaderStageFlagBits::Vertex, 0, sizeof(glm::mat4), &mvp);
+//     commandBuffer->bindDescriptorSets(PipelineBindPoint::Graphics, skyPipelineLayout, 0, {skyTextureDescriptorSet}, {});
+//     
+//     commandBuffer->drawIndexed(skySphereSizeIBO, 1, skySphereOffsetIBO, skySphereOffsetVBO, 0);
 }
 
 void CubemapSkybox::update(float delta) {
