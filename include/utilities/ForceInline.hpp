@@ -29,7 +29,21 @@
 #ifndef IYF_FORCE_INLINE_HPP
 #define IYF_FORCE_INLINE_HPP
 
-// TODO force inline for Visual Studio.
-#define	IYF_FORCE_INLINE inline __attribute__((always_inline))
+// This is based on force inline code used in vulkan.hpp.
+// My original IYF_FORCE_INLINE was missing definitions for Visual C++ and clang's atrribute
+// check
+#if defined(__GNUC__)
+#   define IYF_FORCE_INLINE __attribute__((always_inline)) __inline__
+#elif defined(__clang___)
+#   if __has_attribute(always_inline)
+#       define IYF_FORCE_INLINE __attribute__((always_inline)) __inline__
+#   else
+#       define IYF_FORCE_INLINE inline
+#   endif
+#elif defined(_MSC_VER)
+#   define IYF_FORCE_INLINE __forceinline
+#else
+#   define IYF_FORCE_INLINE inline
+#endif
 
 #endif //IYF_FORCE_INLINE_HPP
