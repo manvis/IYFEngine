@@ -323,7 +323,7 @@ void VulkanAPI::setupDepthStencil(VkCommandBuffer commandBuffer) {
     checkResult(vkCreateImageView(logicalDevice.handle, &ivci, nullptr, &depthStencilView), "Failed to create an image view.");
     
     // Set up our internal data structure
-    depthStencil.handle = reinterpret_cast<ImageHnd>(depthStencilImage);
+    depthStencil.handle = ImageHnd(depthStencilImage);
     depthStencil.format = depthStencilFormatEngine;
     depthStencil.width  = screenWidth;
     depthStencil.height = screenHeight;

@@ -47,7 +47,6 @@
 namespace iyf {
 
 namespace vkutil {
-
 inline std::vector<VkDynamicState> mapDynamicState(const std::vector<DynamicState>& states) {
     std::vector<VkDynamicState> vkStates;
     vkStates.reserve(states.size());
@@ -211,9 +210,9 @@ inline VkCommandBufferInheritanceInfo mapInheritanceInfo(CommandBufferInheritanc
     VkCommandBufferInheritanceInfo vkcbii;
     vkcbii.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     vkcbii.pNext = nullptr;
-    vkcbii.renderPass = reinterpret_cast<VkRenderPass>(cbii.renderPass);
+    vkcbii.renderPass = cbii.renderPass.toNative<VkRenderPass>();
     vkcbii.subpass = cbii.subpass;
-    vkcbii.framebuffer = reinterpret_cast<VkFramebuffer>(cbii.framebuffer);
+    vkcbii.framebuffer = cbii.framebuffer.toNative<VkFramebuffer>();
     // TODO
     vkcbii.occlusionQueryEnable = false;
     vkcbii.queryFlags = 0;
@@ -304,7 +303,7 @@ inline std::vector<VkDescriptorSetLayout> mapSetLayouts(const std::vector<Descri
     std::vector<VkDescriptorSetLayout> result;
     
     for (auto& l : layouts) {
-        result.push_back(reinterpret_cast<VkDescriptorSetLayout>(l));
+        result.push_back(l.toNative<VkDescriptorSetLayout>());
     }
     
     return result;
@@ -393,7 +392,7 @@ inline std::vector<VkWriteDescriptorSet> mapWriteDescriptorSet(const std::vector
         VkWriteDescriptorSet wds;
         wds.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         wds.pNext            = nullptr;
-        wds.dstSet           = reinterpret_cast<VkDescriptorSet>(s.dstSet);
+        wds.dstSet           = s.dstSet.toNative<VkDescriptorSet>();
         wds.dstBinding       = s.dstBinding;
         wds.dstArrayElement  = s.dstArrayElement;
         wds.descriptorCount  = s.descriptorCount;
@@ -861,11 +860,11 @@ ShaderHnd VulkanAPI::createShader(ShaderStageFlags, const std::string& path) {
 
 ShaderHnd VulkanAPI::createShaderFromSource(ShaderStageFlags, const std::string&) {
     throw std::runtime_error("Method not supported");
-    return 0;
+    return ShaderHnd();
 }
 
 bool VulkanAPI::destroyShader(ShaderHnd handle) {
-    vkDestroyShaderModule(logicalDevice.handle, (VkShaderModule)handle, nullptr);
+    vkDestroyShaderModule(logicalDevice.handle, handle.toNative<VkShaderModule>(), nullptr);
     return true;
 }
 
@@ -915,7 +914,7 @@ Pipeline VulkanAPI::createPipeline(const PipelineCreateInfo& info) {
         pssci.pNext               = nullptr;
         pssci.flags               = 0;
         pssci.stage               = static_cast<VkShaderStageFlagBits>(vk::shaderStage(s.first));
-        pssci.module              = reinterpret_cast<VkShaderModule>(s.second);
+        pssci.module              = s.second.toNative<VkShaderModule>();
         pssci.pName               = "main";
         pssci.pSpecializationInfo = nullptr;
         
@@ -1100,8 +1099,8 @@ Pipeline VulkanAPI::createPipeline(const PipelineCreateInfo& info) {
     pci.pDepthStencilState  = &pdssci;
     pci.pColorBlendState    = &pcbsci;
     pci.pDynamicState       = (dsci.dynamicStates.size() > 0) ? &pdsci : nullptr;
-    pci.layout              = reinterpret_cast<VkPipelineLayout>(info.layout);
-    pci.renderPass          = reinterpret_cast<VkRenderPass>(info.renderPass);//renderPass;
+    pci.layout              = info.layout.toNative<VkPipelineLayout>();
+    pci.renderPass          = info.renderPass.toNative<VkRenderPass>();
     pci.subpass             = info.subpass;
     pci.basePipelineHandle  = nullptr;
     pci.basePipelineIndex   = -1;
@@ -1110,14 +1109,14 @@ Pipeline VulkanAPI::createPipeline(const PipelineCreateInfo& info) {
     vkCreateGraphicsPipelines(logicalDevice.handle, pipelineCache, 1, &pci, nullptr, &pipeline);
     
     Pipeline pipelineObj;
-    pipelineObj.handle = reinterpret_cast<std::uintptr_t>(pipeline);
+    pipelineObj.handle = PipelineHnd(pipeline);
     pipelineObj.bindPoint = PipelineBindPoint::Graphics;
     
     return pipelineObj;
 }
 
 bool VulkanAPI::destroyPipeline(const Pipeline& pipeline) {
-    vkDestroyPipeline(logicalDevice.handle, reinterpret_cast<VkPipeline>(pipeline.handle), nullptr);
+    vkDestroyPipeline(logicalDevice.handle, pipeline.handle.toNative<VkPipeline>(), nullptr);
     return true;
 }
 
@@ -1127,7 +1126,7 @@ Pipeline VulkanAPI::createPipeline(const ComputePipelineCreateInfo& info) {
     pssci.pNext               = nullptr;
     pssci.flags               = 0;
     pssci.stage               = static_cast<VkShaderStageFlagBits>(vk::shaderStage(info.shader.first));
-    pssci.module              = reinterpret_cast<VkShaderModule>(info.shader.second);
+    pssci.module              = info.shader.second.toNative<VkShaderModule>();
     pssci.pName               = "main";
     pssci.pSpecializationInfo = nullptr;
 
@@ -1136,7 +1135,7 @@ Pipeline VulkanAPI::createPipeline(const ComputePipelineCreateInfo& info) {
     pci.pNext              = nullptr;
     pci.flags              = 0;
     pci.stage              = pssci;
-    pci.layout             = reinterpret_cast<VkPipelineLayout>(info.layout);
+    pci.layout             = info.layout.toNative<VkPipelineLayout>();
     pci.basePipelineHandle = nullptr;
     pci.basePipelineIndex  = -1;
     
@@ -1145,7 +1144,7 @@ Pipeline VulkanAPI::createPipeline(const ComputePipelineCreateInfo& info) {
 //    vkCreateGraphicsPipelines(logicalDevice.handle, pipelineCache, 1, &pci, nullptr, &pipeline);
     
     Pipeline pipelineObj;
-    pipelineObj.handle = reinterpret_cast<std::uintptr_t>(pipeline);
+    pipelineObj.handle = PipelineHnd(pipeline);
     pipelineObj.bindPoint = PipelineBindPoint::Compute;
     
     return pipelineObj;
@@ -1168,11 +1167,11 @@ PipelineLayoutHnd VulkanAPI::createPipelineLayout(const PipelineLayoutCreateInfo
     VkPipelineLayout pl;
     vkCreatePipelineLayout(logicalDevice.handle, &plci, nullptr, &pl);
     
-    return reinterpret_cast<PipelineLayoutHnd>(pl);
+    return PipelineLayoutHnd(pl);
 }
 
 bool VulkanAPI::destroyPipelineLayout(PipelineLayoutHnd handle) {
-    vkDestroyPipelineLayout(logicalDevice.handle, reinterpret_cast<VkPipelineLayout>(handle), nullptr);
+    vkDestroyPipelineLayout(logicalDevice.handle, handle.toNative<VkPipelineLayout>(), nullptr);
     return true;
 }
 
@@ -1189,11 +1188,11 @@ DescriptorSetLayoutHnd VulkanAPI::createDescriptorSetLayout(const DescriptorSetL
     VkDescriptorSetLayout dsl;
     
     vkCreateDescriptorSetLayout(logicalDevice.handle, &dslci, nullptr, &dsl);
-    return reinterpret_cast<DescriptorSetLayoutHnd>(dsl);
+    return DescriptorSetLayoutHnd(dsl);
 }
 
 bool VulkanAPI::destroyDescriptorSetLayout(DescriptorSetLayoutHnd handle) {
-    vkDestroyDescriptorSetLayout(logicalDevice.handle, reinterpret_cast<VkDescriptorSetLayout>(handle), nullptr);
+    vkDestroyDescriptorSetLayout(logicalDevice.handle, handle.toNative<VkDescriptorSetLayout>(), nullptr);
     return true;
 }
 
@@ -1205,7 +1204,7 @@ std::vector<DescriptorSetHnd> VulkanAPI::allocateDescriptorSets(const Descriptor
     VkDescriptorSetAllocateInfo dsai;
     dsai.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     dsai.pNext              = nullptr;
-    dsai.descriptorPool     = reinterpret_cast<VkDescriptorPool>(info.descriptorPool);
+    dsai.descriptorPool     = info.descriptorPool.toNative<VkDescriptorPool>();
     dsai.descriptorSetCount = info.setLayouts.size();
     auto setLayouts = vkutil::mapSetLayouts(info.setLayouts);
     dsai.pSetLayouts        = setLayouts.data();
@@ -1240,7 +1239,7 @@ bool VulkanAPI::updateDescriptorSets(const std::vector<WriteDescriptorSet>& set)
             mappedSet[i].descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER) {
             
             for (auto& tbv : set[i].texelBufferViews) {
-                bv.push_back(reinterpret_cast<VkBufferView>(tbv));
+                bv.push_back(tbv.toNative<VkBufferView>());
             }
             
             mappedSet[i].pTexelBufferView = &bv[bv.size() - set[i].texelBufferViews.size()];
@@ -1251,7 +1250,7 @@ bool VulkanAPI::updateDescriptorSets(const std::vector<WriteDescriptorSet>& set)
             
             for (auto& bi : set[i].bufferInfos) {
                 VkDescriptorBufferInfo info;
-                info.buffer = reinterpret_cast<VkBuffer>(bi.buffer);
+                info.buffer = bi.buffer.toNative<VkBuffer>();
                 info.offset = bi.offset;
                 info.range  = bi.range;
                 
@@ -1267,8 +1266,8 @@ bool VulkanAPI::updateDescriptorSets(const std::vector<WriteDescriptorSet>& set)
             //mappedSet[i].descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT
             for (auto& ii : set[i].imageInfos) {
                 VkDescriptorImageInfo info;
-                info.sampler     = reinterpret_cast<VkSampler>(ii.sampler);
-                info.imageView   = reinterpret_cast<VkImageView>(ii.imageView);
+                info.sampler     = ii.sampler.toNative<VkSampler>();
+                info.imageView   = ii.imageView.toNative<VkImageView>();
                 info.imageLayout = vk::imageLayout(ii.imageLayout);
                 
                 dii.push_back(info);
@@ -1295,11 +1294,11 @@ DescriptorPoolHnd VulkanAPI::createDescriptorPool(const DescriptorPoolCreateInfo
     VkDescriptorPool dp;
     checkResult(vkCreateDescriptorPool(logicalDevice.handle, &dpci, nullptr, &dp), "Failed to create a descriptor pool.");
     
-    return reinterpret_cast<DescriptorPoolHnd>(dp);
+    return DescriptorPoolHnd(dp);
 }
 
 bool VulkanAPI::destroyDescriptorPool(DescriptorPoolHnd handle) {
-    vkDestroyDescriptorPool(logicalDevice.handle, reinterpret_cast<VkDescriptorPool>(handle), nullptr);
+    vkDestroyDescriptorPool(logicalDevice.handle, handle.toNative<VkDescriptorPool>(), nullptr);
     
     return true;
 }
@@ -1484,7 +1483,7 @@ Image VulkanAPI::createImageFromFile(const std::string& path) { // TODO test tes
     
     vkFreeMemory(logicalDevice.handle, stagingData.second, nullptr);
     vkDestroyBuffer(logicalDevice.handle, stagingData.first, nullptr);
-    return {reinterpret_cast<ImageHnd>(image), width, height, levels, layers, imViewType, engineFormat};
+    return {ImageHnd(image), width, height, levels, layers, imViewType, engineFormat};
 }
 
 Image VulkanAPI::create2DImageFromMemory(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable, bool usedAsColorAttachment, const void* data) {
@@ -1667,11 +1666,11 @@ Image VulkanAPI::create2DImageFromMemory(ImageMemoryType type, const glm::uvec2&
     }
     
     
-    return {reinterpret_cast<ImageHnd>(image), static_cast<std::uint64_t>(dimensions.x), static_cast<std::uint64_t>(dimensions.y), 1, 1, ImageViewType::Im2D, engineFormat};
+    return {ImageHnd(image), static_cast<std::uint64_t>(dimensions.x), static_cast<std::uint64_t>(dimensions.y), 1, 1, ImageViewType::Im2D, engineFormat};
 }
 
 bool VulkanAPI::destroyImage(const Image& image) {
-    VkImage handle = reinterpret_cast<VkImage>(image.handle);
+    VkImage handle = image.handle.toNative<VkImage>();
     
     VkDeviceMemory memory = imageToMemory[handle];
     
@@ -1706,11 +1705,11 @@ SamplerHnd VulkanAPI::createSampler(const SamplerCreateInfo& info) {
     
     VkSampler sampler;
     vkCreateSampler(logicalDevice.handle, &sci, nullptr, &sampler);
-    return reinterpret_cast<SamplerHnd>(sampler);
+    return SamplerHnd(sampler);
 }
 
 bool VulkanAPI::destroySampler(SamplerHnd handle) {
-    vkDestroySampler(logicalDevice.handle, reinterpret_cast<VkSampler>(handle), nullptr);
+    vkDestroySampler(logicalDevice.handle, handle.toNative<VkSampler>(), nullptr);
     return true;
 }
 
@@ -1719,7 +1718,7 @@ ImageViewHnd VulkanAPI::createImageView(const ImageViewCreateInfo& info) {
     ivci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     ivci.pNext            = nullptr;
     ivci.flags            = 0;
-    ivci.image            = reinterpret_cast<VkImage>(info.image);
+    ivci.image            = info.image.toNative<VkImage>();
     ivci.viewType         = vk::imageViewType(info.viewType);
     ivci.format           = vk::format(info.format);
     ivci.components       = vkutil::mapComponents(info.components);
@@ -1728,11 +1727,11 @@ ImageViewHnd VulkanAPI::createImageView(const ImageViewCreateInfo& info) {
     VkImageView iv;
     vkCreateImageView(logicalDevice.handle, &ivci, nullptr, &iv);
 
-    return reinterpret_cast<ImageViewHnd>(iv);
+    return ImageViewHnd(iv);
 }
 
 bool VulkanAPI::destroyImageView(ImageViewHnd handle) {
-    vkDestroyImageView(logicalDevice.handle, reinterpret_cast<VkImageView>(handle), nullptr);
+    vkDestroyImageView(logicalDevice.handle, handle.toNative<VkImageView>(), nullptr);
     return true;
 }
 
@@ -1948,7 +1947,7 @@ bool VulkanAPI::createBuffers(const std::vector<BufferCreateInfo>& info, MemoryT
         
         vkGetBufferMemoryRequirements(logicalDevice.handle, handle, &mr);
         
-        outBuffers.emplace_back(reinterpret_cast<BufferHnd>(handle), bciv.flags, memoryType, Bytes(mr.size), Bytes(totalAllocationSize));
+        outBuffers.emplace_back(BufferHnd(handle), bciv.flags, memoryType, Bytes(mr.size), Bytes(totalAllocationSize));
         
         totalAllocationSize += mr.size;
     }
@@ -1982,7 +1981,7 @@ bool VulkanAPI::createBuffers(const std::vector<BufferCreateInfo>& info, MemoryT
     
     std::size_t offset = 0;
     for (std::size_t i = 0; i < info.size(); ++i) {
-        VkBuffer handle = reinterpret_cast<VkBuffer>(outBuffers[i].handle());
+        VkBuffer handle = outBuffers[i].handle().toNative<VkBuffer>();
         checkResult(vkBindBufferMemory(logicalDevice.handle, handle, memory, offset), "Failed to bind memory.");
         
         bufferToMemory[handle] = memory;
@@ -1997,7 +1996,7 @@ bool VulkanAPI::createBuffers(const std::vector<BufferCreateInfo>& info, MemoryT
 
 bool VulkanAPI::destroyBuffers(const std::vector<Buffer>& buffers) {
     for (const auto& b : buffers) {
-        VkBuffer handle = reinterpret_cast<VkBuffer>(b.handle());
+        VkBuffer handle = b.handle().toNative<VkBuffer>();
         vkDestroyBuffer(logicalDevice.handle, handle, nullptr);
         
         VkDeviceMemory memory = bufferToMemory[handle];
@@ -2020,7 +2019,7 @@ bool VulkanAPI::destroyBuffers(const std::vector<Buffer>& buffers) {
 bool VulkanAPI::updateHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) {
     assert(buffer.memoryType() == MemoryType::HostVisible);
     
-    VkDeviceMemory memory = bufferToMemory[reinterpret_cast<VkBuffer>(buffer.handle())];
+    VkDeviceMemory memory = bufferToMemory[buffer.handle().toNative<VkBuffer>()];
     void* p;
     // TODO stop unmapping buffers
     checkResult(vkMapMemory(logicalDevice.handle, memory, buffer.offset(), buffer.size(), 0, &p), "Failed to map memory.");
@@ -2097,7 +2096,7 @@ void VulkanAPI::updateDeviceVisibleBuffer(const Buffer& buffer, const std::vecto
         stagingCopies.push_back(std::move(bc));
     }
     
-    vkCmdCopyBuffer(copyBuff, stagingResult.first, reinterpret_cast<VkBuffer>(buffer.handle()), stagingCopies.size(), stagingCopies.data());
+    vkCmdCopyBuffer(copyBuff, stagingResult.first, buffer.handle().toNative<VkBuffer>(), stagingCopies.size(), stagingCopies.data());
     checkResult(vkEndCommandBuffer(copyBuff), "Failed to end a command buffer.");
 
     VkSubmitInfo si;
@@ -2250,11 +2249,11 @@ RenderPassHnd VulkanAPI::createRenderPass(const RenderPassCreateInfo& info) {
     VkRenderPass pass;
     checkResult(vkCreateRenderPass(logicalDevice.handle, &rpci, nullptr, &pass), "Failed to create a render pass.");
     
-    return reinterpret_cast<RenderPassHnd>(pass);
+    return RenderPassHnd(pass);
 }
 
 bool VulkanAPI::destroyRenderPass(RenderPassHnd handle) {
-    vkDestroyRenderPass(logicalDevice.handle, reinterpret_cast<VkRenderPass>(handle), nullptr);
+    vkDestroyRenderPass(logicalDevice.handle, handle.toNative<VkRenderPass>(), nullptr);
     return true;
 }
 
@@ -2275,11 +2274,11 @@ SemaphoreHnd VulkanAPI::createSemaphore() {
     sci.flags = 0;
     checkResult(vkCreateSemaphore(logicalDevice.handle, &sci, nullptr, &semaphore), "Failed to create a semaphore.");
     
-    return reinterpret_cast<SemaphoreHnd>(semaphore);
+    return SemaphoreHnd(semaphore);
 }
 
 void VulkanAPI::destroySemaphore(SemaphoreHnd hnd) {
-    vkDestroySemaphore(logicalDevice.handle, reinterpret_cast<VkSemaphore>(hnd), nullptr);
+    vkDestroySemaphore(logicalDevice.handle, hnd.toNative<VkSemaphore>(), nullptr);
 }
 
 FenceHnd VulkanAPI::createFence(bool createSignaled) {
@@ -2291,15 +2290,15 @@ FenceHnd VulkanAPI::createFence(bool createSignaled) {
     
     checkResult(vkCreateFence(logicalDevice.handle, &fci, nullptr, &fence), "Failed to create a fence.");
     
-    return reinterpret_cast<FenceHnd>(fence);
+    return FenceHnd(fence);
 }
 
 void VulkanAPI::destroyFence(FenceHnd fence) {
-    vkDestroyFence(logicalDevice.handle, reinterpret_cast<VkFence>(fence), nullptr);
+    vkDestroyFence(logicalDevice.handle, fence.toNative<VkFence>(), nullptr);
 }
 
 bool VulkanAPI::getFenceStatus(FenceHnd fence) {
-    return vkGetFenceStatus(logicalDevice.handle, reinterpret_cast<VkFence>(fence)) == VK_SUCCESS;
+    return vkGetFenceStatus(logicalDevice.handle, fence.toNative<VkFence>()) == VK_SUCCESS;
 }
 
 bool VulkanAPI::waitForFence(FenceHnd fence, std::uint64_t timeout) {
@@ -2340,7 +2339,7 @@ void VulkanAPI::resetFences(const std::vector<FenceHnd>& fences) {
     checkResult(vkResetFences(logicalDevice.handle, fences.size(), reinterpret_cast<const VkFence*>(fences.data())), "Failed to reset fences.");
 }
 
-void VulkanAPI::submitQueue(const SubmitInfo& info, FenceHnd fence = 0) {
+void VulkanAPI::submitQueue(const SubmitInfo& info, FenceHnd fence) {
     VkSubmitInfo si;
     si.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     si.pNext                = nullptr;
@@ -2352,7 +2351,7 @@ void VulkanAPI::submitQueue(const SubmitInfo& info, FenceHnd fence = 0) {
     si.signalSemaphoreCount = info.signalSemaphores.size();
     si.pSignalSemaphores    = info.signalSemaphores.size() == 0 ? nullptr : reinterpret_cast<const VkSemaphore*>(info.signalSemaphores.data());
     
-    VkFence f = (fence == 0) ? VK_NULL_HANDLE : reinterpret_cast<VkFence>(fence);
+    VkFence f = (!fence.isValid()) ? VK_NULL_HANDLE : fence.toNative<VkFence>();
 
     checkResult(vkQueueSubmit(logicalDevice.mainQueue, 1, &si, f), "Failed to submit a queue.");
     //checkResult(vkQueueWaitIdle(queue), "queue_wait_fail");
@@ -2389,7 +2388,7 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
             ivci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             ivci.pNext            = nullptr;
             ivci.flags            = 0;
-            ivci.image            = reinterpret_cast<VkImage>(img.handle);
+            ivci.image            = img.handle.toNative<VkImage>();
             ivci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
             ivci.format           = vk::format(img.format);
             ivci.components       = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A};
@@ -2403,7 +2402,7 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
 //            }
             
             fbo.images.push_back(std::move(img));
-            fbo.imageViews.push_back(reinterpret_cast<ImageViewHnd>(imageView));
+            fbo.imageViews.push_back(ImageViewHnd(imageView));
             fbo.isImageOwned.push_back(false);
         } else { // FramebufferAttachmentCreateInfo
             const FramebufferAttachmentCreateInfo& i = std::get<FramebufferAttachmentCreateInfo>(ci);
@@ -2477,7 +2476,7 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
             checkResult(vkCreateImageView(logicalDevice.handle, &ivci, nullptr, &imageView), "Failed to create an image view.");
 
             Image img;
-            img.handle = reinterpret_cast<ImageHnd>(image);
+            img.handle = ImageHnd(image);
             img.format = i.format;
             img.width  = extent.x;
             img.height = extent.y;
@@ -2486,7 +2485,7 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
             img.type   = ImageViewType::Im2D;
 
             fbo.images.push_back(std::move(img));
-            fbo.imageViews.push_back(reinterpret_cast<ImageViewHnd>(imageView));
+            fbo.imageViews.push_back(ImageViewHnd(imageView));
             fbo.isImageOwned.push_back(true);
         }
     }
@@ -2521,7 +2520,7 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
     fbci.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     fbci.pNext           = nullptr;
     fbci.flags           = 0;
-    fbci.renderPass      = reinterpret_cast<VkRenderPass>(renderPass);
+    fbci.renderPass      = renderPass.toNative<VkRenderPass>();
     fbci.attachmentCount = static_cast<std::uint32_t>(fbo.imageViews.size());
     fbci.pAttachments    = reinterpret_cast<const VkImageView*>(fbo.imageViews.data());
     fbci.width           = extent.x;
@@ -2531,7 +2530,7 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
     VkFramebuffer fb;
     checkResult(vkCreateFramebuffer(logicalDevice.handle, &fbci, nullptr, &fb), "Failed to create a framebuffer.");
     
-    fbo.handle = reinterpret_cast<FramebufferHnd>(fb);
+    fbo.handle = FramebufferHnd(fb);
     return fbo;
 }
 
@@ -2542,19 +2541,19 @@ void VulkanAPI::destroyFramebufferWithAttachments(const Framebuffer& framebuffer
         const auto& i = framebuffer.images[j];
         
         if (framebuffer.isImageOwned[j]) { // Jei ne - reikšia šitas view mums buvo perduotas ir už jo naikinimą atsakingas vartotojas
-            VkDeviceMemory memory = imageToMemory[reinterpret_cast<VkImage>(i.handle)];
+            VkDeviceMemory memory = imageToMemory[i.handle.toNative<VkImage>()];
     
-            vkDestroyImage(logicalDevice.handle, reinterpret_cast<VkImage>(i.handle), nullptr);
+            vkDestroyImage(logicalDevice.handle, i.handle.toNative<VkImage>(), nullptr);
             vkFreeMemory(logicalDevice.handle, memory, nullptr);
 
-            imageToMemory.erase(reinterpret_cast<VkImage>(i.handle));
+            imageToMemory.erase(i.handle.toNative<VkImage>());
         }
         
         ImageViewHnd v = framebuffer.imageViews[j];
-        vkDestroyImageView(logicalDevice.handle, reinterpret_cast<VkImageView>(v), nullptr);
+        vkDestroyImageView(logicalDevice.handle, v.toNative<VkImageView>(), nullptr);
     }
     
-    vkDestroyFramebuffer(logicalDevice.handle, reinterpret_cast<VkFramebuffer>(framebuffer.handle), nullptr);
+    vkDestroyFramebuffer(logicalDevice.handle, framebuffer.handle.toNative<VkFramebuffer>(), nullptr);
 }
 
 // -------------------------------Command buffer
@@ -2613,7 +2612,7 @@ void VulkanCommandBuffer::dispatch(std::uint32_t x, std::uint32_t y, std::uint32
 }
 
 void VulkanCommandBuffer::bindVertexBuffers(std::uint32_t firstBinding, const Buffer& buffer) {
-    VkBuffer vkbuffer = reinterpret_cast<VkBuffer>(buffer.handle());
+    VkBuffer vkbuffer = buffer.handle().toNative<VkBuffer>();
     VkDeviceSize offset = static_cast<VkDeviceSize>(0);
     
     vkCmdBindVertexBuffers(cmdBuff, static_cast<std::uint32_t>(firstBinding), 1, &vkbuffer, &offset);
@@ -2629,7 +2628,7 @@ void VulkanCommandBuffer::bindVertexBuffers(std::uint32_t firstBinding, std::uin
     //}
     
     for (size_t i = 0; i < bindingCount; ++i) {
-        tempBuffers[i] = reinterpret_cast<VkBuffer>(buffers[i].handle());
+        tempBuffers[i] = buffers[i].handle().toNative<VkBuffer>();
         tempOffsets[i] = static_cast<VkDeviceSize>(0);
     }
     
@@ -2637,23 +2636,23 @@ void VulkanCommandBuffer::bindVertexBuffers(std::uint32_t firstBinding, std::uin
 }
 
 void VulkanCommandBuffer::bindIndexBuffer(const Buffer& buffer, IndexType indexType) {
-    vkCmdBindIndexBuffer(cmdBuff, reinterpret_cast<VkBuffer>(buffer.handle()), static_cast<VkDeviceSize>(0), vkutil::mapIndexType(indexType));
+    vkCmdBindIndexBuffer(cmdBuff, buffer.handle().toNative<VkBuffer>(), static_cast<VkDeviceSize>(0), vkutil::mapIndexType(indexType));
 }
 
 bool VulkanCommandBuffer::bindDescriptorSets(PipelineBindPoint point, PipelineLayoutHnd layout, std::uint32_t firstSet, const std::vector<DescriptorSetHnd> descriptorSets, const std::vector<std::uint32_t> dynamicOffsets) {
     const VkDescriptorSet* sets = reinterpret_cast<VkDescriptorSet*>(const_cast<DescriptorSetHnd*>(descriptorSets.data()));
     
-    vkCmdBindDescriptorSets(cmdBuff, point == PipelineBindPoint::Graphics ? VK_PIPELINE_BIND_POINT_GRAPHICS : VK_PIPELINE_BIND_POINT_COMPUTE, reinterpret_cast<VkPipelineLayout>(layout), firstSet, descriptorSets.size(), sets, dynamicOffsets.size(), dynamicOffsets.data());
+    vkCmdBindDescriptorSets(cmdBuff, point == PipelineBindPoint::Graphics ? VK_PIPELINE_BIND_POINT_GRAPHICS : VK_PIPELINE_BIND_POINT_COMPUTE, layout.toNative<VkPipelineLayout>(), firstSet, descriptorSets.size(), sets, dynamicOffsets.size(), dynamicOffsets.data());
     
     return true;
 }
 
 void VulkanCommandBuffer::pushConstants(PipelineLayoutHnd handle, ShaderStageFlags flags, std::uint32_t offset, std::uint32_t size, const void* data) {
-    vkCmdPushConstants(cmdBuff, reinterpret_cast<VkPipelineLayout>(handle), vk::shaderStage(flags), offset, size, data);
+    vkCmdPushConstants(cmdBuff, handle.toNative<VkPipelineLayout>(), vk::shaderStage(flags), offset, size, data);
 }
 
 void VulkanCommandBuffer::bindPipeline(const Pipeline& pipeline) {
-    vkCmdBindPipeline(cmdBuff, vkutil::mapPipelineBindPoint(pipeline.bindPoint), reinterpret_cast<VkPipeline>(pipeline.handle));
+    vkCmdBindPipeline(cmdBuff, vkutil::mapPipelineBindPoint(pipeline.bindPoint), pipeline.handle.toNative<VkPipeline>());
 }
 
 void VulkanCommandBuffer::begin(const CommandBufferBeginInfo& cbbi) {
@@ -2677,8 +2676,8 @@ void VulkanCommandBuffer::beginRenderPass(const RenderPassBeginInfo& rpbi, Subpa
     VkRenderPassBeginInfo vkrpbi;
     vkrpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     vkrpbi.pNext = nullptr;
-    vkrpbi.renderPass = reinterpret_cast<VkRenderPass>(rpbi.renderPass);//renderPass;
-    vkrpbi.framebuffer = reinterpret_cast<VkFramebuffer>(rpbi.framebuffer);//framebuffers[currentSwapBuffer];
+    vkrpbi.renderPass = rpbi.renderPass.toNative<VkRenderPass>();//renderPass;
+    vkrpbi.framebuffer = rpbi.framebuffer.toNative<VkFramebuffer>();//framebuffers[currentSwapBuffer];
     vkrpbi.renderArea.offset.x = rpbi.renderArea.offset.x;
     vkrpbi.renderArea.offset.y = rpbi.renderArea.offset.y;
     vkrpbi.renderArea.extent.width = rpbi.renderArea.extent.x;//getRenderSurfaceWidth();

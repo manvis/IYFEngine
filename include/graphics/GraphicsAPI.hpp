@@ -39,6 +39,7 @@
 #include "graphics/GraphicsAPIConstants.hpp"
 #include "utilities/DataSizes.hpp"
 #include "utilities/NonCopyable.hpp"
+#include "utilities/ForceInline.hpp"
 
 #include <glm/fwd.hpp>
 #include <glm/vec4.hpp>
@@ -47,77 +48,51 @@
 struct SDL_Window;
 
 namespace iyf {
-// TODO MAJOR REFACTORING. The contents of this file are very Vulkan-ic because I use Vulkan specific features, like image layouts, that are impossible to
-// control in simpler APIs. It should be made more generic.
+/// Base class for type safe GraphicsAPI handles
+class GraphicsAPIHandle {
+public:
+    template<typename T>
+    IYF_FORCE_INLINE T toNative() const {
+        return static_cast<T>(ptr);
+    }
+    
+    IYF_FORCE_INLINE bool isValid() const {
+        return ptr != nullptr;
+    }
+protected:
+    GraphicsAPIHandle(void* ptr) : ptr(ptr) {}
+    GraphicsAPIHandle() : ptr(nullptr) {}
+private:
+    void* ptr;
+};
 
-#define DEFINE_RENDERING_BACKEND_HANDLE(HN) \
-    struct HN##Hnd { \
-        std::uint64_t val;\
-    };\
+// Vulkan uses opaque pointers on 64 bit systems for both dispatchable and non-dispatchable handles. However, on 32
+// bit platforms it uses 64 bit ints as non dispatchable handles. GraphicsAPIHandle always expects a pointer, so
+// it won't work on a 32 bit system
+static_assert(sizeof(GraphicsAPIHandle) == 8, "The engine requires 64 bit pointers");
 
-// TODO dispatchable handles are pointers, for non-dispatchable, define a CUSTOM VK_DEFINE_NON_DISPATCHABLE_HANDLE override
+#define IYF_MAKE_GRAPHICS_API_HANDLE(NAME) class NAME : public GraphicsAPIHandle { \
+public: \
+    explicit NAME(void* ptr) : GraphicsAPIHandle(ptr) {} \
+    NAME() : GraphicsAPIHandle() {} \
+};
 
-//DEFINE_RENDERING_BACKEND_HANDLE(Shader)
-using ShaderHnd = std::uintptr_t;
-//using GFXPipelineHnd = std::uintptr_t;
-//using ComputePipelineHnd = std::uintptr_t;
-//DEFINE_RENDERING_BACKEND_HANDLE(GFXPipeline)
-//DEFINE_RENDERING_BACKEND_HANDLE(ComputePipeline)
-
-using PipelineHnd = std::uintptr_t;
-using UniformBufferHnd = std::uintptr_t;
-using StorageBufferHnd = std::uintptr_t;
-using UniformBufferBnd = std::uintptr_t;
-using ImageHnd = std::uintptr_t;
-using ImageBnd = std::uintptr_t;
-using VertexBufferHnd = std::uintptr_t;
-using IndexBufferHnd = std::uintptr_t;
-using VertexLayoutHnd = std::uintptr_t;
-using DescriptorSetLayoutHnd = std::uintptr_t;
-using DescriptorSetHnd = std::uintptr_t;
-using PipelineLayoutHnd = std::uintptr_t;
-using DescriptorPoolHnd = std::uintptr_t;
-using BufferViewHnd = std::uintptr_t;
-using SamplerHnd = std::uintptr_t;
-using ImageViewHnd = std::uintptr_t;
-using BufferHnd = std::uintptr_t;
-using RenderPassHnd = std::uintptr_t;
-using FramebufferHnd = std::uintptr_t;
-using CommandBufferHnd = std::uintptr_t;
-using SemaphoreHnd = std::uintptr_t;
-using FenceHnd = std::uintptr_t;
-using MemoryHnd = std::uintptr_t;
-
-//class GraphicsAPI;
-//
-//class MemoryAllocation {
-//public:
-//    /// Needed to allow updating of unusedMemoryOffset when buffers or images are created from this allocation
-//    friend class GraphicsAPI;
-//    
-//    MemoryAllocation(MemoryHnd handle, MemoryType type, std::uint64_t size) : memoryHandle(handle), memoryType(type), memorySize(size), unusedMemoryOffset(0) {}
-//    
-//    inline MemoryHnd handle() const {
-//        return memoryHandle;
-//    }
-//    
-//    inline MemoryType type() const {
-//        return memoryType;
-//    }
-//    
-//    inline std::uint64_t size() const {
-//        return size;
-//    }
-//    
-//    inline std::uint64_t unusedOffset() const {
-//        return unusedMemoryOffset;
-//    }
-//protected:
-//    MemoryHnd memoryHandle;
-//    MemoryType memoryType;
-//    std::uint64_t memorySize;
-//    std::uint64_t unusedMemoryOffset;
-//};
+IYF_MAKE_GRAPHICS_API_HANDLE(CommandBufferHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(SemaphoreHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(FenceHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(BufferHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(ImageHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(ImageViewHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(BufferViewHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(ShaderHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(PipelineLayoutHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(RenderPassHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(PipelineHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(DescriptorSetHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(SamplerHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(DescriptorPoolHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(DescriptorSetLayoutHnd)
+IYF_MAKE_GRAPHICS_API_HANDLE(FramebufferHnd)
 
 /// \todo What about queue families?
 class BufferCreateInfo {
@@ -131,7 +106,7 @@ public:
 
 class Buffer {// MEMORY TYPE? Memory handle?
 public:
-    Buffer() : bufferHandle(0), bufferUsageFlags(), backingMemoryType(MemoryType::HostVisible), bufferSize(0), memoryOffset(0) {}
+    Buffer() : bufferHandle(nullptr), bufferUsageFlags(), backingMemoryType(MemoryType::HostVisible), bufferSize(0), memoryOffset(0) {}
     Buffer(BufferHnd handle, BufferUsageFlags flags, MemoryType memoryType, Bytes size, Bytes offset) : bufferHandle(handle), bufferUsageFlags(flags), backingMemoryType(memoryType), bufferSize(size), memoryOffset(offset) {}
     
     inline BufferHnd handle() const {
@@ -515,7 +490,7 @@ public:
 
 class ComputePipelineCreateInfo {
 public:
-    ComputePipelineCreateInfo() : layout(0) {}
+    ComputePipelineCreateInfo() {}
     // TODO flags, base pipeline
     PipelineShadersInfo shader;
     PipelineLayoutHnd layout;
@@ -701,11 +676,11 @@ public:
 
 class Image {
 public:
-    Image() : handle(0), format(Format::Undefined) {}
+    Image() : handle(nullptr), format(Format::Undefined) {}
     Image(ImageHnd handle, std::uint64_t width, std::uint64_t height, std::uint64_t levels, std::uint64_t layers, ImageViewType type, Format format) : handle(handle), width(width), height(height), levels(levels), layers(layers), type(type), format(format) {}
     
     bool isValid() const {
-        return (handle != 0) && (format != Format::Undefined);
+        return (handle.isValid()) && (format != Format::Undefined);
     }
     
     ImageHnd handle;
@@ -914,14 +889,8 @@ public:
     virtual void resetFences(const std::vector<FenceHnd>& fences) = 0;
     virtual void resetFence(FenceHnd fence) = 0;
     
-    virtual void submitQueue(const SubmitInfo& info, FenceHnd fence = 0) = 0;
+    virtual void submitQueue(const SubmitInfo& info, FenceHnd fence = FenceHnd()) = 0;
     virtual void waitUntilDone() = 0;
-    
-    //virtual VertexLayoutHnd createVertexLayout(const VertexLayoutCreateInfo& vlCreateInfo) = 0;
-    //virtual void bindVertexLayout(VertexLayoutHnd handle) = 0;
-    //virtual bool destroyVertexLayout(VertexLayoutHnd handle) = 0;
-    
-    //virtual void useDebug(bool status) = 0;
     
     virtual MultithreadingSupport doesBackendSupportMultithreading() = 0;
     virtual bool exposesMultipleCommandBuffers() const = 0;

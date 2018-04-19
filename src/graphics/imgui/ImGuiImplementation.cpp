@@ -213,7 +213,7 @@ void ImGuiImplementation::initializeAssets() {
     
     fontSampler = gfxAPI->createPresetSampler(SamplerPreset::ImguiTexture);
     fontView = gfxAPI->createDefaultImageView(fontAtlas);
-    io.Fonts->TexID = (void *)(intptr_t)fontView;
+    io.Fonts->TexID = fontView.toNative<void*>();
     
     // Descriptor pool and layouts
     DescriptorPoolCreateInfo dpci{1, {{DescriptorType::UniformBuffer, 1}, {DescriptorType::CombinedImageSampler, 1}}};

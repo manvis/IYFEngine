@@ -90,7 +90,7 @@ public:
     virtual void endRenderPass() override;
     
     virtual CommandBufferHnd getHandle() override {
-        return reinterpret_cast<CommandBufferHnd>(cmdBuff);
+        return CommandBufferHnd(cmdBuff);
     }
 protected:
     std::vector<VkBuffer> tempBuffers;
@@ -208,19 +208,19 @@ public:
     virtual Format getSurfaceFormat() override;
     virtual Format getDepthStencilFormat() override;
     virtual FramebufferHnd getScreenFramebuffer() override {
-        return reinterpret_cast<FramebufferHnd>(framebuffers[currentSwapBuffer]);
+        return FramebufferHnd(framebuffers[currentSwapBuffer]);
     }
     
     virtual SemaphoreHnd getRenderCompleteSemaphore() override {
-        return reinterpret_cast<SemaphoreHnd>(renderingComplete);
+        return SemaphoreHnd(renderingComplete);
     }
     
     virtual SemaphoreHnd getPresentationCompleteSemaphore() override {
-        return reinterpret_cast<SemaphoreHnd>(presentationComplete);
+        return SemaphoreHnd(presentationComplete);
     }
     
     virtual ImageViewHnd getDefaultDepthBufferViewHnd() const override {
-        return reinterpret_cast<ImageViewHnd>(depthStencilView);
+        return ImageViewHnd(depthStencilView);
     }
     
     virtual Image getDefaultDepthBufferImage() const override {
@@ -234,9 +234,6 @@ protected:
     VulkanAPI(Engine* engine, bool useDebugAndValidation, Configuration* config) : GraphicsAPI(engine, useDebugAndValidation, config) {
         // TODO out'a'here
         static_assert(sizeof(ShaderHnd) == sizeof(VkShaderModule), "sizeof(ShaderHnd) not equal to sizeof(VkShaderModule)");
-        static_assert(sizeof(VertexBufferHnd) == sizeof(VkBuffer), "sizeof(VertexBufferHnd) not equal to sizeof(VkBuffer)");
-        static_assert(sizeof(IndexBufferHnd) == sizeof(VkBuffer), "sizeof(IndexBufferHnd) not equal to sizeof(VkBuffer)");
-        static_assert(sizeof(UniformBufferHnd) == sizeof(VkBuffer), "sizeof(UniformBufferHnd) not equal to sizeof(VkBuffer)");
         static_assert(sizeof(std::uint64_t) == sizeof(VkDeviceSize), "sizeof(std::uint64_t) not equal to sizeof(VkDeviceSize)");
         static_assert(sizeof(renderingConstants::ExternalSubpass) == sizeof(VK_SUBPASS_EXTERNAL), "sizeof(renderingConstants::ExternalSubpass) not equal to sizeof(VK_SUBPASS_EXTERNAL)");
         static_assert(renderingConstants::ExternalSubpass == VK_SUBPASS_EXTERNAL, "Const value renderingConstants::ExternalSubpass doesn't match VK_SUBPASS_EXTERNAL");
