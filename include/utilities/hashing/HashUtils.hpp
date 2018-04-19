@@ -41,30 +41,6 @@ namespace iyf {
 constexpr std::size_t constexprStrlen(const char* str) {
     return *str ? 1 + constexprStrlen(str + 1) : 0;
 }
-
-/// Used by murmur3 hash function, adapted from the public domain official implementation, available at
-/// https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
-IYF_FORCE_INLINE constexpr std::uint32_t getblock32(const std::uint32_t* p, int i) {
-    return p[i];
-}
-
-/// Used by murmur3 hash function, adapted from the public domain official implementation, available at
-/// https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
-IYF_FORCE_INLINE constexpr std::uint32_t rotl32(std::uint32_t x, std::int8_t r) {
-    return (x << r) | (x >> (32 - r));
-}
-
-/// Used by murmur3 hash function, adapted from the public domain official implementation, available at
-/// https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
-IYF_FORCE_INLINE constexpr std::uint32_t fmix32(std::uint32_t h) {
-    h ^= h >> 16;
-    h *= 0x85ebca6b;
-    h ^= h >> 13;
-    h *= 0xc2b2ae35;
-    h ^= h >> 16;
-
-    return h;
-}
 }
 
 #endif //CONSTEXPR_STRLEN_HPP
