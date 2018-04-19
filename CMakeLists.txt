@@ -22,7 +22,7 @@ add_definitions(-DGLM_FORCE_LEFT_HANDED)
 add_definitions(-DGLM_FORCE_RADIANS)
 
 # XXHash
-add_definitions(-DXXH_PRIVATE_API)
+add_definitions(-DXXH_INLINE_ALL)
 
 # Required by miniz to support large files on platforms that use glibc
 # TODO do I need platform checks or can I keep this define as-is?
