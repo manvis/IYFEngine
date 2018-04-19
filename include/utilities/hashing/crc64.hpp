@@ -117,7 +117,7 @@ constexpr std::uint64_t crc64Impl(const char* cStr, std::size_t length, std::uin
 }
 
 IYF_FORCE_INLINE constexpr std::uint64_t crc64(const char *cStr) {
-    return ~crc64Impl(cStr, constexprStrlen(cStr), ~0);
+    return ~crc64Impl(cStr, ConstexprStrlen(cStr), ~0);
 }
 
 }

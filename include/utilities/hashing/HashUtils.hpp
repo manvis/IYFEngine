@@ -34,12 +34,15 @@
 #include "utilities/ForceInline.hpp"
 
 namespace iyf {
-/// \todo Recursive functions cannot be IYF_FORCE_INLINE'd. I still get the benefit of the constexpr, 
-/// however, some hashes have to be computed during runtime and IYF_FORCE_INLINE would help. Do I still 
-/// need it to be recursive? it was written for c++11, however, the engine is now c++14 minimum and
-/// restrictions to constexpr functions have been considerably relaxed.
-constexpr std::size_t constexprStrlen(const char* str) {
-    return *str ? 1 + constexprStrlen(str + 1) : 0;
+/// A constexpr version of the strlen function
+IYF_FORCE_INLINE constexpr std::size_t ConstexprStrlen(const char* ptr) {
+    std::size_t len = 0;
+    while (*ptr) {
+        ptr++;
+        len++;
+    }
+    
+    return len;
 }
 }
 

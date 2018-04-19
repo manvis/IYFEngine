@@ -47,7 +47,7 @@ enum class MaterialRenderMode : std::uint8_t {
     COUNT
 };
 
-extern const std::array<LH, static_cast<std::size_t>(MaterialRenderMode::COUNT)> MaterialRenderModeNames;
+extern const std::array<LocalizationHandle, static_cast<std::size_t>(MaterialRenderMode::COUNT)> MaterialRenderModeNames;
 
 /// This class stores material data and metadata for editing, serializes it into files and is used by the World objects to 
 /// instantiate Material objects that contain data used by the GPU during rendering.

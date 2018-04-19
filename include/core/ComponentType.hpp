@@ -98,7 +98,7 @@ private:
 };
 
 namespace con {
-extern const std::array<LH, static_cast<std::size_t>(ComponentBaseType::COUNT)> ComponentBaseTypeNames;
+extern const std::array<LocalizationHandle, static_cast<std::size_t>(ComponentBaseType::COUNT)> ComponentBaseTypeNames;
 }
 
 // ------------------------------------------- SUBTYPES START HERE --------------------------------------------------
@@ -129,7 +129,7 @@ enum class PhysicsComponent : std::uint32_t {
 static_assert(static_cast<std::size_t>(PhysicsComponent::COUNT) < 64, "You cannot have more than 64 PhysicsComponents");
 
 namespace con {
-extern const std::array<std::vector<LH>, static_cast<std::size_t>(ComponentBaseType::COUNT)> ComponentNames;
+extern const std::array<std::vector<LocalizationHandle>, static_cast<std::size_t>(ComponentBaseType::COUNT)> ComponentNames;
 }
 
 }

@@ -38,6 +38,7 @@
 
 #include "utilities/TypeHelpers.hpp"
 #include "utilities/hashing/Hashing.hpp"
+#include "utilities/ForceInline.hpp"
 #include "localization/LocalizationHandle.hpp"
 #include "core/Constants.hpp"
 #include "format/format.h"
@@ -103,9 +104,9 @@ public:
     };
     
     struct MissingString {
-        inline MissingString(LH handle, MissingFrom missingFrom) : handle(handle), missingFrom(missingFrom) {}
+        IYF_FORCE_INLINE MissingString(LocalizationHandle handle, MissingFrom missingFrom) : handle(handle), missingFrom(missingFrom) {}
         
-        LH handle;
+        LocalizationHandle handle;
         MissingFrom missingFrom;
     };
     
@@ -119,7 +120,7 @@ public:
     /// \param [in] args a variable list of arguments that are passed to the string formatter
     /// \return A localized string
     template<typename ... Args>
-    std::string operator()(LocalizationHandle key, Args ... args) const {
+    IYF_FORCE_INLINE std::string operator()(LocalizationHandle key, Args ... args) const {
         auto str = stringMap.find(key.getHashValue());
         if (str == stringMap.end()) {
 #ifdef THROW_IF_MISSING
@@ -195,12 +196,12 @@ TextLocalizer& SystemLocalizer();
 TextLocalizer& GameLocalizer();
 
 template<typename ... Args>
-inline std::string LOC_SYS(LocalizationHandle lh, Args ... args) {
+IYF_FORCE_INLINE std::string LOC_SYS(LocalizationHandle lh, Args ... args) {
     return SystemLocalizer()(lh, args...);
 }
 
 template<typename ... Args>
-inline std::string LOC(LocalizationHandle lh, Args ... args) {
+IYF_FORCE_INLINE std::string LOC(LocalizationHandle lh, Args ... args) {
     return GameLocalizer()(lh, args...);
 }
 

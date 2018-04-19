@@ -34,7 +34,7 @@
 
 namespace iyf {
 
-const std::array<LH, static_cast<std::size_t>(MaterialRenderMode::COUNT)> MaterialRenderModeNames = {
+const std::array<LocalizationHandle, static_cast<std::size_t>(MaterialRenderMode::COUNT)> MaterialRenderModeNames = {
     LH("opaqueRenderMode"),      // 0
     LH("transparentRenderMode"), // 1
 };

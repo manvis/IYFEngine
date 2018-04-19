@@ -114,14 +114,14 @@ TextLocalizer::StringCheckResult TextLocalizer::checkForMissingStrings(const Fil
     bool missingStringsDetected = false;
     for (const auto& s : mapA) {
         if (mapB.count(s.first) == 0) {
-            missingStrings.emplace_back(LH(s.first), MissingFrom::LocaleB);
+            missingStrings.emplace_back(LocalizationHandle(s.first), MissingFrom::LocaleB);
             missingStringsDetected = true;
         }
     }
     
     for (const auto& s : mapB) {
         if (mapA.count(s.first) == 0) {
-            missingStrings.emplace_back(LH(s.first), MissingFrom::LocaleB);
+            missingStrings.emplace_back(LocalizationHandle(s.first), MissingFrom::LocaleB);
             missingStringsDetected = true;
         }
     }

@@ -364,7 +364,7 @@ public:
     /// E.g., GraphicsSystem must return GraphicsComponent::COUNT here.
     virtual std::size_t getSubTypeCount() const = 0;
     
-    inline LH getManagedComponentTypeName() const {
+    inline LocalizationHandle getManagedComponentTypeName() const {
         return con::ComponentBaseTypeNames[static_cast<std::size_t>(getManagedComponentType())];
     }
     

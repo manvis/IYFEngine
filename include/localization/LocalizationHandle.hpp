@@ -30,36 +30,49 @@
 #define IYF_LOCALIZATION_HANDLE_HPP
 
 #include "utilities/hashing/HashCombine.hpp"
+#include "utilities/ForceInline.hpp"
+#include "utilities/hashing/HashUtils.hpp"
 
 namespace iyf {
 class LocalizationHandle {
 public:
-    explicit inline LocalizationHandle(const char* key) : LocalizationHandle(key, "") {}
-    explicit inline LocalizationHandle(const char* key, const char* strNamespace) {
-        hash32_t seed(0);
-        
-        const hash32_t keyHash = HS(key);
-        util::HashCombine(seed, keyHash);
-        
-        std::size_t namespaceStringLength = std::strlen(strNamespace);
-        if (namespaceStringLength != 0) {
-            const hash32_t namespaceHash = HS(strNamespace, namespaceStringLength);
-            util::HashCombine(seed, namespaceHash);
-        }
-        
-        handle = seed;
-    }
+    explicit IYF_FORCE_INLINE constexpr LocalizationHandle(hash32_t handle) : handle(handle) {}
     
-    explicit inline constexpr LocalizationHandle(hash32_t handle) : handle(handle) {}
-    
-    inline constexpr hash32_t getHashValue() const {
+    IYF_FORCE_INLINE constexpr hash32_t getHashValue() const {
         return handle;
     }
 private:
     hash32_t handle;
 };
 
-using LH = LocalizationHandle;
+/// Hashes the key and the namespace and builds a LocalizationHandle that can be used for 
+/// localized string lookups
+IYF_FORCE_INLINE LocalizationHandle LH(const char* key, const char* strNamespace) {
+    hash32_t seed(0);
+        
+    const hash32_t keyHash = HS(key);
+    util::HashCombine(seed, keyHash);
+    
+    std::size_t namespaceStringLength = ConstexprStrlen(strNamespace);
+    if (namespaceStringLength != 0) {
+        const hash32_t namespaceHash = HS(strNamespace, namespaceStringLength);
+        util::HashCombine(seed, namespaceHash);
+    }
+    
+    return LocalizationHandle(seed);
+}
+
+/// Hashes the key and builds a LocalizationHandle that can be used for localized string lookups.
+/// This assumes an empty namespace
+IYF_FORCE_INLINE LocalizationHandle LH(const char* key) {
+    hash32_t seed(0);
+        
+    const hash32_t keyHash = HS(key);
+    util::HashCombine(seed, keyHash);
+    
+    return LocalizationHandle(seed);
+}
+
 }
 
 #endif // IYF_LOCALIZATION_HANDLE_HPP

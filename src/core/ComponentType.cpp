@@ -29,12 +29,12 @@
 #include "core/ComponentType.hpp"
 
 namespace iyf::con {
-const std::array<LH, static_cast<std::size_t>(ComponentBaseType::COUNT)> ComponentBaseTypeNames = {
+const std::array<LocalizationHandle, static_cast<std::size_t>(ComponentBaseType::COUNT)> ComponentBaseTypeNames = {
     LH("graphicsComponentFamily"),
     LH("physicsComponentFamily"),
 };
 
-const std::array<std::vector<LH>, static_cast<std::size_t>(ComponentBaseType::COUNT)> ComponentNames = {
+const std::array<std::vector<LocalizationHandle>, static_cast<std::size_t>(ComponentBaseType::COUNT)> ComponentNames = {
     // ComponentBaseType::Graphics
     {
     {LH("meshComponent"),             // GraphicsComponent::Mesh

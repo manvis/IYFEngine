@@ -26,40 +26,15 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef HASHCOMBINE_HPP
-#define HASHCOMBINE_HPP
+#ifndef IYF_SHADER_TYPE_MANAGER_HPP
+#define IYF_SHADER_TYPE_MANAGER_HPP
 
-#include "utilities/hashing/Hashing.hpp"
-#include "utilities/ForceInline.hpp"
-
-/// \file
-/// This file contains hash32_t and std::hash combination functions
+#include "graphics/GraphicsAPI.hpp"
+#include "assets/AssetManager.hpp"
 
 namespace iyf {
-namespace util {
-    
-/// \brief Combine several hash values into one. This function is based on boost::hash_combine(). It has been re-written to allow builds without a mandatory Boost dependency.
-/// 
-/// To use, call this function repeatedly, passing the same seed (it's an in-out parameter) and different hash values that you wish to combine into one.
-///
-/// \warning order of hashCombine calls matters, that is combining A with B will yield different results than combining B with A
-/// 
-/// \param[in,out] seed the results are accumulated into this value. It should typically start as hash32_t(0).
-/// \param[in] value value of the hash to combine with seed
-IYF_FORCE_INLINE constexpr void HashCombine(hash32_t& seed, hash32_t value) {
-    std::size_t temp = seed.value();
-    temp ^= value.value() + 0x9e3779b9 + (seed.value() << 6) + (seed.value() >> 2);
-    seed = hash32_t(temp);
-}
-
-IYF_FORCE_INLINE constexpr void HashCombine(std::size_t& seed, std::size_t value) {
-    std::size_t temp = seed;
-    temp ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    seed = temp;
-}
+class Engine;
 
 }
-}
 
-#endif /* HASHCOMBINE_HPP */
-
+#endif // IYF_SHADER_TYPE_MANAGER_HPP

@@ -39,6 +39,7 @@
 #include <cstring>
 
 #include "utilities/ForceInline.hpp"
+#include "utilities/hashing/HashUtils.hpp"
 
 // The settings are defined in CMake
 #include "xxhash.h"
@@ -52,23 +53,23 @@ class HashedValue {
 public:
     using ValueType = T;
     
-    inline constexpr HashedValue<T>() : hashValue(0) {}
-    inline constexpr explicit HashedValue<T>(std::size_t v) : hashValue(v) {}
+    IYF_FORCE_INLINE constexpr HashedValue<T>() : hashValue(0) {}
+    IYF_FORCE_INLINE constexpr explicit HashedValue<T>(std::size_t v) : hashValue(v) {}
     
-    inline constexpr operator std::size_t() const {
+    IYF_FORCE_INLINE constexpr operator std::size_t() const {
         return static_cast<std::size_t>(hashValue);
     }
     
-    inline constexpr HashedValue<T>& operator=(const HashedValue<T>& right) {
+    IYF_FORCE_INLINE constexpr HashedValue<T>& operator=(const HashedValue<T>& right) {
         hashValue = right.hashValue;
         return *this;
     }
     
-    inline constexpr bool operator==(const HashedValue<T>& right) const {
+    IYF_FORCE_INLINE constexpr bool operator==(const HashedValue<T>& right) const {
         return right.hashValue == hashValue;
     }
     
-    inline constexpr T value() const {
+    IYF_FORCE_INLINE constexpr T value() const {
         return hashValue;
     }
 private:
@@ -89,7 +90,7 @@ IYF_FORCE_INLINE hash32_t HS(const char* str, std::size_t length) {
 }
 
 IYF_FORCE_INLINE hash32_t HS(const char* str) {
-    return HS(str, std::strlen(str), 0);
+    return HS(str, ConstexprStrlen(str), 0);
 }
 
 IYF_FORCE_INLINE hash32_t HS(const std::string& str, std::uint32_t seed) {
@@ -111,7 +112,7 @@ IYF_FORCE_INLINE hash64_t HF(const char* str, std::size_t length) {
 }
 
 IYF_FORCE_INLINE hash64_t HF(const char* str) {
-    return HF(str, std::strlen(str), 0);
+    return HF(str, ConstexprStrlen(str), 0);
 }
 
 IYF_FORCE_INLINE hash64_t HF(const std::string& str, std::uint64_t seed) {
