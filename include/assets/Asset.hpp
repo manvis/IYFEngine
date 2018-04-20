@@ -33,7 +33,7 @@
 
 namespace iyf {
 
-/// Base class for all assets that can be managed by TypeManager objects.
+/// \brief Base class for all assets that can be managed by TypeManager objects.
 ///
 /// You should treat this class and all of its derivatives as dumb containers that contain all data that
 /// that a System may need in order to use this Asset. The data MUST be set by TypeManager::performLoad() overrides, 
@@ -44,14 +44,15 @@ namespace iyf {
 /// All Asset derivatives must also be default constructible.
 class Asset {
 public:
-    /// Sets the name hash of this Asset to a new value.
+    /// \brief Sets the name hash of this Asset to a new value.
     ///
-    /// \warning This should only be called inside TypeManager::performLoad() overrides. Calling it anyhwere else
-    /// may cause resource leaks, incorrect asset data being passed to various systems and other nasty bugs.
+    /// \warning This should only be called inside TypeManager::load(). Calling it anyhwere else may cause 
+    /// resource leaks, incorrect asset data being passed to various systems and other nasty bugs.
     void setNameHash(hash32_t newNameHash) {
         nameHash = newNameHash;
     }
     
+    /// \brief returns the name hash of this Asset
     hash32_t getNameHash() const {
         return nameHash;
     }

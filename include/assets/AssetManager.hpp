@@ -156,7 +156,9 @@ AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const std::str
     
     if (freeList.empty()) {
         T temp;
+        
         performLoad(nameHash, path, meta, temp);
+        temp.setNameHash(nameHash);
         
         assets.push_back(std::move(temp));
         
@@ -171,6 +173,7 @@ AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const std::str
         freeList.pop_back();
         
         performLoad(nameHash, path, meta, assets[id]);
+        assets[id].setNameHash(nameHash);
         
         // Check if the asset has been cleared successfully
         assert(counts[id] == ClearedAsset);

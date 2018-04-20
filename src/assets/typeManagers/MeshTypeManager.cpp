@@ -195,7 +195,6 @@ void MeshTypeManager::performLoad(hash32_t nameHash, const std::string& path, co
         throw std::runtime_error("Failed to find a mesh file");
     }
     
-    assetData.setNameHash(nameHash);
     assetData.vboID = vboRangeResult.bufferID;
     assetData.iboID = iboRangeResult.bufferID;
     assetData.submeshCount = lmd.count;
