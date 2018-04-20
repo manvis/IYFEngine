@@ -37,6 +37,7 @@
 
 #include "core/interfaces/Configurable.hpp"
 #include "graphics/GraphicsAPIConstants.hpp"
+#include "graphics/GraphicsAPIHandles.hpp"
 #include "utilities/DataSizes.hpp"
 #include "utilities/NonCopyable.hpp"
 #include "utilities/ForceInline.hpp"
@@ -48,52 +49,6 @@
 struct SDL_Window;
 
 namespace iyf {
-/// Base class for type safe GraphicsAPI handles
-class GraphicsAPIHandle {
-public:
-    template<typename T>
-    IYF_FORCE_INLINE T toNative() const {
-        return static_cast<T>(ptr);
-    }
-    
-    IYF_FORCE_INLINE bool isValid() const {
-        return ptr != nullptr;
-    }
-protected:
-    GraphicsAPIHandle(void* ptr) : ptr(ptr) {}
-    GraphicsAPIHandle() : ptr(nullptr) {}
-private:
-    void* ptr;
-};
-
-// Vulkan uses opaque pointers on 64 bit systems for both dispatchable and non-dispatchable handles. However, on 32
-// bit platforms it uses 64 bit ints as non dispatchable handles. GraphicsAPIHandle always expects a pointer, so
-// it won't work on a 32 bit system
-static_assert(sizeof(GraphicsAPIHandle) == 8, "The engine requires 64 bit pointers");
-
-#define IYF_MAKE_GRAPHICS_API_HANDLE(NAME) class NAME : public GraphicsAPIHandle { \
-public: \
-    explicit NAME(void* ptr) : GraphicsAPIHandle(ptr) {} \
-    NAME() : GraphicsAPIHandle() {} \
-};
-
-IYF_MAKE_GRAPHICS_API_HANDLE(CommandBufferHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(SemaphoreHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(FenceHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(BufferHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(ImageHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(ImageViewHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(BufferViewHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(ShaderHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(PipelineLayoutHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(RenderPassHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(PipelineHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(DescriptorSetHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(SamplerHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(DescriptorPoolHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(DescriptorSetLayoutHnd)
-IYF_MAKE_GRAPHICS_API_HANDLE(FramebufferHnd)
-
 /// \todo What about queue families?
 class BufferCreateInfo {
 public:
@@ -810,7 +765,13 @@ public:
     virtual CommandPool* createCommandPool(QueueType type, std::uint32_t queueId) = 0;
     virtual bool destroyCommandPool(CommandPool* pool) = 0;
     
-    virtual ShaderHnd createShader(ShaderStageFlags shaderStageFlag, const std::string& path) = 0;
+    /// \brief Create a shader from bytecode.
+    ///
+    /// On APIs that don't support bytecode, this function needs to be passed a source code string and its length.
+    virtual ShaderHnd createShader(ShaderStageFlags shaderStageFlag, const void* data, std::size_t byteCount) = 0;
+    /// \brief Create a shader from a source code string.
+    ///
+    /// \throws std::runtime_error if the API does not support loading shaders from source code.
     virtual ShaderHnd createShaderFromSource(ShaderStageFlags shaderStageFlag, const std::string& source) = 0;
     virtual bool destroyShader(ShaderHnd handle) = 0;
     

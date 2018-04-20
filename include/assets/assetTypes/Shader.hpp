@@ -26,30 +26,22 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_SHADER_TYPE_MANAGER_HPP
-#define IYF_SHADER_TYPE_MANAGER_HPP
+#ifndef IYF_SHADER_HPP
+#define IYF_SHADER_HPP
 
-#include "assets/AssetManager.hpp"
-#include "assets/assetTypes/Shader.hpp"
+#include "assets/Asset.hpp"
+#include "graphics/GraphicsAPIHandles.hpp"
 
 namespace iyf {
-class Engine;
-class GraphicsAPI;
-
-class ShaderTypeManager : public TypeManager<Shader> {
+/// \brief a shader Asset
+/// 
+/// This wraps the GraphicsAPI handle and a few metadata items that are reuired to use the shader
+class Shader : public Asset {
 public:
-    ShaderTypeManager(AssetManager* manager);
-    
-    virtual AssetType getType() final override {
-        return AssetType::Shader;
-    }
-protected:
-    virtual void performLoad(hash32_t nameHash, const std::string& path, const Metadata& meta, Shader& assetData) final override;
-    virtual void performFree(Shader& assetData) final override;
-private:
-    GraphicsAPI* api;
-    Engine* engine;
+    ShaderHnd handle;
+    ShaderStageFlags stage;
+    ShaderPurpose purpose;
 };
 }
 
-#endif // IYF_SHADER_TYPE_MANAGER_HPP
+#endif // IYF_SHADER_HPP

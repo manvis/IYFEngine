@@ -32,6 +32,7 @@
 #include "core/Logger.hpp"
 #include "core/Engine.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
+#include "assets/typeManagers/ShaderTypeManager.hpp"
 #include "utilities/DataSizes.hpp"
 
 namespace iyf {
@@ -64,6 +65,7 @@ void AssetManager::initialize() {
     
     // TODO load system pipelines
     typeManagers[static_cast<std::size_t>(AssetType::Mesh)] = std::unique_ptr<MeshTypeManager>(new MeshTypeManager(this, 2_MiB, 1_MiB));
+    typeManagers[static_cast<std::size_t>(AssetType::Shader)] = std::unique_ptr<ShaderTypeManager>(new ShaderTypeManager(this));
     //AssetHandle<Mesh> r = load<Mesh>(HS("nano"));
     
     loadSystemAssets();

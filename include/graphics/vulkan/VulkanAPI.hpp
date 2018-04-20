@@ -122,7 +122,7 @@ public:
     virtual CommandPool* createCommandPool(QueueType type, std::uint32_t queueId) override;
     virtual bool destroyCommandPool(CommandPool* pool) override;
     
-    virtual ShaderHnd createShader(ShaderStageFlags shaderStageFlags, const std::string& path) override;
+    virtual ShaderHnd createShader(ShaderStageFlags shaderStageFlag, const void* data, std::size_t byteCount) override;
     virtual ShaderHnd createShaderFromSource(ShaderStageFlags shaderStageFlags, const std::string& source) override;
     virtual bool destroyShader(ShaderHnd handle) override;
     

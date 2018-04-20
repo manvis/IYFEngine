@@ -56,6 +56,7 @@ assets/metadata/StringMetadata.cpp
 assets/metadata/MaterialMetadata.cpp
 #------- typeManager directory
 assets/typeManagers/MeshTypeManager.cpp
+assets/typeManagers/ShaderTypeManager.cpp
 #------- core directory
 core/configuration/Configuration.cpp
 core/interfaces/Configurable.cpp

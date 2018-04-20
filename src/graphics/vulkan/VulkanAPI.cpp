@@ -832,30 +832,18 @@ bool VulkanAPI::endFrame() {
     return true;
 }
 
-ShaderHnd VulkanAPI::createShader(ShaderStageFlags, const std::string& path) {
-    std::string finalPath = "data/shaders/spv/" + path + ".spv";
-    std::ifstream fs(finalPath, std::ios::binary);
-    if (!fs.is_open()) {
-        throw std::runtime_error("Failed to open a shader file: " + path);
-    }
-    
-    fs.seekg(0, std::ios::end);
-    size_t size = fs.tellg();
-    std::vector<char> buff(size);
-    fs.seekg(0);
-    fs.read(buff.data(), size);
-
+ShaderHnd VulkanAPI::createShader(ShaderStageFlags shaderStageFlag, const void* data, std::size_t byteCount) {
     VkShaderModuleCreateInfo mci;
     mci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     mci.pNext    = nullptr;
-    mci.codeSize = size;
-    mci.pCode    = (std::uint32_t*)buff.data();
+    mci.codeSize = byteCount;
+    mci.pCode    = static_cast<const std::uint32_t*>(data);
     mci.flags    = 0;
 
     VkShaderModule module;
-    checkResult(vkCreateShaderModule(logicalDevice.handle, &mci, nullptr, &module), "Failed to create a shader module.", finalPath.c_str());
+    checkResult(vkCreateShaderModule(logicalDevice.handle, &mci, nullptr, &module), "Failed to create a shader module.");
 
-    return (ShaderHnd)module;
+    return ShaderHnd(module);
 }
 
 ShaderHnd VulkanAPI::createShaderFromSource(ShaderStageFlags, const std::string&) {

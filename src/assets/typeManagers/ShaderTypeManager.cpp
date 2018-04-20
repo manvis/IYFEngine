@@ -26,30 +26,31 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_SHADER_TYPE_MANAGER_HPP
-#define IYF_SHADER_TYPE_MANAGER_HPP
-
-#include "assets/AssetManager.hpp"
-#include "assets/assetTypes/Shader.hpp"
+#include "assets/typeManagers/ShaderTypeManager.hpp"
+#include "core/Engine.hpp"
+#include "core/filesystem/File.hpp"
+#include "core/Logger.hpp"
+#include "graphics/GraphicsAPI.hpp"
 
 namespace iyf {
-class Engine;
-class GraphicsAPI;
-
-class ShaderTypeManager : public TypeManager<Shader> {
-public:
-    ShaderTypeManager(AssetManager* manager);
+ShaderTypeManager::ShaderTypeManager(AssetManager* manager) : TypeManager(manager) {
+    engine = manager->getEngine();
+    api = engine->getGraphicsAPI();
+}
+void ShaderTypeManager::performLoad(hash32_t, const std::string& path, const Metadata& meta, Shader& assetData) {
+    const ShaderMetadata& shaderMeta = std::get<ShaderMetadata>(meta);
     
-    virtual AssetType getType() final override {
-        return AssetType::Shader;
-    }
-protected:
-    virtual void performLoad(hash32_t nameHash, const std::string& path, const Metadata& meta, Shader& assetData) final override;
-    virtual void performFree(Shader& assetData) final override;
-private:
-    GraphicsAPI* api;
-    Engine* engine;
-};
+    File file(path, File::OpenMode::Read);
+    auto wholeFile = file.readWholeFile();
+    
+    assetData.handle = api->createShader(shaderMeta.getShaderStage(), wholeFile.first.get(), wholeFile.second);
+    assetData.purpose = shaderMeta.getShaderPurpose();
+    assetData.stage = shaderMeta.getShaderStage();
 }
 
-#endif // IYF_SHADER_TYPE_MANAGER_HPP
+void ShaderTypeManager::performFree(Shader& assetData) {
+    if (!api->destroyShader(assetData.handle)) {
+        LOG_W("Failed to destroy a shader that was loaded from a file with hash: " << assetData.getNameHash());
+    }
+}
+}
