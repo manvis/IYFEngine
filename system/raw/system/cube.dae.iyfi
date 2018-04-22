@@ -3,6 +3,8 @@
 	"assetType": 1,
 	"importerSettingsVersion": 1,
 	"sourceFileHash": 11277719361460342030,
+	"isSystemAsset": true,
+	"tags": [],
 	"use32BitIndices": true,
 	"exportAnimations": true,
 	"scale": 1.0

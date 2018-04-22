@@ -3,6 +3,8 @@
 	"assetType": 2,
 	"importerSettingsVersion": 1,
 	"sourceFileHash": 8934687428782156951,
+	"isSystemAsset": true,
+	"tags": [],
 	"premultiplyAlpha": true,
 	"sRGB": true,
 	"noMipMaps": false,

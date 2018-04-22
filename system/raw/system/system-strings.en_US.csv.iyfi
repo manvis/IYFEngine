@@ -3,5 +3,7 @@
 	"assetType": 10,
 	"importerSettingsVersion": 1,
 	"sourceFileHash": 12626083731740045977,
+	"isSystemAsset": true,
+	"tags": [],
 	"priority": 0
 }
