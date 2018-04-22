@@ -35,8 +35,13 @@ namespace iyf {
 class ScriptMetadata : public MetadataBase {
 public:
     inline ScriptMetadata() : MetadataBase(AssetType::Script) {}
-    inline ScriptMetadata(hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash)
-        : MetadataBase(AssetType::Script, fileHash, sourceAsset, sourceFileHash, true) {}
+    
+    inline ScriptMetadata(hash64_t fileHash,
+                          const fs::path& sourceAsset,
+                          hash64_t sourceFileHash,
+                          bool systemAsset,
+                          const std::vector<std::string>& tags)
+        : MetadataBase(AssetType::Script, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true) {}
     
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
 private:

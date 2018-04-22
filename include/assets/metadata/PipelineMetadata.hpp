@@ -35,8 +35,13 @@ namespace iyf {
 class PipelineMetadata : public MetadataBase {
 public:
     inline PipelineMetadata() : MetadataBase(AssetType::Pipeline) {}
-    inline PipelineMetadata(hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash)
-        : MetadataBase(AssetType::Pipeline, fileHash, sourceAsset, sourceFileHash, true) {}
+    
+    inline PipelineMetadata(hash64_t fileHash,
+                            const fs::path& sourceAsset,
+                            hash64_t sourceFileHash,
+                            bool systemAsset,
+                            const std::vector<std::string>& tags)
+        : MetadataBase(AssetType::Pipeline, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true) {}
     
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
 private:

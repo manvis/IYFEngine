@@ -34,6 +34,8 @@ static const char* CONTENTS_FIELD_VALUE = "ImporterSettingsJSON";
 static const char* VERSION_FIELD_NAME = "importerSettingsVersion";
 static const char* TYPE_FIELD_NAME = "assetType";
 static const char* SOURCE_HASH_FIELD_NAME = "sourceFileHash";
+static const char* IS_SYSTEM_ASSET_FIELD_NAME = "isSystemAsset";
+static const char* TAG_FIELD_NAME = "tags";
 
 void ConverterState::serializeJSON(PrettyStringWriter& pw) const {
     if (!isConversionComplete()) {
@@ -54,6 +56,18 @@ void ConverterState::serializeJSON(PrettyStringWriter& pw) const {
     pw.String(SOURCE_HASH_FIELD_NAME);
     pw.Uint64(sourceFileHash.value());
     
+    if (systemAsset) {
+        pw.String(IS_SYSTEM_ASSET_FIELD_NAME);
+        pw.Bool(systemAsset);
+    }
+    
+    pw.String(TAG_FIELD_NAME);
+    pw.StartArray();
+    for (const auto& tag : tags) {
+        pw.String(tag.data(), tag.size(), true);
+    }
+    pw.EndArray();
+    
     serializeJSONImpl(pw, version);
 }
 
@@ -73,6 +87,17 @@ void ConverterState::deserializeJSON(JSONObject& jo) {
     
     if (type != getType()) {
         throw std::runtime_error("Tried to deserialize conversion settings of the wrong type");
+    }
+    
+    if (jo.HasMember(IS_SYSTEM_ASSET_FIELD_NAME)) {
+        systemAsset = jo[IS_SYSTEM_ASSET_FIELD_NAME].GetBool();
+    }
+    
+    tags.clear();
+    if (jo.HasMember(TAG_FIELD_NAME)) {
+        for (const auto& tag : jo[TAG_FIELD_NAME].GetArray()) {
+            tags.push_back(tag.GetString());
+        }
     }
     
     deserializeJSONImpl(jo, version);

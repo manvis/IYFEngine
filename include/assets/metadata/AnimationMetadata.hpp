@@ -34,10 +34,18 @@
 namespace iyf {
 class AnimationMetadata : public MetadataBase {
 public:
-//    inline AnimationMetadata() : duration(0.0f), ticksPerSecond(0.0f) {}
     inline AnimationMetadata() : MetadataBase(AssetType::Animation) {}
-    inline AnimationMetadata(hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash, std::uint16_t animationFormatVersion, float duration, float ticksPerSecond)
-        : MetadataBase(AssetType::Animation, fileHash, sourceAsset, sourceFileHash, true), duration(duration), ticksPerSecond(ticksPerSecond), animationFormatVersion(animationFormatVersion) {}
+    
+    inline AnimationMetadata(hash64_t fileHash,
+                             const fs::path& sourceAsset,
+                             hash64_t sourceFileHash,
+                             bool systemAsset,
+                             const std::vector<std::string>& tags,
+                             std::uint16_t animationFormatVersion,
+                             float duration,
+                             float ticksPerSecond)
+        : MetadataBase(AssetType::Animation, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true),
+          duration(duration), ticksPerSecond(ticksPerSecond), animationFormatVersion(animationFormatVersion) {}
     
     inline float getDuration() const {
         return duration;

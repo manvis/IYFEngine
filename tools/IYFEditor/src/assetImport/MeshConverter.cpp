@@ -937,7 +937,8 @@ bool MeshConverter::convertV1(ConverterState& state) const {
             animationFile.close();
             
             hash64_t fileHash = HF(aw.data(), aw.size());
-            AnimationMetadata animationMeta(fileHash, state.getSourceFilePath(), state.getSourceFileHash(), animationVersionNumber, animation->mDuration, animation->mTicksPerSecond);
+            AnimationMetadata animationMeta(fileHash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(),
+                                            state.getTags(), animationVersionNumber, animation->mDuration, animation->mTicksPerSecond);
             ImportedAssetData iadAnim(AssetType::Animation, animationMeta, animOut);
             importedAssets.push_back(iadAnim);
         }
@@ -955,7 +956,8 @@ bool MeshConverter::convertV1(ConverterState& state) const {
     meshFile.close();
     
     hash64_t fileHash = HF(fw.data(), fw.size());
-    MeshMetadata meshMetadata(fileHash, state.getSourceFilePath(), state.getSourceFileHash(), versionNumber, numSubMeshes, hasBones.any(), false, totalVertices, totalIndices, 0, bones.size(), hasVertexColors ? 1 : 0, 1);
+    MeshMetadata meshMetadata(fileHash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags(),
+                              versionNumber, numSubMeshes, hasBones.any(), false, totalVertices, totalIndices, 0, bones.size(), hasVertexColors ? 1 : 0, 1);
     ImportedAssetData iadMesh(AssetType::Mesh, meshMetadata, meshOutputPath);
     importedAssets.push_back(iadMesh);
         

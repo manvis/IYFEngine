@@ -35,12 +35,28 @@ namespace iyf {
 class TextureMetadata : public MetadataBase {
 public:
     inline TextureMetadata() : MetadataBase(AssetType::Texture) {};
-    inline TextureMetadata(hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash, std::uint32_t width, std::uint32_t height,
-                           std::uint32_t depth, std::uint8_t faces, std::uint32_t layers, std::uint8_t levels, std::uint8_t channels,
-                           TextureFilteringMethod filter, TextureTilingMethod tileX, TextureTilingMethod tileY, std::uint8_t anisotropy,
-                           TextureCompressionFormat compressionFormat, bool issRGBVal) 
-        : MetadataBase(AssetType::Texture, fileHash, sourceAsset, sourceFileHash, true), compressionFormat(compressionFormat), issRGBVal(issRGBVal),
-          faces(faces), channels(channels), levels(levels), filter(filter), tileX(tileX), tileY(tileY), width(width), height(height),
+    
+    inline TextureMetadata(hash64_t fileHash,
+                           const fs::path& sourceAsset,
+                           hash64_t sourceFileHash,
+                           bool systemAsset,
+                           const std::vector<std::string>& tags,
+                           std::uint32_t width,
+                           std::uint32_t height,
+                           std::uint32_t depth,
+                           std::uint8_t faces,
+                           std::uint32_t layers,
+                           std::uint8_t levels,
+                           std::uint8_t channels,
+                           TextureFilteringMethod filter,
+                           TextureTilingMethod tileX,
+                           TextureTilingMethod tileY,
+                           std::uint8_t anisotropy,
+                           TextureCompressionFormat compressionFormat,
+                           bool issRGBVal) 
+        : MetadataBase(AssetType::Texture, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true), 
+          compressionFormat(compressionFormat), issRGBVal(issRGBVal), faces(faces), channels(channels),
+          levels(levels), filter(filter), tileX(tileX), tileY(tileY), width(width), height(height),
           depth(depth), layers(layers), anisotropy(anisotropy) {}
     
     inline TextureCompressionFormat getCompressionFormat() const {

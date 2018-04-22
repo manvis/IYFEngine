@@ -35,14 +35,27 @@ namespace iyf {
 class MeshMetadata : public MetadataBase {
 public:
     inline MeshMetadata() : MetadataBase(AssetType::Mesh) {}
-//    inline constexpr MeshMetadata() : numSubMeshes(0), hasBonesVal(false), vertexCount(0), indexCount(0), skeletonKey(0), boneCount(0) {}
     
-    inline MeshMetadata(hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash, std::uint16_t meshFormatVersion,
-                        std::uint8_t numSubMeshes, bool hasBonesVal, bool indices32Bit, std::uint32_t vertexCount, std::uint32_t indexCount,
-                        std::uint32_t skeletonKey, std::uint8_t boneCount, std::uint8_t numColorChannels, std::uint8_t numUVSets) 
-            : MetadataBase(AssetType::Mesh, fileHash, sourceAsset, sourceFileHash, true), numSubMeshes(numSubMeshes), hasBonesVal(hasBonesVal),
-                indices32Bit(indices32Bit), numColorChannels(numColorChannels), vertexCount(vertexCount), indexCount(indexCount),
-                skeletonKey(skeletonKey), meshFormatVersion(meshFormatVersion), boneCount(boneCount), numUVSets(numUVSets) {}
+    inline MeshMetadata(hash64_t fileHash,
+                        const fs::path& sourceAsset,
+                        hash64_t sourceFileHash,
+                        bool systemAsset,
+                        const std::vector<std::string>& tags,
+                        std::uint16_t meshFormatVersion,
+                        std::uint8_t numSubMeshes,
+                        bool hasBonesVal,
+                        bool indices32Bit,
+                        std::uint32_t vertexCount,
+                        std::uint32_t indexCount,
+                        std::uint32_t skeletonKey,
+                        std::uint8_t boneCount,
+                        std::uint8_t numColorChannels,
+                        std::uint8_t numUVSets) 
+            : MetadataBase(AssetType::Mesh, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true),
+              numSubMeshes(numSubMeshes), hasBonesVal(hasBonesVal), indices32Bit(indices32Bit),
+              numColorChannels(numColorChannels), vertexCount(vertexCount), indexCount(indexCount),
+              skeletonKey(skeletonKey), meshFormatVersion(meshFormatVersion), boneCount(boneCount),
+              numUVSets(numUVSets) {}
     
     inline std::uint8_t getSubmeshCount() const {
         return numSubMeshes;

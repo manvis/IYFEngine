@@ -37,8 +37,16 @@ namespace iyf {
 class ShaderMetadata : public MetadataBase {
 public:
     inline ShaderMetadata() : MetadataBase(AssetType::Shader) {}
-    inline ShaderMetadata(hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash, ShaderStageFlags stage, ShaderPurpose purpose)
-        : MetadataBase(AssetType::Shader, fileHash, sourceAsset, sourceFileHash, true), stage(stage), purpose(purpose) {}
+    
+    inline ShaderMetadata(hash64_t fileHash,
+                          const fs::path& sourceAsset,
+                          hash64_t sourceFileHash,
+                          bool systemAsset,
+                          const std::vector<std::string>& tags,
+                          ShaderStageFlags stage,
+                          ShaderPurpose purpose)
+        : MetadataBase(AssetType::Shader, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true),
+          stage(stage), purpose(purpose) {}
         
     inline ShaderStageFlags getShaderStage() const {
         return stage;

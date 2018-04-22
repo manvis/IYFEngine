@@ -35,8 +35,13 @@ namespace iyf {
 class AudioMetadata : public MetadataBase {
 public:
     inline AudioMetadata() : MetadataBase(AssetType::Audio) {}
-    inline AudioMetadata(hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash)
-        : MetadataBase(AssetType::Audio, fileHash, sourceAsset, sourceFileHash, true) {}
+    
+    inline AudioMetadata(hash64_t fileHash,
+                         const fs::path& sourceAsset,
+                         hash64_t sourceFileHash,
+                         bool systemAsset,
+                         const std::vector<std::string>& tags)
+        : MetadataBase(AssetType::Audio, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true) {}
     
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
 private:

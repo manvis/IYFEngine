@@ -36,6 +36,8 @@ static const char* ASSET_TYPE_FIELD_NAME = "assetType";
 static const char* FILE_HASH_FIELD_NAME = "fileHash";
 static const char* SOURCE_ASSET_FIELD_NAME = "sourceAsset";
 static const char* SERIALIZED_DATA_VERSION_FIELD_NAME = "serializedDataVersion";
+static const char* IS_SYSTEM_ASSET_FIELD_NAME = "isSystemAsset";
+static const char* TAGS_FIELD_NAME = "tags";
 
 //static const std::array<char, 4> MAGIC_NUMBER = {'I', 'Y', 'F', 'D'};
 
@@ -46,9 +48,16 @@ void MetadataBase::serialize(Serializer& fw) const {
     
     //fw.writeBytes(MAGIC_NUMBER.data(), 4);
     fw.writeUInt8(static_cast<std::uint8_t>(getAssetType()));
+    fw.writeUInt8(systemAsset);
     fw.writeUInt16(getLatestSerializedDataVersion());
     fw.writeUInt64(fileHash.value());
     fw.writeString(sourceAsset.generic_string(), StringLengthIndicator::UInt16);
+    
+    fw.writeUInt8(tags.size());
+    
+    for (const auto& tag : tags) {
+        fw.writeString(tag, StringLengthIndicator::UInt8);
+    }
     
     serializeImpl(fw, getLatestSerializedDataVersion());
 }
@@ -58,11 +67,10 @@ void MetadataBase::deserialize(Serializer& fr)  {
     //fr.readBytes(temp.data(), 4);
     
     AssetType type = static_cast<AssetType>(fr.readUInt8());
-    
     if (type != assetType) {
         throw std::runtime_error("Tried to deserialize a metadata file of a different AssetType");
     }
-    
+    systemAsset = fr.readUInt8();
     std::uint16_t version = fr.readUInt16();
     
     fileHash = hash64_t(fr.readUInt64());
@@ -70,6 +78,15 @@ void MetadataBase::deserialize(Serializer& fr)  {
     std::string temp;
     fr.readString(temp, StringLengthIndicator::UInt16, 0);
     sourceAsset = std::move(temp);
+    
+    const std::size_t tagCount = fr.readUInt8();
+    
+    tags.clear();
+    tags.reserve(tagCount);
+    
+    for (std::size_t i = 0; i < tagCount; ++i) {
+        fr.readString(tags[i], StringLengthIndicator::UInt8, 0);
+    }
     
     deserializeImpl(fr, version);
     
@@ -95,6 +112,18 @@ void MetadataBase::serializeJSON(PrettyStringWriter& pw) const  {
     pw.String(SERIALIZED_DATA_VERSION_FIELD_NAME);
     pw.Uint(getLatestSerializedDataVersion());
     
+    if (systemAsset) {
+        pw.String(IS_SYSTEM_ASSET_FIELD_NAME);
+        pw.Bool(systemAsset);
+    }
+    
+    pw.String(TAGS_FIELD_NAME);
+    pw.StartArray();
+    for (const auto& tag : tags) {
+        pw.String(tag.data(), tag.size(), true);
+    }
+    pw.EndArray();
+    
     serializeJSONImpl(pw, getLatestSerializedDataVersion());
     pw.EndObject();
 }
@@ -112,6 +141,17 @@ void MetadataBase::deserializeJSON(JSONObject& jo) {
     sourceAsset = fs::path(jo[SOURCE_ASSET_FIELD_NAME].GetString());
     
     std::uint16_t version = jo[SERIALIZED_DATA_VERSION_FIELD_NAME].GetInt();
+    
+    if (jo.HasMember(IS_SYSTEM_ASSET_FIELD_NAME)) {
+        systemAsset = jo[IS_SYSTEM_ASSET_FIELD_NAME].GetBool();
+    }
+    
+    tags.clear();
+    if (jo.HasMember(TAGS_FIELD_NAME)) {
+        for (const auto& tag : jo[TAGS_FIELD_NAME].GetArray()) {
+            tags.push_back(tag.GetString());
+        }
+    }
     
     deserializeJSONImpl(jo, version);
     

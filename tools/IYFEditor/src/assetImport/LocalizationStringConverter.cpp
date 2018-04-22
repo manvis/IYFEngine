@@ -146,7 +146,7 @@ bool LocalizationStringConverter::convert(ConverterState& state) const {
     LOG_D("OP: " << outputPath << " " << locState.systemTranslations);
     
     const hash64_t hash = HF(ms.data(), ms.size());
-    StringMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), locState.getLocale(), locState.priority);
+    StringMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags(), locState.getLocale(), locState.priority);
     ImportedAssetData iad(state.getType(), metadata, outputPath);
     state.getImportedAssets().push_back(std::move(iad));
     

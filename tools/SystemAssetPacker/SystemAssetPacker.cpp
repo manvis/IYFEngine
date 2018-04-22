@@ -116,6 +116,7 @@ void SystemAssetPacker::recursiveExport(const fs::path& path, const editor::Conv
 // //                 tcs->importMode = TextureImportMode::NormalMap;
 //             }
             
+            converterState->setSystemAsset(true);
             if (!cm.convert(*converterState)) {
                 LOG_E("Failed to convert a system asset: " << sourcePath);
                 throw std::runtime_error("Failed to convert a system asset (Check log)");

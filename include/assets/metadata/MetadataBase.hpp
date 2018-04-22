@@ -39,10 +39,10 @@ namespace iyf {
 
 class MetadataBase : public Serializable, public TextSerializable {
 public:
-    inline MetadataBase(AssetType assetType) : assetType(assetType), complete(false), fileHash(0) {}
+    inline MetadataBase(AssetType assetType) : assetType(assetType), complete(false), systemAsset(false), fileHash(0) {}
     
-    inline MetadataBase(AssetType assetType, hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash, bool complete) 
-        : assetType(assetType), complete(complete), fileHash(fileHash), sourceAsset(sourceAsset), sourceFileHash(sourceFileHash) {}
+    inline MetadataBase(AssetType assetType, hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash, bool systemAsset, const std::vector<std::string>& tags, bool complete) 
+        : assetType(assetType), complete(complete), systemAsset(systemAsset), tags(tags), fileHash(fileHash), sourceAsset(sourceAsset), sourceFileHash(sourceFileHash) {}
     
     AssetType getAssetType() const {
         return assetType;
@@ -101,6 +101,8 @@ private:
     
     AssetType assetType;
     bool complete;
+    bool systemAsset;
+    std::vector<std::string> tags;
     hash64_t fileHash;
     fs::path sourceAsset;
     hash64_t sourceFileHash;

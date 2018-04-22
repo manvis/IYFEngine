@@ -61,8 +61,26 @@ inline InternalConverterState::~InternalConverterState() {}
 class ConverterState : private NonCopyable, public TextSerializable {
 public:
     ConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, hash64_t sourceFileHash)
-        : sourcePath(sourcePath), sourceFileHash(sourceFileHash), conversionComplete(false), debugOutputRequested(false), platformID(platformID), 
-          internalState(std::move(internalState)) {}
+        : sourcePath(sourcePath), sourceFileHash(sourceFileHash), conversionComplete(false), debugOutputRequested(false), systemAsset(false),
+          platformID(platformID), internalState(std::move(internalState)) {}
+    
+    /// If true, this represents a system asset
+    inline bool isSystemAsset() const {
+        return systemAsset;
+    }
+    
+    /// \warning This should only be used internally (e.g., in SystemAssetPacker). Do not expose this in the editor
+    inline void setSystemAsset(bool systemAsset) {
+        this->systemAsset = systemAsset;
+    }
+    
+    inline const std::vector<std::string>& getTags() const {
+        return tags;
+    }
+    
+    inline std::vector<std::string>& getTags() {
+        return tags;
+    }
     
     /// If true, some converters may export additional debug data. This parameter is not serialized
     inline void setDebugOutputRequested(bool requested) {
@@ -129,11 +147,13 @@ protected:
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) = 0;
 private:
     std::vector<ImportedAssetData> importedAssets;
+    std::vector<std::string> tags;
     fs::path sourcePath;
     hash64_t sourceFileHash;
     
     bool conversionComplete;
     bool debugOutputRequested;
+    bool systemAsset;
     PlatformIdentifier platformID;
     
     /// The internal state of the importer. Calling Converter::initializeConverter() typically loads the file 

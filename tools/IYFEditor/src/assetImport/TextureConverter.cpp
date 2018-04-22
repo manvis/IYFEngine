@@ -884,7 +884,7 @@ bool TextureConverter::convert(ConverterState& state) const {
     textureFile.close();
     
     hash64_t fileHash = HF(fw.data(), fw.size());
-    TextureMetadata textureMetadata(fileHash, textureState.getSourceFilePath(), textureState.getSourceFileHash(), topLevelWidth, topLevelHeight, 1, faceCount, 1,
+    TextureMetadata textureMetadata(fileHash, textureState.getSourceFilePath(), textureState.getSourceFileHash(), state.isSystemAsset(), state.getTags(), topLevelWidth, topLevelHeight, 1, faceCount, 1,
                                     mipmapLevels, textureState.channels, textureState.filteringMethod, textureState.xTiling, textureState.yTiling, textureState.preferredAnisotropy,
                                     compressionFormat, textureState.sRGBSource);
     ImportedAssetData iadTexture(AssetType::Texture, textureMetadata, outputPath);

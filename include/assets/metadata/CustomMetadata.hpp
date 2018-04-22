@@ -35,8 +35,13 @@ namespace iyf {
 class CustomMetadata : public MetadataBase {
 public:
     inline CustomMetadata() : MetadataBase(AssetType::Custom) {}
-    inline CustomMetadata(hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash)
-        : MetadataBase(AssetType::Custom, fileHash, sourceAsset, sourceFileHash, true) {}
+    
+    inline CustomMetadata(hash64_t fileHash,
+                          const fs::path& sourceAsset,
+                          hash64_t sourceFileHash,
+                          bool systemAsset,
+                          const std::vector<std::string>& tags)
+        : MetadataBase(AssetType::Custom, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true) {}
     
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
 private:

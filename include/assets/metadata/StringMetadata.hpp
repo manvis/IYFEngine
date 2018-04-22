@@ -35,8 +35,16 @@ namespace iyf {
 class StringMetadata : public MetadataBase {
 public:
     inline StringMetadata() : MetadataBase(AssetType::Strings) {}
-    inline StringMetadata(hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash, std::string locale, std::int32_t priority)
-        : MetadataBase(AssetType::Strings, fileHash, sourceAsset, sourceFileHash, true), locale(std::move(locale)), priority(priority) {}
+    
+    inline StringMetadata(hash64_t fileHash,
+                          const fs::path& sourceAsset,
+                          hash64_t sourceFileHash,
+                          bool systemAsset,
+                          const std::vector<std::string>& tags,
+                          std::string locale,
+                          std::int32_t priority)
+        : MetadataBase(AssetType::Strings, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true),
+          locale(std::move(locale)), priority(priority) {}
     
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
     

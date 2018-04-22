@@ -129,7 +129,7 @@ bool ShaderConverter::convert(ConverterState& state) const {
     const fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
     
     hash64_t hash = HF(reinterpret_cast<const char*>(content.data()), outputByteCount);
-    ShaderMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), shaderStage, conversionState.purpose);
+    ShaderMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags(), shaderStage, conversionState.purpose);
     ImportedAssetData iad(state.getType(), metadata, outputPath);
     state.getImportedAssets().push_back(std::move(iad));
     
