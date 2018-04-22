@@ -29,6 +29,7 @@
 #include "graphics/clusteredRenderers/ClusteredRenderer.hpp"
 #include "graphics/VertexDataLayouts.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
+#include "assets/assetTypes/Shader.hpp"
 #include "core/World.hpp"
 #include "graphics/Camera.hpp"
 #include "core/Engine.hpp"
@@ -74,9 +75,10 @@ void ClusteredRenderer::initialize() {
     
     iyf::PipelineCreateInfo pci;
     
-    vsSimpleFlat = api->createShader(iyf::ShaderStageFlagBits::Vertex, "defaultVertex.vert");
-    fsSimpleFlat = api->createShader(iyf::ShaderStageFlagBits::Fragment, "randomTests.frag");
-    pci.shaders = {{iyf::ShaderStageFlagBits::Vertex, vsSimpleFlat}, {iyf::ShaderStageFlagBits::Fragment, fsSimpleFlat}};
+    AssetManager* manager = engine->getAssetManager();
+    vsSimpleFlat = manager->getSystemAsset<Shader>("defaultVertex.vert");
+    fsSimpleFlat = manager->getSystemAsset<Shader>("randomTests.frag");
+    pci.shaders = {{iyf::ShaderStageFlagBits::Vertex, vsSimpleFlat->handle}, {iyf::ShaderStageFlagBits::Fragment, fsSimpleFlat->handle}};
     pci.layout = pipelineLayout;
     pci.rasterizationState.frontFace = iyf::FrontFace::Clockwise; // TODO if reverse z, GreaterEqual or Greater?
     pci.rasterizationState.lineWidth = 2.0f;
@@ -98,8 +100,8 @@ void ClusteredRenderer::initialize() {
 
 void ClusteredRenderer::dispose() {
     api->destroyPipeline(simpleFlatPipeline);
-    api->destroyShader(vsSimpleFlat);
-    api->destroyShader(fsSimpleFlat);
+    vsSimpleFlat.release();
+    fsSimpleFlat.release();
     api->destroyPipelineLayout(pipelineLayout);
     
     commandPool->freeCommandBuffers(commandBuffers);

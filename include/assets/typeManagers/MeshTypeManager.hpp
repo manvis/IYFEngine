@@ -107,6 +107,8 @@ public:
     /// is cleared.
     std::pair<GraphicsToPhysicsDataMapping, GraphicsToPhysicsDataMapping> getGraphicsToPhysicsDataMapping(const Mesh& assetData) const;
 protected:
+    virtual void initMissingAssetHandle() final override;
+    
     virtual void performLoad(hash32_t nameHash, const std::string& path, const Metadata& meta, Mesh& assetData) override;
     virtual void performFree(Mesh& assetData) override;
     

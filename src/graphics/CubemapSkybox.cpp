@@ -31,6 +31,9 @@
 #include "graphics/Renderer.hpp"
 #include "graphics/Skybox.hpp"
 #include "graphics/Camera.hpp"
+
+#include "assets/AssetManager.hpp"
+#include "assets/assetTypes/Shader.hpp"
 #include "core/Logger.hpp"
 
 #include <glm/mat4x4.hpp>
@@ -69,12 +72,11 @@ void CubemapSkybox::initialize() {
     PipelineLayoutCreateInfo plci{{skyDescriptorSetLayout}, {{ShaderStageFlagBits::Vertex, 0, sizeof(glm::mat4)}}};
     skyPipelineLayout = api->createPipelineLayout(plci);
     
-    // TODO files MUST be handled via sandboxed API
-    skyVertexShader = api->createShader(ShaderStageFlagBits::Vertex, "skyBox.vert");
-    skyFragmentShader = api->createShader(ShaderStageFlagBits::Fragment, "skyBox.frag");
+    skyVertexShader = assetManager->getSystemAsset<Shader>("skyBox.vert");
+    skyFragmentShader = assetManager->getSystemAsset<Shader>("skyBox.frag");
     
     PipelineCreateInfo pci;
-    pci.shaders = {{ShaderStageFlagBits::Vertex, skyVertexShader}, {ShaderStageFlagBits::Fragment, skyFragmentShader}};
+    pci.shaders = {{ShaderStageFlagBits::Vertex, skyVertexShader->handle}, {ShaderStageFlagBits::Fragment, skyFragmentShader->handle}};
     pci.depthStencilState.depthWriteEnable = false;
     pci.depthStencilState.depthCompareOp = CompareOp::GreaterEqual; // TODO if reverse z, GreaterEqual or Greater?
     pci.rasterizationState.frontFace = FrontFace::CounterClockwise;
@@ -108,8 +110,8 @@ void CubemapSkybox::dispose() {
     
     GraphicsAPI* api = renderer->getGraphicsAPI();
     api->destroyPipeline(skyPipeline);
-    api->destroyShader(skyVertexShader);
-    api->destroyShader(skyFragmentShader);
+    skyVertexShader.release();
+    skyFragmentShader.release();
     
     api->destroyPipelineLayout(skyPipelineLayout);
     

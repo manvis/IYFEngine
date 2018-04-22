@@ -31,13 +31,17 @@
 
 #include "graphics/Skybox.hpp"
 #include "graphics/GraphicsAPI.hpp"
+#include "assets/AssetHandle.hpp"
 
 #include <string>
 
 namespace iyf {
+class AssetManager;
+class Shader;
+
 class CubemapSkybox : public Skybox {
 public:
-    CubemapSkybox(Renderer* renderer, const std::string& path) : Skybox(renderer), path(path) {}
+    CubemapSkybox(AssetManager* assetManager, Renderer* renderer, const std::string& path) : Skybox(renderer), assetManager(assetManager), path(path) {}
     
     virtual void initialize() final;
     virtual void dispose() final;
@@ -45,6 +49,7 @@ public:
     virtual void update(float delta) final;
     virtual void draw(CommandBuffer* commandBuffer, const Camera* camera) const final;
 protected:
+    AssetManager* assetManager;
     std::string path;
     
     Image skyCubemap;
@@ -55,7 +60,8 @@ protected:
     DescriptorSetLayoutHnd skyDescriptorSetLayout;
     DescriptorSetHnd skyTextureDescriptorSet;
     PipelineLayoutHnd skyPipelineLayout;
-    ShaderHnd skyVertexShader, skyFragmentShader;
+    AssetHandle<Shader> skyVertexShader;
+    AssetHandle<Shader> skyFragmentShader;
     Pipeline skyPipeline;
     
     Buffer auxVBOHandle;

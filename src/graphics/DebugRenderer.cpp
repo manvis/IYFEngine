@@ -27,9 +27,13 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "graphics/DebugRenderer.hpp"
+
 #include "graphics/Camera.hpp"
 #include "graphics/Renderer.hpp"
 #include "graphics/VertexDataLayouts.hpp"
+
+#include "assets/AssetManager.hpp"
+#include "assets/assetTypes/Shader.hpp"
 
 #include "glm/mat4x4.hpp"
 
@@ -63,9 +67,9 @@ void DebugRenderer::initialize() {
     
     PipelineCreateInfo pci;
     
-    vs = api->createShader(ShaderStageFlagBits::Vertex, "physicsDebug.vert");
-    fs = api->createShader(ShaderStageFlagBits::Fragment, "physicsDebug.frag");
-    pci.shaders = {{ShaderStageFlagBits::Vertex, vs}, {ShaderStageFlagBits::Fragment, fs}};
+    vs = assetManager->getSystemAsset<Shader>("physicsDebug.vert");
+    fs = assetManager->getSystemAsset<Shader>("physicsDebug.frag");
+    pci.shaders = {{ShaderStageFlagBits::Vertex, vs->handle}, {ShaderStageFlagBits::Fragment, fs->handle}};
     pci.layout = pipelineLayout;
     //pci.rasterizationState.frontFace = FrontFace::CounterClockwise; // TODO if reverse z, GreaterEqual or Greater?
     pci.rasterizationState.frontFace = FrontFace::Clockwise;
@@ -93,8 +97,8 @@ void DebugRenderer::dispose() {
     
     GraphicsAPI* api = renderer->getGraphicsAPI();
     api->destroyPipeline(physicsDebugPipeline);
-    api->destroyShader(vs);
-    api->destroyShader(fs);
+    vs.release();
+    fs.release();
     api->destroyPipelineLayout(pipelineLayout);
     api->destroyBuffers({vbo});
 }

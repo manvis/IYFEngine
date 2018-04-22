@@ -126,7 +126,7 @@ void GraphicsSystem::initialize() {
     assetManager = manager->getEngine()->getAssetManager();
     
     // TODO I need to refactor the Skybox so that it would be drawn, instead of drawing itself
-    setSkybox(std::make_unique<CubemapSkybox>(renderer, "data/skyboxes/askySphere.dds"));
+    setSkybox(std::make_unique<CubemapSkybox>(assetManager, renderer, "data/skyboxes/askySphere.dds"));
     if (skybox != nullptr) {
         skybox->initialize();
     }

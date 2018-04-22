@@ -215,6 +215,10 @@ void Engine::init() {
     graphicsAPI->initialize();
     window = graphicsAPI->getWindow();
     
+    // Initialize the asset manager (depends on the graphics API and the filesystem to load the system assets)
+    assetManager = std::make_unique<AssetManager>(this);
+    assetManager->initialize();
+    
     // Initialize the renderer
     // TODO choose a renderer based on configuration
     renderer = std::unique_ptr<ClusteredRenderer>(new ClusteredRenderer(this, graphicsAPI.get()));
@@ -229,10 +233,6 @@ void Engine::init() {
     // TODO pass engine and config
     soundAPI = std::unique_ptr<SoundAPI>(new SoundAPI(this));
     soundAPI->initialize();
-
-    // Initialize the asset manager
-    assetManager = std::make_unique<AssetManager>(this);
-    assetManager->initialize();
     
     // Set cursor
     //SDL_SetWindowGrab(window, SDL_TRUE);

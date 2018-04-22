@@ -34,9 +34,9 @@
 #include "utilities/hashing/Hashing.hpp"
 #include "utilities/NonCopyable.hpp"
 #include "utilities/ChunkedVector.hpp"
-#include "utilities/ReferenceCountedHandle.hpp"
 #include "assets/metadata/Metadata.hpp"
 #include "assets/Asset.hpp"
+#include "assets/AssetHandle.hpp"
 #include "graphics/MaterialPipelineDefinition.hpp"
 
 #include <unordered_map>
@@ -58,14 +58,16 @@ public:
     virtual AssetType getType() = 0;
     virtual ~TypeManagerBase() {}
 protected:
+    friend class AssetManager;
+    /// Our friend AssetManager calls this function once it finishes building the manifest. The "missing" assets
+    /// are treated like any other assets and require the presence of a manifest to be loaded.
+    virtual void initMissingAssetHandle() = 0;
+    
     void logLeakedAsset(std::size_t id, hash32_t nameHash, std::uint32_t count);
     void notifyRemoval(hash32_t nameHash);
     
     AssetManager* manager;
 };
-
-template <typename T>
-using AssetHandle = ReferenceCountedHandle<T, std::atomic<std::uint32_t>>;
 
 /// TypeManager handles the actual loading and unloading of //
 /// \todo is the default chunk size ok?
@@ -229,12 +231,14 @@ public:
     void collectGarbage();
     
     /// Either loads an asset or retrieves a handle to an already loaded one
-    /// 
+    ///
+    /// \todo an empty handle would be nicer than an assert
+    ///
     /// \param nameHash hashed path to an asset
     /// \return An AssetHandle
     template <typename T>
     inline AssetHandle<T> load(hash32_t nameHash) {
-        const auto& assetReference = loadedAssets.find(nameHash);
+        const auto assetReference = loadedAssets.find(nameHash);
         
         assert(manifest.find(nameHash) != manifest.end());
         const ManifestElement& asset = manifest[nameHash];
@@ -260,6 +264,11 @@ public:
         assert(typeManager->getType() == type);
         
         return typeManager->getMissingAssetHandle();
+    }
+    
+    template <typename T>
+    inline AssetHandle<T> getSystemAsset(const std::string& name) {
+        return load<T>(HS("raw/system/" + name));
     }
     
     inline const std::string& getAssetPath(hash32_t nameHash) {

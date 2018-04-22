@@ -31,6 +31,8 @@
 #include "ImGuiImplementation.hpp"
 #include "core/Constants.hpp"
 #include "core/Logger.hpp"
+#include "assets/AssetManager.hpp"
+#include "assets/assetTypes/Shader.hpp"
 
 #include "imgui.h"
 #include <glm/vec2.hpp>
@@ -235,10 +237,11 @@ void ImGuiImplementation::initializeAssets() {
     
     PipelineCreateInfo pci;
     
-    vertexShader = gfxAPI->createShader(ShaderStageFlagBits::Vertex, "imgui.vert");
-    fragmentShader = gfxAPI->createShader(ShaderStageFlagBits::Fragment, "imgui.frag");
+    AssetManager* assetManager = engine->getAssetManager();
+    vertexShader = assetManager->getSystemAsset<Shader>("imgui.vert");
+    fragmentShader = assetManager->getSystemAsset<Shader>("imgui.frag");
     
-    pci.shaders = {{ShaderStageFlagBits::Vertex, vertexShader}, {ShaderStageFlagBits::Fragment, fragmentShader}};
+    pci.shaders = {{ShaderStageFlagBits::Vertex, vertexShader->handle}, {ShaderStageFlagBits::Fragment, fragmentShader->handle}};
     
     pci.depthStencilState.depthTestEnable = false;
     pci.depthStencilState.depthWriteEnable = false;
@@ -307,8 +310,8 @@ void ImGuiImplementation::disposeAssets() {
 
     gfxAPI->destroyPipeline(pipeline);
 
-    gfxAPI->destroyShader(vertexShader);
-    gfxAPI->destroyShader(fragmentShader);
+    vertexShader.release();
+    fragmentShader.release();
     
     gfxAPI->destroyImageView(fontView);
     gfxAPI->destroyImage(fontAtlas);

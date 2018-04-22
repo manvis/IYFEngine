@@ -227,7 +227,7 @@ void PhysicsSystem::setDrawDebug(bool value) {
     if (drawDebug) {
         assert(debugRenderer == nullptr);
         
-        debugRenderer = std::make_unique<BulletPhysicsDebugRenderer>(manager->getEngine()->getRenderer());
+        debugRenderer = std::make_unique<BulletPhysicsDebugRenderer>(manager->getEngine()->getAssetManager(), manager->getEngine()->getRenderer());
         debugRenderer->initialize();
         
         btIDebugDraw* temp = dynamic_cast<BulletPhysicsDebugRenderer*>(debugRenderer.get());

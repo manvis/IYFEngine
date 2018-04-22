@@ -60,14 +60,17 @@ MeshTypeManager::MeshTypeManager(AssetManager* manager, Bytes VBOSize, Bytes IBO
     
     char* iboData = new char[IBOSize.count()];
     indexDataBuffers.emplace_back(output[1], output[1].size(), iboData);
-    
-    /// Initialize the missing asset data
-    std::uint32_t idOut = 0;
-    VirtualFileSystemSerializer fr((con::MeshPath / (con::MissingMesh + con::MetadataExtension)).generic_string(), File::OpenMode::Read);
-    MeshMetadata meshMeta;
-    meshMeta.deserialize(fr);
-    Metadata metadata = meshMeta;
-    missingAssetHandle = load(HS(con::MissingMesh.c_str()), con::MissingMesh, metadata, idOut);
+}
+
+void MeshTypeManager::initMissingAssetHandle() {
+    // TODO this is old - update
+//     /// Initialize the missing asset data
+//     std::uint32_t idOut = 0;
+//     VirtualFileSystemSerializer fr((con::MeshPath / (con::MissingMesh + con::MetadataExtension)).generic_string(), File::OpenMode::Read);
+//     MeshMetadata meshMeta;
+//     meshMeta.deserialize(fr);
+//     Metadata metadata = meshMeta;
+//     missingAssetHandle = load(HS(con::MissingMesh.c_str()), con::MissingMesh, metadata, idOut);
 }
 
 MeshTypeManager::~MeshTypeManager() {

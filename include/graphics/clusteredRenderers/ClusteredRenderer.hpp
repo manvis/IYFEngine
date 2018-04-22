@@ -30,8 +30,10 @@
 #define CLUSTEREDRENDERER_HPP
 
 #include "graphics/Renderer.hpp"
+#include "assets/AssetHandle.hpp"
 
 namespace iyf {
+class Shader;
 
 class ClusteredRenderer : public Renderer {
 public:
@@ -89,8 +91,8 @@ protected:
     
     PipelineLayoutHnd pipelineLayout;
     Pipeline simpleFlatPipeline;
-    ShaderHnd vsSimpleFlat;
-    ShaderHnd fsSimpleFlat;
+    AssetHandle<Shader> vsSimpleFlat;
+    AssetHandle<Shader> fsSimpleFlat;
     std::vector<SpecializationConstant> specializationConstants;
     
 };

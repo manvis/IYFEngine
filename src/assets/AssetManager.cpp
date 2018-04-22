@@ -63,12 +63,19 @@ void AssetManager::initialize() {
     auto fr = brs.getFreeRange(Bytes(10), Bytes(5));
     LOG_D("Ranges " << fr.completeRange.offset.count() << " " << fr.completeRange.size.count() << " " << fr.startPadding)
     
-    // TODO load system pipelines
     typeManagers[static_cast<std::size_t>(AssetType::Mesh)] = std::unique_ptr<MeshTypeManager>(new MeshTypeManager(this, 2_MiB, 1_MiB));
     typeManagers[static_cast<std::size_t>(AssetType::Shader)] = std::unique_ptr<ShaderTypeManager>(new ShaderTypeManager(this));
     //AssetHandle<Mesh> r = load<Mesh>(HS("nano"));
     
+    // TODO Load the metadata into the manifest
+    
     loadSystemAssets();
+    
+    for (auto& tm : typeManagers) {
+        if (tm != nullptr) {
+            tm->initMissingAssetHandle();
+        }
+    }
     
     isInit = true;
 }

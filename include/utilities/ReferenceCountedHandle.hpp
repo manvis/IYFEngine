@@ -94,6 +94,19 @@ public:
         return *counter;
     }
     
+    inline bool release() {
+        if (isValid()) {
+            (*counter)--;
+            
+            item = nullptr;
+            counter = nullptr;
+            
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
     /// Swaps the contents of two ReferenceCountedHandle
     friend void swap(ReferenceCountedHandle& first, ReferenceCountedHandle& second) {
         // Good explanation on why a swap function is needed
@@ -106,7 +119,7 @@ public:
 private:
     T* item;
     RefCounter* counter;
-};    
+};
 }
 
 #endif // REFERENCE_COUNTED_HANDLE_HPP

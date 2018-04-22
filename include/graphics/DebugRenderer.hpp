@@ -32,6 +32,8 @@
 #include "graphics/GraphicsAPI.hpp"
 #include "graphics/VertexDataTypes.hpp"
 
+#include "assets/AssetHandle.hpp"
+
 #include "glm/vec3.hpp"
 #include "glm/packing.hpp"
 
@@ -42,6 +44,8 @@ namespace iyf {
 class CommandBuffer;
 class Camera;
 class Renderer;
+class AssetManager;
+class Shader;
 
 class DebugRenderer {
 protected:
@@ -57,7 +61,7 @@ protected:
     /// \todo Dynamic resize? A different (bigger) default limit?
     static const std::size_t MaxDebugPontVertices = 8192;
 public:
-    DebugRenderer(Renderer* renderer) : renderer(renderer), isInit(false) { }
+    DebugRenderer(AssetManager* assetManager, Renderer* renderer) : renderer(renderer), assetManager(assetManager), isInit(false) { }
     
     virtual void initialize();
     virtual void dispose();
@@ -90,6 +94,7 @@ public:
     }
 protected:
     Renderer* renderer;
+    AssetManager* assetManager;
     bool isInit;
     
     std::vector<ColoredDebugVertex> vertices;
@@ -97,8 +102,8 @@ protected:
     std::size_t contactPointVertexCount;
     Pipeline physicsDebugPipeline;
     PipelineLayoutHnd pipelineLayout;
-    ShaderHnd vs;
-    ShaderHnd fs;
+    AssetHandle<Shader> vs;
+    AssetHandle<Shader> fs;
     Buffer vbo;
 };
 }

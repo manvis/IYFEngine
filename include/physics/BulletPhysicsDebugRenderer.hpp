@@ -36,10 +36,11 @@
 
 namespace iyf {
 class Renderer;
+class AssetManager;
 
 class BulletPhysicsDebugRenderer : public DebugRenderer, public btIDebugDraw {
 public:
-    BulletPhysicsDebugRenderer(Renderer* renderer) : DebugRenderer(renderer), debugModeVal(0) { }
+    BulletPhysicsDebugRenderer(AssetManager* assetManager, Renderer* renderer) : DebugRenderer(assetManager, renderer), debugModeVal(0) { }
     virtual ~BulletPhysicsDebugRenderer() { }
     
     virtual void reportErrorWarning(const char* warningString) final;

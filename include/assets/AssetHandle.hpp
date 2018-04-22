@@ -26,32 +26,16 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_SHADER_TYPE_MANAGER_HPP
-#define IYF_SHADER_TYPE_MANAGER_HPP
+#ifndef IYF_ASSET_HANDLE_HPP
+#define IYF_ASSET_HANDLE_HPP
 
-#include "assets/AssetManager.hpp"
-#include "assets/assetTypes/Shader.hpp"
+#include <atomic>
+
+#include "utilities/ReferenceCountedHandle.hpp"
 
 namespace iyf {
-class Engine;
-class GraphicsAPI;
-
-class ShaderTypeManager : public TypeManager<Shader> {
-public:
-    ShaderTypeManager(AssetManager* manager);
-    
-    virtual AssetType getType() final override {
-        return AssetType::Shader;
-    }
-protected:
-    virtual void initMissingAssetHandle() final override;
-    
-    virtual void performLoad(hash32_t nameHash, const std::string& path, const Metadata& meta, Shader& assetData) final override;
-    virtual void performFree(Shader& assetData) final override;
-private:
-    GraphicsAPI* api;
-    Engine* engine;
-};
+template <typename T>
+using AssetHandle = ReferenceCountedHandle<T, std::atomic<std::uint32_t>>;
 }
 
-#endif // IYF_SHADER_TYPE_MANAGER_HPP
+#endif // IYF_ASSET_HANDLE_HPP

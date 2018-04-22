@@ -32,10 +32,12 @@
 #include "core/InputListener.hpp"
 #include "graphics/GraphicsAPI.hpp"
 #include "utilities/NonCopyable.hpp"
+#include "assets/AssetHandle.hpp"
 
 namespace iyf {
 class Engine;
 class Renderer;
+class Shader;
 
 class ImGuiImplementation : public InputListener, private NonCopyable {
 public:
@@ -81,7 +83,8 @@ protected:
     DescriptorPoolHnd descriptorPool;
     DescriptorSetLayoutHnd descriptorSetLayout;
     DescriptorSetHnd atlasDescriptorSet;
-    ShaderHnd vertexShader, fragmentShader;
+    AssetHandle<Shader> vertexShader;
+    AssetHandle<Shader> fragmentShader;
     PipelineLayoutHnd pipelineLayout;
     Pipeline pipeline;
 //    std::vector<VertexBufferSlice> VBOs;
