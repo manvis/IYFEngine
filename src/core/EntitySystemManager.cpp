@@ -483,17 +483,8 @@ void Entity::setName(std::string newName) {
     name = std::move(newName);
 }
 
-std::string EntitySystemManager::filePathToEntityName(const std::string& name) const {
-    // Let's get rid of the extension first
-    std::string baseName = name.substr(0, name.find_last_of('.'));
-    
-    // Next, get rid of the path, if any
-    std::size_t offset = baseName.find_last_of('/');
-    if (offset != std::string::npos) {
-        baseName = baseName.substr(offset + 1);
-    }
-    
-    return makeUniqueName(baseName);
+std::string EntitySystemManager::filePathToEntityName(const fs::path& name) const {
+    return makeUniqueName(name.stem().generic_string());
 }
 
 std::string EntitySystemManager::makeUniqueName(const std::string& name) const {

@@ -46,7 +46,7 @@ public:
 protected:
     virtual void initMissingAssetHandle() final override;
     
-    virtual void performLoad(hash32_t nameHash, const std::string& path, const Metadata& meta, Shader& assetData) final override;
+    virtual void performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, Shader& assetData) final override;
     virtual void performFree(Shader& assetData) final override;
 private:
     GraphicsAPI* api;

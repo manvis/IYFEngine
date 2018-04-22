@@ -29,8 +29,10 @@
 #include "assets/AssetManager.hpp"
 #include "graphics/MeshLoader.hpp"
 #include "graphics/MeshComponent.hpp"
+#include "core/Constants.hpp"
 #include "core/Logger.hpp"
 #include "core/Engine.hpp"
+#include "core/filesystem/FileSystem.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
 #include "assets/typeManagers/ShaderTypeManager.hpp"
 #include "utilities/DataSizes.hpp"
@@ -68,6 +70,7 @@ void AssetManager::initialize() {
     //AssetHandle<Mesh> r = load<Mesh>(HS("nano"));
     
     // TODO Load the metadata into the manifest
+    buildManifestFromFilesystem();
     
     loadSystemAssets();
     
@@ -89,6 +92,26 @@ void AssetManager::dispose() {
     }
     
     isInit = false;
+}
+
+void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unordered_map<hash32_t, AssetManager::ManifestElement>& manifest) {
+    const fs::path& baseDir = con::AssetTypeToPath(type);
+    const auto contents = filesystem->getDirectoryContents(baseDir);
+    
+    for (const auto& p : contents) {
+        AssetManager::ManifestElement me;
+        me.type = type;
+        me.path = baseDir / p;
+        LOG_D(me.path);
+    }
+}
+
+void AssetManager::buildManifestFromFilesystem() {
+    FileSystem* filesystem = engine->getFileSystem();
+    
+    for (std::size_t i = 0; i < static_cast<std::size_t>(AssetType::COUNT); ++i) {
+        addFilesToManifest(filesystem, static_cast<AssetType>(i), manifest);
+    }
 }
 
 bool AssetManager::serializeMetadata(hash32_t nameHash, Serializer& file) {
@@ -140,7 +163,7 @@ void AssetManager::loadSystemAssets() {
 //     v.push_back(42);
 }
 
-void AssetManager::appendAssetToManifest(hash32_t nameHash, const std::string& path, const Metadata& metadata) {
+void AssetManager::appendAssetToManifest(hash32_t nameHash, const fs::path& path, const Metadata& metadata) {
     if (!engine->isEditorMode()) {
         throw std::logic_error("This method can't be called when the engine is running in game mode.");
     }

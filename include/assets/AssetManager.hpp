@@ -87,7 +87,7 @@ public:
     virtual ~TypeManager() { }
     
     /// Load an asset that has not been loaded yet
-    inline AssetHandle<T> load(hash32_t nameHash, const std::string& path, const Metadata& meta, std::uint32_t& idOut);
+    inline AssetHandle<T> load(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut);
     /// Fetch a handle to an asset that has already been loaded
     inline AssetHandle<T> fetch(std::uint32_t id);
     inline AssetHandle<T> getMissingAssetHandle();
@@ -140,7 +140,7 @@ public:
         }
     }
 protected:
-    virtual void performLoad(hash32_t nameHash, const std::string& path, const Metadata& meta, T& assetData) = 0;
+    virtual void performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, T& assetData) = 0;
     virtual void performFree(T& assetData) = 0;
     
     std::vector<std::uint32_t> freeList;
@@ -152,7 +152,7 @@ protected:
 };
 
 template <typename T, size_t chunkSize>
-AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const std::string& path, const Metadata& meta, std::uint32_t& idOut) {
+AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut) {
     // Find a free slot in the freeList or start using a new slot at the end
     std::uint32_t id;
     
@@ -271,7 +271,7 @@ public:
         return load<T>(HS("raw/system/" + name));
     }
     
-    inline const std::string& getAssetPath(hash32_t nameHash) {
+    inline const fs::path& getAssetPath(hash32_t nameHash) {
         return manifest[nameHash].path;
     }
     
@@ -309,12 +309,12 @@ public:
     /// Sent from the Asset browser to delete a specific asset (or a folder of assets)
     /// 
     /// \throws std::logic_error if this AssetManager was constructed using an Engine running in game mode.
-    void requestDeletion(const std::string& path);
+    void requestDeletion(const fs::path& path);
     
     /// Sent from the Asset browser to rename or move a specific asset (or a folder of assets)
     /// 
     /// \throws std::logic_error if this AssetManager was constructed using an Engine running in game mode.
-    void requestMove(const std::string& sourcePath, const std::string& destinationPath);
+    void requestMove(const fs::path& sourcePath, const fs::path& destinationPath);
     
     /// \brief Adds a file to the manifest.
     ///
@@ -331,7 +331,7 @@ public:
     /// \param nameHash Hashed path to the file that you want to add to the manifest.
     /// \param path Path to the file that you want to add to the manifest
     /// \param metadata additional metadata
-    void appendAssetToManifest(hash32_t nameHash, const std::string& path, const Metadata& metadata);
+    void appendAssetToManifest(hash32_t nameHash, const fs::path& path, const Metadata& metadata);
     
     /// Removes a file from the manifest. If the asset in question has already been loaded, replaces it with a "missing" one.
     ///
@@ -377,7 +377,15 @@ public:
     /// \throws std::logic_error if this AssetManager was constructed using an Engine instance running in game mode.
     void removeNonSystemPipelines();
 //---------------- Editor API end
+    struct ManifestElement {
+        fs::path path;
+        AssetType type;
+        bool systemAsset;
+        Metadata metadata;
+    };
 private:
+    void buildManifestFromFilesystem();
+    
     friend class TypeManagerBase;
     void notifyRemoval(hash32_t handle) {
         std::size_t count = loadedAssets.erase(handle);
@@ -391,13 +399,6 @@ private:
 //    std::vector<Pipeline> pipelines;
 //    std::vector<SubMeshData> WTH; // DATA ranges??? For defrag and reuse
 //    std::vector<Texture> MLML;
-    
-    struct ManifestElement {
-        std::string path;
-        AssetType type;
-        bool systemAsset;
-        Metadata metadata;
-    };
     
     /// If the Engine is running in editor mode, the manifest may be updated and/or read from multiple threads. In this case,
     /// a mutex is needed prevent data races.

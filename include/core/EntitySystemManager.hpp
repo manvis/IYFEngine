@@ -42,6 +42,7 @@
 #include "core/TransformationComponent.hpp"
 #include "core/ComponentType.hpp"
 #include "core/Component.hpp"
+#include "core/filesystem/cppFilesystem.hpp"
 #include "core/interfaces/GarbageCollecting.hpp"
 #include "utilities/ChunkedVector.hpp"
 #include "utilities/IntegerPacking.hpp"
@@ -651,7 +652,7 @@ public:
     /// appending a number to it if the initial result was not unique.
     ///
     /// \remark This method is not particularly fast 
-    std::string filePathToEntityName(const std::string& name) const;
+    std::string filePathToEntityName(const fs::path& name) const;
     
     /// Turns a string into a unique name for an Entity
     std::string makeUniqueName(const std::string& name) const;

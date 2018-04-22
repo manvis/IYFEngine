@@ -94,7 +94,7 @@ MeshTypeManager::~MeshTypeManager() {
     api->destroyBuffers(toClear);
 }
 
-void MeshTypeManager::performLoad(hash32_t nameHash, const std::string& path, const Metadata& meta, Mesh& assetData) {
+void MeshTypeManager::performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, Mesh& assetData) {
     const MeshLoader loader(engine);
     MeshLoader::MemoryRequirements requirements = loader.getMeshMemoryRequirements(meta);
     

@@ -93,7 +93,7 @@ void World::update(float delta) {
 void World::addStaticMesh(hash32_t nameHash) {
     MeshComponent mc;
     mc.setRenderMode(MaterialRenderMode::Opaque);
-    const std::string& path = assetManager->getAssetPath(nameHash);
+    const fs::path& path = assetManager->getAssetPath(nameHash);
     mc.setMesh(assetManager->load<Mesh>(nameHash));
     
 #if IYF_BOUNDING_VOLUME == IYF_SPHERE_BOUNDS
@@ -123,7 +123,7 @@ void World::addStaticMesh(hash32_t nameHash) {
 void World::addDynamicMesh(hash32_t nameHash) {
     MeshComponent mc;
     mc.setRenderMode(MaterialRenderMode::Opaque);
-    const std::string& path = assetManager->getAssetPath(nameHash);
+    const fs::path& path = assetManager->getAssetPath(nameHash);
     mc.setMesh(assetManager->load<Mesh>(nameHash));
     //mc.setMesh(assetManager->getMissingAsset<Mesh>(AssetType::Mesh));
     
