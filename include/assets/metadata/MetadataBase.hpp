@@ -54,6 +54,10 @@ public:
         return complete;
     }
     
+    bool isSystemAsset() const {
+        return systemAsset;
+    }
+    
     hash64_t getFileHash() const {
         return fileHash;
     }
