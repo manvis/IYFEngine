@@ -33,6 +33,7 @@
 #include "core/Logger.hpp"
 #include "core/Engine.hpp"
 #include "core/filesystem/FileSystem.hpp"
+#include "core/serialization/VirtualFileSystemSerializer.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
 #include "assets/typeManagers/ShaderTypeManager.hpp"
 #include "utilities/DataSizes.hpp"
@@ -94,16 +95,221 @@ void AssetManager::dispose() {
     isInit = false;
 }
 
-void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unordered_map<hash32_t, AssetManager::ManifestElement>& manifest) {
+/// A helper class used when building the manifest.
+struct FileDiscoveryResults {
+    enum class Field {
+        FilePath,
+        TextMetadataPath,
+        BinaryMetadataPath
+    };
+    
+    inline FileDiscoveryResults() : nameHash(0) {}
+    inline FileDiscoveryResults(hash32_t nameHash) : nameHash(nameHash) {}
+    
+    inline bool isComplete() const {
+        return (!filePath.empty()) && wasMetadataFound();
+    }
+    
+    inline bool wasMetadataFound() const {
+        // We need a metadata file of ONE type. If no metadata files were found, we can't add the asset to the manifest.
+        // If both types of metadata files are found, we don't know which one is valid.
+        return (textMetadataPath.empty() && !binaryMetadataPath.empty()) || (!textMetadataPath.empty() && binaryMetadataPath.empty());
+    }
+    
+    hash32_t nameHash;
+    fs::path filePath;
+    fs::path textMetadataPath;
+    fs::path binaryMetadataPath;
+};
+
+inline void findAndSetFileDiscoveryResults(std::unordered_map<hash32_t, FileDiscoveryResults>& results, hash32_t nameHash, FileDiscoveryResults::Field field, const fs::path& path) {
+    auto result = results.find(nameHash);
+    
+    if (result == results.end()) {
+        FileDiscoveryResults fdr(nameHash);
+        
+        switch (field) {
+            case FileDiscoveryResults::Field::FilePath:
+                fdr.filePath = path;
+                break;
+            case FileDiscoveryResults::Field::TextMetadataPath:
+                fdr.textMetadataPath = path;
+                break;
+            case FileDiscoveryResults::Field::BinaryMetadataPath:
+                fdr.binaryMetadataPath = path;
+                break;
+        }
+        
+        results[nameHash] = std::move(fdr);
+    } else {
+        assert(result->second.nameHash == nameHash);
+        
+        switch (field) {
+            case FileDiscoveryResults::Field::FilePath:
+                result->second.filePath = path;
+                break;
+            case FileDiscoveryResults::Field::TextMetadataPath:
+                result->second.textMetadataPath = path;
+                break;
+            case FileDiscoveryResults::Field::BinaryMetadataPath:
+                result->second.binaryMetadataPath = path;
+                break;
+        }
+    }
+}
+
+/// Checks if the name of the asset or metadata file is valid
+inline bool isFileNameValid(const std::string& name) {
+    for (char c : name) {
+        if (c < 48 || c > 57) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+template <typename T>
+inline T loadMetadata(const fs::path& path, bool isJSON) {
+    T metadata;
+    
+    if (isJSON) {
+        File jsonFile(path, File::OpenMode::Read);
+        const auto wholeFile = jsonFile.readWholeFile();
+        
+        rj::Document document;
+        document.Parse(wholeFile.first.get(), wholeFile.second);
+        metadata.deserializeJSON(document);
+    } else {
+        VirtualFileSystemSerializer file(path, File::OpenMode::Read);
+        metadata.deserialize(file);
+    }
+    
+    assert(metadata.isComplete());
+    
+    return metadata;
+}
+
+/// Adds all assets of the specified type to the provided manifest
+inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unordered_map<hash32_t, AssetManager::ManifestElement>& manifest) {
     const fs::path& baseDir = con::AssetTypeToPath(type);
     const auto contents = filesystem->getDirectoryContents(baseDir);
     
+    // Used to detect errors.
+    // TODO Return this as well. It may be useful for debugging
+    std::unordered_map<hash32_t, FileDiscoveryResults> results;
+    
     for (const auto& p : contents) {
+        const fs::path fullPath = baseDir / p;
+        const std::string stem = fullPath.stem().generic_string();
+        
+        const bool validName = isFileNameValid(stem);
+        if (!validName) {
+            LOG_W("Found a file with a non-numeric name: " << fullPath << ". Skipping it.");
+            continue;
+        }
+        
+        // Can't check for other errors here. I'm quite certain that both 0 and ULLONG_MAX can be valid hash values.
+        // I wish this had an error_code parameter, just like filesystem stuff.
+        //
+        // WARNING: Don't replace this with stoull. It won't solve the problem because it simply wraps strtoull.
+        // Source: http://en.cppreference.com/w/cpp/string/basic_string/stoul
+        const std::uint64_t parsedNumber = std::strtoull(stem.c_str(), nullptr, 10);
+        if (parsedNumber > std::numeric_limits<std::uint32_t>::max()) {
+            LOG_W("When converted to an unsigned integer, the numeric filename of " << fullPath << " does not fit in hash32_t. Skipping it.");
+            continue;
+        }
+        
+        hash32_t nameHash(parsedNumber);
+        
+        // We found an asset file, however, we only care about the metadata at the moment.
+        if (fullPath.extension().empty()) {
+            findAndSetFileDiscoveryResults(results, nameHash, FileDiscoveryResults::Field::FilePath, fullPath);
+        } else if (fullPath.extension() == con::MetadataExtension) {
+            findAndSetFileDiscoveryResults(results, nameHash, FileDiscoveryResults::Field::BinaryMetadataPath, fullPath);
+        } else if (fullPath.extension() == con::TextMetadataExtension) {
+            findAndSetFileDiscoveryResults(results, nameHash, FileDiscoveryResults::Field::TextMetadataPath, fullPath);
+        } else {
+            LOG_W("Found a file with an unexpected extension: " << fullPath << ". Skipping it.");
+        }
+    }
+    
+    std::size_t count = 0;
+    for (const auto& result : results) {
+        const bool hasFile = !result.second.filePath.empty();
+        const bool hasTextMetadata = !result.second.textMetadataPath.empty();
+        const bool hasBinaryMetadata = !result.second.binaryMetadataPath.empty();
+        
+        if (!result.second.isComplete()) {
+            LOG_W("Couldn't add an item to the manifest. File + ONE type of metadata required, found this instead:\n\t" <<
+                  "\n\tFile: " << (hasFile ? result.second.filePath : "NOT FOUND") <<
+                  "\n\tText metadata:"  << (hasTextMetadata ? result.second.textMetadataPath : "NOT FOUND") <<
+                  "\n\tBinary metadata: " << (hasBinaryMetadata ? result.second.binaryMetadataPath : "NOT FOUND"));
+        }
+        
+        const bool isJSON = hasTextMetadata;
+        const fs::path metadataPath = isJSON ? result.second.textMetadataPath : result.second.binaryMetadataPath;
+        
         AssetManager::ManifestElement me;
         me.type = type;
-        me.path = baseDir / p;
-        LOG_D(me.path);
+        me.path = result.second.filePath;
+        
+        switch (type) {
+            case AssetType::Animation:
+                me.metadata = loadMetadata<AnimationMetadata>(metadataPath, isJSON);
+                break;
+            case AssetType::Mesh:
+                me.metadata = loadMetadata<MeshMetadata>(metadataPath, isJSON);
+                break;
+            case AssetType::Texture:
+                me.metadata = loadMetadata<TextureMetadata>(metadataPath, isJSON);
+                break;
+            case AssetType::Font:
+                me.metadata = loadMetadata<FontMetadata>(metadataPath, isJSON);
+                break;
+            case AssetType::Audio:
+                me.metadata = loadMetadata<AudioMetadata>(metadataPath, isJSON);
+                break;
+            case AssetType::Video:
+                me.metadata = loadMetadata<VideoMetadata>(metadataPath, isJSON);
+                break;
+            case AssetType::World:
+                me.metadata = loadMetadata<WorldMetadata>(metadataPath, isJSON);
+                break;
+            case AssetType::Script:
+                me.metadata = loadMetadata<ScriptMetadata>(metadataPath, isJSON);
+                break;
+            case AssetType::Shader:
+                me.metadata = loadMetadata<ShaderMetadata>(metadataPath, isJSON);
+                break;
+            case AssetType::Pipeline:
+                me.metadata = loadMetadata<PipelineMetadata>(metadataPath, isJSON);
+                break;
+            case AssetType::Strings:
+                me.metadata = loadMetadata<StringMetadata>(metadataPath, isJSON);
+                break;
+            case AssetType::Custom:
+                me.metadata = loadMetadata<CustomMetadata>(metadataPath, isJSON);
+                break;
+            case AssetType::Material:
+                me.metadata = loadMetadata<MaterialMetadata>(metadataPath, isJSON);
+                break;
+            case AssetType::COUNT:
+                throw std::runtime_error("COUNT is not an asset type");
+        }
+        
+        std::visit([&me](auto&& arg){me.systemAsset = arg.isSystemAsset();}, me.metadata);
+        
+        auto manifestItem = manifest.find(result.second.nameHash);
+        if (manifestItem != manifest.end()) {
+            throw std::runtime_error("Not implemented yet");
+        }
+        
+        manifest[result.second.nameHash] = std::move(me);
+        count++;
     }
+    
+    LOG_V("Added " << count << " " << con::AssetTypeToTranslationString(type) << " file(s) to the manifest.\n\tIt now stores metadata of " << manifest.size() << " file(s).");
 }
 
 void AssetManager::buildManifestFromFilesystem() {
