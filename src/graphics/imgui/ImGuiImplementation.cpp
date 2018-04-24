@@ -211,7 +211,7 @@ void ImGuiImplementation::initializeAssets() {
     io.Fonts->GetTexDataAsRGBA32(&pixelData, &fontAtlasWidth, &fontAtlasHeight);
     
     // TODO add ability to load single channel textures
-    fontAtlas = gfxAPI->create2DImageFromMemory(ImageMemoryType::RGBA, glm::ivec2(fontAtlasWidth, fontAtlasHeight), false, false, pixelData);
+    fontAtlas = gfxAPI->createUncompressedImage(ImageMemoryType::RGBA, glm::ivec2(fontAtlasWidth, fontAtlasHeight), false, false, pixelData);
     
     fontSampler = gfxAPI->createPresetSampler(SamplerPreset::ImguiTexture);
     fontView = gfxAPI->createDefaultImageView(fontAtlas);

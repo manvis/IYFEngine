@@ -26,50 +26,40 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef CUBEMAPSKYBOX_HPP
-#define CUBEMAPSKYBOX_HPP
-
-#include "graphics/Skybox.hpp"
+#include "assets/typeManagers/TextureTypeManager.hpp"
+#include "core/Engine.hpp"
+#include "core/filesystem/File.hpp"
+#include "core/Logger.hpp"
 #include "graphics/GraphicsAPI.hpp"
-#include "assets/AssetHandle.hpp"
-
-#include <string>
 
 namespace iyf {
-class AssetManager;
-class Shader;
-class Texture;
-
-class CubemapSkybox : public Skybox {
-public:
-    CubemapSkybox(AssetManager* assetManager, Renderer* renderer, hash32_t textureNameHash) : Skybox(renderer), assetManager(assetManager), textureNameHash(textureNameHash) {}
-    
-    virtual void initialize() final;
-    virtual void dispose() final;
-
-    virtual void update(float delta) final;
-    virtual void draw(CommandBuffer* commandBuffer, const Camera* camera) const final;
-protected:
-    AssetManager* assetManager;
-    hash32_t textureNameHash;
-    
-    AssetHandle<Texture> skyCubemap;
-    ImageViewHnd skyCubemapView;
-    SamplerHnd skyCubemapSampler;
-    
-    DescriptorPoolHnd descriptorPool;
-    DescriptorSetLayoutHnd skyDescriptorSetLayout;
-    DescriptorSetHnd skyTextureDescriptorSet;
-    PipelineLayoutHnd skyPipelineLayout;
-    AssetHandle<Shader> skyVertexShader;
-    AssetHandle<Shader> skyFragmentShader;
-    Pipeline skyPipeline;
-    
-    Buffer auxVBOHandle;
-    Buffer auxIBOHandle;
-    std::uint32_t skySphereOffsetVBO, skySphereOffsetIBO, skySphereSizeVBO, skySphereSizeIBO;
-};
+TextureTypeManager::TextureTypeManager(AssetManager* manager) : TypeManager(manager) {
+    engine = manager->getEngine();
+    api = engine->getGraphicsAPI();
 }
 
-#endif /* CUBEMAPSKYBOX_HPP */
+void TextureTypeManager::performLoad(hash32_t, const fs::path& path, const Metadata& meta, Texture& assetData) {
+    const TextureMetadata& textureMeta = std::get<TextureMetadata>(meta);
+    
+    File file(path, File::OpenMode::Read);
+    auto wholeFile = file.readWholeFile();
+    
+    assetData.image = api->createCompressedImage(wholeFile.first.get(), wholeFile.second);
+    
+    assert(assetData.image.height == textureMeta.getHeight());
+    assert(assetData.image.width == textureMeta.getWidth());
+    assert(assetData.image.layers == textureMeta.getLayers());
+    assert(assetData.image.levels == textureMeta.getLevels());
+}
 
+void TextureTypeManager::performFree(Texture& assetData) {
+    if (!api->destroyImage(assetData.image)) {
+        LOG_W("Failed to destroy an image that was loaded from a file with hash: " << assetData.getNameHash());
+    }
+}
+
+void TextureTypeManager::initMissingAssetHandle() {
+    // TODO load a missing texture
+    missingAssetHandle = AssetHandle<Texture>();
+}
+}

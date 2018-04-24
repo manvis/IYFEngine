@@ -26,50 +26,31 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef CUBEMAPSKYBOX_HPP
-#define CUBEMAPSKYBOX_HPP
+#ifndef IYF_TEXTURE_TYPE_MANAGER_HPP
+#define IYF_TEXTURE_TYPE_MANAGER_HPP
 
-#include "graphics/Skybox.hpp"
-#include "graphics/GraphicsAPI.hpp"
-#include "assets/AssetHandle.hpp"
-
-#include <string>
+#include "assets/AssetManager.hpp"
+#include "assets/assetTypes/Texture.hpp"
 
 namespace iyf {
-class AssetManager;
-class Shader;
-class Texture;
+class Engine;
+class GraphicsAPI;
 
-class CubemapSkybox : public Skybox {
+class TextureTypeManager : public TypeManager<Texture> {
 public:
-    CubemapSkybox(AssetManager* assetManager, Renderer* renderer, hash32_t textureNameHash) : Skybox(renderer), assetManager(assetManager), textureNameHash(textureNameHash) {}
+    TextureTypeManager(AssetManager* manager);
     
-    virtual void initialize() final;
-    virtual void dispose() final;
-
-    virtual void update(float delta) final;
-    virtual void draw(CommandBuffer* commandBuffer, const Camera* camera) const final;
+    virtual AssetType getType() final override {
+        return AssetType::Texture;
+    }
 protected:
-    AssetManager* assetManager;
-    hash32_t textureNameHash;
+    virtual void initMissingAssetHandle() final override;
     
-    AssetHandle<Texture> skyCubemap;
-    ImageViewHnd skyCubemapView;
-    SamplerHnd skyCubemapSampler;
-    
-    DescriptorPoolHnd descriptorPool;
-    DescriptorSetLayoutHnd skyDescriptorSetLayout;
-    DescriptorSetHnd skyTextureDescriptorSet;
-    PipelineLayoutHnd skyPipelineLayout;
-    AssetHandle<Shader> skyVertexShader;
-    AssetHandle<Shader> skyFragmentShader;
-    Pipeline skyPipeline;
-    
-    Buffer auxVBOHandle;
-    Buffer auxIBOHandle;
-    std::uint32_t skySphereOffsetVBO, skySphereOffsetIBO, skySphereSizeVBO, skySphereSizeIBO;
+    virtual void performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, Texture& assetData) final override;
+    virtual void performFree(Texture& assetData) final override;
+private:
+    GraphicsAPI* api;
+    Engine* engine;
 };
 }
-
-#endif /* CUBEMAPSKYBOX_HPP */
-
+#endif // IYF_TEXTURE_TYPE_MANAGER_HPP

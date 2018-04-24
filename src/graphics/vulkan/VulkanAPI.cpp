@@ -1291,7 +1291,7 @@ bool VulkanAPI::destroyDescriptorPool(DescriptorPoolHnd handle) {
     return true;
 }
 
-Image VulkanAPI::createImageFromFile(const std::string& path) { // TODO test test test TEST TEEEEST
+Image VulkanAPI::createCompressedImage(const void* inputData, std::size_t byteCount) {
     Format engineFormat;
     VkFormat format;
     ImageViewType imViewType;
@@ -1299,8 +1299,7 @@ Image VulkanAPI::createImageFromFile(const std::string& path) { // TODO test tes
     std::uint64_t width, height, depth, levels, layers, size;
     void* data;
     
-    //TODO ne dds ir ktx
-    gli::texture texture = gli::load(path.c_str());
+    gli::texture texture = gli::load(static_cast<const char*>(inputData), byteCount);
     if (texture.empty()) {
         throw std::runtime_error("The provided texture was empty");
     }
@@ -1474,7 +1473,7 @@ Image VulkanAPI::createImageFromFile(const std::string& path) { // TODO test tes
     return {ImageHnd(image), width, height, levels, layers, imViewType, engineFormat};
 }
 
-Image VulkanAPI::create2DImageFromMemory(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable, bool usedAsColorAttachment, const void* data) {
+Image VulkanAPI::createUncompressedImage(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable, bool usedAsColorAttachment, const void* data) {
     std::uint64_t size;
     VkFormat format;
     Format engineFormat;
@@ -1511,7 +1510,7 @@ Image VulkanAPI::create2DImageFromMemory(ImageMemoryType type, const glm::uvec2&
         iuf |= VK_IMAGE_USAGE_STORAGE_BIT;
     }
     
-    // Kuriam image, išskiriam jam atmintį.
+    // Create an image and allocate memory for it
     VkImageCreateInfo ici;
     ici.sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     ici.pNext                 = nullptr;

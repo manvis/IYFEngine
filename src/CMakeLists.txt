@@ -39,6 +39,8 @@ endif()
 set (BUILD_FILES 
 #------- assets directory
 assets/AssetManager.cpp
+#------- loader directory
+assets/loaders/MeshLoader.cpp
 #------- metadata directory
 assets/metadata/AnimationMetadata.cpp
 assets/metadata/AudioMetadata.cpp
@@ -57,6 +59,7 @@ assets/metadata/MaterialMetadata.cpp
 #------- typeManager directory
 assets/typeManagers/MeshTypeManager.cpp
 assets/typeManagers/ShaderTypeManager.cpp
+assets/typeManagers/TextureTypeManager.cpp
 #------- core directory
 core/configuration/Configuration.cpp
 core/interfaces/Configurable.cpp
@@ -94,7 +97,6 @@ graphics/GraphicsAPIConstants.cpp
 graphics/GraphicsSystem.cpp
 graphics/MaterialDefinition.cpp
 graphics/MaterialPipelineDefinition.cpp
-graphics/MeshLoader.cpp
 graphics/Renderer.cpp
 graphics/ShaderConstants.cpp
 graphics/Skybox.cpp

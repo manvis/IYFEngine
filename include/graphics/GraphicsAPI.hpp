@@ -122,6 +122,22 @@ private:
     std::uint64_t dataSize;
 };
 
+class Image {
+public:
+    Image() : handle(nullptr), format(Format::Undefined) {}
+    Image(ImageHnd handle, std::uint64_t width, std::uint64_t height, std::uint64_t levels, std::uint64_t layers, ImageViewType type, Format format) 
+        : handle(handle), width(width), height(height), levels(levels), layers(layers), type(type), format(format) {}
+    
+    bool isValid() const {
+        return (handle.isValid()) && (format != Format::Undefined);
+    }
+    
+    ImageHnd handle;
+    std::uint64_t width, height, levels, layers;
+    ImageViewType type;
+    Format format;
+};
+
 class Viewport {
 public:
     Viewport() : x(0.0f), y(0.0f), width(100.0f), height(100.0f), minDepth(0.0f), maxDepth(1.0f) { }
@@ -629,21 +645,6 @@ public:
     std::vector<SubpassDependency> dependencies;
 };
 
-class Image {
-public:
-    Image() : handle(nullptr), format(Format::Undefined) {}
-    Image(ImageHnd handle, std::uint64_t width, std::uint64_t height, std::uint64_t levels, std::uint64_t layers, ImageViewType type, Format format) : handle(handle), width(width), height(height), levels(levels), layers(layers), type(type), format(format) {}
-    
-    bool isValid() const {
-        return (handle.isValid()) && (format != Format::Undefined);
-    }
-    
-    ImageHnd handle;
-    std::uint64_t width, height, levels, layers;
-    ImageViewType type;
-    Format format;
-};
-
 class FramebufferAttachmentCreateInfo {
 public:
     Format format;
@@ -789,18 +790,28 @@ public:
     virtual bool destroyDescriptorPool(DescriptorPoolHnd handle) = 0;
     
     //virtual Framebuffer createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<FramebufferAttachmentCreateInfo>& info) = 0;
-    // TODO TYPEDEF (using) this SHIT so that we could use it with either boost or std libs
     virtual Framebuffer createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<std::variant<Image, FramebufferAttachmentCreateInfo>>& info) = 0;
     virtual void destroyFramebufferWithAttachments(const Framebuffer& framebuffer) = 0;
-    virtual Image createImageFromFile(const std::string& path) = 0;
-    /// Padavimas su data == nullptr reiškia, kad duomenų kopijuoti nereikia - tik išskirti jiems vietą, pvz., jei Image bus naudojamas rašymui
-    virtual Image create2DImageFromMemory(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable = false, bool usedAsColorAttachment = false, const void* data = nullptr) = 0;
+    /// Creates a compressed image from the provided memory buffer. The memory buffer is expected to contain a texture in
+    /// the IYFEngine's native compression format (including all headers).
+    ///
+    /// To put it simply, read an **entire** file that was created by the TextureConverter into a buffer, pass it here and
+    /// you'll get your Image.
+    ///
+    /// This function transfers the processed data to the GPU immediately.
+    ///
+    /// \todo Implement async/delayed loading.
+    virtual Image createCompressedImage(const void* data, std::size_t size) = 0;
+    /// Creates an uncompressed Image from the provided memory buffer. This function creates a 2D image (ImageViewType::Im2D) with 1 layer and 1 level.
+    ///
+    /// This is used for some internal/debug stuff, e.g., ImGui's font atlas. Use createCompressedImage() for in-game textures.
+    virtual Image createUncompressedImage(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable = false, bool usedAsColorAttachment = false, const void* data = nullptr) = 0;
     virtual bool destroyImage(const Image& image) = 0;
     virtual SamplerHnd createSampler(const SamplerCreateInfo& info) = 0;
     virtual SamplerHnd createPresetSampler(SamplerPreset preset, float maxLod = 0.0f);
     virtual bool destroySampler(SamplerHnd handle) = 0;
+    ImageViewHnd createDefaultImageView(const Image& image);
     virtual ImageViewHnd createImageView(const ImageViewCreateInfo& info) = 0;
-    virtual ImageViewHnd createDefaultImageView(const Image& image);
     virtual bool destroyImageView(ImageViewHnd handle) = 0;
     
     /// This function tries to make sure that all buffers that are being created end up using the same allocation

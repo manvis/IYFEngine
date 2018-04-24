@@ -27,7 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assets/AssetManager.hpp"
-#include "graphics/MeshLoader.hpp"
+#include "assets/loaders/MeshLoader.hpp"
 #include "graphics/MeshComponent.hpp"
 #include "core/Constants.hpp"
 #include "core/Logger.hpp"
@@ -36,6 +36,7 @@
 #include "core/serialization/VirtualFileSystemSerializer.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
 #include "assets/typeManagers/ShaderTypeManager.hpp"
+#include "assets/typeManagers/TextureTypeManager.hpp"
 #include "utilities/DataSizes.hpp"
 
 namespace iyf {
@@ -68,6 +69,7 @@ void AssetManager::initialize() {
     
     typeManagers[static_cast<std::size_t>(AssetType::Mesh)] = std::unique_ptr<MeshTypeManager>(new MeshTypeManager(this, 2_MiB, 1_MiB));
     typeManagers[static_cast<std::size_t>(AssetType::Shader)] = std::unique_ptr<ShaderTypeManager>(new ShaderTypeManager(this));
+    typeManagers[static_cast<std::size_t>(AssetType::Texture)] = std::unique_ptr<TextureTypeManager>(new TextureTypeManager(this));
     //AssetHandle<Mesh> r = load<Mesh>(HS("nano"));
     
     // TODO Load the metadata into the manifest

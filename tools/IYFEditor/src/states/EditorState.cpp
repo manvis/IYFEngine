@@ -38,10 +38,10 @@
 #include "core/InputState.hpp"
 #include "core/Logger.hpp"
 #include "core/Project.hpp"
-#include "graphics/MeshLoader.hpp"
 #include "graphics/GraphicsSystem.hpp"
 #include "graphics/MeshComponent.hpp"
 #include "assets/AssetManager.hpp"
+#include "assets/loaders/MeshLoader.hpp"
 #include "localization/TextLocalization.hpp"
 
 #include "imgui.h"

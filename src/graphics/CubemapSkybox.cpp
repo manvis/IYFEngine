@@ -34,6 +34,7 @@
 
 #include "assets/AssetManager.hpp"
 #include "assets/assetTypes/Shader.hpp"
+#include "assets/assetTypes/Texture.hpp"
 #include "core/Logger.hpp"
 
 #include <glm/mat4x4.hpp>
@@ -53,9 +54,10 @@ void CubemapSkybox::initialize() {
     GraphicsAPI* api = renderer->getGraphicsAPI();
     
     // TODO files MUST be handled via sandboxed API
-    skyCubemap = api->createImageFromFile(path);
-    skyCubemapView = api->createDefaultImageView(skyCubemap);
-    skyCubemapSampler = api->createPresetSampler(SamplerPreset::SkyBox, static_cast<float>(skyCubemap.levels));
+    
+    skyCubemap = assetManager->load<Texture>(textureNameHash);
+    skyCubemapView = api->createDefaultImageView(skyCubemap->image);
+    skyCubemapSampler = api->createPresetSampler(SamplerPreset::SkyBox, static_cast<float>(skyCubemap->image.levels));
     
     DescriptorPoolCreateInfo dpci{1, {{DescriptorType::CombinedImageSampler, 1}}};
     descriptorPool = api->createDescriptorPool(dpci);
@@ -120,7 +122,7 @@ void CubemapSkybox::dispose() {
     
     api->destroySampler(skyCubemapSampler);
     api->destroyImageView(skyCubemapView);
-    api->destroyImage(skyCubemap);
+    skyCubemap.release();
     
     isInit = false;
 }

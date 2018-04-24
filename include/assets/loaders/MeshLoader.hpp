@@ -34,7 +34,7 @@
 #include "core/filesystem/File.hpp"
 #include "graphics/VertexDataLayouts.hpp"
 #include "graphics/AnimationDataStructures.hpp"
-#include "culling/BoundingVolumes.hpp"
+#include "graphics/culling/BoundingVolumes.hpp"
 #include "core/Constants.hpp"
 
 namespace iyf {

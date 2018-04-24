@@ -235,15 +235,21 @@ public:
     /// \todo an empty handle would be nicer than an assert
     ///
     /// \param nameHash hashed path to an asset
+    /// \param[out] metadata a pointer to a metadata pointer. If it isn't null and the asset was found, it will point to a metadata
+    /// instance that describes this asset
     /// \return An AssetHandle
     template <typename T>
-    inline AssetHandle<T> load(hash32_t nameHash) {
+    inline AssetHandle<T> load(hash32_t nameHash, Metadata const ** metadata = nullptr) {
         const auto assetReference = loadedAssets.find(nameHash);
         
         assert(manifest.find(nameHash) != manifest.end());
         const ManifestElement& asset = manifest[nameHash];
         
         TypeManager<T>* typeManager = dynamic_cast<TypeManager<T>*>(typeManagers[static_cast<std::size_t>(asset.type)].get());
+        
+        if (metadata != nullptr) {
+            *metadata = &asset.metadata;
+        }
         
         if (assetReference == loadedAssets.end()) {
             std::uint32_t id;
@@ -267,8 +273,16 @@ public:
     }
     
     template <typename T>
-    inline AssetHandle<T> getSystemAsset(const std::string& name) {
-        return load<T>(HS("raw/system/" + name));
+    inline AssetHandle<T> getSystemAsset(const std::string& name, Metadata const ** metadata = nullptr) {
+        return load<T>(getSystemAssetNameHash(name), metadata);
+    }
+    
+    inline hash32_t getSystemAssetNameHash(const std::string& name) {
+        return HS("raw/system/" + name);
+    }
+    
+    inline const Metadata* getMetadata(hash32_t nameHash) {
+        return &manifest[nameHash].metadata;
     }
     
     inline const fs::path& getAssetPath(hash32_t nameHash) {

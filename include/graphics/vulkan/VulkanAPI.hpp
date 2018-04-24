@@ -142,8 +142,8 @@ public:
 //    virtual Framebuffer createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<FramebufferAttachmentCreateInfo>& info) override;
     virtual Framebuffer createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<std::variant<Image, FramebufferAttachmentCreateInfo>>& info) override;
     virtual void destroyFramebufferWithAttachments(const Framebuffer& framebuffer) override;
-    virtual Image createImageFromFile(const std::string& path) override;
-    virtual Image create2DImageFromMemory(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable, bool usedAsColorAttachment, const void* data) override;
+    virtual Image createCompressedImage(const void* data, std::size_t size) override;
+    virtual Image createUncompressedImage(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable, bool usedAsColorAttachment, const void* data) override;
     virtual bool destroyImage(const Image& image) override;
     virtual SamplerHnd createSampler(const SamplerCreateInfo& info) override;
     virtual bool destroySampler(SamplerHnd handle) override;

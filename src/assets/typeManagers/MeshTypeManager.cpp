@@ -27,7 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assets/typeManagers/MeshTypeManager.hpp"
-#include "graphics/MeshLoader.hpp"
+#include "assets/loaders/MeshLoader.hpp"
 #include "core/Engine.hpp"
 #include "core/Logger.hpp"
 #include "core/serialization/VirtualFileSystemSerializer.hpp"
