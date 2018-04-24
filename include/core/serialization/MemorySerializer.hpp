@@ -44,17 +44,25 @@ public:
     
     /// Create a memory serializer in ReadAndWrite mode and explicitly transfer the ownership of a memory buffer to it. A serializer created with this 
     /// constructor owns the memory and will resize the internal buffer automatically to accomodate new writes (like an std::vector would).
-    MemorySerializer(std::unique_ptr<char[]> buffer, std::size_t size) : Serializer(Serializer::OpenMode::ReadAndWrite), bufferSize(size), bufferCapacity(size), position(0), ownsMemory(true) {
+    MemorySerializer(std::unique_ptr<char[]> buffer, std::size_t size) 
+        : Serializer(Serializer::OpenMode::ReadAndWrite), bufferSize(size), bufferCapacity(size), position(0), ownsMemory(true) {
         this->buffer = buffer.release();
     }
     
     /// Create a memory serializer in ReadAndWrite mode. A serializer created with this constructor does not own the memory. Calling reserve() or using a write
     /// operation that would trigger a resize will throw SerializerException
-    MemorySerializer(char* buffer, std::size_t size) : Serializer(Serializer::OpenMode::ReadAndWrite), bufferSize(size), bufferCapacity(size), position(0), buffer(buffer), ownsMemory(false) {}
+    MemorySerializer(char* buffer, std::size_t size) 
+        : Serializer(Serializer::OpenMode::ReadAndWrite), bufferSize(size), bufferCapacity(size), position(0), buffer(buffer), ownsMemory(false) {}
+    
+    /// Create a memory serializer in Read mode. Calling reserve() or using a write operation will throw SerializerException
+    MemorySerializer(const char* buffer, std::size_t size)
+        // A const_cast is needed, however, 
+        : Serializer(Serializer::OpenMode::Read), bufferSize(size), bufferCapacity(size), position(0), buffer(const_cast<char*>(buffer)), ownsMemory(false) {}
     
     /// Create a memory serializer in ReadAndWrite mode. A serializer created with this consturctor owns the memory and will resize the internal buffer automatically
     /// to accomodate new writes (like an std::vector would).
-    MemorySerializer(std::size_t capacity) : Serializer(Serializer::OpenMode::ReadAndWrite), bufferSize(0), bufferCapacity(0), position(0), buffer(nullptr), ownsMemory(true) {
+    MemorySerializer(std::size_t capacity) 
+        : Serializer(Serializer::OpenMode::ReadAndWrite), bufferSize(0), bufferCapacity(0), position(0), buffer(nullptr), ownsMemory(true) {
         reserve(capacity);
     }
     
@@ -105,6 +113,10 @@ public:
     virtual std::int64_t writeString(const char* string, std::size_t length, StringLengthIndicator indicator = StringLengthIndicator::None) final override;
     
     virtual std::int64_t writeBytes(const void* bytes, std::uint64_t count) final override {
+        if (getMode() == Serializer::OpenMode::Read) {
+            throw SerializerException("Cannot write to a buffer that was opened in read mode");
+        }
+        
         std::size_t newPosition = position + count;
         
         if (newPosition > bufferCapacity) {
