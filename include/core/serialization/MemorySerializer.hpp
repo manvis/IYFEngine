@@ -56,7 +56,7 @@ public:
     
     /// Create a memory serializer in Read mode. Calling reserve() or using a write operation will throw SerializerException
     MemorySerializer(const char* buffer, std::size_t size)
-        // A const_cast is needed, however, 
+        // A const_cast is needed, however, it is safe because writes are protected by a Serializer::OpenMode check.
         : Serializer(Serializer::OpenMode::Read), bufferSize(size), bufferCapacity(size), position(0), buffer(const_cast<char*>(buffer)), ownsMemory(false) {}
     
     /// Create a memory serializer in ReadAndWrite mode. A serializer created with this consturctor owns the memory and will resize the internal buffer automatically
