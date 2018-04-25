@@ -41,6 +41,7 @@ set (BUILD_FILES
 assets/AssetManager.cpp
 #------- loader directory
 assets/loaders/MeshLoader.cpp
+assets/loaders/TextureLoader.cpp
 #------- metadata directory
 assets/metadata/AnimationMetadata.cpp
 assets/metadata/AudioMetadata.cpp
@@ -121,6 +122,7 @@ graphics/shading/VulkanGLSLShaderGenerator.cpp
 graphics/vulkan/VulkanAPI.cpp
 graphics/vulkan/VulkanDebug.cpp
 graphics/vulkan/VulkanInitializationAndSwapchain.cpp
+graphics/vulkan/VulkanMemoryAllocatorImpl.cpp
 #------- localization directory
 localization/LocalizationCSVParser.cpp
 localization/TextLocalization.cpp
