@@ -47,15 +47,13 @@
 #include <SDL_syswm.h>
 
 namespace iyf {
-static const std::vector<const char*> requiredDeviceExtensions = {
+static const std::vector<const char*> REQUIRED_DEVICE_EXTENSIONS = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
 bool VulkanAPI::initialize() {
     openWindow();
     printWMInfo();
-    
-    VkResult result;
     
     LOG_V("Starting Vulkan initialization");
     
@@ -64,6 +62,7 @@ bool VulkanAPI::initialize() {
     createSurface();
     choosePhysicalDevice();
     createLogicalDevice();
+    createVulkanMemoryAllocatorAndHelperBuffers();
     
     // TODO is this really needed? I've noticed these in samples, so I did the same. What's their impact
     vkCreateSwapchain = (PFN_vkCreateSwapchainKHR)vkGetDeviceProcAddr(logicalDevice.handle, "vkCreateSwapchainKHR");
@@ -224,7 +223,7 @@ void VulkanAPI::setupCommandPool() {
     checkResult(result, "Failed to create a command pool.");
 }
 
-void VulkanAPI::setupDepthStencil(VkCommandBuffer commandBuffer) {
+void VulkanAPI::setupDepthStencil(VkCommandBuffer) {
     // TODO maybe disable stencil? I'm not using it (YET). Would save on memory
     
     // All depth stencil formats in the order of quality
@@ -441,7 +440,7 @@ void VulkanAPI::createInstance() {
             surfaceExtensionExists = true;
             extensionsToEnable.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
         }
-
+        
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
         if (!strcmp(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, extensionProperties[i].extensionName)) {
             platformExtensionExists = true;
@@ -786,23 +785,35 @@ bool VulkanAPI::evaluatePhysicalDeviceExtensions(PhysicalDevice& device) {
     }
 
     LOG_V("Physical device extensions:" << ss.str());
+    
+    device.enabledExtensions.clear();
 
     // Checking to see if all required extensions are present. Unlike layers that can be changed via config, the names of these extensions
     // are hardcoded because their presence is mandatory for the engine to function
-    for (std::uint32_t e = 0; e < requiredDeviceExtensions.size(); ++e) {
+    for (std::uint32_t e = 0; e < REQUIRED_DEVICE_EXTENSIONS.size(); ++e) {
         bool found = false;
 
         for (std::uint32_t j = 0; j < device.extensionProperties.size(); ++j) {
-            if (!strcmp(requiredDeviceExtensions[e], device.extensionProperties[j].extensionName)) {
+            if (!strcmp(REQUIRED_DEVICE_EXTENSIONS[e], device.extensionProperties[j].extensionName)) {
                 found = true;
+                device.enabledExtensions.push_back(device.extensionProperties[j].extensionName);
                 break;
             }
         }
 
         if (!found) {
-            LOG_V("Physical device is missing a required extension: " << requiredDeviceExtensions[e]);
+            LOG_V("Physical device is missing a required extension: " << REQUIRED_DEVICE_EXTENSIONS[e]);
             
             return false;
+        }
+    }
+    
+    device.dedicatedAllocationExtensionEnabled = false;
+    // Find potentially useful optional extensions
+    for (std::uint32_t e = 0; e < device.extensionProperties.size(); ++e) {
+        if (!strcmp(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device.extensionProperties[e].extensionName)) {
+            device.dedicatedAllocationExtensionEnabled = true;
+            device.enabledExtensions.push_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
         }
     }
 
@@ -886,7 +897,7 @@ bool VulkanAPI::evaluatePhysicalDeviceQueueFamilies(PhysicalDevice& device) {
         bool hasGraphics = false;
         bool hasCompute = false;
         bool hasTransfer = false;
-        bool hasSparse = false; // We don't care about sparse binding support... YET
+        // bool hasSparse = false; // We don't care about sparse binding support... YET
         
         std::stringstream ss;
         ss << "Queue family " << i << " contains " << device.queueFamilyProperties[i].queueCount << " queues";
@@ -912,7 +923,7 @@ bool VulkanAPI::evaluatePhysicalDeviceQueueFamilies(PhysicalDevice& device) {
         }
         
         if (device.queueFamilyProperties[i].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) {
-            hasSparse = true;
+            // hasSparse = true;
             ss << "\n\t\tSupports sparse binds";
         }
         
@@ -1046,8 +1057,8 @@ void VulkanAPI::createLogicalDevice() {
         dci.enabledLayerCount   = static_cast<std::uint32_t>(validationLayerNames.size());
         dci.ppEnabledLayerNames = validationLayerNames.data();
     }
-    dci.enabledExtensionCount   = requiredDeviceExtensions.size();
-    dci.ppEnabledExtensionNames = requiredDeviceExtensions.data();
+    dci.enabledExtensionCount   = physicalDevice.enabledExtensions.size();
+    dci.ppEnabledExtensionNames = physicalDevice.enabledExtensions.data();
     dci.pEnabledFeatures        = &physicalDevice.features;
     
     checkResult(vkCreateDevice(physicalDevice.handle, &dci, nullptr, &logicalDevice.handle), "Failed to create a device.");
@@ -1066,6 +1077,24 @@ void VulkanAPI::createLogicalDevice() {
     if (physicalDevice.presentQueueFamilySeparateFromMain) {
         vkGetDeviceQueue(logicalDevice.handle, physicalDevice.chosenPresentQueueFamilyId, 0, &logicalDevice.presentQueue);
     }
+}
+
+void VulkanAPI::createVulkanMemoryAllocatorAndHelperBuffers() {
+    VmaAllocatorCreateInfo allocatorInfo = {};
+    
+    if (physicalDevice.dedicatedAllocationExtensionEnabled) {
+        allocatorInfo.flags |= VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT;
+        LOG_V("The VK_KHR_dedicated_allocation extension was found and enabled. Enabling its use in the allocator as well.");
+    }
+    
+    allocatorInfo.physicalDevice = physicalDevice.handle;
+    allocatorInfo.device = logicalDevice.handle;
+    // TODO set the heap size limit to simulate devices with less memory
+    // TODO set callbacks for profiling functions
+    
+    vmaCreateAllocator(&allocatorInfo, &allocator);
+    
+    //
 }
 
 bool VulkanAPI::evaluatePhysicalDeviceSurfaceCapabilities(PhysicalDevice& device) {

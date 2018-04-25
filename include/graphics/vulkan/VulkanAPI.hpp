@@ -33,6 +33,7 @@
 #include <unordered_map>
 
 #include "graphics/GraphicsAPI.hpp"
+#include "graphics/vulkan/vk_mem_alloc.h"
 
 #include <vulkan/vulkan.h>
 
@@ -247,6 +248,8 @@ protected:
         VkPhysicalDeviceFeatures features;
         std::vector<VkExtensionProperties> extensionProperties;
         
+        std::vector<const char*> enabledExtensions;
+        
         std::vector<VkQueueFamilyProperties> queueFamilyProperties;
         std::vector<std::uint32_t> presentCapableQueues;
         
@@ -258,6 +261,8 @@ protected:
         std::uint32_t chosenComputeQueueFamilyId;
         std::uint32_t chosenTransferQueueFamilyId;
         std::uint32_t chosenPresentQueueFamilyId;
+        
+        bool dedicatedAllocationExtensionEnabled;
         
         /// Capabailities of the surface that is compatible with this physical device
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
@@ -304,6 +309,8 @@ protected:
     std::vector<std::string> layerNamesSplit;
     /// c_str values retrieved from layerNamesSplit. validationLayerNames.data() is passed to actual Vulkan functions
     std::vector<const char*> validationLayerNames;
+    
+    VmaAllocator allocator;
     
     VkInstance instance;
     
@@ -373,6 +380,7 @@ protected:
     bool evaluatePhysicalDeviceQueueFamilies(PhysicalDevice& device);
     bool evaluatePhysicalDeviceSurfaceCapabilities(PhysicalDevice& device);
     void createLogicalDevice();
+    void createVulkanMemoryAllocatorAndHelperBuffers();
     void createSurface();
     void createSwapchain();
     VkSurfaceFormatKHR chooseSwapchainImageFormat();
