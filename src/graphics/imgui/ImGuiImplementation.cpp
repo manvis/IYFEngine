@@ -33,6 +33,7 @@
 #include "core/Logger.hpp"
 #include "assets/AssetManager.hpp"
 #include "assets/assetTypes/Shader.hpp"
+#include "assets/assetTypes/Font.hpp"
 
 #include "imgui.h"
 #include <glm/vec2.hpp>
@@ -188,6 +189,7 @@ void ImGuiImplementation::dispose() {
 
 void ImGuiImplementation::initializeAssets() {
     GraphicsAPI* gfxAPI = engine->getGraphicsAPI();
+    AssetManager* assetManager = engine->getAssetManager();
     
     // Font texture atlas
     ImGuiIO& io = ImGui::GetIO();
@@ -201,8 +203,10 @@ void ImGuiImplementation::initializeAssets() {
         0,
     };
     
-    fs::path fontPath = con::FontPath / con::ImGuiFont;
-    io.Fonts->AddFontFromFileTTF(fontPath.c_str(), con::ImGuiFontSize, nullptr, ranges);
+    AssetHandle<Font> fontAsset = assetManager->getSystemAsset<Font>(con::ImGuiFont);
+    char* fontData = new char[fontAsset->size];
+    std::memcpy(fontData, fontAsset->data, fontAsset->size);
+    io.Fonts->AddFontFromMemoryTTF(fontData, fontAsset->size, con::ImGuiFontSize, nullptr, ranges);
     int fontAtlasWidth, fontAtlasHeight;
     
     unsigned char* pixelData;
@@ -237,7 +241,6 @@ void ImGuiImplementation::initializeAssets() {
     
     PipelineCreateInfo pci;
     
-    AssetManager* assetManager = engine->getAssetManager();
     vertexShader = assetManager->getSystemAsset<Shader>("imgui.vert");
     fragmentShader = assetManager->getSystemAsset<Shader>("imgui.frag");
     
