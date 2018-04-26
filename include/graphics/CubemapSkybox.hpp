@@ -39,6 +39,7 @@ namespace iyf {
 class AssetManager;
 class Shader;
 class Texture;
+class Mesh;
 
 class CubemapSkybox : public Skybox {
 public:
@@ -54,6 +55,7 @@ protected:
     hash32_t textureNameHash;
     
     AssetHandle<Texture> skyCubemap;
+    AssetHandle<Mesh> sphereMesh;
     ImageViewHnd skyCubemapView;
     SamplerHnd skyCubemapSampler;
     

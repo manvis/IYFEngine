@@ -35,6 +35,8 @@
 #include "assets/AssetManager.hpp"
 #include "assets/assetTypes/Shader.hpp"
 #include "assets/assetTypes/Texture.hpp"
+#include "assets/assetTypes/Mesh.hpp"
+#include "assets/typeManagers/MeshTypeManager.hpp"
 #include "core/Logger.hpp"
 
 #include <glm/mat4x4.hpp>
@@ -94,6 +96,7 @@ void CubemapSkybox::initialize() {
     
     skyPipeline = api->createPipeline(pci);
     
+    sphereMesh = assetManager->getSystemAsset<Mesh>("sphere.dae");
 //     const AuxiliaryMeshData* auxMeshData = api->getAuxiliaryMeshData();
 //     auxVBOHandle = auxMeshData->vbo;
 //     auxIBOHandle = auxMeshData->ibo;
@@ -131,18 +134,25 @@ void CubemapSkybox::draw(CommandBuffer* commandBuffer, const Camera* camera) con
     if (!isInit) {
         throw std::runtime_error("Attempted to render a non-initialized skybox.");
     }
-    // TODO fix and re-enable
-//     commandBuffer->bindPipeline(skyPipeline);
-//     
-//     commandBuffer->bindVertexBuffers(0, auxVBOHandle);
-//     commandBuffer->bindIndexBuffer(auxIBOHandle, IndexType::UInt32);
-//     
-//     glm::mat4 mvp = camera->getProjection() * glm::mat4(glm::mat3(camera->getViewMatrix()));
-// 
-//     commandBuffer->pushConstants(skyPipelineLayout, ShaderStageFlagBits::Vertex, 0, sizeof(glm::mat4), &mvp);
-//     commandBuffer->bindDescriptorSets(PipelineBindPoint::Graphics, skyPipelineLayout, 0, {skyTextureDescriptorSet}, {});
-//     
-//     commandBuffer->drawIndexed(skySphereSizeIBO, 1, skySphereOffsetIBO, skySphereOffsetVBO, 0);
+
+    const MeshTypeManager* meshManager = static_cast<const MeshTypeManager*>(assetManager->getTypeManager(AssetType::Mesh));
+    commandBuffer->bindPipeline(skyPipeline);
+    
+    const Buffer& VBO = meshManager->getVertexBuffer(sphereMesh->vboID);
+    
+    const Buffer& IBO = meshManager->getIndexBuffer(sphereMesh->iboID);
+    commandBuffer->bindVertexBuffers(0, VBO);
+    commandBuffer->bindIndexBuffer(IBO, IndexType::UInt16);
+    
+    glm::mat4 mvp = camera->getProjection() * glm::mat4(glm::mat3(camera->getViewMatrix()));
+
+    commandBuffer->pushConstants(skyPipelineLayout, ShaderStageFlagBits::Vertex, 0, sizeof(glm::mat4), &mvp);
+    commandBuffer->bindDescriptorSets(PipelineBindPoint::Graphics, skyPipelineLayout, 0, {skyTextureDescriptorSet}, {});
+    
+    const PrimitiveData& primitiveData = sphereMesh->getMeshPrimitiveData();
+    commandBuffer->drawIndexed(primitiveData.indexCount, 1, primitiveData.indexOffset, primitiveData.vertexOffset, 0);
+    
+    LOG_D("HELLO: " << primitiveData.indexCount << " " << primitiveData.indexOffset << " " << primitiveData.vertexOffset << " " << VBO.handle().toNative<std::uint64_t*>() << " " << IBO.handle().toNative<std::uint64_t*>());
 }
 
 void CubemapSkybox::update(float delta) {
