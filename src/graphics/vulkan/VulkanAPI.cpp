@@ -38,11 +38,11 @@
 #include <cstring>
 #include <SDL_syswm.h>
 
-#include <gli/gli.hpp>
-
-#include "stb_image.h"
 #undef Always // X11 Macro
 #undef None // X11 Macro
+
+#include "stb_image.h"
+#include "assets/loaders/TextureLoader.hpp"
 
 namespace iyf {
 
@@ -100,36 +100,44 @@ inline VkVertexInputRate mapInputRate(VertexInputRate rate) {
     }
 }
 
-inline std::pair<VkFormat, Format> gliToVulkanAndEngineFormat(gli::format gliFormat) {
-    Format engineFormat;
-    
-    LOG_D("GLI_format: " << static_cast<std::size_t>(gliFormat) << " " << static_cast<std::size_t>(gli::format::FORMAT_RGB_DXT1_UNORM_BLOCK8) << " " << static_cast<std::size_t>(gli::format::FORMAT_RGB_DXT1_SRGB_BLOCK8));
-    
-    if (gliFormat == gli::format::FORMAT_RGB_DXT1_UNORM_BLOCK8) { //TODO kodėl gli nesupranta, kad srgb?
-        gliFormat = gli::format::FORMAT_RGB_DXT1_SRGB_BLOCK8;
-    } else if (gliFormat == gli::format::FORMAT_RGBA_DXT1_UNORM_BLOCK8) {
-        gliFormat = gli::format::FORMAT_RGBA_DXT1_SRGB_BLOCK8;
+inline std::pair<VkFormat, Format> compressionFormatToEngineFormat(TextureCompressionFormat tcf, bool sRGB) {
+    Format engineFormat = Format::Undefined;
+    switch (tcf) {
+        case TextureCompressionFormat::NotCompressed:
+            throw std::runtime_error("This function only supports compressed formats.");
+        case TextureCompressionFormat::BC1:
+            engineFormat = sRGB ? Format::BC1_RGB_sRGB_block : Format::BC1_RGB_uNorm_block;
+            break;
+        case TextureCompressionFormat::BC2:
+            engineFormat = sRGB ? Format::BC2_sRGB_block : Format::BC2_uNorm_block;
+            break;
+        case TextureCompressionFormat::BC3:
+            engineFormat = sRGB ? Format::BC3_sRGB_block : Format::BC3_uNorm_block;
+            break;
+        case TextureCompressionFormat::BC4:
+            engineFormat = Format::BC4_uNorm_block;
+            break;
+        case TextureCompressionFormat::BC5:
+            engineFormat = Format::BC5_uNorm_block;
+            break;
+        case TextureCompressionFormat::BC6:
+            engineFormat = Format::BC6H_uFloat_block;
+            break;
+        case TextureCompressionFormat::BC7:
+            engineFormat = sRGB ? Format::BC7_sRGB_block : Format::BC7_uNorm_block;
+            break;
+        case TextureCompressionFormat::ETC1:
+            throw std::runtime_error("Not implemented yet");
+            break;
+        case TextureCompressionFormat::ETC2:
+            throw std::runtime_error("Not implemented yet");
+            break;
+        case TextureCompressionFormat::COUNT:
+            throw std::runtime_error("COUNT is not a format.");
     }
     
-    // TODO all supported formats
-    switch (gliFormat) {
-    case gli::format::FORMAT_RGB_DXT1_UNORM_BLOCK8:
-        engineFormat = Format::BC1_RGB_uNorm_block;
-        break;
-    case gli::format::FORMAT_RGB_DXT1_SRGB_BLOCK8:
-        engineFormat = Format::BC1_RGB_sRGB_block;
-        break;
-    case gli::format::FORMAT_RGBA_DXT1_UNORM_BLOCK8:
-        engineFormat = Format::BC1_RGBA_uNorm_block;
-        break;
-    case gli::format::FORMAT_RGBA_DXT1_SRGB_BLOCK8:
-        engineFormat = Format::BC1_RGBA_sRGB_block;
-        break;
-    case gli::format::FORMAT_RG_ATI2N_UNORM_BLOCK16:
-        engineFormat = Format::BC5_uNorm_block;
-        break;
-    default:
-        throw std::runtime_error("wofo");
+    if (engineFormat == Format::Undefined) {
+        throw std::runtime_error("An invalid TextureCompressionFormat was provided.");
     }
     
     return {vk::format(engineFormat), engineFormat};
@@ -678,6 +686,8 @@ void VulkanAPI::dispose() {
     
     vkDestroySemaphore(logicalDevice.handle, presentationComplete, nullptr);
     vkDestroySemaphore(logicalDevice.handle, renderingComplete, nullptr);
+    
+    vmaDestroyAllocator(allocator);
     
     vkDestroyDevice(logicalDevice.handle, nullptr);
     
@@ -1292,99 +1302,67 @@ bool VulkanAPI::destroyDescriptorPool(DescriptorPoolHnd handle) {
 }
 
 Image VulkanAPI::createCompressedImage(const void* inputData, std::size_t byteCount) {
-    Format engineFormat;
-    VkFormat format;
+    //TODO START USING THE ALLOCATOR HERE. USE A MUTEX ON THE IMAGE TRANSFER BUFFER OR A FENCE?
+    TextureLoader loader;
+    TextureLoader::Data textureData;
+    TextureLoader::Result result = loader.load(inputData, byteCount, textureData);
+    
+    if (result != TextureLoader::Result::LoadSuccessful) {
+        throw std::runtime_error("Failed to load a texture");
+    }
+    
+    auto formatMapping = vkutil::compressionFormatToEngineFormat(textureData.format, textureData.sRGB);
+    VkFormat format = formatMapping.first;
+    Format engineFormat = formatMapping.second;
+    
     ImageViewType imViewType;
     VkImageType imageType;
-    std::uint64_t width, height, depth, levels, layers, size;
-    void* data;
     
-    gli::texture texture = gli::load(static_cast<const char*>(inputData), byteCount);
-    if (texture.empty()) {
-        throw std::runtime_error("The provided texture was empty");
-    }
-    
-    width = static_cast<std::uint64_t>(texture.extent().x);
-    height = static_cast<std::uint64_t>(texture.extent().y);
-    depth = static_cast<std::uint64_t>(texture.extent().z);
-    levels = static_cast<std::uint64_t>(texture.levels());
-    layers = static_cast<std::uint64_t>(texture.layers() * texture.faces()); // FACES?
-    size = static_cast<std::uint64_t>(texture.size());
-    data = texture.data();
-    
-    auto formatMapping = vkutil::gliToVulkanAndEngineFormat(texture.format());
-    format = formatMapping.first;
-    engineFormat = formatMapping.second;
-    
-    switch (texture.target()) {
-    case gli::TARGET_1D:
-        imageType = VK_IMAGE_TYPE_1D;
-        imViewType = ImageViewType::Im1D;
-        break;
-    case gli::TARGET_1D_ARRAY:
-        imageType = VK_IMAGE_TYPE_1D;
-        imViewType = ImageViewType::Im1DArray;
-        break;
-    case gli::TARGET_2D:
+    // For now, I only support a subset of image types
+    if (textureData.faceCount == 1) {
         imageType = VK_IMAGE_TYPE_2D;
         imViewType = ImageViewType::Im2D;
-        break;
-    case gli::TARGET_CUBE:
+    } else if (textureData.faceCount == 6) {
         imageType = VK_IMAGE_TYPE_2D;
         imViewType = ImageViewType::ImCube;
-        break;
-    case gli::TARGET_2D_ARRAY:
-        imageType = VK_IMAGE_TYPE_2D;
-        imViewType = ImageViewType::Im2DArray;
-        break;
-    case gli::TARGET_CUBE_ARRAY:
-        imageType = VK_IMAGE_TYPE_2D;
-        imViewType = ImageViewType::ImCubeArray;
-        break;
-    case gli::TARGET_3D:
-        imageType = VK_IMAGE_TYPE_3D;
-        imViewType = ImageViewType::Im3D;
-        break;
-    default:
-        assert(0);
-        break;
+    } else {
+        throw std::runtime_error("A texture must have 1 or 6 faces.");
     }
     
-    auto stagingData = createTemporaryBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, size, data);
+    auto stagingData = createTemporaryBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, textureData.size, textureData.data);
     
     std::vector<VkBufferImageCopy> bics;
     size_t layerId = 0;
     size_t offset = 0;
-    for (std::size_t layer = 0; layer < texture.layers(); ++layer) {
-        for (std::size_t face = 0; face < texture.faces(); ++face) {
-            for (std::size_t level = 0; level < texture.levels(); ++level) {
-                glm::vec3 extent(texture.extent(level));
-                
-                VkBufferImageCopy bic;
-                bic.bufferOffset      = offset;
-                bic.bufferRowLength   = 0;
-                bic.bufferImageHeight = 0;
-                
-                bic.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-                bic.imageSubresource.mipLevel       = level;
-                bic.imageSubresource.baseArrayLayer = layerId;
-                bic.imageSubresource.layerCount     = 1;
-                
-                bic.imageOffset.x = 0;
-                bic.imageOffset.y = 0;
-                bic.imageOffset.z = 0;
-                
-                bic.imageExtent.width  = static_cast<std::uint32_t>(extent.x);
-                bic.imageExtent.height = static_cast<std::uint32_t>(extent.y);
-                bic.imageExtent.depth  = static_cast<std::uint32_t>(extent.z); //TODO visada?
-                
-                bics.push_back(bic);
-                
-                offset += texture.size(level);
-            }
+    
+    for (std::size_t face = 0; face < textureData.faceCount; ++face) {
+        for (std::size_t level = 0; level < textureData.mipmapLevelCount; ++level) {
+            const glm::uvec3& extents = textureData.getLevelExtents(level);
             
-            layerId++;
+            VkBufferImageCopy bic;
+            bic.bufferOffset      = offset;
+            bic.bufferRowLength   = 0;
+            bic.bufferImageHeight = 0;
+            
+            bic.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+            bic.imageSubresource.mipLevel       = level;
+            bic.imageSubresource.baseArrayLayer = layerId;
+            bic.imageSubresource.layerCount     = 1;
+            
+            bic.imageOffset.x = 0;
+            bic.imageOffset.y = 0;
+            bic.imageOffset.z = 0;
+            
+            bic.imageExtent.width  = extents.x;
+            bic.imageExtent.height = extents.y;
+            bic.imageExtent.depth  = extents.z;
+            
+            bics.push_back(bic);
+            
+            offset += textureData.getLevelSize(level);
         }
+        
+        layerId++;
     }
     
     VkImageCreateInfo ici;
@@ -1393,9 +1371,9 @@ Image VulkanAPI::createCompressedImage(const void* inputData, std::size_t byteCo
     ici.flags                 = (imViewType == ImageViewType::ImCube) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0; //TODO CUBEMAP flags
     ici.imageType             = imageType;
     ici.format                = format;
-    ici.extent                = {static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), static_cast<std::uint32_t>(depth)}; //TODO visada?
-    ici.mipLevels             = levels;
-    ici.arrayLayers           = layers;
+    ici.extent                = {textureData.width, textureData.height, textureData.depth};
+    ici.mipLevels             = textureData.mipmapLevelCount;
+    ici.arrayLayers           = (textureData.faceCount == 6) ? 6 : textureData.layers;
     ici.samples               = VK_SAMPLE_COUNT_1_BIT;
     ici.tiling                = VK_IMAGE_TILING_OPTIMAL;
     ici.usage                 = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -1434,9 +1412,9 @@ Image VulkanAPI::createCompressedImage(const void* inputData, std::size_t byteCo
     VkImageSubresourceRange sr;
     sr.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
     sr.baseMipLevel   = 0;
-    sr.levelCount     = levels;
+    sr.levelCount     = textureData.mipmapLevelCount;
     sr.baseArrayLayer = 0;
-    sr.layerCount     = layers;
+    sr.layerCount     = (textureData.faceCount == 6) ? 6 : textureData.layers;
 
     setImageLayout(imageUploadCommandBuffer, image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, sr);
     vkCmdCopyBufferToImage(imageUploadCommandBuffer, stagingData.first, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bics.size(), bics.data());
@@ -1470,7 +1448,7 @@ Image VulkanAPI::createCompressedImage(const void* inputData, std::size_t byteCo
     
     vkFreeMemory(logicalDevice.handle, stagingData.second, nullptr);
     vkDestroyBuffer(logicalDevice.handle, stagingData.first, nullptr);
-    return {ImageHnd(image), width, height, levels, layers, imViewType, engineFormat};
+    return {ImageHnd(image), textureData.width, textureData.height, textureData.mipmapLevelCount, textureData.layers, imViewType, engineFormat};
 }
 
 Image VulkanAPI::createUncompressedImage(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable, bool usedAsColorAttachment, const void* data) {

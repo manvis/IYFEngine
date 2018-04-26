@@ -563,7 +563,7 @@ ImageViewHnd GraphicsAPI::createDefaultImageView(const Image& image) {
     ivci.viewType = image.type;
     ivci.format = image.format;
     ivci.subresourceRange.levelCount = image.levels;
-    ivci.subresourceRange.layerCount = image.layers;
+    ivci.subresourceRange.layerCount = (image.type == ImageViewType::ImCube) ? 6 : image.layers;
 
     return createImageView(ivci);
 }

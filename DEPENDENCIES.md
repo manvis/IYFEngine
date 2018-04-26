@@ -32,13 +32,12 @@ Create sub-folders named after these libraries in the "depedencies" folder. You 
 
 Next, download and put the appropriate libraries into those folders. Each folder should contain the root of the appropriate library. Moreover, as mentioned before, try to use the stable versions.
 
-0. [gli](https://github.com/g-truc/gli)
-1. [glm](https://github.com/g-truc/glm)
-2. [sol2](https://github.com/ThePhD/sol2/)
-3. [recastnavigation](https://github.com/recastnavigation/recastnavigation/)
-4. [physfs](https://icculus.org/physfs/): make sure to use version 3 or newer.
-5. [rapidjson](https://github.com/Tencent/rapidjson.git)
-6. [sqlite](https://www.sqlite.org/download.html): using the amalgamation.
+0. [glm](https://github.com/g-truc/glm)
+1. [sol2](https://github.com/ThePhD/sol2/)
+2. [recastnavigation](https://github.com/recastnavigation/recastnavigation/)
+3. [physfs](https://icculus.org/physfs/): make sure to use version 3 or newer.
+4. [rapidjson](https://github.com/Tencent/rapidjson.git)
+5. [sqlite](https://www.sqlite.org/download.html): using the amalgamation.
 
 If you receive compilation errors that talk about missing headers or source files, look into the *CMakeLists.txt* files for hints. If you cloned the repositories directly into the created folders, it's possible that you ended up with something like *dependencies/glm/glm/glm/glm.hpp* (note the extra subdirectory) when you actually needed *dependencies/glm/glm/glm.hpp*.
     
@@ -67,4 +66,6 @@ Unless you're one of IYFEngine's developers or **really** need a newer version, 
 ##No longer used
 These libraries have been replaced on removed.
 
+0. [gli](https://github.com/g-truc/gli): was replaced because I started using a custom texture format.
 1. [selene](https://github.com/jeremyong/Selene/): was replaced because sol2 is faster and better maintained.
+

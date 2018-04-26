@@ -311,6 +311,8 @@ protected:
     std::vector<const char*> validationLayerNames;
     
     VmaAllocator allocator;
+    VkBuffer imageTransferSource;
+    VmaAllocation imageTransferSourceAllocation;
     
     VkInstance instance;
     

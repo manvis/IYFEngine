@@ -31,6 +31,7 @@
 #include "../VERSION.hpp"
 
 #include "utilities/hashing/Hashing.hpp"
+#include "utilities/DataSizes.hpp"
 #include "core/Logger.hpp"
 #include "core/Engine.hpp"
 
@@ -47,6 +48,8 @@
 #include <SDL_syswm.h>
 
 namespace iyf {
+using namespace iyf::literals;
+
 static const std::vector<const char*> REQUIRED_DEVICE_EXTENSIONS = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
@@ -811,10 +814,10 @@ bool VulkanAPI::evaluatePhysicalDeviceExtensions(PhysicalDevice& device) {
     device.dedicatedAllocationExtensionEnabled = false;
     // Find potentially useful optional extensions
     for (std::uint32_t e = 0; e < device.extensionProperties.size(); ++e) {
-        if (!strcmp(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device.extensionProperties[e].extensionName)) {
-            device.dedicatedAllocationExtensionEnabled = true;
-            device.enabledExtensions.push_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
-        }
+//         if (!strcmp(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device.extensionProperties[e].extensionName)) {
+//             device.dedicatedAllocationExtensionEnabled = true;
+//             device.enabledExtensions.push_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
+//         }
     }
 
     return true;
@@ -1094,7 +1097,24 @@ void VulkanAPI::createVulkanMemoryAllocatorAndHelperBuffers() {
     
     vmaCreateAllocator(&allocatorInfo, &allocator);
     
-    //
+    std::string imageTransferSourceName = "imageTransferSource";
+    
+    VkBufferCreateInfo bci;
+    bci.sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bci.pNext                 = nullptr;
+    bci.flags                 = 0;
+    bci.size                  = Bytes(64_MiB).count(); // TODO make configurable
+    bci.usage                 = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    bci.sharingMode           = VK_SHARING_MODE_EXCLUSIVE; // TODO use a transfer queue (if available)
+    bci.queueFamilyIndexCount = 0;
+    bci.pQueueFamilyIndices   = nullptr;
+    
+    VmaAllocationCreateInfo aci = {};
+    aci.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
+    aci.usage = VMA_MEMORY_USAGE_CPU_ONLY; // Guarantees HOST_VISIBLE and HOST_COHERENT
+    aci.pUserData = &imageTransferSourceName[0];
+    
+    checkResult(vmaCreateBuffer(allocator, &bci, &aci, &imageTransferSource, &imageTransferSourceAllocation, nullptr), "Failed to create the image transfer source buffer.");
 }
 
 bool VulkanAPI::evaluatePhysicalDeviceSurfaceCapabilities(PhysicalDevice& device) {

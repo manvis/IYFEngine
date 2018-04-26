@@ -28,12 +28,12 @@
 
 #include "assets/loaders/TextureLoader.hpp"
 #include "core/serialization/MemorySerializer.hpp"
-#include "core/Constants.hpp"
+#include "core/Logger.hpp"
 
 namespace iyf {
 static const std::array<char, 4> MAGIC_NUMBER = {'I', 'Y', 'F', 'T'};
 
-TextureLoader::Result TextureLoader::load(const void* inputData, std::size_t byteCount) const {
+TextureLoader::Result TextureLoader::load(const void* inputData, std::size_t byteCount, Data& data) const {
     MemorySerializer ms(static_cast<const char*>(inputData), byteCount);
     
     std::array<char, 4> readMagicNumber;
@@ -42,32 +42,93 @@ TextureLoader::Result TextureLoader::load(const void* inputData, std::size_t byt
     if (readMagicNumber != MAGIC_NUMBER) {
         return Result::InvalidMagicNumber;
     }
-    
 
-    const std::uint8_t version = ms.readUInt8();
-    if (version != 1) {
+    Data tempData = {};
+    tempData.version = ms.readUInt8();
+    if (tempData.version != 1) {
         return Result::InvalidVersionNumber;
     }
 
-    const std::uint8_t faceCount = ms.readUInt8();
-    const std::uint8_t channelCount = ms.readUInt8();
-    const std::uint8_t mipmapLevelCount = ms.readUInt8();
+    tempData.faceCount = ms.readUInt8();
+    tempData.channelCount = ms.readUInt8();
+    tempData.mipmapLevelCount = ms.readUInt8();
     
-    const std::uint32_t width = ms.readUInt32();
-    const std::uint32_t height = ms.readUInt32();
-    const std::uint32_t depth = ms.readUInt32();
-    const std::uint32_t layers = ms.readUInt32();
+    assert(tempData.faceCount == 0 || tempData.faceCount == 6);
     
-    assert(depth == 1 && layers == 1);
+    // Just to make sure everything fits into the array. Yes, -1 is here for a reason
+    // we save the total offset into the array as well
+    assert(tempData.mipmapLevelCount < (tempData.sizesAndOffsets.size() - 1));
+    
+    tempData.width = ms.readUInt32();
+    tempData.height = ms.readUInt32();
+    tempData.depth = ms.readUInt32();
+    tempData.layers = ms.readUInt32();
+    
+    assert(tempData.depth == 1 && tempData.layers == 1);
 
-    const TextureCompressionFormat format = static_cast<TextureCompressionFormat>(ms.readUInt16());
-    const bool sRGB = ms.readUInt8();
+    tempData.format = static_cast<TextureCompressionFormat>(ms.readUInt16());
+    tempData.sRGB = ms.readUInt8();
     
     const std::uint8_t reserved = ms.readUInt8(); // Reads the reserved value;
     assert(reserved == 0);
+    
+    std::size_t position = ms.tell();
+    tempData.data = ms.data() + position;
+    tempData.size = ms.size() - position;
+    
+    glm::uvec3 currentExtents(tempData.width, tempData.height, 1);
+    std::size_t currentOffset = 0;
+    for (std::size_t i = 0; i < tempData.mipmapLevelCount; ++i) {
+        tempData.extents[i] = currentExtents;
+        const std::size_t size = con::CompressedTextureMipmapLevelSize(tempData.format, currentExtents.x, currentExtents.y);
+        
+        currentExtents.x /= 2;
+        currentExtents.y /= 2;
+        
+        tempData.sizesAndOffsets[i].offset = currentOffset;
+        tempData.sizesAndOffsets[i].size = size;
+        
+        currentOffset += size;
+    }
+    
+    // Save the total offset
+    tempData.sizesAndOffsets[tempData.mipmapLevelCount].offset = currentOffset;
+    tempData.sizesAndOffsets[tempData.mipmapLevelCount].size = 0;
+    
+    assert((tempData.sizesAndOffsets[tempData.mipmapLevelCount].offset * 6) == tempData.size);
 
+    data = std::move(tempData);
     
     return Result::LoadSuccessful;
+}
+
+std::size_t TextureLoader::Data::getLevelSize(std::size_t level) const {
+    assert(level < mipmapLevelCount);
+    return sizesAndOffsets[level].size;
+}
+
+std::size_t TextureLoader::Data::getLevelOffset(std::size_t level) const {
+    assert(level < mipmapLevelCount);
+    return sizesAndOffsets[level].offset;
+}
+
+std::size_t TextureLoader::Data::getMipmapChainSize() const {
+    return sizesAndOffsets[mipmapLevelCount].offset;
+}
+
+const glm::uvec3& TextureLoader::Data::getLevelExtents(std::size_t level) const {
+    assert(level < mipmapLevelCount);
+    return extents[level];
+}
+
+const void* TextureLoader::Data::getData(std::size_t layer, std::size_t face, std::size_t level) const {
+    // TODO this isn't ready for layers or depth, however, I don't use textures like that for the time being
+    assert(version == 1);
+    assert(layer == 0);
+    assert(level < mipmapLevelCount);
+    
+    const std::size_t offset = getMipmapChainSize() * face + getLevelOffset(level);
+    return data + offset;
 }
 
 }

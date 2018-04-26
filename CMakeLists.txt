@@ -141,8 +141,6 @@ include_directories(include/miniz)
 # Set up header and integrated library dependencies
 # glm
 include_directories(dependencies/glm)
-# gli
-include_directories(SYSTEM dependencies/gli)
 # sol2
 include_directories(dependencies/sol2/single)
 # rapidjson
