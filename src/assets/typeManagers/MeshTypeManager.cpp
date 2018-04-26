@@ -194,7 +194,7 @@ void MeshTypeManager::performLoad(hash32_t nameHash, const fs::path& path, const
     }
     
     MeshLoader::LoadedMeshData lmd;
-    if (!loader.loadMesh((con::MeshPath / path).generic_string(), lmd, vboRangeResult.data, iboRangeResult.data)) {
+    if (!loader.loadMesh(path, lmd, vboRangeResult.data, iboRangeResult.data)) {
         throw std::runtime_error("Failed to find a mesh file");
     }
     

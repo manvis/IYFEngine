@@ -43,7 +43,7 @@
 namespace iyf {
 using namespace iyf::literals;
 
-bool MeshLoader::loadMesh(const std::string& path, LoadedMeshData& submeshes, void* vertexBuffer, void* indexBuffer, std::vector<Bone>* skeleton) const {
+bool MeshLoader::loadMesh(const fs::path& path, LoadedMeshData& submeshes, void* vertexBuffer, void* indexBuffer, std::vector<Bone>* skeleton) const {
     FileSystem* fileSystem = engine->getFileSystem();
     bool exists = fileSystem->exists(path);
     
@@ -69,7 +69,7 @@ bool MeshLoader::loadMesh(const std::string& path, LoadedMeshData& submeshes, vo
     }
 }
 
-bool MeshLoader::loadAnimation(const std::string& path, Animation& buffer) const {
+bool MeshLoader::loadAnimation(const fs::path& path, Animation& buffer) const {
     FileSystem* fileSystem = engine->getFileSystem();
     bool exists = fileSystem->exists(path);
     
@@ -95,7 +95,7 @@ bool MeshLoader::loadAnimation(const std::string& path, Animation& buffer) const
     }
 }
 
-MeshLoader::MemoryRequirements MeshLoader::getMeshMemoryRequirements(const std::string& path) const {
+MeshLoader::MemoryRequirements MeshLoader::getMeshMemoryRequirements(const fs::path& path) const {
     FileSystem* fileSystem = engine->getFileSystem();
     bool exists = fileSystem->exists(path);
     
