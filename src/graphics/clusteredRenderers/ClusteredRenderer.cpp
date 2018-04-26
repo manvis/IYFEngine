@@ -303,9 +303,10 @@ void ClusteredRenderer::submitCommandBuffers() {
         si.waitDstStageMask = {PipelineStageFlagBits::BottomOfPipe};
         si.commandBuffers = {commandBuffers[static_cast<std::uint32_t>(CommandBufferID::World)]->getHandle()};
         si.signalSemaphores = {worldRenderComplete};
-        // TODO why does this FLICKER without a fence. What am I missing?
+//         api->submitQueue(si);
+//         // TODO why does this FLICKER without a fence. What am I missing? I know what's missing and I need to implement it.
         api->submitQueue(si, preGUIFence);
-        //api->waitForFence(preGUIFence, std::numeric_limits<std::uint64_t>::max());
+        api->waitForFence(preGUIFence, std::numeric_limits<std::uint64_t>::max());
         api->resetFence(preGUIFence);
 
         // ImGui
