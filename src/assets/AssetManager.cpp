@@ -34,6 +34,7 @@
 #include "core/Engine.hpp"
 #include "core/filesystem/FileSystem.hpp"
 #include "core/serialization/VirtualFileSystemSerializer.hpp"
+#include "assets/typeManagers/FontTypeManager.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
 #include "assets/typeManagers/ShaderTypeManager.hpp"
 #include "assets/typeManagers/TextureTypeManager.hpp"
@@ -70,6 +71,7 @@ void AssetManager::initialize() {
     typeManagers[static_cast<std::size_t>(AssetType::Mesh)] = std::unique_ptr<MeshTypeManager>(new MeshTypeManager(this, 2_MiB, 1_MiB));
     typeManagers[static_cast<std::size_t>(AssetType::Shader)] = std::unique_ptr<ShaderTypeManager>(new ShaderTypeManager(this));
     typeManagers[static_cast<std::size_t>(AssetType::Texture)] = std::unique_ptr<TextureTypeManager>(new TextureTypeManager(this));
+    typeManagers[static_cast<std::size_t>(AssetType::Font)] = std::unique_ptr<FontTypeManager>(new FontTypeManager(this));
     //AssetHandle<Mesh> r = load<Mesh>(HS("nano"));
     
     // TODO Load the metadata into the manifest

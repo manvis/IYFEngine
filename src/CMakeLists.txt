@@ -58,6 +58,7 @@ assets/metadata/PipelineMetadata.cpp
 assets/metadata/StringMetadata.cpp
 assets/metadata/MaterialMetadata.cpp
 #------- typeManager directory
+assets/typeManagers/FontTypeManager.cpp
 assets/typeManagers/MeshTypeManager.cpp
 assets/typeManagers/ShaderTypeManager.cpp
 assets/typeManagers/TextureTypeManager.cpp
