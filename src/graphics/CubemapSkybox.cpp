@@ -151,8 +151,6 @@ void CubemapSkybox::draw(CommandBuffer* commandBuffer, const Camera* camera) con
     
     const PrimitiveData& primitiveData = sphereMesh->getMeshPrimitiveData();
     commandBuffer->drawIndexed(primitiveData.indexCount, 1, primitiveData.indexOffset, primitiveData.vertexOffset, 0);
-    
-    LOG_D("HELLO: " << primitiveData.indexCount << " " << primitiveData.indexOffset << " " << primitiveData.vertexOffset << " " << VBO.handle().toNative<std::uint64_t*>() << " " << IBO.handle().toNative<std::uint64_t*>());
 }
 
 void CubemapSkybox::update(float delta) {
