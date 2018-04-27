@@ -204,8 +204,11 @@ void ImGuiImplementation::initializeAssets() {
     };
     
     AssetHandle<Font> fontAsset = assetManager->getSystemAsset<Font>(con::ImGuiFont);
-    char* fontData = new char[fontAsset->size];
+    
+    void* fontData = std::malloc(fontAsset->size);
     std::memcpy(fontData, fontAsset->data, fontAsset->size);
+    
+    // This transfers the ownership to ImGui
     io.Fonts->AddFontFromMemoryTTF(fontData, fontAsset->size, con::ImGuiFontSize, nullptr, ranges);
     int fontAtlasWidth, fontAtlasHeight;
     
