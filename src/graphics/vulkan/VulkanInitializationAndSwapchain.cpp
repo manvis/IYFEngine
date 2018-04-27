@@ -812,12 +812,30 @@ bool VulkanAPI::evaluatePhysicalDeviceExtensions(PhysicalDevice& device) {
     }
     
     device.dedicatedAllocationExtensionEnabled = false;
+    device.getMemoryRequirements2ExtensionEnabled = false;
+    
+    bool dedicatedAllocationExtensionFound = false;
+    bool getMemoryRequirements2ExtensionFound = false;
+    
     // Find potentially useful optional extensions
     for (std::uint32_t e = 0; e < device.extensionProperties.size(); ++e) {
-//         if (!strcmp(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device.extensionProperties[e].extensionName)) {
-//             device.dedicatedAllocationExtensionEnabled = true;
-//             device.enabledExtensions.push_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
-//         }
+        if (!strcmp(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device.extensionProperties[e].extensionName)) {
+            dedicatedAllocationExtensionFound = true;
+        }
+        
+        if (!strcmp(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME, device.extensionProperties[e].extensionName)) {
+            getMemoryRequirements2ExtensionFound = true;
+        }
+    }
+    
+    if (getMemoryRequirements2ExtensionFound) {
+        device.getMemoryRequirements2ExtensionEnabled = true;
+        device.enabledExtensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+    }
+    
+    if (dedicatedAllocationExtensionFound && getMemoryRequirements2ExtensionFound) {
+        device.dedicatedAllocationExtensionEnabled = true;
+        device.enabledExtensions.push_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
     }
 
     return true;

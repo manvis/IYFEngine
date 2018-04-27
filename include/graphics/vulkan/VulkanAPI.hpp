@@ -263,6 +263,7 @@ protected:
         std::uint32_t chosenPresentQueueFamilyId;
         
         bool dedicatedAllocationExtensionEnabled;
+        bool getMemoryRequirements2ExtensionEnabled;
         
         /// Capabailities of the surface that is compatible with this physical device
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
