@@ -34,6 +34,7 @@
 #include "utilities/NonCopyable.hpp"
 #include "assets/AssetHandle.hpp"
 
+class ImGuiContext;
 namespace iyf {
 class Engine;
 class Renderer;
@@ -75,6 +76,7 @@ protected:
     static void setClipboardText(void* userData, const char* text);
 
     Engine* engine;
+    ImGuiContext* context;
     bool frameHasAlreadyBegun, assetsInitialized;
     
     Image fontAtlas;

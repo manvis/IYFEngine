@@ -96,11 +96,11 @@ static bool AssetKeyLockImpl(const char* label, int upperLineElementCount, const
     
     const ImRect bb(pos, ImVec2(pos.x + size.x, pos.y + size.y));
     ItemSize(bb, style.FramePadding.y);
-    if (!ItemAdd(bb, &id))
+    if (!ItemAdd(bb, id))
         return false;
 
     int flags = 0;
-    if (window->DC.ButtonRepeat) flags |= ImGuiButtonFlags_Repeat;
+    // TODO if (window->DC.ButtonRepeat) flags |= ImGuiButtonFlags_Repeat;
     bool hovered, held;
     bool pressed = ButtonBehavior(bb, id, &hovered, &held, flags);
 

@@ -67,7 +67,7 @@ const float MIN_STABLE_FILE_SIZE_DURATION_SECONDS = 0.25f;
 
 namespace iyf::editor {
 
-static void WidthAtLeastTwiceHeight(ImGuiSizeConstraintCallbackData* data) {
+static void WidthAtLeastTwiceHeight(ImGuiSizeCallbackData* data) {
     if (data->DesiredSize.x < data->DesiredSize.y * 2) {
         data->DesiredSize.x = data->DesiredSize.y * 2;
     }
@@ -228,7 +228,7 @@ void EditorState::frame(float delta) {
     if (world != nullptr) {
         world->update(delta);
         
-        if (!ImGui::IsMouseHoveringAnyWindow() && is->isMouseClicked(MouseButton::Left)) {
+        if (!ImGui::IsAnyItemHovered() && is->isMouseClicked(MouseButton::Left)) {
             int mouseX = is->getMouseX();
             int mouseY = is->getMouseY();
             
@@ -387,7 +387,8 @@ void EditorState::frame(float delta) {
     }
     
     ImGui::SetNextWindowPos(ImVec2(10, 30));
-    if (ImGui::Begin("Info Panel", nullptr, ImVec2(0,0), 0.7f, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings)) {
+//     ImGui::SetNextWindowBgAlpha(0.7f);
+    if (ImGui::Begin("Info Panel", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings)) {
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         
         if (world != nullptr) {
@@ -570,10 +571,10 @@ void EditorState::showMaterialEditorWindow() {
         materialComponents.resize(4);
     }
     
-    ImGui::SetNextWindowSize(ImVec2(300,500), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300,500), ImGuiCond_FirstUseEver);
     ImGui::Begin("Material editor", nullptr);
     
-    ImGui::AlignFirstTextHeightToWidgets();
+    ImGui::AlignTextToFramePadding();
     static char materialName[80] = "";
     ImGui::InputText("Name", materialName, IM_ARRAYSIZE(materialName));
     
@@ -623,14 +624,14 @@ void EditorState::showMaterialEditorWindow() {
 }
 
 void EditorState::showDebugWindow() {
-    ImGui::SetNextWindowSize(ImVec2(300,500), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300,500), ImGuiCond_FirstUseEver);
     ImGui::Begin("Engine Debug", nullptr);
     
     int unit = static_cast<int>(debugDataUnit);
     ImGui::Combo("Data type", &unit, "B\0KiB\0MiB\0\0");
     debugDataUnit = static_cast<DebugDataUnit>(unit);
     
-    ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_Once);
+    ImGui::SetNextTreeNodeOpen(true, ImGuiCond_Once);
     if (ImGui::TreeNode("Mesh Assets")) {
         AssetManager* assetManager = engine->getAssetManager();
         ImGui::Text("Registered Assets: %lu", assetManager->getRegisteredAssetCount());
@@ -682,7 +683,7 @@ void EditorState::printBufferInfo(const char* name, const std::vector<MeshTypeMa
         char buff[128];
         sprintf(buff, "%s %lu", name, i);
         
-        ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_Once);
+        ImGui::SetNextTreeNodeOpen(true, ImGuiCond_Once);
         if (ImGui::TreeNode(buff)) {
             double percentage = ((double)(buffers[i].freeRanges.getFreeSpace().count()) / (double)(buffers[i].freeRanges.getTotalSpace().count())) * 100.0;
             
@@ -724,7 +725,7 @@ void EditorState::showWorldEditorWindow() {
         return;
     }
     
-    ImGui::SetNextWindowSize(ImVec2(300,500), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300,500), ImGuiCond_FirstUseEver);
     ImGui::Begin("World editor", nullptr);
     
     ImGui::Text("The world tree");
@@ -850,7 +851,7 @@ void EditorState::showEntityEditorWindow() {
     
     // TODO imgui drag float does not do bounds checking on manually entered values. Fix it.
     // TODO this whole thing is bad. It still thinks only a single component type exists per system
-    ImGui::SetNextWindowSize(ImVec2(300,500), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300,500), ImGuiCond_FirstUseEver);
     ImGui::Begin("Entity editor", nullptr);
     
     if (world == nullptr) {
@@ -950,7 +951,7 @@ void EditorState::showEntityEditorWindow() {
     
     ImGui::Separator();
     
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildWindowRounding, 1.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 1.0f);
     ImGui::BeginChild("ComponentList");//, ImVec2(-1, -1), true);//, ImVec2(contentHeight, contentHeight), true);
     
     //ImGui::Text("Added components");
@@ -982,7 +983,7 @@ void EditorState::showEntityEditorWindow() {
 }
 
 void EditorState::showTransformationEditor(Entity& entity, TransformationComponent& transformation) {
-    ImGui::AlignFirstTextHeightToWidgets();
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("Transformation component");
     
     glm::vec3 position = transformation.getPosition();
@@ -1030,7 +1031,7 @@ void EditorState::showComponentEditors(Entity& entity, const EntityState& entity
 void EditorState::beginComponentEditor(Entity& entity, const ComponentType& type) {
     std::string name = LOC_SYS(con::ComponentNames[static_cast<std::uint32_t>(type.getBaseType())][type.getSubType()]);
     
-    ImGui::AlignFirstTextHeightToWidgets();
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("%s", name.c_str());
     
     float buttonWidth = ADD_REMOVE_COMPONENT_BUTTON_WIDTH;
@@ -1139,7 +1140,7 @@ void EditorState::showCameraComponentEditor(Entity& entity) {
 }
 
 void EditorState::showPhysicsComponentEditors(Entity& entity) {
-    ImGui::AlignFirstTextHeightToWidgets();
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("Rigid body component");
     
     float buttonWidth = ADD_REMOVE_COMPONENT_BUTTON_WIDTH;
@@ -1198,7 +1199,7 @@ void EditorState::showAssetWindow() {
     // TODO implement custom ordering (needs more work)
     // TODO implement author, license and tag adding, removal and editing
     // TODO previews
-    ImGui::SetNextWindowSize(ImVec2(600, 200), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(600, 200), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSizeConstraints(ImVec2(600, 200), ImVec2(FLT_MAX, FLT_MAX), WidthAtLeastTwiceHeight);
     if (assetWindowOpen) {
         ImGui::Begin("Assets", &assetWindowOpen);
@@ -1337,7 +1338,7 @@ void EditorState::showAssetWindow() {
         
         ImGui::SameLine();
         
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildWindowRounding, rounding);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, rounding);
         ImGui::BeginChild("AssetDisplay", ImVec2(contentHeight, contentHeight), true);
         
         ImGui::Text("TODO Implement previews");
@@ -1523,8 +1524,8 @@ void ImGuiLog::show(const std::string& logStr) {
     float height = api->getRenderSurfaceHeight() * 0.2f;
     float posY = api->getRenderSurfaceHeight() - height;
     
-    ImGui::SetNextWindowPos(ImVec2(0, posY), ImGuiSetCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiSetCond_Always);
+    ImGui::SetNextWindowPos(ImVec2(0, posY), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
     ImGui::Begin("Log", nullptr);
     if (ImGui::Button("Clear")) {
         engine->clearLogString();

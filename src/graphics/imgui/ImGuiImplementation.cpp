@@ -146,6 +146,9 @@ void ImGuiImplementation::onTextInput(const char* text) {
 }
 
 void ImGuiImplementation::initialize() {
+    context = ImGui::CreateContext();
+    ImGui::SetCurrentContext(context);
+    
     // TODO scancodes or keycodes? Does it break in other locales?
     ImGuiIO& io = ImGui::GetIO();
     io.KeyMap[ImGuiKey_Tab] = SDLK_TAB;                     // Keyboard mapping. ImGui will use those indices to peek into the io.KeyDown[] array.
@@ -168,7 +171,7 @@ void ImGuiImplementation::initialize() {
     io.KeyMap[ImGuiKey_Y] = SDLK_y;
     io.KeyMap[ImGuiKey_Z] = SDLK_z;
 
-    io.RenderDrawListsFn = nullptr;   // Alternatively you can set this to NULL and call ImGui::GetDrawData() after ImGui::Render() to get the same ImDrawData pointer.
+    //io.RenderDrawListsFn = nullptr;   // Alternatively you can set this to NULL and call ImGui::GetDrawData() after ImGui::Render() to get the same ImDrawData pointer.
     io.SetClipboardTextFn = setClipboardText;
     io.GetClipboardTextFn = getClipboardText;
     io.ClipboardUserData = engine;
@@ -183,8 +186,7 @@ void ImGuiImplementation::dispose() {
     }
     
     engine->getInputState()->removeInputListener(this);
-    
-    ImGui::Shutdown();
+    ImGui::DestroyContext(context);
 }
 
 void ImGuiImplementation::initializeAssets() {

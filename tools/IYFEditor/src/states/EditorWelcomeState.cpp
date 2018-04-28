@@ -275,13 +275,13 @@ void EditorWelcomeState::frame(float delta) {
     impl->requestRenderThisFrame();
     
     ImGui::SetNextWindowPos(ImVec2(10, 10));
-    if (ImGui::Begin("Info Panel", nullptr, ImVec2(0,0), 0.7f, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings)) {
+    if (ImGui::Begin("Info Panel", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings)) {
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::End();
     }
     
-    ImGui::SetNextWindowPos(ImVec2(wMargin, hMargin), ImGuiSetCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(windowW, windowH), ImGuiSetCond_Always);
+    ImGui::SetNextWindowPos(ImVec2(wMargin, hMargin), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(windowW, windowH), ImGuiCond_Always);
     ImGui::Begin("Create or open a project", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
     
     if (std::strlen(userData.firstName.data()) > 0) {

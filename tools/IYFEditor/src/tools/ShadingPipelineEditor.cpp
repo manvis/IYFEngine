@@ -110,7 +110,7 @@ void ShadingPipelineEditor::show(bool* open) {
             }
         }
         
-        ImGui::SetNextWindowSize(ImVec2(300, -1), ImGuiSetCond_Appearing);
+        ImGui::SetNextWindowSize(ImVec2(300, -1), ImGuiCond_Appearing);
         if (ImGui::BeginPopupModal("New Pipeline Error")) {
             ImGui::TextWrapped("%s", currentErrorText.c_str());
             if (ImGui::Button("OK")) {
