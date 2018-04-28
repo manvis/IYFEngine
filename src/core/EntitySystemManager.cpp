@@ -109,9 +109,9 @@ void EntitySystemManager::dispose() {
     managedComponents.reset();
     
     // Trigger the destructors that clear all the elements
-    entityStates = EntityStateVector();
-    transformations = TransformationVector();
-    entities = ChunkedVector<Entity, SystemChunkSize>();
+    entityStates.clear();
+    transformations.clear();
+    entities.clear();
     
     freeSlots.clear();
     

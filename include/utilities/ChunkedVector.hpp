@@ -34,6 +34,7 @@
 #include <cassert>
 
 #include "utilities/ChunkedVectorIterator.hpp"
+#include "utilities/NonCopyable.hpp"
 
 namespace iyf {
 
@@ -50,7 +51,7 @@ namespace iyf {
 /// You may also use getChunkStart() and getChunkEnd() to access chunk memory directly. That's what the ChunkedVectorIterator uses
 /// under the hood.
 template <typename T, size_t chunkSize>
-class ChunkedVector {
+class ChunkedVector : private NonCopyable {
 public:
     inline constexpr ChunkedVector() : capacityVal(0), sizeVal(0) {}
     
@@ -252,7 +253,7 @@ public:
         return getPtr(id);
     }
     
-    virtual ~ChunkedVector() {
+    inline void clear() {
         // TODO I should be incrementing pointers instead of calling getPtr()
         for (std::size_t i = 0; i < sizeVal; ++i) {
             T* data = getPtr(i);
@@ -262,8 +263,16 @@ public:
         for (char* c : chunks) {
             delete[] c;
         }
+        
+        capacityVal = 0;
+        sizeVal = 0;
+    }
+    
+    virtual ~ChunkedVector() {
+        clear();
     }
 protected:
+    
     inline T* getPtr(std::size_t id) {
         char* chunk = chunks[id / chunkSize];
         
