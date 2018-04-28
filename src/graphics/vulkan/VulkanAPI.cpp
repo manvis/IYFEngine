@@ -687,6 +687,7 @@ void VulkanAPI::dispose() {
     vkDestroySemaphore(logicalDevice.handle, presentationComplete, nullptr);
     vkDestroySemaphore(logicalDevice.handle, renderingComplete, nullptr);
     
+    vmaDestroyBuffer(allocator, imageTransferSource, imageTransferSourceAllocation);
     vmaDestroyAllocator(allocator);
     
     vkDestroyDevice(logicalDevice.handle, nullptr);
