@@ -264,6 +264,7 @@ public:
             delete[] c;
         }
         
+        chunks.clear();
         capacityVal = 0;
         sizeVal = 0;
     }
