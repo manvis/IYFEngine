@@ -565,7 +565,7 @@ void VulkanAPI::choosePhysicalDevice() {
         }
         
         if (compatibleGPU) {
-            compatibleDevices.push_back(currentDevice);
+            compatibleDevices.push_back(std::move(currentDevice));
         } else {
             LOG_V("Gpu " << i << " is not compatible");
         }
@@ -575,7 +575,7 @@ void VulkanAPI::choosePhysicalDevice() {
     if (compatibleDevices.size() == 0) {
         throw std::runtime_error("No compatible devices were found.");
     }
-    physicalDevice = compatibleDevices[0];
+    physicalDevice = std::move(compatibleDevices[0]);
 }
 
 static void checkFeature(std::stringstream& ss, const char* name, VkBool32& available, bool required, bool& allAvailable) {
@@ -788,8 +788,6 @@ bool VulkanAPI::evaluatePhysicalDeviceExtensions(PhysicalDevice& device) {
     }
 
     LOG_V("Physical device extensions:" << ss.str());
-    
-    device.enabledExtensions.clear();
 
     // Checking to see if all required extensions are present. Unlike layers that can be changed via config, the names of these extensions
     // are hardcoded because their presence is mandatory for the engine to function

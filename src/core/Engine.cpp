@@ -255,18 +255,19 @@ Engine::~Engine() {
         stateStack.back()->dispose();
         stateStack.pop_back();
     }
+    
+    imguiImpl->dispose();
+    imguiImpl = nullptr;
 
 //  Lua::dispose();
 //  ShaderProvider::dispose();
 //  DeferredFBOmanager::dispose();
-    assetManager->dispose();
-    assetManager = nullptr;
-    
-    imguiImpl->dispose();
-    imguiImpl = nullptr;
     
     renderer->dispose();
     renderer = nullptr;
+    
+    assetManager->dispose();
+    assetManager = nullptr;
     
     graphicsAPI->dispose();
     graphicsAPI = nullptr;
