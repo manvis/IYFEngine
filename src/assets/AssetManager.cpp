@@ -405,14 +405,14 @@ void AssetManager::removeNonSystemAssetsFromManifest() {
     for (auto it = manifest.begin(); it != manifest.end(); ) {
         const auto& loadedAsset = loadedAssets.find(it->first);
         
-        if (loadedAsset != loadedAssets.end()) {
-            // TODO implement
-            throw std::runtime_error("Removal of hot assets not yet implemented");
-        }
-        
-        if(it->second.systemAsset) {
+        if (it->second.systemAsset) {
             ++it;
         } else {
+            if (loadedAsset != loadedAssets.end()) {
+                // TODO implement
+                throw std::runtime_error("Removal of hot assets not yet implemented");
+            }
+            
             it = manifest.erase(it);
         }
     }
