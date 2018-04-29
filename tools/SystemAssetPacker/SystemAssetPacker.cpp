@@ -79,7 +79,13 @@ void SystemAssetPacker::recursiveExport(const fs::path& path, const editor::Conv
             LOG_V("Found a system asset subdirectory: " << sourcePath);
             recursiveExport(sourcePath, cm, platformID);
         } else {
+            assert(!sourcePath.empty());
             if (sourcePath.extension() == con::ImportSettingsExtension) {
+                continue;
+            }
+            
+            // Make sure we skip hidden files
+            if (sourcePath.filename().string()[0] == '.') {
                 continue;
             }
             
