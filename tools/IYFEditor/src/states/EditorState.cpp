@@ -1361,7 +1361,7 @@ void EditorState::showAssetWindow() {
 }
 
 void EditorState::updateProjectFiles(float delta) {
-    assert (fileSystemWatcherThread.get_id() == std::this_thread::get_id());
+//     assert (fileSystemWatcherThread.get_id() == std::this_thread::get_id());
     
     filesToProcess.clear();
     

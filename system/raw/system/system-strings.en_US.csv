@@ -3,3 +3,15 @@ companyName,,"IYFEngine „Team“
 Booms"
 gameName,,IYFEditor
 test,,Test {1}; {0}
+opaqueRenderMode,,Opaque
+transparentRenderMode,,Transparent
+graphicsComponentFamily,,Graphics Components
+physicsComponentFamily,,Physics Components
+meshComponent,,Mesh
+skeletalMeshComponent,,Skeletal Mesh
+directionalLightComponent,,Directional Light
+pointLightComponent,,Point Light
+spotLightComponent,,Spot Light
+particleSystemComponent,,Particle System
+cameraComponent,,Camera
+colliderComponent,,Collider
