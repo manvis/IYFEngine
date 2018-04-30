@@ -277,7 +277,7 @@ public:
         auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
         
         auto result = manifest.find(nameHash);
-        if (result == manifest.end()) {
+        if (result != manifest.end()) {
             return result->second.metadata;
         } else {
             return std::nullopt;
@@ -293,7 +293,7 @@ public:
         auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
         
         auto result = manifest.find(nameHash);
-        if (result == manifest.end()) {
+        if (result != manifest.end()) {
             return result->second.path;
         } else {
             return std::nullopt;
@@ -311,7 +311,7 @@ public:
         }
         
         auto result = manifest.find(nameHash);
-        if (result == manifest.end()) {
+        if (result != manifest.end()) {
             return &result->second.metadata;
         } else {
             return nullptr;
@@ -329,7 +329,7 @@ public:
         }
         
         auto result = manifest.find(nameHash);
-        if (result == manifest.end()) {
+        if (result != manifest.end()) {
             return &result->second.path;
         } else {
             return nullptr;
