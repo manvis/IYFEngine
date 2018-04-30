@@ -15,3 +15,17 @@ spotLightComponent,,Spot Light
 particleSystemComponent,,Particle System
 cameraComponent,,Camera
 colliderComponent,,Collider
+animation,,Animation
+mesh,,Mesh
+texture,,Texture
+font,,Font
+audio,,Audio
+video,,Video
+world,,World
+script,,Script
+shader,,Shader
+pipeline,,Pipeline
+string,,String
+custom,,Custom
+material,,Material
+any,,Any
