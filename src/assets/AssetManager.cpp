@@ -52,6 +52,8 @@ AssetManager::AssetManager(Engine* engine) : engine(engine), isInit(false) {
     } else {
         LOG_W("std::uint32_t is NOT lock free on this system");
     }
+    
+    editorMode = engine->isEditorMode();
 }
 
 AssetManager::~AssetManager() { }
@@ -74,7 +76,6 @@ void AssetManager::initialize() {
     typeManagers[static_cast<std::size_t>(AssetType::Font)] = std::unique_ptr<FontTypeManager>(new FontTypeManager(this));
     //AssetHandle<Mesh> r = load<Mesh>(HS("nano"));
     
-    // TODO Load the metadata into the manifest
     buildManifestFromFilesystem();
     
     loadSystemAssets();
@@ -195,6 +196,8 @@ inline T loadMetadata(const fs::path& path, bool isJSON) {
 }
 
 /// Adds all assets of the specified type to the provided manifest
+///
+/// \warning Make sure this is always protected by a mutex
 inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unordered_map<hash32_t, AssetManager::ManifestElement>& manifest) {
     const fs::path& baseDir = con::AssetTypeToPath(type);
     const auto contents = filesystem->getDirectoryContents(baseDir);
@@ -319,12 +322,15 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
 void AssetManager::buildManifestFromFilesystem() {
     FileSystem* filesystem = engine->getFileSystem();
     
+    std::lock_guard<std::mutex> lock(manifestMutex);
     for (std::size_t i = 0; i < static_cast<std::size_t>(AssetType::COUNT); ++i) {
         addFilesToManifest(filesystem, static_cast<AssetType>(i), manifest);
     }
 }
 
 bool AssetManager::serializeMetadata(hash32_t nameHash, Serializer& file) {
+    std::lock_guard<std::mutex> lock(manifestMutex);
+    
     auto result = manifest.find(nameHash);
     
     if (result == manifest.end()) {
@@ -332,29 +338,7 @@ bool AssetManager::serializeMetadata(hash32_t nameHash, Serializer& file) {
     }
     
     const Metadata& meta = (*result).second.metadata;
-    switch ((*result).second.type) {
-        case AssetType::Animation:
-            std::get<AnimationMetadata>(meta).serialize(file);
-            break;
-        case AssetType::Font:
-            std::get<FontMetadata>(meta).serialize(file);
-            break;
-        case AssetType::Mesh:
-            std::get<MeshMetadata>(meta).serialize(file);
-            break;
-        case AssetType::Audio:
-            std::get<AudioMetadata>(meta).serialize(file);
-            break;
-        case AssetType::Texture:
-            std::get<TextureMetadata>(meta).serialize(file);
-            break;
-        case AssetType::Material:
-            std::get<CustomMetadata>(meta).serialize(file);
-            break;
-        case AssetType::ANY:
-            throw std::logic_error("Any is not a type");
-    }
-    
+    std::visit([&file](auto&& v){ v.serialize(file); }, meta);
     
     return true;
 }
@@ -373,18 +357,31 @@ void AssetManager::loadSystemAssets() {
 //     v.push_back(42);
 }
 
+void AssetManager::requestDeletion(const fs::path& path) {
+    // WARNING: Don't forget to mutex the manifest
+    throw std::runtime_error("NOT YET IMPLEMENTED");
+}
+
+void AssetManager::requestMove(const fs::path& sourcePath, const fs::path& destinationPath) {
+    // WARNING: Don't forget to mutex the manifest
+    throw std::runtime_error("NOT YET IMPLEMENTED");
+}
+
 void AssetManager::appendAssetToManifest(hash32_t nameHash, const fs::path& path, const Metadata& metadata) {
-    if (!engine->isEditorMode()) {
-        throw std::logic_error("This method can't be called when the engine is running in game mode.");
+    if (!editorMode) {
+        throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
     
+    std::lock_guard<std::mutex> lock(manifestMutex);
     manifest[nameHash] = {path, static_cast<AssetType>(metadata.index()), false, metadata};
 }
 
 void AssetManager::removeAssetFromManifest(hash32_t nameHash) {
-    if (!engine->isEditorMode()) {
-        throw std::logic_error("This method can't be called when the engine is running in game mode.");
+    if (!editorMode) {
+        throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
+    
+    std::lock_guard<std::mutex> lock(manifestMutex);
     
     std::size_t elementsRemoved = manifest.erase(nameHash);
     const auto& loadedAsset = loadedAssets.find(nameHash);
@@ -396,9 +393,11 @@ void AssetManager::removeAssetFromManifest(hash32_t nameHash) {
 }
 
 void AssetManager::removeNonSystemAssetsFromManifest() {
-    if (!engine->isEditorMode()) {
-        throw std::logic_error("This method can't be called when the engine is running in game mode.");
+    if (!editorMode) {
+        throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
+    
+    std::lock_guard<std::mutex> lock(manifestMutex);
     
     // C++14 allows to erase individual elements when iterating through the container:
     // http://en.cppreference.com/w/cpp/container/unordered_map/erase

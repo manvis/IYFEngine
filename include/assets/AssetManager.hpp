@@ -197,14 +197,6 @@ AssetHandle<T> TypeManager<T, chunkSize>::getMissingAssetHandle() {
     return missingAssetHandle;
 }
 
-/// A container used to handle Asset metadata
-class AssetManifest : private NonCopyable {
-public:
-    //
-private:
-    //
-};
-
 /// The AssetManager is an intermediary between asset users, such as Entity component objects, and TypeManager objects
 /// that perform the actual loading, unloading and reference counting of specific asset types.
 ///
@@ -235,21 +227,16 @@ public:
     /// \todo an empty handle would be nicer than an assert
     ///
     /// \param nameHash hashed path to an asset
-    /// \param[out] metadata a pointer to a metadata pointer. If it isn't null and the asset was found, it will point to a metadata
-    /// instance that describes this asset
     /// \return An AssetHandle
     template <typename T>
-    inline AssetHandle<T> load(hash32_t nameHash, Metadata const ** metadata = nullptr) {
+    inline AssetHandle<T> load(hash32_t nameHash) {
         const auto assetReference = loadedAssets.find(nameHash);
         
+        auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
         assert(manifest.find(nameHash) != manifest.end());
         const ManifestElement& asset = manifest[nameHash];
         
         TypeManager<T>* typeManager = dynamic_cast<TypeManager<T>*>(typeManagers[static_cast<std::size_t>(asset.type)].get());
-        
-        if (metadata != nullptr) {
-            *metadata = &asset.metadata;
-        }
         
         if (assetReference == loadedAssets.end()) {
             std::uint32_t id;
@@ -273,20 +260,80 @@ public:
     }
     
     template <typename T>
-    inline AssetHandle<T> getSystemAsset(const std::string& name, Metadata const ** metadata = nullptr) {
-        return load<T>(getSystemAssetNameHash(name), metadata);
+    inline AssetHandle<T> getSystemAsset(const std::string& name) {
+        return load<T>(getSystemAssetNameHash(name));
     }
     
     inline hash32_t getSystemAssetNameHash(const std::string& name) {
         return HS("raw/system/" + name);
     }
     
-    inline const Metadata* getMetadata(hash32_t nameHash) {
-        return &manifest[nameHash].metadata;
+    /// \brief Obtains a copy of a Metadata object that corresponds to the file with the specified nameHash or an std::nullopt if
+    /// the nameHash wasn't found in the manifest.
+    ///
+    /// \remark This method is always thread safe. However, when running in editor mode, it is possible that the Metadata object is
+    /// no longer relevant by the time you get to read it (e.g., the file may have been replaced, updated or deleted)
+    inline std::optional<Metadata> getMetadataCopy(hash32_t nameHash) const {
+        auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
+        
+        auto result = manifest.find(nameHash);
+        if (result == manifest.end()) {
+            return result->second.metadata;
+        } else {
+            return std::nullopt;
+        }
     }
     
-    inline const fs::path& getAssetPath(hash32_t nameHash) {
-        return manifest[nameHash].path;
+    /// \brief Obtains a copy of a path that corresponds to the file with the specified nameHash or an std::nullopt if the nameHash 
+    /// wasn't found in the manifest.
+    ///
+    /// \remark This method is always thread safe. However, when running in editor mode, it is possible that the path is
+    /// no longer relevant by the time you get to read it (e.g., the file may have been deleted)
+    inline std::optional<fs::path> getAssetPathCopy(hash32_t nameHash) const {
+        auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
+        
+        auto result = manifest.find(nameHash);
+        if (result == manifest.end()) {
+            return result->second.path;
+        } else {
+            return std::nullopt;
+        }
+    }
+    
+    /// \breif Obtains a const pointer to a Metadata object or a nullptr if the nameHash wasn't found in the manifest.
+    ///
+    /// \warning This function can only be used if the Engine that was passed to the constructor is running in game mode.
+    ///
+    /// \throws std::logic_error if this AssetManager was constructed using an Engine instance running in editor mode.
+    inline const Metadata* getMetadata(hash32_t nameHash) const {
+        if (editorMode) {
+            throw std::logic_error("This method can't be used when the engine is running in editor mode.");
+        }
+        
+        auto result = manifest.find(nameHash);
+        if (result == manifest.end()) {
+            return &result->second.metadata;
+        } else {
+            return nullptr;
+        }
+    }
+    
+    /// \breif Obtains a const pointer to a file path or a nullptr if the nameHash wasn't found in the manifest.
+    ///
+    /// \warning This function can only be used if the Engine that was passed to the constructor is running in game mode.
+    ///
+    /// \throws std::logic_error if this AssetManager was constructed using an Engine instance running in editor mode.
+    inline const fs::path* getAssetPath(hash32_t nameHash) const {
+        if (editorMode) {
+            throw std::logic_error("This method can't be used when the engine is running in editor mode.");
+        }
+        
+        auto result = manifest.find(nameHash);
+        if (result == manifest.end()) {
+            return &result->second.path;
+        } else {
+            return nullptr;
+        }
     }
     
     inline Engine* getEngine() {
@@ -300,6 +347,7 @@ public:
     
     /// \return Number of unique assets that are listed in the manifest and can be loaded
     std::size_t getRegisteredAssetCount() const {
+        auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
         return manifest.size();
     }
     
@@ -419,7 +467,7 @@ private:
     ///
     /// On the other hand, std containers can be safely read from multiple threads. Therefore, if the Engine is running in game 
     /// mode and the manifest is read-only (which it becomes immediately after it is loaded), the mutex isn't required.
-    std::mutex manifestMutex;
+    mutable std::mutex manifestMutex;
     
     /// Manifest maps hash32_t file name hashes to unhashed filenames + metadata that can be useful to know before loading
     std::unordered_map<hash32_t, ManifestElement> manifest;
@@ -440,6 +488,7 @@ private:
     /// imports of new or modified assets
     std::thread importManagementThread;
     
+    bool editorMode;
     bool isInit;
 };
 

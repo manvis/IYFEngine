@@ -1074,7 +1074,13 @@ void EditorState::showMeshComponentEditor(Entity& entity) {
     const auto& mesh = renderData.getMesh();
     AssetManager* assetManager = engine->getAssetManager();
     
-    ImGui::Text("Mesh file: %s", assetManager->getAssetPath(mesh->getNameHash()).c_str());
+    auto path = assetManager->getAssetPathCopy(mesh->getNameHash());
+    
+    if (path) {
+        ImGui::Text("Mesh file: %s", (*path).c_str());
+    } else {
+        assert("Missing mesh not handled");
+    }
     
     AssetHandle<Mesh> mh = assetManager->getMissingAsset<Mesh>(iyf::AssetType::Mesh);
     
