@@ -1308,10 +1308,10 @@ void EditorState::showAssetWindow() {
         ImGui::Text("Path");
         ImGui::NextColumn();
         
-        ImGui::Text("Hash");
+        ImGui::Text("Name Hash");
         ImGui::NextColumn();
         
-        ImGui::Text("Imported");
+        ImGui::Text("Is Imported");
         ImGui::NextColumn();
         
         ImGui::Text("Type");
@@ -1359,7 +1359,7 @@ void EditorState::showAssetWindow() {
                 ImGui::Text("%u", a.hash.value());
                 ImGui::NextColumn();
                 
-                ImGui::Text(a.imported ? "y" : "n");
+                ImGui::Text(a.imported ? "Yes" : "No");
                 ImGui::NextColumn();
                 
                 ImGui::Text("N/A");
