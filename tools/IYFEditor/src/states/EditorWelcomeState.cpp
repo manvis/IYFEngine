@@ -249,9 +249,9 @@ void EditorWelcomeState::step() {
         engine->quit();
     }
     
-    if (engine->getInputState()->isKeyPressed(SDL_SCANCODE_T)) {
-        engine->pushState(std::make_unique<test::TestState>(engine));
-    }
+//     if (engine->getInputState()->isKeyPressed(SDL_SCANCODE_T)) {
+//         engine->pushState(std::make_unique<test::TestState>(engine));
+//     }
 }
 
 void EditorWelcomeState::frame(float delta) {
