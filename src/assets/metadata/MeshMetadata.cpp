@@ -125,4 +125,8 @@ void MeshMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
     meshFormatVersion = jo[VERSION_FIELD_NAME].GetUint();
     numUVSets = jo[UV_SET_COUNT_FIELD_NAME].GetUint();
 }
+
+void MeshMetadata::displayInImGui() const {
+    throw std::runtime_error("Method not yet implemented");
+}
 }

@@ -48,6 +48,8 @@ public:
     
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
     
+    virtual void displayInImGui() const final override;
+    
     const std::string& getLocale() const {
         return locale;
     }

@@ -53,4 +53,8 @@ void FontMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
     assert(version == 1);
     //throw std::runtime_error("Method not yet implemented");
 }
+
+void FontMetadata::displayInImGui() const {
+    throw std::runtime_error("Method not yet implemented");
+}
 }

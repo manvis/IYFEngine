@@ -44,6 +44,8 @@ public:
         : MetadataBase(AssetType::Custom, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true) {}
     
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
+    
+    virtual void displayInImGui() const final override;
 private:
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
     virtual void deserializeImpl(Serializer& fr, std::uint16_t version) final override;

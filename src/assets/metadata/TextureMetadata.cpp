@@ -146,4 +146,8 @@ void TextureMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version)
     layers = jo[LAYERS_FIELD_NAME].GetUint();
     anisotropy = jo[ANISOTROPY_FIELD_NAME].GetUint();
 }
+
+void TextureMetadata::displayInImGui() const {
+    throw std::runtime_error("Method not yet implemented");
+}
 }

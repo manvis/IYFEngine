@@ -53,4 +53,8 @@ void MaterialMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version
     assert(version == 1);
     throw std::runtime_error("Method not yet implemented");
 }
+
+void MaterialMetadata::displayInImGui() const {
+    throw std::runtime_error("Method not yet implemented");
+}
 }

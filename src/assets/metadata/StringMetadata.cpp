@@ -68,4 +68,8 @@ void StringMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) 
     priority = jo[PRIORITY_FIELD_NAME].GetInt();
     locale = jo[LOCALE_FIELD_NAME].GetString();
 }
+
+void StringMetadata::displayInImGui() const {
+    throw std::runtime_error("Method not yet implemented");
+}
 }

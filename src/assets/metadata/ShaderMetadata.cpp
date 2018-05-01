@@ -67,4 +67,8 @@ void ShaderMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) 
     purpose = static_cast<ShaderPurpose>(jo[PURPOSE_FIELD_NAME].GetUint());
     stage = ShaderStageFlags(static_cast<ShaderStageFlagBits>(jo[STAGE_FLAGS_FIELD_NAME].GetUint()));
 }
+
+void ShaderMetadata::displayInImGui() const {
+    throw std::runtime_error("Method not yet implemented");
+}
 }

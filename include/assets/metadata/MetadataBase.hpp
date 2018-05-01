@@ -66,6 +66,11 @@ public:
         return sourceAsset;
     }
     
+    /// Displays the values of this Metadata object using ImGui widgets.
+    ///
+    /// \warning Do not create a window when overriding this - only use regular widgets.
+    virtual void displayInImGui() const = 0;
+    
     /// Obtain the preferred version for the serialized data. Derived classes should increment this whenever their
     /// serialization format changes. If an older format is provided, reasonable defaults should be set for data
     /// that is not present in it.

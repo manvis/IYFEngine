@@ -27,6 +27,8 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assets/metadata/AnimationMetadata.hpp"
+#include "localization/TextLocalization.hpp"
+#include "graphics/imgui/imgui.h"
 #include <stdexcept>
 
 namespace iyf {
@@ -59,6 +61,10 @@ void AnimationMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t 
 void AnimationMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
     assert(version == 1);
     
+    throw std::runtime_error("Method not yet implemented");
+}
+
+void AnimationMetadata::displayInImGui() const {
     throw std::runtime_error("Method not yet implemented");
 }
 }
