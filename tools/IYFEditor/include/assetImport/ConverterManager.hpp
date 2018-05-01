@@ -104,7 +104,6 @@ public:
 protected:
     fs::path makeLocaleStringPath(const fs::path& sourcePath, const fs::path& directory, PlatformIdentifier platformID) const;
     
-    static const std::unordered_map<std::string, AssetType> ExtensionToType;
     std::unordered_map<AssetType, std::unique_ptr<Converter>> typeToConverter;
     
     const FileSystem* fileSystem;

@@ -206,6 +206,15 @@ public:
     AssetManager(Engine* engine);
     ~AssetManager();
     
+    /// Determines the AssetType by checking the file's extension. If the format isn't in the map of supported formats, AssetType::Custom
+    /// will be returned.
+    ///
+    /// \remark This function is supposed to be used on files you want to import and not imported files.
+    ///
+    /// \warning This function DOES NOT access the contents of the file. This leads to some limitations. E.g., since animations are
+    /// imported from mesh files, this function will return AssetType::Mesh, even if the file contains nothing but an animation library.
+    static AssetType GetAssetTypeFromExtension(const fs::path& pathToFile);
+    
     /// Creates and initializes all type managers and loads all system assets that will be stored in memory
     /// persistently
     void initialize();
@@ -490,6 +499,8 @@ private:
     
     bool editorMode;
     bool isInit;
+    
+    static const std::unordered_map<std::string, AssetType> ExtensionToType;
 };
 
 inline void TypeManagerBase::notifyRemoval(hash32_t nameHash) {

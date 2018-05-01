@@ -42,50 +42,12 @@
 #include "core/filesystem/FileSystem.hpp"
 #include "core/filesystem/File.hpp"
 #include "core/filesystem/cppFilesystem.hpp"
+#include "assets/AssetManager.hpp"
 
 #include "utilities/Regexes.hpp"
 
 namespace iyf {
 namespace editor {
-const std::unordered_map<std::string, AssetType> ConverterManager::ExtensionToType = {
-    {".ttf", AssetType::Font},
-    {".otf", AssetType::Font},
-    {".bmp", AssetType::Texture},
-    {".psd", AssetType::Texture},
-    {".png", AssetType::Texture},
-    {".gif", AssetType::Texture},
-    {".tga", AssetType::Texture},
-    {".jpg", AssetType::Texture},
-    {".jpeg", AssetType::Texture},
-    {".hdr", AssetType::Texture},
-    {".pic", AssetType::Texture},
-    {".ppm", AssetType::Texture},
-    {".pgm", AssetType::Texture},
-    // TODO. Test and enable more formats. We're using Assimp. It suports MANY different mesh formats, however, I've only done extensive testing with Blender exported fbx and dae files.
-    {".fbx", AssetType::Mesh},
-    {".dae", AssetType::Mesh},
-//    {".3ds", AssetType::Mesh},
-//    {".blend", AssetType::Mesh},
-    // TODO. support (some of?) these. Currently, the engine isn't able to convert anything and, to be honest, I don't know much about audio format patents and licences. 
-    // I know that MP3 is patent protected and that you need to pay for a licence if you use it. I also know that ogg is just a container and that, while it was designed to
-    // be used with free codecs, it's possible to squeeze in things like mp3s into it. 
-    // I don't know if you need to get a the license if you only convert mp3 to vorbis (opus?). I do know that converting from one compressed format to another is a bad idea because quality
-    // suffers, so I should at least try to add support free uncompressed formats (e.g., FLAC).
-    // And seriously, what about opus? Should I use it instead of vorbis?
-//     {".opus", AssetType::Audio},
-//    {".flac", AssetType::Audio},
-//    {".mp3", AssetType::Audio}, // Probably not.
-//    {".waw", AssetType::Audio},
-//    {".ogg", AssetType::Audio},
-    {".vert", AssetType::Shader},
-    {".tesc", AssetType::Shader},
-    {".tese", AssetType::Shader},
-    {".geom", AssetType::Shader},
-    {".frag", AssetType::Shader},
-    {".comp", AssetType::Shader},
-    {".csv", AssetType::Strings},
-};
-
 ConverterManager::ConverterManager(const FileSystem* fileSystem, fs::path assetDestination) : fileSystem(fileSystem), assetDestination(assetDestination) {
     typeToConverter[AssetType::Mesh] = std::make_unique<MeshConverter>(this);
     typeToConverter[AssetType::Texture] = std::make_unique<TextureConverter>(this);
@@ -144,21 +106,7 @@ fs::path ConverterManager::getRealPath(const fs::path& path) const {
 }
 
 AssetType ConverterManager::getAssetType(const fs::path& sourcePath) const {
-    std::string extension = sourcePath.extension().string();
-    
-    if (extension.empty()) {
-        return AssetType::Custom;
-    }
-    
-    // TODO can extensions be not ASCII? Can we mess something up here?
-    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-    
-    const auto it = ExtensionToType.find(extension);
-    if (it == ExtensionToType.end()) {
-        return AssetType::Custom;
-    } else {
-        return it->second;
-    }
+    return AssetManager::GetAssetTypeFromExtension(sourcePath);
 }
 
 fs::path ConverterManager::makeImporterSettingsFilePath(const fs::path& sourcePath) const {
