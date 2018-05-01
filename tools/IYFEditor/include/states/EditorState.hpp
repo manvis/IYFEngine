@@ -41,6 +41,7 @@
 #include <future>
 #include <vector>
 #include <list>
+#include <set>
 
 #include "core/filesystem/FileSystemWatcher.hpp"
 #include "utilities/hashing/Hashing.hpp"
@@ -65,6 +66,22 @@ public:
 protected:
     Engine* engine;
     size_t lastLogLength;
+};
+
+struct AssetListItem {
+    hash32_t hash;
+    bool isDirectory;
+    bool imported;
+    fs::path path;
+    Metadata metadata;
+    
+    inline bool operator<(const AssetListItem& other) const {
+        if (isDirectory != other.isDirectory) {
+            return isDirectory > other.isDirectory;
+        } else {
+            return path < other.path;
+        }
+    }
 };
 
 class EditorState : public GameState {
@@ -170,16 +187,17 @@ protected:
     bool pipelineEditorOpen;
 // FILE MANAGEMENT -------------------------------------------------------------
     void showAssetWindow();
-    bool assetWindowOpen;
     
     void fileSystemWatcherCallback(FileSystemWatcher::EventList eventList);
     void fileSystemWatcherNewFileCallback(FileSystemEvent event);
     
     void updateProjectFiles(float delta);
 
-    AssetList assetList;
-    bool firstUpdatePending;
+    std::set<AssetListItem> assetList;
+    bool assetBrowserPathChanged;
     int currentlyPickedAssetType;
+    std::vector<std::string> assetTypeNames;
+    fs::path currentlyOpenDir;
     
     void showUnableToInstanceTooltip(const std::string& tooltip);
     std::deque<AssetData> assetClipboard;

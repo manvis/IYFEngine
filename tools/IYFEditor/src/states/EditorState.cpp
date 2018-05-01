@@ -66,11 +66,9 @@ const float MIN_STABLE_FILE_SIZE_DURATION_SECONDS = 0.25f;
 #define ADD_REMOVE_COMPONENT_BUTTON_WIDTH 60
 
 namespace iyf::editor {
-
-static void WidthAtLeastTwiceHeight(ImGuiSizeCallbackData* data) {
-    if (data->DesiredSize.x < data->DesiredSize.y * 2) {
-        data->DesiredSize.x = data->DesiredSize.y * 2;
-    }
+    
+static void SquareConstraint(ImGuiSizeCallbackData* data) {
+    data->DesiredSize = ImVec2(std::max(data->DesiredSize.x, data->DesiredSize.y), std::max(data->DesiredSize.x, data->DesiredSize.y));
 }
 
 // TODO implement TOOLTIPS, like in imgui_demo.cpp:
@@ -83,7 +81,7 @@ static void WidthAtLeastTwiceHeight(ImGuiSizeCallbackData* data) {
 EditorState::EditorState(iyf::Engine* engine) : GameState(engine),
         newLevelDialogRequested(false), levelName("test_level_name"), levelDescription("test_level_desc"), isPickPlaceMode(false), 
         pickOrPlaceModeId(0), worldType(0), entityName("a"), cameraMode(CameraMode::Stationary), pipelineEditorOpen(true), 
-        assetWindowOpen(true), firstUpdatePending(false),  currentlyPickedAssetType(0), maxClipboardElements(5), logWindow(engine) {
+        currentlyPickedAssetType(0), maxClipboardElements(5), logWindow(engine) {
     
     filesToProcess.reserve(40);
     filesToRemove.reserve(40);
@@ -139,7 +137,7 @@ void EditorState::initialize() {
     
     FileSystem* fileSystem = engine->getFileSystem();
     
-    firstUpdatePending = true;// TODO implement me pipelineNames = fileSystem->getDirectoryContents(iyf::con::PipelinePath);
+    assetBrowserPathChanged = true;
     
 //     // TODO move this to tests
 //     {
@@ -169,6 +167,16 @@ void EditorState::initialize() {
     for (std::size_t i = 0; i < static_cast<std::size_t>(MaterialRenderMode::COUNT); ++i) {
         renderModeNames.push_back(LOC_SYS(MaterialRenderModeNames[i]));
     }
+    
+    // Include the last one
+    for (std::size_t i = 0; i <= static_cast<std::size_t>(AssetType::COUNT); ++i) {
+        LocalizationHandle lh = LH(con::AssetTypeToTranslationString(static_cast<AssetType>(i)).c_str());
+        assetTypeNames.push_back(LOC_SYS(lh));
+    }
+    currentlyPickedAssetType = static_cast<int>(AssetType::COUNT);
+    
+    currentlyOpenDir = con::ImportPath;
+    
 //    std::uint32_t i1 = util::BytesToInt32(1, 2, 3, 4);
 //    std::uint32_t i2 = util::BytesToInt32({1, 2, 3, 4});
 //    std::array<std::uint8_t, 4> i3;
@@ -242,7 +250,7 @@ void EditorState::frame(float delta) {
     impl->requestRenderThisFrame();
     
     //std::cerr << sizeof(size_t) << std::endl;
-    //ImGui::ShowTestWindow();
+//     ImGui::ShowDemoWindow();
     
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
@@ -1201,51 +1209,90 @@ void EditorState::draw2DColorDataSlot(std::pair<std::uint32_t, std::string>& con
 }
 
 void EditorState::showAssetWindow() {
+    FileSystem* filesystem = engine->getFileSystem();
+    AssetManager* assetManager = engine->getAssetManager();
+    
     // TODO implement search (select statements are done)
     // TODO implement custom ordering (needs more work)
     // TODO implement author, license and tag adding, removal and editing
     // TODO previews
     ImGui::SetNextWindowSize(ImVec2(600, 200), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(600, 200), ImVec2(FLT_MAX, FLT_MAX), WidthAtLeastTwiceHeight);
-    if (assetWindowOpen) {
-        ImGui::Begin("Assets", &assetWindowOpen);
+//     ImGui::SetNextWindowSizeConstraints(ImVec2(600, 200), ImVec2(FLT_MAX, FLT_MAX), WidthAtLeastTwiceHeight);
+    if (ImGui::Begin("Assets")) {
         
-        const float rounding = 3.0f;
-        const float spacing = 10.0f; // TODO how to get exact spacing?
-        
-        float contentHeight = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
-        
-//        ImGui::PushStyleVar(ImGuiStyleVar_ChildWindowRounding, rounding);
-        ImGui::BeginChild("AssetList", ImVec2(ImGui::GetWindowContentRegionWidth() - contentHeight - spacing, 0), false);
+//         const float rounding = 3.0f;
+//         const float spacing = 10.0f; // TODO how to get exact spacing?
+//         
+//         float contentHeight = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
+//         
+// //        ImGui::PushStyleVar(ImGuiStyleVar_ChildWindowRounding, rounding);
+//         ImGui::BeginChild("AssetList", ImVec2(ImGui::GetWindowContentRegionWidth() - contentHeight - spacing, 0), false);
 
+        const bool showUpNavigation = currentlyOpenDir != con::ImportPath;
+        ImGui::Text("Current path: %s", currentlyOpenDir.c_str());
+        
         ImGui::PushItemWidth(200.0f);
         
-        const int typeCount = static_cast<int>(AssetType::COUNT) - 1;
-        bool listUpdate = ImGui::Combo("Asset Type", &currentlyPickedAssetType,
-                [](void*, int idx, const char** out_text) {
+        const int typeCount = static_cast<int>(AssetType::COUNT) + 1;
+        bool filterUpdate = ImGui::Combo("Asset Type", &currentlyPickedAssetType,
+                [](void* ptr, int idx, const char** out_text) {
                     // Checking if we're in bounds
-                    if (idx < 0 || idx >= static_cast<int>(AssetType::COUNT)) {
+                    if (idx < 0 || idx >= static_cast<int>(AssetType::COUNT) + 1) {
                         return false;
                     }
+                    
+                    std::vector<std::string>* names = static_cast<std::vector<std::string>*>(ptr);
 
-                    *out_text = con::AssetTypeToTranslationString(static_cast<AssetType>(idx)).c_str();
+                    *out_text = (*names)[idx].c_str();
                     return true;
                 },
-            nullptr, typeCount, typeCount);
+            &assetTypeNames, typeCount, typeCount);
 
         ImGui::PopItemWidth();
         //assert(currentlyPickedAssetType >= 0 && currentlyPickedAssetType <= static_cast<int>(AssetType::Custom));
-
-        if ((listUpdate || firstUpdatePending)) {
-            // TODO fill the asset list. OR even better, replace it with an asset browser
-            //assetList = std::move(project->getAssetList(static_cast<AssetType>(currentlyPickedAssetType), Project::OrderAssetsBy::FileName));
-            firstUpdatePending = false;
-        }
-        
-        float buttonWidth = 80.0f;
-        ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - buttonWidth - 10);
-        if (ImGui::Button("Columns", ImVec2(buttonWidth, 0))) {
-            // TODO implement add/remove columns
+        // TODO or dir contents changed
+        if ((filterUpdate || assetBrowserPathChanged)) {
+            assetList.clear();
+            
+            auto paths = filesystem->getDirectoryContents(currentlyOpenDir);
+            
+            for (const auto& p : paths) {
+                const fs::path finalPath = currentlyOpenDir / p;
+                
+                // con::ImportPath is not supposed to be a part of the hash
+                const fs::path pathToHash = finalPath.lexically_relative(con::ImportPath);
+                LOG_D("PRE: " << finalPath << "; POST: " << pathToHash);
+                
+                PHYSFS_Stat stat;
+                filesystem->getFileSystemStatistics(finalPath, stat);
+                
+                AssetListItem listItem;
+                listItem.path = finalPath;
+                listItem.hash = HS(pathToHash.generic_string());
+                if (stat.filetype == PHYSFS_FileType::PHYSFS_FILETYPE_DIRECTORY) {
+                    listItem.isDirectory = true;
+                    listItem.imported = false;
+                } else if (stat.filetype == PHYSFS_FileType::PHYSFS_FILETYPE_REGULAR) {
+                    if (p.extension() == con::ImportSettingsExtension) {
+                        continue;
+                    }
+                    
+                    listItem.isDirectory = false;
+                    
+                    // TODO should I check for presence of the import settings file and if everything is up-to-date here?
+                    auto result = assetManager->getMetadataCopy(listItem.hash);
+                    if (result) {
+                        listItem.imported = true;
+                        listItem.metadata = std::move(*result);
+                    } else {
+                        listItem.imported = false;
+                    }
+                }
+                
+                assetList.insert(std::move(listItem));
+            }
+            
+            assetBrowserPathChanged = false;
         }
         
         if (ImGui::TreeNode("Search and Filtering")) {
@@ -1253,115 +1300,84 @@ void EditorState::showAssetWindow() {
             ImGui::TreePop();
         }
         
-        // TODO maybe use something like this for headers?
-        // https://github.com/ocornut/imgui/issues/513#issuecomment-240388455
-        // Or this?
-        // https://github.com/ocornut/imgui/issues/513#issuecomment-177487376
-        ImGui::Columns(7, "listColumns");
+        ImGui::BeginChild("assetDataColumns", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+        ImGui::VerticalSeparator();
+        ImGui::Columns(4, "assetListColumns");
         ImGui::Separator();
-
-        ImGui::Text("Key");
+        
+        ImGui::Text("Path");
         ImGui::NextColumn();
         
-        ImGui::Text("ID");
+        ImGui::Text("Hash");
         ImGui::NextColumn();
-
-        ImGui::Text("Name");
+        
+        ImGui::Text("Imported");
         ImGui::NextColumn();
-
+        
         ImGui::Text("Type");
         ImGui::NextColumn();
-
-        ImGui::Text("Authors");
-        ImGui::NextColumn();
-
-        ImGui::Text("Licenses");
-        ImGui::NextColumn();
-
-        ImGui::Text("Tags");
-        ImGui::NextColumn();
-
+        
         ImGui::Separator();
-
-        int i = 0;
-        for (const auto& a : assetList.assets) {
-            ImGui::PushID(i);
-
-    //        char label[32];
-    //        std::snprintf(label, 32, "%u", a.id);
-    //        if (ImGui::Selectable(label, false, ImGuiSelectableFlags_SpanAllColumns)) {
-    ////                    selected = i;
-    //        }
-
-            if (ImGui::AssetKey("key", static_cast<AssetType>(a.type), a.keyData)) {
-                // Overflowing, remove last
-                if (assetClipboard.size() >= maxClipboardElements) {
-                    assetClipboard.pop_back();
-                }
-                
-                assetClipboard.push_front(a);
+        
+        if (showUpNavigation) {
+            if (ImGui::Selectable("..", false, ImGuiSelectableFlags_SpanAllColumns)) {
+                currentlyOpenDir = currentlyOpenDir.parent_path();
+                assetBrowserPathChanged = true;
             }
-//            ImGui::SameLine();
-//            ImGui::AssetLock("lock", static_cast<AssetType>(a.type), a.keyData);
-//            ImGui::SameLine();
-//            ImGui::AssetKeyWithLock("kl", static_cast<AssetType>(a.type), a.keyData);
             
             ImGui::NextColumn();
             
-            ImGui::Text("%u", a.id);
-            if (ImGui::BeginPopupContextItem("item context menu")) {
-                ImGui::Text("HI");
-                ImGui::EndPopup();
-            }
-
+            ImGui::Text("N/A");
             ImGui::NextColumn();
-
-            ImGui::Text("%s", a.fileName.c_str());
+            
+            ImGui::Text("N/A");
             ImGui::NextColumn();
-
-            // TODO Localize, then use these translation strings to get localized values
-            ImGui::Text("%s", con::AssetTypeToTranslationString(a.type).c_str());
+            
+            ImGui::Text("Parent Directory");
             ImGui::NextColumn();
-
-            ImGui::Text("%s", a.authors.c_str());
-            ImGui::NextColumn();
-
-            ImGui::Text("%s", a.licenses.c_str());
-            ImGui::NextColumn();
-
-            ImGui::Text("%s", a.tags.c_str());
-            ImGui::NextColumn();
-
-            ImGui::PopID();
-            i++;
         }
-
-        ImGui::Columns(1, "listColumns");
+        
+        for (const auto& a : assetList) {
+            if (ImGui::Selectable(a.path.filename().generic_string().c_str(), false, ImGuiSelectableFlags_SpanAllColumns)) {
+                if (a.isDirectory) {
+                    currentlyOpenDir /= a.path.filename();
+                    assetBrowserPathChanged = true;
+                }
+            }
+            ImGui::NextColumn();
+            
+            if (a.isDirectory) {
+                ImGui::Text("N/A");
+                ImGui::NextColumn();
+                
+                ImGui::Text("N/A");
+                ImGui::NextColumn();
+                
+                ImGui::Text("Directory");
+                ImGui::NextColumn();
+            } else {
+                ImGui::Text("%u", a.hash.value());
+                ImGui::NextColumn();
+                
+                ImGui::Text(a.imported ? "y" : "n");
+                ImGui::NextColumn();
+                
+                ImGui::Text("N/A");
+                ImGui::NextColumn();
+            }
+        }
+        
+        ImGui::Columns(1, "assetListColumns");
         ImGui::Separator();
-        
+
         ImGui::EndChild();
-//        ImGui::PopStyleVar();
-        
-        ImGui::SameLine();
-        
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, rounding);
-        ImGui::BeginChild("AssetDisplay", ImVec2(contentHeight, contentHeight), true);
-        
+        ImGui::End();
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200), ImVec2(FLT_MAX, FLT_MAX), SquareConstraint);
+    if (ImGui::Begin("Last Selected Asset Info")) {
         ImGui::Text("TODO Implement previews");
-//        con::AssetType t = con::AssetType::Audio;
-//        ImGui::AssetKey("t1", t, 0);ImGui::SameLine();ImGui::AssetKey("t3", t, 0);
-//        ImGui::AssetLock("t2", t, 0);
-        // Animations are not yet shareable
-//        ImGui::AssetKey("t1", con::AssetType::Animation, 0);
-//        ImGui::AssetKey("t2", con::AssetType::Audio, 0);
-//        ImGui::AssetKey("t3", con::AssetType::Font, 0);
-//        ImGui::AssetKey("t4", con::AssetType::Mesh, 0);
-//        ImGui::AssetKey("t5", con::AssetType::Other, 0);
-//        ImGui::AssetKey("t6", con::AssetType::Texture, 0);
-        
-        ImGui::EndChild();
-        ImGui::PopStyleVar();
-        
         ImGui::End();
     }
 }
