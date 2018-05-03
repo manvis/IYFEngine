@@ -379,14 +379,14 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
 void AssetManager::buildManifestFromFilesystem() {
     FileSystem* filesystem = engine->getFileSystem();
     
-    std::lock_guard<std::mutex> lock(manifestMutex);
+    std::lock_guard<std::mutex> manifestLock(manifestMutex);
     for (std::size_t i = 0; i < static_cast<std::size_t>(AssetType::COUNT); ++i) {
         addFilesToManifest(filesystem, static_cast<AssetType>(i), manifest);
     }
 }
 
 bool AssetManager::serializeMetadata(hash32_t nameHash, Serializer& file) {
-    std::lock_guard<std::mutex> lock(manifestMutex);
+    std::lock_guard<std::mutex> manifestLock(manifestMutex);
     
     auto result = manifest.find(nameHash);
     
@@ -429,7 +429,7 @@ void AssetManager::appendAssetToManifest(hash32_t nameHash, const fs::path& path
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
     
-    std::lock_guard<std::mutex> lock(manifestMutex);
+    std::lock_guard<std::mutex> manifestLock(manifestMutex);
     manifest[nameHash] = {path, static_cast<AssetType>(metadata.index()), false, metadata};
 }
 
@@ -438,7 +438,8 @@ void AssetManager::removeAssetFromManifest(hash32_t nameHash) {
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
     
-    std::lock_guard<std::mutex> lock(manifestMutex);
+    std::lock_guard<std::mutex> manifestLock(manifestMutex);
+    std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
     
     std::size_t elementsRemoved = manifest.erase(nameHash);
     const auto& loadedAsset = loadedAssets.find(nameHash);
@@ -454,7 +455,8 @@ void AssetManager::removeNonSystemAssetsFromManifest() {
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
     
-    std::lock_guard<std::mutex> lock(manifestMutex);
+    std::lock_guard<std::mutex> manifestLock(manifestMutex);
+    std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
     
     // C++14 allows to erase individual elements when iterating through the container:
     // http://en.cppreference.com/w/cpp/container/unordered_map/erase

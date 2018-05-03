@@ -239,9 +239,11 @@ public:
     /// \return An AssetHandle
     template <typename T>
     inline AssetHandle<T> load(hash32_t nameHash) {
+        auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
+        std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
+        
         const auto assetReference = loadedAssets.find(nameHash);
         
-        auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
         assert(manifest.find(nameHash) != manifest.end());
         const ManifestElement& asset = manifest[nameHash];
         
@@ -362,6 +364,7 @@ public:
     
     /// \return Number of unique assets that are currently loaded
     std::size_t getLoadedAssetCount() const {
+        std::unique_lock<std::mutex>(loadedAssetListMutex);
         return loadedAssets.size();
     }
     
@@ -459,6 +462,7 @@ private:
     
     friend class TypeManagerBase;
     void notifyRemoval(hash32_t handle) {
+        std::lock_guard<std::mutex> lock(loadedAssetListMutex);
         std::size_t count = loadedAssets.erase(handle);
         assert(count != 0);
     }
@@ -477,6 +481,10 @@ private:
     /// On the other hand, std containers can be safely read from multiple threads. Therefore, if the Engine is running in game 
     /// mode and the manifest is read-only (which it becomes immediately after it is loaded), the mutex isn't required.
     mutable std::mutex manifestMutex;
+    
+    /// Assets can be loaded both synchronously and asynchronously and the loaded asset map may be modified from multiple
+    /// threads.
+    mutable std::mutex loadedAssetListMutex;
     
     /// Manifest maps hash32_t file name hashes to unhashed filenames + metadata that can be useful to know before loading
     std::unordered_map<hash32_t, ManifestElement> manifest;
