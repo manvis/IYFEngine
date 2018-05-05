@@ -58,6 +58,8 @@
 // TODO move the test to tests
 #include "graphics/shading/VulkanGLSLShaderGenerator.hpp"
 
+//#define IYF_EDITOR_LOG_RECEIVED_FILE_EVENT_LIST
+
 /// How long the size of a file needs to remain stable to be considered safe for writing.
 /// Used to determine if the file is safe to import
 const float MIN_STABLE_FILE_SIZE_DURATION_SECONDS = 0.25f;
@@ -66,7 +68,39 @@ const float MIN_STABLE_FILE_SIZE_DURATION_SECONDS = 0.25f;
 #define ADD_REMOVE_COMPONENT_BUTTON_WIDTH 60
 
 namespace iyf::editor {
-    
+static const char* GetPayloadNameForAssetType(AssetType type) {
+    switch (type) {
+        case AssetType::Animation:
+            return "pldAnimAss";
+        case AssetType::Mesh:
+            return "pldMshAss";
+        case AssetType::Texture:
+            return "pldTexAss";
+        case AssetType::Font:
+            return "pldFontAss";
+        case AssetType::Audio:
+            return "pldAudAss";
+        case AssetType::Video:
+            return "pldVidAss";
+        case AssetType::World:
+            return "pldWrldAss";
+        case AssetType::Script:
+            return "pldScrAss";
+        case AssetType::Shader:
+            return "pldShaAss";
+        case AssetType::Pipeline:
+            return "pldPiplAss";
+        case AssetType::Strings:
+            return "pldStrAss";
+        case AssetType::Custom:
+            return "pldCustAss";
+        case AssetType::Material:
+            return "pldMatAss";
+        case AssetType::ANY:
+            throw std::runtime_error("ANY/COUNT is not a valid asset type");
+    }
+}
+
 static void SquareConstraint(ImGuiSizeCallbackData* data) {
     data->DesiredSize = ImVec2(std::max(data->DesiredSize.x, data->DesiredSize.y), std::max(data->DesiredSize.x, data->DesiredSize.y));
 }
@@ -96,12 +130,14 @@ EditorState::~EditorState() { }
 void EditorState::initialize() {
     currentProject = engine->getProject();
     
+    importsDir = currentProject->getRootPath() / con::ImportPath;
+    
     FileSystemWatcher::CreateInfo fsci;
     fsci.handler = std::bind(&EditorState::fileSystemWatcherCallback, this, std::placeholders::_1);
-    fsci.writeChangesToLog = true;
+    fsci.writeChangesToLog = false;
     
     FileSystemWatcher::MonitoredDirectory md;
-    md.path = currentProject->getRootPath() / con::ImportPath;
+    md.path = importsDir;
     md.recursive = true;
     md.monitoredEvents = FileSystemEventFlags::All;
     
@@ -460,10 +496,11 @@ void EditorState::frame(float delta) {
     }
     
     logWindow.show(engine->getLogString());
+    showFileOperationWindow();
     // TODO implement pipeline editor
     
     if (pipelineEditorOpen) {
-        pipelineEditor->show(&pipelineEditorOpen);
+        //pipelineEditor->show(&pipelineEditorOpen);
     }
     
     showAssetWindow();
@@ -806,11 +843,23 @@ void EditorState::showWorldEditorWindow() {
     
     ImGui::Columns(2);
     
-    if (ImGui::AssetLock("StaticMesh", AssetType::Mesh, 0)) {
-        const AssetData& asset = assetClipboard[0];
-        
-        world->addStaticMesh(hash32_t(asset.id));
+    ImGui::Text("Drop Mesh Here");
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(GetPayloadNameForAssetType(AssetType::Mesh))) {
+            assert(payload->DataSize == sizeof(DragDropAssetPayload));
+            
+            DragDropAssetPayload payloadDestination;
+            std::memcpy(&payloadDestination, payload->Data, sizeof(DragDropAssetPayload));
+            
+            world->addStaticMesh(payloadDestination.nameHash);
+        }
+        ImGui::EndDragDropTarget();
     }
+//     if (ImGui::AssetLock("StaticMesh", AssetType::Mesh, 0)) {
+//         const AssetData& asset = assetClipboard[0];
+//         
+//         world->addStaticMesh(hash32_t(asset.id));
+//     }
     
     ImGui::NextColumn();
     ImGui::Text("Static mesh entity");
@@ -1256,12 +1305,12 @@ void EditorState::showAssetWindow() {
             
             auto paths = filesystem->getDirectoryContents(currentlyOpenDir);
             
+            const AssetType assetFilterType = static_cast<AssetType>(currentlyPickedAssetType);
             for (const auto& p : paths) {
                 const fs::path finalPath = currentlyOpenDir / p;
                 
                 // con::ImportPath is not supposed to be a part of the hash
                 const fs::path pathToHash = finalPath.lexically_relative(con::ImportPath);
-                LOG_D("PRE: " << finalPath << "; POST: " << pathToHash);
                 
                 PHYSFS_Stat stat;
                 filesystem->getFileSystemStatistics(finalPath, stat);
@@ -1275,6 +1324,13 @@ void EditorState::showAssetWindow() {
                 } else if (stat.filetype == PHYSFS_FileType::PHYSFS_FILETYPE_REGULAR) {
                     if (p.extension() == con::ImportSettingsExtension) {
                         continue;
+                    }
+                    
+                    if (assetFilterType != AssetType::ANY) {
+                        const AssetType currentFileType = AssetManager::GetAssetTypeFromExtension(p.extension());
+                        if (currentFileType != assetFilterType) {
+                            continue;
+                        }
                     }
                     
                     listItem.isDirectory = false;
@@ -1344,6 +1400,18 @@ void EditorState::showAssetWindow() {
                     assetBrowserPathChanged = true;
                 }
             }
+            
+            const AssetType type = AssetManager::GetAssetTypeFromExtension(a.path.filename().extension());
+            
+            if (a.imported && !a.isDirectory) {
+                if (ImGui::BeginDragDropSource()) {
+                    ImGui::Text("File: %s", a.path.filename().generic_string().c_str());
+                    DragDropAssetPayload payload = {a.hash, type};
+                    ImGui::SetDragDropPayload(GetPayloadNameForAssetType(type), &payload, sizeof(payload));
+                    ImGui::EndDragDropSource();
+                }
+            }
+            
             ImGui::NextColumn();
             
             if (a.isDirectory) {
@@ -1362,7 +1430,7 @@ void EditorState::showAssetWindow() {
                 ImGui::Text(a.imported ? "Yes" : "No");
                 ImGui::NextColumn();
                 
-                ImGui::Text("N/A");
+                ImGui::Text("%s", LOC_SYS(LH(con::AssetTypeToTranslationString(type).c_str())).c_str());
                 ImGui::NextColumn();
             }
         }
@@ -1431,38 +1499,141 @@ void EditorState::updateProjectFiles(float delta) {
     filesToRemove.clear();
 }
 
+void EditorState::showFileOperationWindow() {
+    GraphicsAPI* api = engine->getGraphicsAPI();
+    AssetManager* manager = engine->getAssetManager();
+    
+    float width = api->getRenderSurfaceWidth() * 0.3f;
+    float height = api->getRenderSurfaceHeight() * 0.2f;
+    float posY = api->getRenderSurfaceHeight() - height;
+    
+    ImGui::SetNextWindowPos(ImVec2(api->getRenderSurfaceWidth() * 0.7f, posY), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
+    ImGui::Begin("Pending File Operations", nullptr);
+    
+    auto now = std::chrono::steady_clock::now();
+    
+    {
+        std::lock_guard<std::mutex> lock(assetOperationMutex);
+        int count = assetOperations.size();
+        ImGui::Text("Pending operation count: %i", count);
+        
+        ImGui::BeginChild("Pending Operation List");
+        if (count > 0) {
+            ImGui::Columns(2);
+            ImGui::Separator();
+            for (auto it = assetOperations.begin(); it != assetOperations.end(); ) {
+                const auto& op = *it;
+                
+                // Try to fetch the metadata for the asset
+                auto metadataCopy = manager->getMetadataCopy(op.second.nameHash);
+                const bool metadataExists = metadataCopy ? true : false;
+                
+                // If we didn't get metadata and the operation was a deletion, the user removed a file that hasn't been imported in the.
+                // first place. Therefore, we can safely ignore the operation.
+                if (!metadataExists && op.second.type == AssetOperationType::Deleted) {
+                    it = assetOperations.erase(it);
+                    continue;
+                }
+                
+                ImGui::Text("Path (hash): %s; (%u)", op.first.generic_string().c_str(), op.second.nameHash.value());
+                
+                const std::chrono::seconds duration = std::chrono::duration_cast<std::chrono::seconds>(now - op.second.timePoint);
+                switch (op.second.type) {
+                    case AssetOperationType::Created:
+                        ImGui::Text("Type: created");
+                        ImGui::Text("Time: %lis ago", duration.count());
+                        break;
+                    case AssetOperationType::Updated:
+                        ImGui::Text("Type: updated");
+                        ImGui::Text("Time: %lis ago", duration.count());
+                        break;
+                    case AssetOperationType::Deleted:
+                        ImGui::Text("Type: deleted");
+                        ImGui::Text("Time: %lis ago", duration.count());
+                        break;
+                }
+                ImGui::NextColumn();
+                
+                if (ImGui::Button("Execute")) {
+                    LOG_D("Button: " << op.first);
+                }
+                ImGui::NextColumn();
+                ImGui::Separator();
+                
+                ++it;
+            }
+            ImGui::Columns();
+        }
+        ImGui::EndChild();
+    }
+    
+    ImGui::End();
+}
+
 void EditorState::fileSystemWatcherCallback(FileSystemWatcher::EventList eventList) {
-    assert (fileSystemWatcherThread.get_id() == std::this_thread::get_id());
+#ifdef IYF_EDITOR_LOG_RECEIVED_FILE_EVENT_LIST
+    for (const auto& e : eventList) {
+        switch (e.getType()) {
+        case FileSystemEventFlags::Created:
+            LOG_D("-FS-CREATED:" << "\n\tOrigin: " << (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file")
+                                 << "\n\tSource: " << e.getSource());
+            break;
+        case FileSystemEventFlags::Deleted:
+            LOG_D("-FS-DELETED:" << "\n\tOrigin: " << (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file") 
+                                 << "\n\tSource: " << e.getSource());
+            break;
+        case FileSystemEventFlags::Modified:
+            LOG_D("-FS-MODIFIED:" << "\n\tOrigin: " << (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file")
+                                  << "\n\tSource: " << e.getSource());
+            break;
+        case FileSystemEventFlags::Moved:
+            LOG_D("-FS-MOVED:" << "\n\tOrigin: " << (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file")
+                               << "\n\tSource: " << e.getSource() << "\n\tDestination: " << e.getDestination());
+            break;
+        default:
+            throw std::runtime_error("Invalid event type");
+        }
+    }
+#endif // IYF_EDITOR_LOG_RECEIVED_FILE_EVENT_LIST
     
-//     for (const auto& e : eventList) {
-//         switch (e.getType()) {
-//         case FileSystemEventFlags::Created:
-//             LOG_D("-FS-CRE:" << "\n\t" << (e.getOrigin() == FileSystemEventOrigin::Directory ? "Dir" : "Fil") << "\n\t"
-//                              << e.getSourceDirectory() << e.getSourceName());
-//             break;
-//         case FileSystemEventFlags::Deleted:
-//             LOG_D("-FS-DEL:" << "\n\t" << (e.getOrigin() == FileSystemEventOrigin::Directory ? "Dir" : "Fil") << "\n\t"
-//                              << e.getSourceDirectory() << e.getSourceName());
-//             break;
-//         case FileSystemEventFlags::Modified:
-//             LOG_D("-FS-MOD:" << "\n\t" << (e.getOrigin() == FileSystemEventOrigin::Directory ? "Dir" : "Fil") << "\n\t"
-//                              << e.getSourceDirectory() << e.getSourceName());
-//             break;
-//         case FileSystemEventFlags::Moved:
-//             LOG_D("-FS-MOV:" << "\n\t" << (e.getOrigin() == FileSystemEventOrigin::Directory ? "Dir" : "Fil") << "\n\t"
-//                              << e.getSourceDirectory() << e.getSourceName() << "\n\t" << e.getDestinationDirectory() << e.getDestinationName());
-//             break;
-//         case FileSystemEventFlags::Opened:
-//             LOG_D("-FS-OPE:" << "\n\t" << (e.getOrigin() == FileSystemEventOrigin::Directory ? "Dir" : "Fil") << "\n\t"
-//                              << e.getSourceDirectory() << e.getSourceName());
-//             break;
-//         case FileSystemEventFlags::Closed:
-//             LOG_D("-FS-CLO:" << "\n\t" << (e.getOrigin() == FileSystemEventOrigin::Directory ? "Dir" : "Fil") << "\n\t"
-//                              << e.getSourceDirectory() << e.getSourceName());
-//             break;
+    std::lock_guard<std::mutex> lock(assetOperationMutex);
+    for (const auto& e : eventList) {
+        const bool isDirectory = e.getOrigin() == FileSystemEventOrigin::Directory;
+//         if (e.getOrigin() == FileSystemEventOrigin::Directory) {
+//             continue;
 //         }
-//     }
-    
+        
+        const fs::path finalSourcePath = e.getSource().lexically_relative(importsDir);
+        const fs::path finalDestinationPath = e.getDestination().lexically_relative(importsDir);
+        
+        const hash32_t hashedName = HS(finalSourcePath.generic_string());
+        
+        std::size_t t;
+        switch (e.getType()) {
+        case FileSystemEventFlags::Created:
+            t = 0;
+            assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Created, lastFileSystemUpdate, isDirectory};
+            break;
+        case FileSystemEventFlags::Deleted:
+            t = 1;
+            assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Deleted, lastFileSystemUpdate, isDirectory};
+            break;
+        case FileSystemEventFlags::Modified:
+            t = 2;
+            assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Updated, lastFileSystemUpdate, isDirectory};
+            break;
+        case FileSystemEventFlags::Moved:
+            t = 3;
+            assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Deleted, lastFileSystemUpdate, isDirectory};
+            assetOperations[finalDestinationPath] = {HS(finalDestinationPath.generic_string()), AssetOperationType::Created, lastFileSystemUpdate, isDirectory};
+            break;
+        default:
+            throw std::runtime_error("Invalid event type");
+        }
+        
+        LOG_D(t << "; FSP " << finalSourcePath << "; FDP " << finalDestinationPath);
+    }
 //     for (const FileSystemEvent& c : eventList) {
 //         if (c.getType() == FileSystemEventFlags::Created) {
 //             LOG_D("Import directory monitoring. CREATED: " << c.getSourceDirectory() << c.getSourceName())
@@ -1542,7 +1713,7 @@ void ImGuiLog::show(const std::string& logStr) {
     // TODO rest of the functionality and DOCK at the bottom somehow?
     GraphicsAPI* api = engine->getGraphicsAPI();
     
-    float width = api->getRenderSurfaceWidth();
+    float width = api->getRenderSurfaceWidth() * 0.7f;
     float height = api->getRenderSurfaceHeight() * 0.2f;
     float posY = api->getRenderSurfaceHeight() - height;
     

@@ -68,6 +68,11 @@ protected:
     size_t lastLogLength;
 };
 
+struct DragDropAssetPayload {
+    hash32_t nameHash;
+    AssetType type;
+};
+
 struct AssetListItem {
     hash32_t hash;
     bool isDirectory;
@@ -82,6 +87,20 @@ struct AssetListItem {
             return path < other.path;
         }
     }
+};
+
+/// The type of the AssetOperation
+///
+/// We don't do moves. It's simpler to mark an asset as deleted, followed by a creation of a new asset
+enum class AssetOperationType : std::uint32_t {
+    Created, Updated, Deleted, Moved
+};
+
+struct AssetOperation {
+    hash32_t nameHash;
+    AssetOperationType type;
+    std::chrono::steady_clock::time_point timePoint;
+    bool isDirectory;
 };
 
 class EditorState : public GameState {
@@ -187,17 +206,22 @@ protected:
     bool pipelineEditorOpen;
 // FILE MANAGEMENT -------------------------------------------------------------
     void showAssetWindow();
+    void showFileOperationWindow();
     
     void fileSystemWatcherCallback(FileSystemWatcher::EventList eventList);
     void fileSystemWatcherNewFileCallback(FileSystemEvent event);
     
     void updateProjectFiles(float delta);
 
+    fs::path importsDir;
     std::set<AssetListItem> assetList;
     bool assetBrowserPathChanged;
     int currentlyPickedAssetType;
     std::vector<std::string> assetTypeNames;
     fs::path currentlyOpenDir;
+    
+    std::mutex assetOperationMutex;
+    std::map<fs::path, AssetOperation> assetOperations;
     
     void showUnableToInstanceTooltip(const std::string& tooltip);
     std::deque<AssetData> assetClipboard;
