@@ -87,23 +87,11 @@ void CubemapSkybox::initialize() {
     pci.renderPass = passInfo.first;
     pci.subpass = passInfo.second;
     pci.layout = skyPipelineLayout;
-    
-    pci.vertexInputState.vertexBindingDescriptions = 
-        {{0, static_cast<std::uint32_t>(sizeof(float) * 3), VertexInputRate::Vertex}};
-    
-    pci.vertexInputState.vertexAttributeDescriptions =
-        {{0, 0, Format::R32_G32_B32_sFloat, 0}};
+    pci.vertexInputState = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(VertexDataLayout::MeshVertex)].createVertexInputStateCreateInfo(0);
     
     skyPipeline = api->createPipeline(pci);
     
     sphereMesh = assetManager->getSystemAsset<Mesh>("sphere.dae");
-//     const AuxiliaryMeshData* auxMeshData = api->getAuxiliaryMeshData();
-//     auxVBOHandle = auxMeshData->vbo;
-//     auxIBOHandle = auxMeshData->ibo;
-//     skySphereOffsetVBO = auxMeshData->sphereHighRes.vboOffset;
-//     skySphereOffsetIBO = auxMeshData->sphereHighRes.iboOffset;
-//     skySphereSizeVBO = auxMeshData->sphereHighRes.vboCount;
-//     skySphereSizeIBO = auxMeshData->sphereHighRes.iboCount;
     
     isInit = true;
 }
