@@ -142,6 +142,7 @@ void FileSystem::setResourcePathsForProject(const Project* project) {
             LOG_V("Mounting the asset folder for the current platform: " << platformAssetPath);
             addReadPath(platformAssetPath, "assets", true);
         } else {
+            /// This can happen before the first real project is loaded and, therefore, it's not an error.
             LOG_I("The asset path for the current platform (" << platformAssetPath << ") does not exist. Skipping its mounnting.");
         }
     } else {
