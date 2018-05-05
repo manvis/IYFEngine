@@ -458,6 +458,8 @@ public:
         Metadata metadata;
     };
 private:
+    friend class Engine;
+    /// Builds the manifest from all converted assets that reside in the asset folder for the current platform and have corresponding metadata.
     void buildManifestFromFilesystem();
     
     friend class TypeManagerBase;

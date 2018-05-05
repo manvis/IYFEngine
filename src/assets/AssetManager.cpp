@@ -365,8 +365,8 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
         std::visit([&me](auto&& arg){me.systemAsset = arg.isSystemAsset();}, me.metadata);
         
         auto manifestItem = manifest.find(result.second.nameHash);
-        if (manifestItem != manifest.end()) {
-            throw std::runtime_error("Not implemented yet");
+        if (manifestItem != manifest.end() && !manifestItem->second.systemAsset) {
+            throw std::runtime_error("A non-system asset hasn't been cleaned up.");
         }
         
         manifest[result.second.nameHash] = std::move(me);
