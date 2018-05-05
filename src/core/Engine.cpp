@@ -86,8 +86,7 @@ void Engine::setProject(std::unique_ptr<Project> project) {
     // when the last EditorState was popped. If they weren't, we will crash.
     assetManager->removeNonSystemAssetsFromManifest();
     assetManager->removeNonSystemPipelines();
-    
-    // TODO load all assets into the manager here
+    assetManager->buildManifestFromFilesystem();
     
     this->project = std::move(project);
     fileSystem->setResourcePathsForProject(this->project.get());
