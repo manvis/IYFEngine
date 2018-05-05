@@ -93,11 +93,19 @@ void World::update(float delta) {
 void World::addStaticMesh(hash32_t nameHash) {
     MeshComponent mc;
     mc.setRenderMode(MaterialRenderMode::Opaque);
-    auto path = assetManager->getAssetPathCopy(nameHash);
-    if (!path) {
-        LOG_W("Couldn't obtain a path for an asset with nameHash " << nameHash << ". Was it removed before loading?");
+    const auto metadata = assetManager->getMetadataCopy(nameHash);
+    if (!metadata) {
+        LOG_W("Couldn't obtain metadata for an asset with nameHash " << nameHash << ". Was it removed before loading?");
         return;
     }
+    
+    if (!MetadataCorrespondsToAssetType(*metadata, AssetType::Mesh)) {
+        LOG_W("The asset with nameHash " << nameHash << " is not a mesh.");
+        return;
+    }
+    
+    const MeshMetadata& meshMetadata = std::get<MeshMetadata>(*metadata);
+    
     // TODO FIXME Race condition - the asset may have already been removed
     mc.setMesh(assetManager->load<Mesh>(nameHash));
     
@@ -109,7 +117,7 @@ void World::addStaticMesh(hash32_t nameHash) {
     
     mc.updateRenderDataKey();
     
-    EntityKey entity = create(filePathToEntityName(*path));
+    EntityKey entity = create(filePathToEntityName(meshMetadata.getSourceAssetPath().filename()));
     TransformationComponent& transformation = getEntityTransformation(entity.getID());
     
     PhysicsSystem* physicsSystem = static_cast<PhysicsSystem*>(getSystemManagingComponentType(ComponentBaseType::Physics));
@@ -128,11 +136,19 @@ void World::addStaticMesh(hash32_t nameHash) {
 void World::addDynamicMesh(hash32_t nameHash) {
     MeshComponent mc;
     mc.setRenderMode(MaterialRenderMode::Opaque);
-    auto path = assetManager->getAssetPathCopy(nameHash);
-    if (!path) {
-        LOG_W("Couldn't obtain a path for an asset with nameHash " << nameHash << ". Was it removed before loading?");
+    const auto metadata = assetManager->getMetadataCopy(nameHash);
+    if (!metadata) {
+        LOG_W("Couldn't obtain metadata for an asset with nameHash " << nameHash << ". Was it removed before loading?");
         return;
     }
+    
+    if (!MetadataCorrespondsToAssetType(*metadata, AssetType::Mesh)) {
+        LOG_W("The asset with nameHash " << nameHash << " is not a mesh.");
+        return;
+    }
+    
+    const MeshMetadata& meshMetadata = std::get<MeshMetadata>(*metadata);
+    
     // TODO FIXME Race condition - the asset may have already been removed
     mc.setMesh(assetManager->load<Mesh>(nameHash));
     //mc.setMesh(assetManager->getMissingAsset<Mesh>(AssetType::Mesh));
@@ -145,7 +161,7 @@ void World::addDynamicMesh(hash32_t nameHash) {
     
     mc.updateRenderDataKey();
     
-    EntityKey entity = create(filePathToEntityName(*path));
+    EntityKey entity = create(filePathToEntityName(meshMetadata.getSourceAssetPath().filename()));
     TransformationComponent& transformation = getEntityTransformation(entity.getID());
     transformation.setStatic(false);
     transformation.setPosition(0, 12, 0);
