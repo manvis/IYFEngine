@@ -135,6 +135,15 @@ void FileSystem::setResourcePathsForProject(const Project* project) {
         // When running in editor mode, the read path matches the project root 
         const auto& projectRoot = project->getRootPath();
         addReadPath(projectRoot.string(), "/", true);
+        
+        const fs::path platformAssetPath = projectRoot / con::PlatformIdentifierToName(con::GetCurrentPlatform());
+        
+        if (fs::exists(platformAssetPath)) {
+            LOG_V("Mounting the asset folder for the current platform: " << platformAssetPath);
+            addReadPath(platformAssetPath, "assets", true);
+        } else {
+            LOG_I("The asset path for the current platform (" << platformAssetPath << ") does not exist. Skipping its mounnting.");
+        }
     } else {
         // When running in game mode, mount the data archive that contains the contents of the asset path
         fs::path assetPackPath = project->getRootPath();
