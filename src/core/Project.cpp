@@ -77,7 +77,7 @@ Project::CreationResult Project::Create(const fs::path& newProjectPath, const st
     
     callback("Creating new directories");
     
-    if (!CreateImportedAssetDirectories(finalPath) || !CreateImportsDirectory(finalPath)) {
+    if (!CreateImportedAssetDirectories(finalPath, con::GetCurrentPlatform()) || !CreateImportsDirectory(finalPath)) {
         return CreationResult::FolderCreationFailed;
     }
     
@@ -117,9 +117,9 @@ bool Project::CreateProjectFile(const fs::path& path, const std::string& project
     }
 }
 
-bool Project::CreateImportedAssetDirectories(const fs::path& path) {
+bool Project::CreateImportedAssetDirectories(const fs::path& path, PlatformIdentifier platformID) {
     for (std::size_t i = 0; i < static_cast<std::size_t>(AssetType::COUNT); ++i) {
-        const fs::path assetTypeSubdir = path / con::AssetTypeToPath(static_cast<AssetType>(i));
+        const fs::path assetTypeSubdir = path / con::PlatformIdentifierToName(platformID) / con::AssetTypeToPath(static_cast<AssetType>(i));
         
         boost::system::error_code ec;
         fs::create_directories(assetTypeSubdir, ec);
@@ -130,7 +130,7 @@ bool Project::CreateImportedAssetDirectories(const fs::path& path) {
     }
     
     boost::system::error_code ec;
-    fs::create_directories(path / con::SystemStringPath, ec);
+    fs::create_directories(path / con::PlatformIdentifierToName(platformID) / con::SystemStringPath, ec);
     
     if (ec) {
         return false;

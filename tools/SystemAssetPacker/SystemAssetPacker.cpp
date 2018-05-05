@@ -152,26 +152,27 @@ void SystemAssetPacker::pack() {
         fs::remove_all(realPlatformDataPath);
     }
     
-    const fs::path pathToCreate = filesystem->getCurrentWriteDirectory() / platformDataPath;
+    const fs::path pathToCreate = filesystem->getCurrentWriteDirectory() / platformDataBasePath;
     
     LOG_D("Creating asset data directories for current platform: " << pathToCreate);
     fs::create_directories(pathToCreate);
     
-    if (!Project::CreateImportedAssetDirectories(pathToCreate)) {
+    if (!Project::CreateImportedAssetDirectories(pathToCreate, currentPlatform)) {
         throw std::runtime_error("Failed to create imported asset directories");
     }
     
     recursiveExport("raw/system", cm, currentPlatform);
     
     const fs::path systemArchiveName = ("system" + con::PackFileExtension);
-    const fs::path archivePath = pathToCreate / systemArchiveName;
+    const fs::path archivePath = realPlatformDataPath / systemArchiveName;
     
     std::vector<util::PathToCompress> pathsToCompress;
     pathsToCompress.reserve(100);
     
-    for (const auto& d : fs::recursive_directory_iterator(pathToCreate)) {
+    const fs::path pathWithPlatform = pathToCreate / con::PlatformIdentifierToName(currentPlatform);
+    for (const auto& d : fs::recursive_directory_iterator(pathWithPlatform)) {
         if (!fs::is_directory(d)) {
-            const fs::path relativePath = d.path().lexically_relative(pathToCreate);
+            const fs::path relativePath = d.path().lexically_relative(pathWithPlatform);
             pathsToCompress.emplace_back(d, relativePath);
         }
     }

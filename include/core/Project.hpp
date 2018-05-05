@@ -32,6 +32,7 @@
 #include "core/configuration/Configuration.hpp"
 #include "core/filesystem/cppFilesystem.hpp"
 #include "core/interfaces/TextSerializable.hpp"
+#include "core/Platform.hpp"
 #include "../VERSION.hpp"
 
 #include <memory>
@@ -65,7 +66,7 @@ public:
     static CreationResult Create(const fs::path& newProjectPath, const std::string& projectName, const std::string& companyName, 
                                  std::function<void(const std::string&)> callback, const std::string& baseLocale);
     
-    static bool CreateImportedAssetDirectories(const fs::path& path);
+    static bool CreateImportedAssetDirectories(const fs::path& path, PlatformIdentifier platformID);
     static bool CreateImportsDirectory(const fs::path& path);
     
     /// Creates and serializes a new Project file with some default values set.
