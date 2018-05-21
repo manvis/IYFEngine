@@ -34,6 +34,7 @@
 #include "graphics/Camera.hpp"
 
 #include "tools/ShadingPipelineEditor.hpp"
+#include "assetImport/ConverterManager.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
 #include "AssetList.hpp"
 #include "core/Constants.hpp"
@@ -222,6 +223,8 @@ protected:
     
     std::mutex assetOperationMutex;
     std::map<fs::path, AssetOperation> assetOperations;
+    
+    std::unique_ptr<ConverterManager> converterManager;
     
     void showUnableToInstanceTooltip(const std::string& tooltip);
     std::deque<AssetData> assetClipboard;

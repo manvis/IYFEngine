@@ -135,6 +135,8 @@ physics/Collider.cpp
 physics/PhysicsSystem.cpp
 #------- sound directory
 sound/SoundAPI.cpp
+#------- threading directory
+threading/Implementation.cpp
 #------- utilities folder
 utilities/Compression.cpp
 utilities/stbImpl.cpp

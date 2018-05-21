@@ -40,6 +40,7 @@
 #include "core/Project.hpp"
 #include "graphics/GraphicsSystem.hpp"
 #include "graphics/MeshComponent.hpp"
+#include "threading/ThreadProfiler.hpp"
 #include "assets/AssetManager.hpp"
 #include "assets/loaders/MeshLoader.hpp"
 #include "localization/TextLocalization.hpp"
@@ -212,6 +213,8 @@ void EditorState::initialize() {
     currentlyPickedAssetType = static_cast<int>(AssetType::COUNT);
     
     currentlyOpenDir = con::ImportPath;
+    
+//     converterManager = std::make_unique<ConverterManager>(fileSystem, );
     
 //    std::uint32_t i1 = util::BytesToInt32(1, 2, 3, 4);
 //    std::uint32_t i2 = util::BytesToInt32({1, 2, 3, 4});
@@ -865,37 +868,27 @@ void EditorState::showWorldEditorWindow() {
     ImGui::Text("Static mesh entity");
     
     ImGui::NextColumn();
-    if (ImGui::AssetLock("DynamicMesh", AssetType::Mesh, 0)) {
-        const AssetData& asset = assetClipboard[0];
-        
-        world->addDynamicMesh(hash32_t(asset.id));
+//     if (ImGui::AssetLock("DynamicMesh", AssetType::Mesh, 0)) {
+//         const AssetData& asset = assetClipboard[0];
+//         
+//         world->addDynamicMesh(hash32_t(asset.id));
+//     }
+    
+    ImGui::Text("Drop Mesh Here");
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(GetPayloadNameForAssetType(AssetType::Mesh))) {
+            assert(payload->DataSize == sizeof(DragDropAssetPayload));
+            
+            DragDropAssetPayload payloadDestination;
+            std::memcpy(&payloadDestination, payload->Data, sizeof(DragDropAssetPayload));
+            
+            world->addDynamicMesh(payloadDestination.nameHash);
+        }
+        ImGui::EndDragDropTarget();
     }
     
     ImGui::NextColumn();
     ImGui::Text("Dynamic mesh entity");
-    
-    ImGui::NextColumn();
-    
-    ImGui::Separator();
-    
-    if (ImGui::AssetLock("SerializeMesh", AssetType::Mesh, 0)) {
-        const AssetData& asset = assetClipboard[0];
-        
-        AssetManager* assetManager = engine->getAssetManager();
-        VirtualFileSystemSerializer fw("mesh_metadata", File::OpenMode::Write);
-        assetManager->serializeMetadata(hash32_t(asset.id), fw);
-    }
-    
-    ImGui::NextColumn();
-    
-    ImGui::Text("Serialize mesh metadata");
-    
-    ImGui::NextColumn();
-    
-    
-//    if (ImGui::AssetLock("StaticMesh", AssetType::Mesh, 0)) {
-//        //
-//    }
     
     ImGui::Columns();
     

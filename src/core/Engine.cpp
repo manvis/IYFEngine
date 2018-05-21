@@ -61,6 +61,8 @@
 #include "sound/SoundAPI.hpp"
 #include "assets/AssetManager.hpp"
 
+#include "threading/ThreadProfiler.hpp"
+
 #include "graphics/clusteredRenderers/ClusteredRenderer.hpp"
 
 #include "../../VERSION.hpp"
@@ -68,6 +70,8 @@
 namespace iyf
 {
 Engine::Engine(char* argv0, bool editorMode) : graphicsDelta(0L), ticks(std::chrono::milliseconds(TICKS)), pendingStackOperation(StackOperation::NoOperation), argv0(argv0) {
+    IYF_PROFILER_NAME_THREAD("Main");
+    
     engineMode = editorMode ? EngineMode::Editor : EngineMode::Game;
 
     init();
@@ -337,6 +341,8 @@ void Engine::executeMainLoop() {
         graphicsDelta = secondsDelta.count();
         frame(graphicsDelta);
         previousTime = currentTime;
+        
+        IYF_PROFILER_NEXT_FRAME
         
         std::chrono::nanoseconds logicDelta = std::chrono::steady_clock::now() - logicTime;
 

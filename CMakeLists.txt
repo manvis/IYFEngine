@@ -3,13 +3,16 @@ project(IYFEngine)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
+# TODO in stable versions BUILD_TOOLS_AND_TESTS and PROFILER_ENABLED should be false by default
 set(BUILD_TOOLS_AND_TESTS True CACHE BOOL "Build the editor, other tools and tests")
+set(PROFILER_ENABLED True CACHE BOOL "Build the editor, other tools and tests")
+
 set(EXECUTABLE_OUTPUT_DIR ${CMAKE_BINARY_DIR} CACHE PATH "Executable output path")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXECUTABLE_OUTPUT_DIR})
 
 # We'll need c++17
-set (CMAKE_CXX_STANDARD 17)
-set (CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_STANDARD 17)
+set(CXX_STANDARD_REQUIRED TRUE)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -fdiagnostics-color=always")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3")
@@ -20,6 +23,12 @@ add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 add_definitions(-DGLM_FORCE_DEPTH_ZERO_TO_ONE)
 add_definitions(-DGLM_FORCE_LEFT_HANDED)
 add_definitions(-DGLM_FORCE_RADIANS)
+
+# IYFThreading
+# Tool builds require the profiler to be enabled
+if (BUILD_TOOLS_AND_TESTS OR PROFILER_ENABLED)
+    add_definitions(-DIYF_ENABLE_PROFILING -DIYF_THREAD_POOL_PROFILE)
+endif()
 
 # XXHash
 add_definitions(-DXXH_INLINE_ALL)
@@ -224,7 +233,7 @@ endif (GRAPHICS_BACKEND MATCHES "Vulkan")
 # Target name IYFEngine
 add_subdirectory(src)
 
-if(BUILD_TOOLS_AND_TESTS)
+if (BUILD_TOOLS_AND_TESTS)
     find_package(Assimp REQUIRED)
     include_directories(${ASSIMP_INCLUDE_DIR})
     include_directories(testing)
