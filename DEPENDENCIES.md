@@ -57,6 +57,7 @@ Unless you're one of IYFEngine's developers or **really** need a newer version, 
 2. [fmt](https://github.com/fmtlib/fmt): stored in *include/format* and *src/format*. The default include directory of fmt contains additional header files with conflicting names. Keeping the fmt library in the *dependencies* folder and adding it to the include path causes trouble and should not be done.
 3. [miniz](https://github.com/richgel999/miniz/releases): stored in *include/miniz* and *src/miniz*.
 7. [VulkanMemoryAllocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator): stored in *include/graphics/vulkan*. I noticed that there were some breaking changes between versions 1 and 2. Since the API doesn't seem to be completely stable, having a specific version of the library in the source tree seems to be a better choice.
+8. [IYFThreading](https://github.com/manvis/IYFThreading): stored in *include/threading* and *src/threading*. My own thread pool and a simple profiler. Like Dear Imgui, it uses a customizable project specific header file.
     
 ##Future dependencies
 0. stb\_vorbis for audio effect decompression and music decompression. Only an option. I may need to look into something that supports more formats or use opus instead. Need to research things first.
