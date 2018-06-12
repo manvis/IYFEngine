@@ -209,6 +209,7 @@ protected:
 // PROFILING -------------------------------------------------------------------
     std::unique_ptr<iyft::ProfilerResults> profilerResults;
     float profilerZoom;
+    bool profilerOpen;
     
     void showProfilerWindow();
 // PIPELINE EDITING ------------------------------------------------------------

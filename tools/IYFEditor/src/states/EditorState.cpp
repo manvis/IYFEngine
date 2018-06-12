@@ -223,6 +223,7 @@ void EditorState::initialize() {
     
 //     profilerResults = iyft::ProfilerResults::LoadFromFile("profilerResults.profres");
     profilerZoom = 1.0f;
+    profilerOpen = false;
     
 //     converterManager = std::make_unique<ConverterManager>(fileSystem, );
     
@@ -355,6 +356,7 @@ void EditorState::frame(float delta) {
 //        }
         
         if (ImGui::BeginMenu("Window")) {
+            ImGui::MenuItem("Profiler", nullptr, &profilerOpen);
             ImGui::EndMenu();
         }
         
@@ -691,8 +693,12 @@ void EditorState::showMaterialEditorWindow() {
 void EditorState::showProfilerWindow() {
     IYFT_PROFILE(EditorProfilerWindow, iyft::ProfilerTag::Editor)
     
+    if (!profilerOpen) {
+        return;
+    }
+    
     ImGui::SetNextWindowSize(ImVec2(1200,750), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Profiler", nullptr)) {
+    if (ImGui::Begin("Profiler", &profilerOpen)) {
         
         if (IYFT_PROFILER_STATUS == iyft::ProfilerStatus::EnabledAndNotRecording) {
             if (ImGui::Button("Start Recording")) {
