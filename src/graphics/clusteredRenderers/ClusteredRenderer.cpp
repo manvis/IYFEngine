@@ -37,6 +37,7 @@
 #include "graphics/Camera.hpp"
 #include "graphics/DebugRenderer.hpp"
 #include "physics/PhysicsSystem.hpp"
+#include "threading/ThreadProfiler.hpp"
 
 #include <iostream>
 
@@ -124,6 +125,7 @@ std::pair<RenderPassHnd, std::uint32_t> ClusteredRenderer::getSkyboxRenderPassAn
 // }
 
 void ClusteredRenderer::drawWorld(const World* world) {
+    IYFT_PROFILE(DrawWorld, iyft::ProfilerTag::Graphics);
     assert(world != nullptr);
     
     if (drawingWorldThisFrame) {
@@ -171,6 +173,8 @@ void ClusteredRenderer::drawWorld(const World* world) {
 }
 
 void ClusteredRenderer::drawVisibleOpaque(const GraphicsSystem* graphicsSystem) {
+    IYFT_PROFILE(DrawOpaque, iyft::ProfilerTag::Graphics);
+    
     //visibleOpaqueEntityIDs, manager->getEntityTransformations(), components;
     
     const GraphicsSystem::VisibleComponents& visibleComponents = graphicsSystem->getVisibleComponents();
@@ -241,12 +245,15 @@ void ClusteredRenderer::drawVisibleOpaque(const GraphicsSystem* graphicsSystem) 
 }
 
 void ClusteredRenderer::drawVisibleTransparent(const GraphicsSystem* graphicsSystem) {
+    IYFT_PROFILE(DrawTransparent, iyft::ProfilerTag::Graphics);
 //    for (const auto& i : elements) {
 //        //
 //    }
 }
 
 void ClusteredRenderer::drawSky(const World* world) {
+    IYFT_PROFILE(DrawSky, iyft::ProfilerTag::Graphics);
+    
     const GraphicsSystem* graphicsSystem = dynamic_cast<const GraphicsSystem*>(world->getSystemManagingComponentType(ComponentBaseType::Graphics));
     assert(graphicsSystem != nullptr);
     
@@ -259,6 +266,8 @@ void ClusteredRenderer::drawSky(const World* world) {
 }
 
 void ClusteredRenderer::drawDebugAndHelperMeshes(const World* world, const DebugRenderer* renderer) {
+    IYFT_PROFILE(DrawDebugAndHelper, iyft::ProfilerTag::Graphics);
+    
     if (world->isPhysicsDebugDrawn()) {
         const GraphicsSystem* graphicsSystem = dynamic_cast<const GraphicsSystem*>(world->getSystemManagingComponentType(ComponentBaseType::Graphics));
         assert(graphicsSystem != nullptr);
@@ -270,6 +279,8 @@ void ClusteredRenderer::drawDebugAndHelperMeshes(const World* world, const Debug
 }
 
 void ClusteredRenderer::submitCommandBuffers() {
+    IYFT_PROFILE(SubmitCommandBuffers, iyft::ProfilerTag::Graphics);
+    
     CommandBuffer* worldBuffer = commandBuffers[static_cast<std::uint32_t>(CommandBufferID::World)];
     
     worldBuffer->endRenderPass();
@@ -306,8 +317,12 @@ void ClusteredRenderer::submitCommandBuffers() {
 //         api->submitQueue(si);
 //         // TODO why does this FLICKER without a fence. What am I missing? I know what's missing and I need to implement it.
         api->submitQueue(si, preGUIFence);
-        api->waitForFence(preGUIFence, std::numeric_limits<std::uint64_t>::max());
-        api->resetFence(preGUIFence);
+        
+        {
+            IYFT_PROFILE(BubbleToRemove, iyft::ProfilerTag::Graphics);
+            api->waitForFence(preGUIFence, std::numeric_limits<std::uint64_t>::max());
+            api->resetFence(preGUIFence);
+        }
 
         // ImGui
         si.waitSemaphores = {worldRenderComplete};

@@ -35,6 +35,7 @@
 #include "core/Logger.hpp"
 #include "core/InputListener.hpp"
 #include "core/Engine.hpp"
+#include "threading/ThreadProfiler.hpp"
 
 namespace iyf
 {
@@ -58,6 +59,8 @@ InputState::InputState(Engine* engine, Configuration* config) : Configurable(con
 }
 
 void InputState::pollInput() {
+    IYFT_PROFILE(InputUpdate, iyft::ProfilerTag::Input)
+    
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -200,6 +203,8 @@ void InputState::pollInput() {
 }
 
 void InputState::updateMouse() {
+    IYFT_PROFILE(MouseUpdate, iyft::ProfilerTag::Input)
+    
     if (mouseX < 0) {
         mouseX = 0;
     } else if (mouseX > screenWidth) {
@@ -218,6 +223,7 @@ void InputState::updateMouse() {
     }
 }
 void InputState::handleConfigChange(const ConfigurationValueMap& changedValues) {
+    IYFT_PROFILE(InputConfigurationUpdate, iyft::ProfilerTag::Input)
     bool updateMousePosition = false;
     
     auto result = changedValues.find({HS("width"), ConfigurationValueFamily::Graphics});
@@ -236,6 +242,7 @@ void InputState::handleConfigChange(const ConfigurationValueMap& changedValues) 
 }
 
 bool InputState::addInputListener(InputListener* inputListener) {
+    IYFT_PROFILE(AddingInputListener, iyft::ProfilerTag::Input)
     auto it = std::find(inputListeners.begin(), inputListeners.end(), inputListener);
     if (it != inputListeners.end()) {
         return false;
@@ -247,6 +254,7 @@ bool InputState::addInputListener(InputListener* inputListener) {
 }
 
 bool InputState::removeInputListener(InputListener* inputListener) {
+    IYFT_PROFILE(RemovingInputListener, iyft::ProfilerTag::Input)
     auto it = std::find(inputListeners.begin(), inputListeners.end(), inputListener);
     if (it == inputListeners.end()) {
         return false;

@@ -31,6 +31,7 @@
 #include "graphics/GraphicsSystem.hpp"
 #include "physics/PhysicsSystem.hpp"
 #include "core/EntitySystemManager.hpp"
+#include "threading/ThreadProfiler.hpp"
 
 namespace iyf {
 bool EntitySystemManagerCreateInfo::validate(bool throwException) {
@@ -214,6 +215,8 @@ void EntitySystemManager::manageEntityLifecycles([[maybe_unused]]float delta) {
 }
 
 void EntitySystemManager::update(float delta) {
+    IYFT_PROFILE(EntitySystemManagerUpdate, iyft::ProfilerTag::World);
+    
     // TODO figure out where to call non-Engine components
     
     // Get rid of objects destroyed in the previous frame and initialize new ones

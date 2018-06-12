@@ -28,8 +28,8 @@
 
 /// \file ThreadProfilerSettings.hpp Contains customizable setting.
 
-#ifndef IYF_THREAD_PROFILER_SETTINGS_HPP
-#define IYF_THREAD_PROFILER_SETTINGS_HPP
+#ifndef IYFT_THREAD_PROFILER_SETTINGS_HPP
+#define IYFT_THREAD_PROFILER_SETTINGS_HPP
 
 #include "utilities/hashing/Hashing.hpp"
 
@@ -37,20 +37,24 @@ namespace iyft {
 
 // The maximum number of threads that the ThreadProfiler will need to track in your 
 // program. Default is 16. Must be >= 1
-#define IYF_THREAD_PROFILER_MAX_THREAD_COUNT 64
+#define IYFT_THREAD_PROFILER_MAX_THREAD_COUNT 64
 
 // A custom hashing function. Must return a 32 bit integer and take std::string as the
 // parameter.
-#define IYF_THREAD_PROFILER_HASH(a) iyf::HS(a)
+#define IYFT_THREAD_PROFILER_HASH(a) iyf::HS(a)
+
+// If this is macro is defined, and the Dear Imgui library (from https://github.com/ocornut/imgui)
+// is included in your project, you'll be able to draw ProfilerResults by calling drawInImGui.
+#define IYFT_PROFILER_WITH_IMGUI
 
 // Either define both or none. This allows you to customize the duration type that's
-// used when building the IYF_PROFILER_RESULT_STRING
-//#define IYF_THREAD_TEXT_OUTPUT_DURATION std::chrono::duration<double, std::milli>
-//#define IYF_THREAD_TEXT_OUTPUT_NAME "ms"
+// used when building the IYFT_PROFILER_RESULT_STRING
+//#define IYFT_THREAD_TEXT_OUTPUT_DURATION std::chrono::duration<double, std::milli>
+//#define IYFT_THREAD_TEXT_OUTPUT_NAME "ms"
 
 // I used this to debug some event order issues but you may find other uses for it.
 // Uncomment this to tag recorded events with monotonically increasing 64 bit integers.
-//#define IYF_PROFILER_WITH_COOKIE
+//#define IYFT_PROFILER_WITH_COOKIE
 
 /// \brief A list of tags that identify a group of profiled scopes.
 ///
@@ -62,7 +66,10 @@ enum class ProfilerTag : std::uint32_t {
     NoTag = 0,  ///< Indicates an untagged scope.
     
     // ---- CUSTOM TAG START ----
+    Core,
+    Input,
     Graphics,
+    World,
     Assets,
     Network,
     Sounds,
@@ -70,6 +77,7 @@ enum class ProfilerTag : std::uint32_t {
     Physics,
     AssetConversion,
     Editor,
+    Sleep,
     // ---- CUSTOM TAG END
     
     COUNT       ///< The total number of tags.
@@ -86,9 +94,9 @@ const char* GetTagName(ProfilerTag tag);
 ScopeColor GetTagColor(ProfilerTag tag);
 }
 
-#endif // IYF_THREAD_PROFILER_SETTINGS_HPP
+#endif // IYFT_THREAD_PROFILER_SETTINGS_HPP
 
-#if defined IYF_THREAD_PROFILER_IMPLEMENTATION && !defined IYF_THREAD_PROFILER_IMPLEMENTATION_INCLUDED
+#if defined IYFT_THREAD_PROFILER_IMPLEMENTATION && !defined IYFT_THREAD_PROFILER_IMPLEMENTATION_INCLUDED
 
 namespace iyft {
 const char* GetTagName(ProfilerTag tag) {
@@ -96,8 +104,14 @@ const char* GetTagName(ProfilerTag tag) {
     case ProfilerTag::NoTag:
     case ProfilerTag::COUNT:
         return "Untagged";
+    case ProfilerTag::Core:
+        return "Core";
+    case ProfilerTag::Input:
+        return "Input";
     case ProfilerTag::Graphics:
         return "Graphics";
+    case ProfilerTag::World:
+        return "World";
     case ProfilerTag::Assets:
         return "Assets";
     case ProfilerTag::Network:
@@ -112,9 +126,10 @@ const char* GetTagName(ProfilerTag tag) {
         return "Asset Conversion";
     case ProfilerTag::Editor:
         return "Editor";
+    case ProfilerTag::Sleep:
+        return "Sleep";
     }
     
-    IYF_ASSERT(0);
     return "ERROR-INVALID-VALUE";
 }
 
@@ -123,8 +138,14 @@ ScopeColor GetTagColor(ProfilerTag tag) {
     case ProfilerTag::NoTag:
     case ProfilerTag::COUNT:
         return ScopeColor(255, 255, 255, 255);
+    case ProfilerTag::Core:
+        return ScopeColor(255, 0, 255, 255);
+    case ProfilerTag::Input:
+        return ScopeColor(255, 255, 0, 255);
     case ProfilerTag::Graphics:
         return ScopeColor(222, 50, 70, 255);
+    case ProfilerTag::World:
+        return ScopeColor(0, 0, 255, 255);
     case ProfilerTag::Assets:
         return ScopeColor(35, 106, 146, 255);
     case ProfilerTag::Network:
@@ -139,11 +160,12 @@ ScopeColor GetTagColor(ProfilerTag tag) {
         return ScopeColor(242, 108, 19, 255);
     case ProfilerTag::Editor:
         return ScopeColor(122, 65, 26, 255);
+    case ProfilerTag::Sleep:
+        return ScopeColor(128, 128, 128, 255);
     }
     
-    IYF_ASSERT(0);
     return ScopeColor(0, 0, 0, 255);
 }
 }
 
-#endif // defined IYF_THREAD_PROFILER_IMPLEMENTATION && !defined IYF_THREAD_PROFILER_IMPLEMENTATION_INCLUDED
+#endif // defined IYFT_THREAD_PROFILER_IMPLEMENTATION && !defined IYFT_THREAD_PROFILER_IMPLEMENTATION_INCLUDED

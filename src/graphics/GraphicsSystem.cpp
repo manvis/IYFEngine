@@ -38,6 +38,7 @@
 #include "core/World.hpp"
 #include "physics/PhysicsSystem.hpp"
 #include "physics/BulletPhysicsDebugRenderer.hpp"
+#include "threading/ThreadProfiler.hpp"
 
 namespace iyf {
 static void checkEditorMode(const EntitySystemManager* manager) {
@@ -154,7 +155,48 @@ void GraphicsSystem::dispose() {
     }
 }
 
+void GraphicsSystem::performCulling() {
+    IYFT_PROFILE(EntityCulling, iyft::ProfilerTag::Graphics);
+    
+    visibleComponents.reset();
+    
+    ChunkedMeshVector* meshes = static_cast<ChunkedMeshVector*>(getContainer(static_cast<std::size_t>(GraphicsComponent::Mesh)));
+    auto meshesIt = meshes->begin();
+    
+    for (std::uint32_t i = 0; i < manager->getEntityCount(); ++i) {
+        const auto& entityComponents = availableComponents[i];
+        
+        // No components we care about. Move on to the next entity
+        if (!entityComponents[static_cast<std::size_t>(GraphicsComponent::Mesh)]) {
+            meshesIt++;
+            continue;
+        }
+        
+        const MeshComponent& mc = *meshesIt;
+        const BoundingVolume& bounds = mc.getCurrentBoundingVolume();
+        
+//         if (frustum.doesSphereIntersectPlane(Frustum::Plane::Bottom, bounds)) {
+//             LOG_D("YAY");
+//         } else {
+//             LOG_D("NAY"); 
+//         }
+        if (frustum.isBoundingVolumeInFrustum(bounds)) {
+            if (mc.getRenderMode() == MaterialRenderMode::Opaque) {
+                visibleComponents.opaqueMeshEntityIDs.push_back({i, mc.getRenderDataKey()});
+            } else {
+                visibleComponents.transparentMeshEntityIDs.push_back({i, mc.getRenderDataKey()});
+            }
+        }
+        
+        meshesIt++;
+    }
+    
+    visibleComponents.sort();
+}
+
 void GraphicsSystem::update(float delta, const EntityStateVector& entityStates) {
+    IYFT_PROFILE(GraphicsUpdate, iyft::ProfilerTag::Graphics);
+    
     const InputState* is = manager->getEngine()->getInputState();
     
     Camera& camera = getActiveCamera();
@@ -216,40 +258,7 @@ void GraphicsSystem::update(float delta, const EntityStateVector& entityStates) 
         skybox->update(delta);
     }
 
-    visibleComponents.reset();
-    
-    ChunkedMeshVector* meshes = static_cast<ChunkedMeshVector*>(getContainer(static_cast<std::size_t>(GraphicsComponent::Mesh)));
-    auto meshesIt = meshes->begin();
-    
-    for (std::uint32_t i = 0; i < manager->getEntityCount(); ++i) {
-        const auto& entityComponents = availableComponents[i];
-        
-        // No components we care about. Move on to the next entity
-        if (!entityComponents[static_cast<std::size_t>(GraphicsComponent::Mesh)]) {
-            meshesIt++;
-            continue;
-        }
-        
-        const MeshComponent& mc = *meshesIt;
-        const BoundingVolume& bounds = mc.getCurrentBoundingVolume();
-        
-//         if (frustum.doesSphereIntersectPlane(Frustum::Plane::Bottom, bounds)) {
-//             LOG_D("YAY");
-//         } else {
-//             LOG_D("NAY"); 
-//         }
-        if (frustum.isBoundingVolumeInFrustum(bounds)) {
-            if (mc.getRenderMode() == MaterialRenderMode::Opaque) {
-                visibleComponents.opaqueMeshEntityIDs.push_back({i, mc.getRenderDataKey()});
-            } else {
-                visibleComponents.transparentMeshEntityIDs.push_back({i, mc.getRenderDataKey()});
-            }
-        }
-        
-        meshesIt++;
-    }
-    
-    visibleComponents.sort();
+    performCulling();
     
     //LOG_D(visibleComponents.opaqueMeshEntityIDs.size() << " " << visibleComponents.transparentMeshEntityIDs.size());
     

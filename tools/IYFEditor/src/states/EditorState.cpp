@@ -41,6 +41,7 @@
 #include "graphics/GraphicsSystem.hpp"
 #include "graphics/MeshComponent.hpp"
 #include "threading/ThreadProfiler.hpp"
+#include "threading/ThreadProfilerCore.hpp"
 #include "assets/AssetManager.hpp"
 #include "assets/loaders/MeshLoader.hpp"
 #include "localization/TextLocalization.hpp"
@@ -129,6 +130,7 @@ EditorState::EditorState(iyf::Engine* engine) : GameState(engine),
 EditorState::~EditorState() { }
 
 void EditorState::initialize() {
+    IYFT_PROFILE(EditorInitialize, iyft::ProfilerTag::Editor)
     currentProject = engine->getProject();
     
     importsDir = currentProject->getRootPath() / con::ImportPath;
@@ -149,6 +151,8 @@ void EditorState::initialize() {
     lastFileSystemUpdate = std::chrono::steady_clock::now();
     fileSystemWatcher = FileSystemWatcher::MakePlatformFilesystemWatcher(fsci);
     fileSystemWatcherThread = std::thread([this](){
+        IYFT_PROFILER_NAME_THREAD("FileSystemWatcher");
+        
         while (fileSystemThreadRunning) {
             auto now = std::chrono::steady_clock::now();
             std::chrono::duration<float> delta = now - lastFileSystemUpdate;
@@ -157,7 +161,10 @@ void EditorState::initialize() {
             fileSystemWatcher->poll();
             updateProjectFiles(delta.count());
             
-            // TODO maybe sleep here?
+            // TODO Should sleep take more/less time?
+            IYFT_PROFILE(FileSystemWatcherSleep, iyft::ProfilerTag::AssetConversion);
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     });
     
@@ -214,6 +221,9 @@ void EditorState::initialize() {
     
     currentlyOpenDir = con::ImportPath;
     
+//     profilerResults = iyft::ProfilerResults::LoadFromFile("profilerResults.profres");
+    profilerZoom = 1.0f;
+    
 //     converterManager = std::make_unique<ConverterManager>(fileSystem, );
     
 //    std::uint32_t i1 = util::BytesToInt32(1, 2, 3, 4);
@@ -228,6 +238,7 @@ void EditorState::initialize() {
 }
 
 void EditorState::dispose() {
+    IYFT_PROFILE(EditorDispose, iyft::ProfilerTag::Editor)
     if (world != nullptr) {
         world->dispose();
         delete world;
@@ -240,6 +251,7 @@ void EditorState::dispose() {
 }
 
 void EditorState::step() {
+    IYFT_PROFILE(EditorStep, iyft::ProfilerTag::Editor)
     //LOG_D("COMPONENT NAME TEST" << con::ComponentNames[0].size() << " " << con::ComponentNames[1].size());
     iyf::InputState* is = engine->getInputState();
     
@@ -264,26 +276,13 @@ void EditorState::step() {
 }
 
 void EditorState::frame(float delta) {
+    IYFT_PROFILE(EditorFrame, iyft::ProfilerTag::Editor)
     iyf::InputState* is = engine->getInputState();
     iyf::GraphicsAPI* api = engine->getGraphicsAPI();
     
 //    throw std::runtime_error("wrt");
     
     is->setMouseRelativeMode(cameraMode == CameraMode::Free);
-    world->setInputProcessingPaused(cameraMode != CameraMode::Free);
-    
-    if (world != nullptr) {
-        world->update(delta);
-        
-        if (!ImGui::IsAnyItemHovered() && is->isMouseClicked(MouseButton::Left)) {
-            int mouseX = is->getMouseX();
-            int mouseY = is->getMouseY();
-            
-            if (mouseX >= 0 && mouseX <= static_cast<int>(api->getScreenWidth()) && mouseY >= 0 && mouseY <= static_cast<int>(api->getScreenHeight())) {
-                world->rayPick(mouseX, mouseY);
-            }
-        }
-    }
 
     ImGuiImplementation* impl = engine->getImGuiImplementation();
     impl->requestRenderThisFrame();
@@ -437,7 +436,8 @@ void EditorState::frame(float delta) {
 //     ImGui::SetNextWindowBgAlpha(0.7f);
     if (ImGui::Begin("Info Panel", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings)) {
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        
+//         const ImVec2 mousePos = ImGui::GetMousePos();
+//         ImGui::Text("Mouse: %f;%f", mousePos.x, mousePos.y);
         if (world != nullptr) {
             GraphicsSystem* graphicsSystem = dynamic_cast<GraphicsSystem*>(world->getSystemManagingComponentType(ComponentBaseType::Graphics));
             if (graphicsSystem != nullptr) {
@@ -511,6 +511,7 @@ void EditorState::frame(float delta) {
     showWorldEditorWindow();
     showEntityEditorWindow();
     showDebugWindow();
+    showProfilerWindow();
     
     ImGui::Begin("test");
     if (ImGui::Button("PerfTest")) {
@@ -537,6 +538,20 @@ void EditorState::frame(float delta) {
     createWorldSpecificEditor();
     
     ImGui::GetIO().MouseDrawCursor = (cameraMode == CameraMode::Stationary);
+    
+    if (world != nullptr) {
+        world->setInputProcessingPaused(cameraMode != CameraMode::Free);
+        world->update(delta);
+        
+        if (!ImGui::IsAnyItemHovered() && is->isMouseClicked(MouseButton::Left)) {
+            int mouseX = is->getMouseX();
+            int mouseY = is->getMouseY();
+            
+            if (mouseX >= 0 && mouseX <= static_cast<int>(api->getScreenWidth()) && mouseY >= 0 && mouseY <= static_cast<int>(api->getScreenHeight())) {
+                world->rayPick(mouseX, mouseY);
+            }
+        }
+    }
 }
 
 void EditorState::pause() {
@@ -569,6 +584,7 @@ void EditorState::validateDefaultNewWorldParameters(bool& errorsFound) {
 }
 
 void EditorState::createNewWorld() {
+    IYFT_PROFILE(EditorCreateWorld, iyft::ProfilerTag::Editor)
     if (world != nullptr) {
         world->dispose();
         delete world;
@@ -612,6 +628,7 @@ void EditorState::showUnableToInstanceTooltip(const std::string& tooltip) {
 }
 
 void EditorState::showMaterialEditorWindow() {
+    IYFT_PROFILE(MaterialEditorDrawing, iyft::ProfilerTag::Editor)
     // TODO needs to be GENERATED for each pipeline, but I need to implement the pipeline
     // editor before I can do that.
     // TODO allow using colors (with color pickers) and (maybe?) sliders (e.g., for roughness and metallic parameters)
@@ -671,7 +688,41 @@ void EditorState::showMaterialEditorWindow() {
     ImGui::End();
 }
 
+void EditorState::showProfilerWindow() {
+    IYFT_PROFILE(EditorProfilerWindow, iyft::ProfilerTag::Editor)
+    
+    ImGui::SetNextWindowSize(ImVec2(1200,750), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Profiler", nullptr)) {
+        
+        if (IYFT_PROFILER_STATUS == iyft::ProfilerStatus::EnabledAndNotRecording) {
+            if (ImGui::Button("Start Recording")) {
+                IYFT_PROFILER_SET_RECORDING(true);
+            }
+        } else if (IYFT_PROFILER_STATUS == iyft::ProfilerStatus::EnabledAndRecording) {
+            if (ImGui::Button("Stop Recording")) {
+                IYFT_PROFILER_SET_RECORDING(false);
+                profilerResults = std::make_unique<iyft::ProfilerResults>(std::move(iyft::GetThreadProfiler().getResults()));
+            }
+        } else {
+            assert(0);
+        }
+        
+        ImGui::SameLine();
+        ImGui::SliderFloat("Zoom", &profilerZoom, iyft::ProfilerResults::GetMinScale(), iyft::ProfilerResults::GetMaxScale());
+        
+        if (profilerResults != nullptr) {
+            profilerResults->drawInImGui(profilerZoom);
+        } else {
+            ImGui::Text("Results not yet loaded or recorded.");
+        }
+    }
+    
+    ImGui::End();
+}
+
 void EditorState::showDebugWindow() {
+    IYFT_PROFILE(EditorDebugWindow, iyft::ProfilerTag::Editor)
+    
     ImGui::SetNextWindowSize(ImVec2(300,500), ImGuiCond_FirstUseEver);
     ImGui::Begin("Engine Debug", nullptr);
     
@@ -725,6 +776,8 @@ void EditorState::showDebugWindow() {
 }
 
 void EditorState::printBufferInfo(const char* name, const std::vector<MeshTypeManager::BufferWithRanges>& buffers) {
+    IYFT_PROFILE(EditorBufferInfo, iyft::ProfilerTag::Editor)
+    
     ImGui::Text("%s count: %lu", name, buffers.size());
     
     for (std::size_t i = 0; i < buffers.size(); ++i) {
@@ -769,6 +822,8 @@ void EditorState::printBufferInfo(const char* name, const std::vector<MeshTypeMa
 void EditorState::showWorldEditorWindow() {
 //     ImGui::ShowTestWindow();
 //    
+    IYFT_PROFILE(WorldEditorWindow, iyft::ProfilerTag::Editor)
+    
     if (world == nullptr) {
         return;
     }
@@ -896,9 +951,10 @@ void EditorState::showWorldEditorWindow() {
 }
 
 void EditorState::showEntityEditorWindow() {
+    IYFT_PROFILE(EntityEditorWindow, iyft::ProfilerTag::Editor)
+    
 //     bool stw = true;
 //     ImGui::ShowTestWindow(&stw);
-    
     // TODO imgui drag float does not do bounds checking on manually entered values. Fix it.
     // TODO this whole thing is bad. It still thinks only a single component type exists per system
     ImGui::SetNextWindowSize(ImVec2(300,500), ImGuiCond_FirstUseEver);
@@ -1033,6 +1089,8 @@ void EditorState::showEntityEditorWindow() {
 }
 
 void EditorState::showTransformationEditor(Entity& entity, TransformationComponent& transformation) {
+    IYFT_PROFILE(TransformationEditorWindow, iyft::ProfilerTag::Editor)
+    
     ImGui::AlignTextToFramePadding();
     ImGui::Text("Transformation component");
     
@@ -1069,6 +1127,7 @@ void EditorState::showTransformationEditor(Entity& entity, TransformationCompone
 }
 
 void EditorState::showComponentEditors(Entity& entity, const EntityState& entityState) {
+    IYFT_PROFILE(ComponentEditorWindow, iyft::ProfilerTag::Editor)
     if (entityState.hasComponentsOfType(ComponentBaseType::Graphics)) {
         showGraphicsComponentEditors(entity);
     }
@@ -1251,6 +1310,7 @@ void EditorState::draw2DColorDataSlot(std::pair<std::uint32_t, std::string>& con
 }
 
 void EditorState::showAssetWindow() {
+    IYFT_PROFILE(EditorAssetWindow, iyft::ProfilerTag::Editor)
     FileSystem* filesystem = engine->getFileSystem();
     AssetManager* assetManager = engine->getAssetManager();
     
@@ -1445,6 +1505,7 @@ void EditorState::showAssetWindow() {
 
 void EditorState::updateProjectFiles(float delta) {
 //     assert (fileSystemWatcherThread.get_id() == std::this_thread::get_id());
+    IYFT_PROFILE(ParseFileSystemChanges, iyft::ProfilerTag::AssetConversion);
     
     filesToProcess.clear();
     
@@ -1493,6 +1554,8 @@ void EditorState::updateProjectFiles(float delta) {
 }
 
 void EditorState::showFileOperationWindow() {
+    IYFT_PROFILE(EditorFileOpWindow, iyft::ProfilerTag::Editor)
+    
     GraphicsAPI* api = engine->getGraphicsAPI();
     AssetManager* manager = engine->getAssetManager();
     
@@ -1703,6 +1766,8 @@ void EditorState::fileSystemWatcherCallback(FileSystemWatcher::EventList eventLi
 }
 
 void ImGuiLog::show(const std::string& logStr) {
+    IYFT_PROFILE(EditorLogWindow, iyft::ProfilerTag::Editor)
+    
     // TODO rest of the functionality and DOCK at the bottom somehow?
     GraphicsAPI* api = engine->getGraphicsAPI();
     

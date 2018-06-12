@@ -31,6 +31,7 @@
 
 #include <iostream>
 #include "graphics/VertexDataLayouts.hpp"
+#include "threading/ThreadProfiler.hpp"
 
 namespace iyf {
 // void Renderer::drawWorld(const World* world) {
@@ -47,6 +48,8 @@ namespace iyf {
 // }
 
 void Renderer::drawImGui(ImGuiImplementation* impl) {
+    IYFT_PROFILE(DrawImGui, iyft::ProfilerTag::Graphics);
+    
     if (impl->isRenderRequiredThisFrame()) {
         imGuiSubmissionRequired = impl->draw(getImGuiDesignatedCommandBuffer());
     } else {

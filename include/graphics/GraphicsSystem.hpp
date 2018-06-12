@@ -134,6 +134,8 @@ public:
     
     bool cameraInputPaused;
 protected:
+    void performCulling();
+    
     AssetManager* assetManager;
     GraphicsAPI* api;
     Renderer* renderer;

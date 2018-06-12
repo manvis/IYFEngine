@@ -70,7 +70,7 @@
 namespace iyf
 {
 Engine::Engine(char* argv0, bool editorMode) : graphicsDelta(0L), ticks(std::chrono::milliseconds(TICKS)), pendingStackOperation(StackOperation::NoOperation), argv0(argv0) {
-    IYF_PROFILER_NAME_THREAD("Main");
+    IYFT_PROFILER_NAME_THREAD("Main");
     
     engineMode = editorMode ? EngineMode::Editor : EngineMode::Game;
 
@@ -297,6 +297,10 @@ void Engine::executeMainLoop() {
     logicTime = currentTime;
     
     while (isRunning()) {
+        // Mark the start of the next frame
+        IYFT_PROFILER_NEXT_FRAME
+        
+        IYFT_PROFILE(Frame, iyft::ProfilerTag::Core)
         if (pendingStackOperation == StackOperation::Push) {
             // Pause the current state
             if (!stateStack.empty()) {
@@ -342,12 +346,12 @@ void Engine::executeMainLoop() {
         frame(graphicsDelta);
         previousTime = currentTime;
         
-        IYF_PROFILER_NEXT_FRAME
-        
         std::chrono::nanoseconds logicDelta = std::chrono::steady_clock::now() - logicTime;
 
         // Catch up with logic (physics), if graphics are too slow
         while (logicDelta >= ticks) {
+            // TODO making sure this is in sync with physics steps would be beneficial
+            IYFT_PROFILE(LogicUpdate, iyft::ProfilerTag::Core)
             logicDelta -= ticks;
             logicTime += ticks;
 

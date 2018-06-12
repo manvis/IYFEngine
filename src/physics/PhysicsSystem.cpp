@@ -32,6 +32,7 @@
 #include "utilities/hashing/Hashing.hpp"
 #include "graphics/Camera.hpp"
 #include "graphics/GraphicsSystem.hpp"
+#include "threading/ThreadProfiler.hpp"
 
 namespace iyf {
 PhysicsSystem::PhysicsSystem(EntitySystemManager* manager) : System(manager, ComponentBaseType::Physics, static_cast<std::size_t>(PhysicsComponent::COUNT)), drawDebug(false) { }
@@ -208,6 +209,8 @@ void PhysicsSystem::dispose() {
 }
 
 void PhysicsSystem::update(float delta, const EntityStateVector& entityStates) {
+    IYFT_PROFILE(PhysicsUpdate, iyft::ProfilerTag::Physics);
+    
     // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
     dynamicsWorld->stepSimulation(delta, 8);
     

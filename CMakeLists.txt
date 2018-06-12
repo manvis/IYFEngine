@@ -27,7 +27,7 @@ add_definitions(-DGLM_FORCE_RADIANS)
 # IYFThreading
 # Tool builds require the profiler to be enabled
 if (BUILD_TOOLS_AND_TESTS OR PROFILER_ENABLED)
-    add_definitions(-DIYF_ENABLE_PROFILING -DIYF_THREAD_POOL_PROFILE)
+    add_definitions(-DIYFT_ENABLE_PROFILING -DIYFT_THREAD_POOL_PROFILE)
 endif()
 
 # XXHash

@@ -56,6 +56,10 @@ namespace iyf {
     class Project;
 }
 
+namespace iyft {
+    class ProfilerResults;
+}
+
 namespace iyf::editor {
 class EditorUI;
     
@@ -201,7 +205,12 @@ protected:
     CameraMode cameraMode;
 // SCRIPTING -------------------------------------------------------------------
 //    using ArgDesc = std::pair<std::string, std::string>;
+
+// PROFILING -------------------------------------------------------------------
+    std::unique_ptr<iyft::ProfilerResults> profilerResults;
+    float profilerZoom;
     
+    void showProfilerWindow();
 // PIPELINE EDITING ------------------------------------------------------------
     std::unique_ptr<ShadingPipelineEditor> pipelineEditor;
     bool pipelineEditorOpen;

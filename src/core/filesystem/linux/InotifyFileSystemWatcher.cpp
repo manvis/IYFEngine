@@ -33,6 +33,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include "core/filesystem/cppFilesystem.hpp"
+#include "threading/ThreadProfiler.hpp"
 
 #include "core/Logger.hpp"
 #include "utilities/StringUtilities.hpp"
@@ -155,6 +156,8 @@ bool InotifyFileSystemWatcher::addDirectoryImpl(const fs::path& path, FileSystem
 }
 
 bool InotifyFileSystemWatcher::addDirectory(const MonitoredDirectory& monitoredDirectory) {
+    IYFT_PROFILE(AddMonitoredDirectory, iyft::ProfilerTag::AssetConversion);
+    
     if (monitoredDirectory.recursive) {
         bool result = true;
         
@@ -184,6 +187,8 @@ bool InotifyFileSystemWatcher::addDirectory(const MonitoredDirectory& monitoredD
 }
 
 bool InotifyFileSystemWatcher::removeDirectory(const fs::path& path) {
+    IYFT_PROFILE(RemoveMonitoredDirectory, iyft::ProfilerTag::AssetConversion);
+    
     std::lock_guard<std::mutex> lock(inotifyMutex);
     
     return removeDirectoryImplNoLock(path, true, true);
@@ -321,6 +326,8 @@ void InotifyFileSystemWatcher::addNewlyCreatedOrMovedDirectories(const fs::path&
 }
 
 void InotifyFileSystemWatcher::poll() {
+    IYFT_PROFILE(PollFileSystemChanges, iyft::ProfilerTag::AssetConversion);
+    
     std::lock_guard<std::mutex> lock(inotifyMutex);
     
     fd_set fds;
@@ -581,6 +588,8 @@ void InotifyFileSystemWatcher::processEvent(struct inotify_event* e) {
 }
 
 std::vector<fs::path> InotifyFileSystemWatcher::getMonitoredDirectories() const {
+    IYFT_PROFILE(ListMonitoredDirectories, iyft::ProfilerTag::AssetConversion);
+    
     std::lock_guard<std::mutex> lock(inotifyMutex);
     
     std::vector<fs::path> dirs;

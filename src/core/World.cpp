@@ -32,6 +32,7 @@
 #include "graphics/GraphicsSystem.hpp"
 #include "physics/PhysicsSystem.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
+#include "threading/ThreadProfiler.hpp"
 
 namespace iyf {
 static void validateName(const std::string& name) {
@@ -87,6 +88,8 @@ void World::dispose() {
 }
 
 void World::update(float delta) {
+    IYFT_PROFILE(WorldUpdate, iyft::ProfilerTag::World);
+    
     EntitySystemManager::update(delta);
 }
 

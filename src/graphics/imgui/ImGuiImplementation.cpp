@@ -34,6 +34,7 @@
 #include "assets/AssetManager.hpp"
 #include "assets/assetTypes/Shader.hpp"
 #include "assets/assetTypes/Font.hpp"
+#include "threading/ThreadProfiler.hpp"
 
 #include "imgui.h"
 #include <glm/vec2.hpp>
@@ -48,8 +49,8 @@
 
 namespace iyf {
     
-static const size_t MAX_IMGUI_VBO = sizeof(ImDrawVert) * 8192 * 4;
-static const size_t MAX_IMGUI_IBO = sizeof(ImDrawIdx) * 8192 * 4;
+static const size_t MAX_IMGUI_VBO = sizeof(ImDrawVert) * 8192 * 8;
+static const size_t MAX_IMGUI_IBO = sizeof(ImDrawIdx) * 8192 * 8;
     
 bool ImGuiImplementation::requestRenderThisFrame() {
     // Don't repeat initialization. Just in case 2 states get drawn at the same time (e.g., game and pause) and both have separate GUIs
@@ -383,16 +384,20 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
     const glm::mat4 P = glm::orthoRH(0.0f, static_cast<float>(io.DisplaySize.x), 0.0f, static_cast<float>(io.DisplaySize.y), 0.0f, 1.0f);
     cmdBuff->pushConstants(pipelineLayout, ShaderStageFlagBits::Vertex, 0, sizeof(glm::mat4), glm::value_ptr(P));
     
-    for (int n = 0; n < drawData->CmdListsCount; ++n) {
-        const ImDrawList* cmdList = drawData->CmdLists[n];
+    {
+        IYFT_PROFILE(UploadImGuiData, iyft::ProfilerTag::Graphics);
         
-        gfxAPI->updateHostVisibleBuffer(VBOs[0], {{0, startVBO, cmdList->VtxBuffer.size() * sizeof(ImDrawVert)}}, cmdList->VtxBuffer.Data);
-        gfxAPI->updateHostVisibleBuffer(IBO, {{0, startIBO, cmdList->IdxBuffer.size() * sizeof(ImDrawIdx)}}, cmdList->IdxBuffer.Data);
-//        gfxAPI->updateVertexBufferData(VBOs[0], BufferSubSlice(startVBO, cmdList->VtxBuffer.size() * sizeof(ImDrawVert)), cmdList->VtxBuffer.Data);
-//        gfxAPI->updateIndexBufferData(IBO, BufferSubSlice(startIBO, cmdList->IdxBuffer.size() * sizeof(ImDrawIdx)), cmdList->IdxBuffer.Data);
-        
-        startVBO += cmdList->VtxBuffer.size() * sizeof(ImDrawVert);
-        startIBO += cmdList->IdxBuffer.size() * sizeof(ImDrawIdx);
+        for (int n = 0; n < drawData->CmdListsCount; ++n) {
+            const ImDrawList* cmdList = drawData->CmdLists[n];
+            
+            gfxAPI->updateHostVisibleBuffer(VBOs[0], {{0, startVBO, cmdList->VtxBuffer.size() * sizeof(ImDrawVert)}}, cmdList->VtxBuffer.Data);
+            gfxAPI->updateHostVisibleBuffer(IBO, {{0, startIBO, cmdList->IdxBuffer.size() * sizeof(ImDrawIdx)}}, cmdList->IdxBuffer.Data);
+    //        gfxAPI->updateVertexBufferData(VBOs[0], BufferSubSlice(startVBO, cmdList->VtxBuffer.size() * sizeof(ImDrawVert)), cmdList->VtxBuffer.Data);
+    //        gfxAPI->updateIndexBufferData(IBO, BufferSubSlice(startIBO, cmdList->IdxBuffer.size() * sizeof(ImDrawIdx)), cmdList->IdxBuffer.Data);
+            
+            startVBO += cmdList->VtxBuffer.size() * sizeof(ImDrawVert);
+            startIBO += cmdList->IdxBuffer.size() * sizeof(ImDrawIdx);
+        }
     }
 
     cmdBuff->bindDescriptorSets(PipelineBindPoint::Graphics, pipelineLayout, 0, {atlasDescriptorSet}, {});
