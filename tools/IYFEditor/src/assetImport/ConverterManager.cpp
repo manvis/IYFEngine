@@ -134,6 +134,26 @@ bool ConverterManager::deserializeSettings(ConverterState& state) const {
     }
 }
 
+bool ConverterManager::serializeSettings(ConverterState& state) const {
+    rj::StringBuffer buffer;
+    rj::PrettyWriter<rj::StringBuffer> writer(buffer);
+    writer.SetIndent('\t', 1);
+    
+    writer.StartObject();
+    state.serializeJSON(writer);
+    writer.EndObject();
+    
+    const char* finalJSON = buffer.GetString();
+    const std::size_t bufferSize = buffer.GetLength();
+    
+    const fs::path pathJSON = makeImporterSettingsFilePath(state.getSourceFilePath());
+    File file(pathJSON, File::OpenMode::Write);
+    file.writeBytes(finalJSON, bufferSize);
+    file.close();
+    
+    return true;
+}
+
 bool ConverterManager::convert(ConverterState& state) const {
     std::vector<ImportedAssetData>& importedAssets = state.getImportedAssets();
     
@@ -150,21 +170,7 @@ bool ConverterManager::convert(ConverterState& state) const {
         state.setConversionComplete(true);
     }
     
-    rj::StringBuffer buffer;
-    rj::PrettyWriter<rj::StringBuffer> writer(buffer);
-    writer.SetIndent('\t', 1);
-    
-    writer.StartObject();
-    state.serializeJSON(writer);
-    writer.EndObject();
-    
-    const char* finalJSON = buffer.GetString();
-    const std::size_t bufferSize = buffer.GetLength();
-    
-    const fs::path pathJSON = makeImporterSettingsFilePath(state.getSourceFilePath());
-    File file(pathJSON, File::OpenMode::Write);
-    file.writeBytes(finalJSON, bufferSize);
-    file.close();
+    serializeSettings(state);
     
     assert(conversionSucceeded == (importedAssets.size() != 0));
     assert(state.isConversionComplete());

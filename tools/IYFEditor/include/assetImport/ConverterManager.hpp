@@ -101,6 +101,11 @@ public:
     ///
     /// \return If any previous settings existed or not.
     bool deserializeSettings(ConverterState& state) const;
+    
+    /// Serializes settings stored in the provided ConverterState to an appropriate file.
+    ///
+    /// \return If serialization succeeded or not.
+    bool serializeSettings(ConverterState& state) const;
 protected:
     fs::path makeLocaleStringPath(const fs::path& sourcePath, const fs::path& directory, PlatformIdentifier platformID) const;
     
