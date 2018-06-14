@@ -159,7 +159,6 @@ void EditorState::initialize() {
             lastFileSystemUpdate = now;
             
             fileSystemWatcher->poll();
-            updateProjectFiles(delta.count());
             
             // TODO Should sleep take more/less time?
             IYFT_PROFILE(FileSystemWatcherSleep, iyft::ProfilerTag::AssetConversion);
@@ -179,7 +178,7 @@ void EditorState::initialize() {
     
     pipelineEditor = std::make_unique<ShadingPipelineEditor>(engine, engine->getRenderer(), this);
     
-    FileSystem* fileSystem = engine->getFileSystem();
+    FileSystem* filesystem = engine->getFileSystem();
     
     assetBrowserPathChanged = true;
     
@@ -225,7 +224,10 @@ void EditorState::initialize() {
     profilerZoom = 1.0f;
     profilerOpen = false;
     
-//     converterManager = std::make_unique<ConverterManager>(fileSystem, );
+    converterManager = std::make_unique<ConverterManager>(filesystem, "", true);
+    const fs::path platformDataPath = converterManager->getAssetDestinationPath(con::GetCurrentPlatform());
+    const fs::path realPlatformDataPath = filesystem->getRealDirectory(platformDataPath.generic_string());
+    LOG_V("Converted assets for this platform will be written to " << realPlatformDataPath);
     
 //    std::uint32_t i1 = util::BytesToInt32(1, 2, 3, 4);
 //    std::uint32_t i2 = util::BytesToInt32({1, 2, 3, 4});
@@ -500,8 +502,8 @@ void EditorState::frame(float delta) {
         ImGui::End();
     }
     
+    updateProjectFiles();
     logWindow.show(engine->getLogString());
-    showFileOperationWindow();
     // TODO implement pipeline editor
     
     if (pipelineEditorOpen) {
@@ -1453,18 +1455,37 @@ void EditorState::showAssetWindow() {
         }
         
         for (const auto& a : assetList) {
-            if (ImGui::Selectable(a.path.filename().generic_string().c_str(), false, ImGuiSelectableFlags_SpanAllColumns)) {
+            const std::string fileName = a.path.filename().generic_string();
+            if (ImGui::Selectable(fileName.c_str(), false, ImGuiSelectableFlags_SpanAllColumns)) {
                 if (a.isDirectory) {
                     currentlyOpenDir /= a.path.filename();
                     assetBrowserPathChanged = true;
                 }
             }
             
+            if (!a.isDirectory && ImGui::BeginPopupContextItem()) {
+                ImGui::Text("Item: %s", fileName.c_str());
+                
+                ImGui::Separator();
+                
+                if (a.imported) {
+                    if (ImGui::Selectable("Re-import asset")) {
+                        //ImGui::CloseCurrentPopup();
+                    }
+                } else {
+                    if (ImGui::Selectable("Import asset")) {
+                        //ImGui::CloseCurrentPopup();
+                    }
+                }
+                
+                ImGui::EndPopup();
+            }
+            
             const AssetType type = AssetManager::GetAssetTypeFromExtension(a.path.filename().extension());
             
             if (a.imported && !a.isDirectory) {
                 if (ImGui::BeginDragDropSource()) {
-                    ImGui::Text("File: %s", a.path.filename().generic_string().c_str());
+                    ImGui::Text("File: %s", fileName.c_str());
                     DragDropAssetPayload payload = {a.hash, type};
                     ImGui::SetDragDropPayload(GetPayloadNameForAssetType(type), &payload, sizeof(payload));
                     ImGui::EndDragDropSource();
@@ -1509,128 +1530,229 @@ void EditorState::showAssetWindow() {
     }
 }
 
-void EditorState::updateProjectFiles(float delta) {
-//     assert (fileSystemWatcherThread.get_id() == std::this_thread::get_id());
-    IYFT_PROFILE(ParseFileSystemChanges, iyft::ProfilerTag::AssetConversion);
+// void EditorState::updateProjectFiles(float delta) {
+// //     assert (fileSystemWatcherThread.get_id() == std::this_thread::get_id());
+//     IYFT_PROFILE(ParseFileSystemChanges, iyft::ProfilerTag::AssetConversion);
+//     
+//     filesToProcess.clear();
+//     
+// //     LOG_D("Iterating newFiles " << newFiles.size());
+// //     std::size_t fn = 0;
+//     // Check if a recently added file is still changing by being written to or copied.
+//     for (auto i = newFiles.begin(); i != newFiles.end();) {
+//         
+// //         LOG_D(fn << " " << i->path);
+// //         fn++;
+//         std::size_t newSize = fs::file_size(i->path);
+//         
+//         //LOG_D(i->path << " " << newSize)
+//         
+//         if (newSize == i->lastSize && i->stableSizeDuration.count() >= MIN_STABLE_FILE_SIZE_DURATION_SECONDS) {
+//             // File should be safe for reading, remove it from the list of files we observe and add it to a vector of files to process.
+//             filesToProcess.emplace_back(i->path);
+//             i = newFiles.erase(i);
+//         } else if (newSize == i->lastSize) {
+//             // Size is stable for now
+//             i->stableSizeDuration += std::chrono::duration<float>(delta);
+//             ++i;
+//         } else {
+//             // Size isn't stable (or no longer stable). (Re)set stable size duration and size itself.
+//             i->lastSize = newSize;
+//             i->stableSizeDuration = std::chrono::duration<float>(0.0f);
+//             ++i;
+//         }
+//     }
+//     
+//     if (filesToProcess.empty() && filesToRemove.empty()) {
+//         return;
+//     }
+//     
+//     for (const auto& f : filesToRemove) {
+//         LOG_D("Deleting file: " << f)
+//         //project->removeAsset(f);
+//     }
+//     
+//     for (const auto& f : filesToProcess) {
+//         LOG_D("Processing file: " << f)
+//         //project->addPendingAssetImport(f);
+//     }
+//     
+//     filesToRemove.clear();
+// }
+
+bool ConvertAsset(const ConverterManager* cm, const fs::path& path) {
+    // The import path is stripped when calulating the hash because we set the withImportsDirName to false when
+    // constructing the ConverterManager
+    std::unique_ptr<ConverterState> converterState = cm->initializeConverter(con::ImportPath / path, con::GetCurrentPlatform());
     
-    filesToProcess.clear();
-    
-//     LOG_D("Iterating newFiles " << newFiles.size());
-//     std::size_t fn = 0;
-    // Check if a recently added file is still changing by being written to or copied.
-    for (auto i = newFiles.begin(); i != newFiles.end();) {
-        
-//         LOG_D(fn << " " << i->path);
-//         fn++;
-        std::size_t newSize = fs::file_size(i->path);
-        
-        //LOG_D(i->path << " " << newSize)
-        
-        if (newSize == i->lastSize && i->stableSizeDuration.count() >= MIN_STABLE_FILE_SIZE_DURATION_SECONDS) {
-            // File should be safe for reading, remove it from the list of files we observe and add it to a vector of files to process.
-            filesToProcess.emplace_back(i->path);
-            i = newFiles.erase(i);
-        } else if (newSize == i->lastSize) {
-            // Size is stable for now
-            i->stableSizeDuration += std::chrono::duration<float>(delta);
-            ++i;
-        } else {
-            // Size isn't stable (or no longer stable). (Re)set stable size duration and size itself.
-            i->lastSize = newSize;
-            i->stableSizeDuration = std::chrono::duration<float>(0.0f);
-            ++i;
-        }
+    if (converterState == nullptr) {
+        return false;
     }
     
-    if (filesToProcess.empty() && filesToRemove.empty()) {
-        return;
-    }
-    
-    for (const auto& f : filesToRemove) {
-        LOG_D("Deleting file: " << f)
-        //project->removeAsset(f);
-    }
-    
-    for (const auto& f : filesToProcess) {
-        LOG_D("Processing file: " << f)
-        //project->addPendingAssetImport(f);
-    }
-    
-    filesToRemove.clear();
+    return cm->convert(*converterState);
 }
 
-void EditorState::showFileOperationWindow() {
-    IYFT_PROFILE(EditorFileOpWindow, iyft::ProfilerTag::Editor)
-    
-    GraphicsAPI* api = engine->getGraphicsAPI();
-    AssetManager* manager = engine->getAssetManager();
-    
-    float width = api->getRenderSurfaceWidth() * 0.3f;
-    float height = api->getRenderSurfaceHeight() * 0.2f;
-    float posY = api->getRenderSurfaceHeight() - height;
-    
-    ImGui::SetNextWindowPos(ImVec2(api->getRenderSurfaceWidth() * 0.7f, posY), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
-    ImGui::Begin("Pending File Operations", nullptr);
-    
-    auto now = std::chrono::steady_clock::now();
-    
-    {
-        std::lock_guard<std::mutex> lock(assetOperationMutex);
-        int count = assetOperations.size();
-        ImGui::Text("Pending operation count: %i", count);
-        
-        ImGui::BeginChild("Pending Operation List");
-        if (count > 0) {
-            ImGui::Columns(2);
-            ImGui::Separator();
-            for (auto it = assetOperations.begin(); it != assetOperations.end(); ) {
-                const auto& op = *it;
-                
-                // Try to fetch the metadata for the asset
-                auto metadataCopy = manager->getMetadataCopy(op.second.nameHash);
-                const bool metadataExists = metadataCopy ? true : false;
-                
-                // If we didn't get metadata and the operation was a deletion, the user removed a file that hasn't been imported in the.
-                // first place. Therefore, we can safely ignore the operation.
-                if (!metadataExists && op.second.type == AssetOperationType::Deleted) {
-                    it = assetOperations.erase(it);
-                    continue;
-                }
-                
-                ImGui::Text("Path (hash): %s; (%u)", op.first.generic_string().c_str(), op.second.nameHash.value());
-                
-                const std::chrono::seconds duration = std::chrono::duration_cast<std::chrono::seconds>(now - op.second.timePoint);
-                switch (op.second.type) {
-                    case AssetOperationType::Created:
-                        ImGui::Text("Type: created");
-                        ImGui::Text("Time: %lis ago", duration.count());
-                        break;
-                    case AssetOperationType::Updated:
-                        ImGui::Text("Type: updated");
-                        ImGui::Text("Time: %lis ago", duration.count());
-                        break;
-                    case AssetOperationType::Deleted:
-                        ImGui::Text("Type: deleted");
-                        ImGui::Text("Time: %lis ago", duration.count());
-                        break;
-                }
-                ImGui::NextColumn();
-                
-                if (ImGui::Button("Execute")) {
-                    LOG_D("Button: " << op.first);
-                }
-                ImGui::NextColumn();
-                ImGui::Separator();
-                
-                ++it;
-            }
-            ImGui::Columns();
-        }
-        ImGui::EndChild();
+bool EditorState::executeAssetOperation(fs::path path, AssetOperation op) const {
+    //AssetOperation op(std::move(temp));
+    //std::this_thread::sleep_for(std::chrono::seconds(5));
+    // TODO implement deletions, moves (deletion folowed by creation, maybe some lookup method for old assets)
+    // and folder operations
+    if (op.isDirectory) {
+        LOG_W("Directory import operations are not yet implemented")
+        return true;
     }
     
-    ImGui::End();
+    bool result = false;
+    switch (op.type) {
+        case AssetOperationType::Created:
+        case AssetOperationType::Updated:
+            result = ConvertAsset(converterManager.get(), path);
+            if (result) {
+                engine->getAssetManager()->requestAssetRefresh(path);
+            }
+            break;
+        case AssetOperationType::Deleted:
+            LOG_W("Deletion not implemented yet");
+            result = true;
+            break;
+        case AssetOperationType::Moved:
+            // This isn't a good solution, moves can be done a lot more efficiently, but it's easy
+            throw std::runtime_error("Move ops should have been turned into deletions followed by creations by this point");
+    }
+    
+    return result;
+}
+
+void EditorState::updateProjectFiles() {
+    IYFT_PROFILE(EditorFileOpWindow, iyft::ProfilerTag::Editor)
+    
+    const bool valid = assetProcessingFuture.valid();
+    if (valid && assetProcessingFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        if (!assetProcessingFuture.get()) {
+            LOG_W("Failed to process changes. File: " << currentlyProcessedAsset);
+        }
+    }
+    
+    std::lock_guard<std::mutex> lock(assetOperationMutex);
+    const std::size_t operationCount = assetOperations.size();
+    const bool pendingOperations = !assetOperations.empty();
+    const auto now = std::chrono::steady_clock::now();
+    if (!valid && pendingOperations) {
+        for (auto it = assetOperations.begin(); it != assetOperations.end();) {
+            const std::chrono::duration<float> duration = now - it->second.timePoint;
+            
+            if (duration.count() >= MIN_STABLE_FILE_SIZE_DURATION_SECONDS) {
+                // TODO technically, most asset import stuff is thread safe. I should look into importing multiple
+                // assets at the same time.
+                currentlyProcessedAsset = it->first.generic_string();
+                assetProcessingFuture = std::async(std::launch::async, &EditorState::executeAssetOperation, this, it->first, it->second);
+                
+                assetOperations.erase(it);
+                break;
+            }
+            
+            ++it;
+        }
+    }
+    
+    const bool popupShouldBeOpen = pendingOperations || valid;
+    
+    const char* modalName = "Asset operations in progress";
+    if (popupShouldBeOpen && !ImGui::IsPopupOpen(modalName)) {
+        ImGui::OpenPopup(modalName);
+    }
+    
+    if (ImGui::BeginPopupModal(modalName, NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Processing %s, %lu more item(s) remain(s)", currentlyProcessedAsset.c_str(), operationCount);
+        if (!popupShouldBeOpen) {
+            ImGui::CloseCurrentPopup();
+        }
+        
+        ImGui::EndPopup();
+    }
+    
+//     GraphicsAPI* api = engine->getGraphicsAPI();
+//     AssetManager* manager = engine->getAssetManager();
+//     
+//     float width = api->getRenderSurfaceWidth() * 0.3f;
+//     float height = api->getRenderSurfaceHeight() * 0.2f;
+//     float posY = api->getRenderSurfaceHeight() - height;
+//     
+// // //     static int test = 0;
+// // //     if (test == 5) {
+// //         ImGui::OpenPopup("Blocker");
+// // //         test++;
+// // //     }
+// //     if (ImGui::BeginPopupModal("Blocker")) {
+// //         if (ImGui::Button("HRY")) {
+// //             ImGui::CloseCurrentPopup();
+// //         }
+// //         ImGui::EndPopup();
+// //     }
+//     
+//     ImGui::SetNextWindowPos(ImVec2(api->getRenderSurfaceWidth() * 0.7f, posY), ImGuiCond_Always);
+//     ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
+//     ImGui::Begin("Pending File Operations", nullptr);
+//     
+//     {
+//         std::lock_guard<std::mutex> lock(assetOperationMutex);
+//         int count = assetOperations.size();
+//         ImGui::Text("Pending operation count: %i", count);
+//         
+//         ImGui::BeginChild("Pending Operation List");
+//         if (count > 0) {
+//             ImGui::Columns(2);
+//             ImGui::Separator();
+//             for (auto it = assetOperations.begin(); it != assetOperations.end(); ) {
+//                 const auto& op = *it;
+//                 
+//                 // Try to fetch the metadata for the asset
+//                 auto metadataCopy = manager->getMetadataCopy(op.second.nameHash);
+//                 const bool metadataExists = metadataCopy ? true : false;
+//                 
+//                 // If we didn't get metadata and the operation was a deletion, the user removed a file that hasn't been imported in the
+//                 // first place. Therefore, we can safely ignore the operation.
+//                 if (!metadataExists && op.second.type == AssetOperationType::Deleted) {
+//                     it = assetOperations.erase(it);
+//                     continue;
+//                 }
+//                 
+//                 ImGui::Text("Path (hash): %s; (%u)", op.first.generic_string().c_str(), op.second.nameHash.value());
+//                 
+//                 const std::chrono::seconds duration = std::chrono::duration_cast<std::chrono::seconds>(now - op.second.timePoint);
+//                 switch (op.second.type) {
+//                     case AssetOperationType::Created:
+//                         ImGui::Text("Type: created");
+//                         ImGui::Text("Time: %lis ago", duration.count());
+//                         break;
+//                     case AssetOperationType::Updated:
+//                         ImGui::Text("Type: updated");
+//                         ImGui::Text("Time: %lis ago", duration.count());
+//                         break;
+//                     case AssetOperationType::Deleted:
+//                         ImGui::Text("Type: deleted");
+//                         ImGui::Text("Time: %lis ago", duration.count());
+//                         break;
+//                 }
+//                 ImGui::NextColumn();
+//                 
+//                 if (ImGui::Button("Execute")) {
+//                     LOG_D("Button: " << op.first);
+//                     // TODO import settings, separate thread, applies to creation and update
+//                     // TODO notify assetManager upon completion
+//                     //auto converter = converterManager->initializeConverter(op.first, con::GetCurrentPlatform());
+//                 }
+//                 ImGui::NextColumn();
+//                 ImGui::Separator();
+//                 
+//                 ++it;
+//             }
+//             ImGui::Columns();
+//         }
+//         ImGui::EndChild();
+//     }
+//     
+//     ImGui::End();
 }
 
 void EditorState::fileSystemWatcherCallback(FileSystemWatcher::EventList eventList) {
@@ -1696,6 +1818,11 @@ void EditorState::fileSystemWatcherCallback(FileSystemWatcher::EventList eventLi
         
         LOG_D(t << "; FSP " << finalSourcePath << "; FDP " << finalDestinationPath);
     }
+    
+//     if (!isPerformingAssetTask()) {
+//         AssetOperation assetOp = assetOperations;
+//     }
+
 //     for (const FileSystemEvent& c : eventList) {
 //         if (c.getType() == FileSystemEventFlags::Created) {
 //             LOG_D("Import directory monitoring. CREATED: " << c.getSourceDirectory() << c.getSourceName())

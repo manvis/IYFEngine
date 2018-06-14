@@ -137,7 +137,7 @@ void SystemAssetPacker::recursiveExport(const fs::path& path, const editor::Conv
 
 void SystemAssetPacker::pack() {
     const fs::path platformDataBasePath = fs::path("platforms");
-    const editor::ConverterManager cm(filesystem.get(), platformDataBasePath);
+    const editor::ConverterManager cm(filesystem.get(), platformDataBasePath, false);
     
     // TODO different platforms should use different packages. Linux and Windows share the same assets (e.g. BC compressed textures).
     /// However, once Android is supported, we will need to add support for ETC2 compressed textures.

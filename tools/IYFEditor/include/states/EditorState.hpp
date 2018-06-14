@@ -217,12 +217,11 @@ protected:
     bool pipelineEditorOpen;
 // FILE MANAGEMENT -------------------------------------------------------------
     void showAssetWindow();
-    void showFileOperationWindow();
+    void updateProjectFiles();
     
     void fileSystemWatcherCallback(FileSystemWatcher::EventList eventList);
     void fileSystemWatcherNewFileCallback(FileSystemEvent event);
-    
-    void updateProjectFiles(float delta);
+    bool executeAssetOperation(fs::path path, AssetOperation op) const;
 
     fs::path importsDir;
     std::set<AssetListItem> assetList;
@@ -235,6 +234,18 @@ protected:
     std::map<fs::path, AssetOperation> assetOperations;
     
     std::unique_ptr<ConverterManager> converterManager;
+    
+    /// The future that stores the results of an asset import.
+    ///
+    /// \warning must be assigned and modified in one place only - the updateProjectFiles function
+    std::future<bool> assetProcessingFuture;
+    std::string currentlyProcessedAsset;
+    
+    std::future<std::unique_ptr<ConverterState>> assetConverterInitFuture;
+    
+    inline bool isPerformingAssetTask() const {
+        return assetProcessingFuture.valid() && assetConverterInitFuture.valid();
+    }
     
     void showUnableToInstanceTooltip(const std::string& tooltip);
     std::deque<AssetData> assetClipboard;

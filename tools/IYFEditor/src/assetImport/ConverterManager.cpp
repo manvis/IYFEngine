@@ -48,7 +48,8 @@
 
 namespace iyf {
 namespace editor {
-ConverterManager::ConverterManager(const FileSystem* fileSystem, fs::path assetDestination) : fileSystem(fileSystem), assetDestination(assetDestination) {
+ConverterManager::ConverterManager(const FileSystem* fileSystem, fs::path assetDestination, bool withImportsDirName) 
+    : fileSystem(fileSystem), assetDestination(assetDestination), withImportsDirName(withImportsDirName) {
     typeToConverter[AssetType::Mesh] = std::make_unique<MeshConverter>(this);
     typeToConverter[AssetType::Texture] = std::make_unique<TextureConverter>(this);
     typeToConverter[AssetType::Font] = std::make_unique<FontConverter>(this);
@@ -60,6 +61,7 @@ ConverterManager::~ConverterManager() {}
 
 std::unique_ptr<ConverterState> ConverterManager::initializeConverter(const fs::path& sourcePath, PlatformIdentifier platformID) const {
     if (!fileSystem->exists(sourcePath)) {
+        LOG_W("Cannot initialize the converter because file \"" << sourcePath << "\" does not exist.")
         return nullptr;
     }
     
@@ -90,10 +92,18 @@ fs::path ConverterManager::makeLocaleStringPath(const fs::path& sourcePath, cons
 }
 
 fs::path ConverterManager::makeFinalPathForAsset(const fs::path& sourcePath, AssetType type, PlatformIdentifier platformID) const {
-    if (type == AssetType::Strings) {
-        return makeLocaleStringPath(sourcePath, con::AssetTypeToPath(type), platformID);
+    fs::path pathToHash;
+    if (withImportsDirName) {
+        assert(*sourcePath.begin() == con::ImportPath);
+        pathToHash = sourcePath.lexically_relative(con::ImportPath);
     } else {
-        return getAssetDestinationPath(platformID) / con::AssetTypeToPath(type) / std::to_string(HS(sourcePath.c_str()));
+        pathToHash = sourcePath;
+    }
+    
+    if (type == AssetType::Strings) {
+        return makeLocaleStringPath(pathToHash, con::AssetTypeToPath(type), platformID);
+    } else {
+        return getAssetDestinationPath(platformID) / con::AssetTypeToPath(type) / std::to_string(HS(pathToHash.c_str()));
     }
 }
 
