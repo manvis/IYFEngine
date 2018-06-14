@@ -252,6 +252,61 @@ inline T loadMetadata(const fs::path& path, bool isJSON) {
     return metadata;
 }
 
+/// Loads the metadata and creates a AssetManager::ManifestElement from it
+inline AssetManager::ManifestElement buildManifestElement(AssetType type, bool isJSON, const fs::path& metadataPath, const fs::path& filePath) {
+    AssetManager::ManifestElement me;
+    me.type = type;
+    me.path = filePath;
+    
+    switch (type) {
+        case AssetType::Animation:
+            me.metadata = loadMetadata<AnimationMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::Mesh:
+            me.metadata = loadMetadata<MeshMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::Texture:
+            me.metadata = loadMetadata<TextureMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::Font:
+            me.metadata = loadMetadata<FontMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::Audio:
+            me.metadata = loadMetadata<AudioMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::Video:
+            me.metadata = loadMetadata<VideoMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::World:
+            me.metadata = loadMetadata<WorldMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::Script:
+            me.metadata = loadMetadata<ScriptMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::Shader:
+            me.metadata = loadMetadata<ShaderMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::Pipeline:
+            me.metadata = loadMetadata<PipelineMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::Strings:
+            me.metadata = loadMetadata<StringMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::Custom:
+            me.metadata = loadMetadata<CustomMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::Material:
+            me.metadata = loadMetadata<MaterialMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::COUNT:
+            throw std::runtime_error("COUNT is not an asset type");
+    }
+    
+    std::visit([&me](auto&& arg){me.systemAsset = arg.isSystemAsset();}, me.metadata);
+    
+    return me;
+}
+
 /// Adds all assets of the specified type to the provided manifest
 ///
 /// \warning Make sure this is always protected by a mutex
@@ -314,55 +369,7 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
         const bool isJSON = hasTextMetadata;
         const fs::path metadataPath = isJSON ? result.second.textMetadataPath : result.second.binaryMetadataPath;
         
-        AssetManager::ManifestElement me;
-        me.type = type;
-        me.path = result.second.filePath;
-        
-        switch (type) {
-            case AssetType::Animation:
-                me.metadata = loadMetadata<AnimationMetadata>(metadataPath, isJSON);
-                break;
-            case AssetType::Mesh:
-                me.metadata = loadMetadata<MeshMetadata>(metadataPath, isJSON);
-                break;
-            case AssetType::Texture:
-                me.metadata = loadMetadata<TextureMetadata>(metadataPath, isJSON);
-                break;
-            case AssetType::Font:
-                me.metadata = loadMetadata<FontMetadata>(metadataPath, isJSON);
-                break;
-            case AssetType::Audio:
-                me.metadata = loadMetadata<AudioMetadata>(metadataPath, isJSON);
-                break;
-            case AssetType::Video:
-                me.metadata = loadMetadata<VideoMetadata>(metadataPath, isJSON);
-                break;
-            case AssetType::World:
-                me.metadata = loadMetadata<WorldMetadata>(metadataPath, isJSON);
-                break;
-            case AssetType::Script:
-                me.metadata = loadMetadata<ScriptMetadata>(metadataPath, isJSON);
-                break;
-            case AssetType::Shader:
-                me.metadata = loadMetadata<ShaderMetadata>(metadataPath, isJSON);
-                break;
-            case AssetType::Pipeline:
-                me.metadata = loadMetadata<PipelineMetadata>(metadataPath, isJSON);
-                break;
-            case AssetType::Strings:
-                me.metadata = loadMetadata<StringMetadata>(metadataPath, isJSON);
-                break;
-            case AssetType::Custom:
-                me.metadata = loadMetadata<CustomMetadata>(metadataPath, isJSON);
-                break;
-            case AssetType::Material:
-                me.metadata = loadMetadata<MaterialMetadata>(metadataPath, isJSON);
-                break;
-            case AssetType::COUNT:
-                throw std::runtime_error("COUNT is not an asset type");
-        }
-        
-        std::visit([&me](auto&& arg){me.systemAsset = arg.isSystemAsset();}, me.metadata);
+        auto me = buildManifestElement(type, isJSON, metadataPath, result.second.filePath);
         
         auto manifestItem = manifest.find(result.second.nameHash);
         if (manifestItem != manifest.end() && !manifestItem->second.systemAsset) {
@@ -414,12 +421,17 @@ void AssetManager::loadSystemAssets() {
 //     v.push_back(42);
 }
 
-void AssetManager::requestDeletion(const fs::path& path) {
+void AssetManager::requestAssetRefresh(const fs::path& path) {
+    // WARNING: Don't forget to mutex the manifest
+    throw std::runtime_error("NOT YET IMPLEMENTED 3");
+}
+
+void AssetManager::requestAssetDeletion(const fs::path& path) {
     // WARNING: Don't forget to mutex the manifest
     throw std::runtime_error("NOT YET IMPLEMENTED");
 }
 
-void AssetManager::requestMove(const fs::path& sourcePath, const fs::path& destinationPath) {
+void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& destinationPath) {
     // WARNING: Don't forget to mutex the manifest
     throw std::runtime_error("NOT YET IMPLEMENTED");
 }
@@ -474,43 +486,5 @@ void AssetManager::removeNonSystemAssetsFromManifest() {
             it = manifest.erase(it);
         }
     }
-}
-
-const std::vector<MaterialPipelineDefinition> AssetManager::getMaterialPipelineDefinitions() const {
-    std::vector<MaterialPipelineDefinition> pipelines;
-    pipelines.reserve(availablePipelines.size());
-    
-    for (const auto& p : availablePipelines) {
-        pipelines.push_back(p.second);
-    }
-    
-    return pipelines;
-}
-
-void AssetManager::addOrUpdatePipeline(const MaterialPipelineDefinition& pipelineDefinition) {
-    hash32_t nameHash = HS(pipelineDefinition.name.c_str());
-    
-    auto result = availablePipelines.find(nameHash);
-    if (result != availablePipelines.end()) {
-        LOG_W("No pipeline updates took place - the function has not been implemented yet!!!");
-    }
-    
-    availablePipelines[nameHash] = pipelineDefinition;
-}
-
-bool AssetManager::removePipeline(hash32_t nameHash) {
-    auto result = availablePipelines.find(nameHash);
-    if (result != availablePipelines.end()) {
-        availablePipelines.erase(result);
-        LOG_W("No pipeline unloading took place - the function has not been implemented yet!!!");
-        
-        return true;
-    } else {
-        return false;
-    }
-}
-
-void AssetManager::removeNonSystemPipelines() {
-    LOG_W("No pipeline unloading took place - the function has not been implemented yet!!!");
 }
 }

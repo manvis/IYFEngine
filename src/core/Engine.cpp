@@ -89,7 +89,6 @@ void Engine::setProject(std::unique_ptr<Project> project) {
     // Remove the assets of the previous project. They should have been unloaded
     // when the last EditorState was popped. If they weren't, we will crash.
     assetManager->removeNonSystemAssetsFromManifest();
-    assetManager->removeNonSystemPipelines();
     assetManager->buildManifestFromFilesystem();
     
     this->project = std::move(project);

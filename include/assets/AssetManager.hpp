@@ -375,25 +375,41 @@ public:
     const TypeManagerBase* getTypeManager(AssetType type) const {
         return typeManagers[static_cast<std::size_t>(type)].get();
     }
-    
-//    /// Reloads the asset from disk if it's loaded.
-//    void refreshAsset(hash32_t id);
-
 //--------------- Editor API Start
-    /// Sent from the Asset browser to delete a specific asset (or a folder of assets)
+    /// Used by the editor Reimports and reloads the asset from disk if it's loaded.
+    void requestAssetRefresh(const fs::path& path);
+   
+    /// Used by the editor to delete a specific asset (or a folder of assets)
     /// 
     /// \throws std::logic_error if this AssetManager was constructed using an Engine running in game mode.
-    void requestDeletion(const fs::path& path);
+    void requestAssetDeletion(const fs::path& path);
     
-    /// Sent from the Asset browser to rename or move a specific asset (or a folder of assets)
+    /// Used by the editor to rename or move a specific asset (or a folder of assets)
+    ///
+    /// \todo Implement this
     /// 
     /// \throws std::logic_error if this AssetManager was constructed using an Engine running in game mode.
-    void requestMove(const fs::path& sourcePath, const fs::path& destinationPath);
+    void requestAssetMove(const fs::path& sourcePath, const fs::path& destinationPath);
     
+    /// Removes all non-system assets from the manifest. Typically used when closing a Project. For performance reasons, 
+    /// this function should only be called after all Entity objects that use non-system assets have been unloaded.
+    ///
+    /// \warning This function can only be used if the Engine that was passed to the constructor is running in editor mode.
+    ///
+    /// \throws std::logic_error if this AssetManager was constructed using an Engine instance running in game mode.
+    void removeNonSystemAssetsFromManifest();
+//---------------- Editor API end
+    struct ManifestElement {
+        fs::path path;
+        AssetType type;
+        bool systemAsset;
+        Metadata metadata;
+    };
+private:
     /// \brief Adds a file to the manifest.
     ///
-    /// This function is typically called by the active Project instance during new asset import.
-    /// 
+    /// \todo many things written here are no longer relevant or true.
+    ///
     /// \warning Checking for nameHash collisions is the responsibility of the caller. Calling appendAssetToManifest() will 
     /// overrwrite any existing ManifestElement identified by the same nameHash, which will likely lead to undefined behaviour.
     /// It's especially dangerous if the asset types differ or the assets are already loaded.
@@ -407,7 +423,9 @@ public:
     /// \param metadata additional metadata
     void appendAssetToManifest(hash32_t nameHash, const fs::path& path, const Metadata& metadata);
     
-    /// Removes a file from the manifest. If the asset in question has already been loaded, replaces it with a "missing" one.
+    /// \brief Removes a file from the manifest. If the asset in question has already been loaded, replaces it with a "missing" one.
+    ///
+    /// \todo many things written here are no longer relevant or true.
     ///
     /// \warning This function can only be used if the Engine that was passed to the constructor is running in editor mode.
     /// 
@@ -416,48 +434,6 @@ public:
     /// \param nameHash Hash of the path to the file that you want to remove from the manifest
     void removeAssetFromManifest(hash32_t nameHash);
     
-    /// Removes all non-system assets from the manifest. Typically used when closing a Project. For performance reasons, 
-    /// this function should only be called after all Entity objects that use non-system assets have been unloaded.
-    ///
-    /// \warning This function can only be used if the Engine that was passed to the constructor is running in editor mode.
-    ///
-    /// \throws std::logic_error if this AssetManager was constructed using an Engine instance running in game mode.
-    void removeNonSystemAssetsFromManifest();
-    
-    /// Packs the material pipeline definition map into a vector and returns it. Typically used by the editor.
-    ///
-    /// \warning This function can only be used if the Engine that was passed to the constructor is running in editor mode.
-    ///
-    /// \throws std::logic_error if this AssetManager was constructed using an Engine instance running in game mode.
-    const std::vector<MaterialPipelineDefinition> getMaterialPipelineDefinitions() const;
-    
-    ///
-    /// \warning This function can only be used if the Engine that was passed to the constructor is running in editor mode.
-    ///
-    /// \throws std::logic_error if this AssetManager was constructed using an Engine instance running in game mode.
-    void addOrUpdatePipeline(const MaterialPipelineDefinition& pipelineDefinition);
-    
-    ///
-    /// \warning This function can only be used if the Engine that was passed to the constructor is running in editor mode.
-    ///
-    /// \throws std::logic_error if this AssetManager was constructed using an Engine instance running in game mode.
-    ///
-    /// \return true if a pipeline was removed, false if it was not (e.g., wasn't loaded in the first place).
-    bool removePipeline(hash32_t nameHash);
-    
-    ///
-    /// \warning This function can only be used if the Engine that was passed to the constructor is running in editor mode.
-    ///
-    /// \throws std::logic_error if this AssetManager was constructed using an Engine instance running in game mode.
-    void removeNonSystemPipelines();
-//---------------- Editor API end
-    struct ManifestElement {
-        fs::path path;
-        AssetType type;
-        bool systemAsset;
-        Metadata metadata;
-    };
-private:
     friend class Engine;
     /// Builds the manifest from all converted assets that reside in the asset folder for the current platform and have corresponding metadata.
     void buildManifestFromFilesystem();
