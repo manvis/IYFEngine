@@ -377,7 +377,10 @@ public:
     }
 //--------------- Editor API Start
     /// Used by the editor Reimports and reloads the asset from disk if it's loaded.
-    void requestAssetRefresh(const fs::path& path);
+    ///
+    /// \param type The type of the asset. Could be determined by examining the path, howerver, it's always present when requestAssetRefresh needs to be called
+    /// \param path The destination path of the imported file
+    void requestAssetRefresh(AssetType type, const fs::path& path);
    
     /// Used by the editor to delete a specific asset (or a folder of assets)
     /// 

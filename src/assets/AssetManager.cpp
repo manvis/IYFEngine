@@ -222,6 +222,10 @@ inline void findAndSetFileDiscoveryResults(std::unordered_map<hash32_t, FileDisc
 
 /// Checks if the name of the asset or metadata file is valid
 inline bool isFileNameValid(const std::string& name) {
+    if (name.empty()) {
+        return false;
+    }
+
     for (char c : name) {
         if (c < 48 || c > 57) {
             return false;
@@ -312,6 +316,7 @@ inline AssetManager::ManifestElement buildManifestElement(AssetType type, bool i
 /// \warning Make sure this is always protected by a mutex
 inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unordered_map<hash32_t, AssetManager::ManifestElement>& manifest) {
     const fs::path& baseDir = con::AssetTypeToPath(type);
+    LOG_V("Examining contents of \"" << baseDir.generic_string() << "\"");
     const auto contents = filesystem->getDirectoryContents(baseDir);
     
     // Used to detect errors.
@@ -340,6 +345,7 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
         }
         
         hash32_t nameHash(parsedNumber);
+        //LOG_V("FOUND file: " << parsedNumber << " " << fullPath);
         
         // We found an asset file, however, we only care about the metadata at the moment.
         if (fullPath.extension().empty()) {
@@ -386,6 +392,8 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
 void AssetManager::buildManifestFromFilesystem() {
     FileSystem* filesystem = engine->getFileSystem();
     
+    LOG_V("Building the manifest using the following search path:\n\t" << filesystem->logSearchPath("\n\t"));
+    
     std::lock_guard<std::mutex> manifestLock(manifestMutex);
     for (std::size_t i = 0; i < static_cast<std::size_t>(AssetType::COUNT); ++i) {
         addFilesToManifest(filesystem, static_cast<AssetType>(i), manifest);
@@ -421,18 +429,106 @@ void AssetManager::loadSystemAssets() {
 //     v.push_back(42);
 }
 
-void AssetManager::requestAssetRefresh(const fs::path& path) {
-    // WARNING: Don't forget to mutex the manifest
-    throw std::runtime_error("NOT YET IMPLEMENTED 3");
+inline fs::path MakeMetadataPathName(const fs::path& filePath, bool binary) {
+    fs::path result = filePath;
+    if (binary) {
+        result += con::MetadataExtension;
+    } else {
+        result += con::TextMetadataExtension;
+    }
+    
+    return result;
+}
+
+void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
+    if (!editorMode) {
+        throw std::logic_error("This method can't be used when the engine is running in game mode.");
+    }
+    
+    if (path.empty()) {
+        LOG_W("Couldn't add an empty path to the manifest.");
+        return;
+    }
+    
+    if (!path.extension().empty()) {
+        LOG_W("Couldn't add \"" << path << "\" to the manifest. A numeric filename without extension is required.");
+        return;
+    }
+    
+    const std::string stem = path.stem().generic_string();
+    const bool validName = isFileNameValid(stem);
+    if (!validName) {
+        LOG_W("Couldn't add \"" << path << "\" to the manifest. It has a non-numeric name.");
+        return;
+    }
+    
+    const FileSystem* fs = engine->getFileSystem();
+    if (!fs->exists(path)) {
+        LOG_W("Couldn't add \"" << path << "\" to the manifest. File does not exist. Was it erased before processing completed?");
+        return;
+    }
+    
+    // Can't check for other errors here. I'm quite certain that both 0 and ULLONG_MAX can be valid hash values.
+    // I wish this had an error_code parameter, just like filesystem stuff.
+    //
+    // WARNING: Don't replace this with stoull. It won't solve the problem because it simply wraps strtoull.
+    // Source: http://en.cppreference.com/w/cpp/string/basic_string/stoul
+    const std::uint64_t parsedNumber = std::strtoull(stem.c_str(), nullptr, 10);
+    if (parsedNumber > std::numeric_limits<std::uint32_t>::max()) {
+        LOG_W("Couldn't add \"" << path << "\" to the manifest. When converted to an unsigned integer, its numeric filename does not fit in hash32_t.");
+        return;
+    }
+    
+    const fs::path binaryMetadataPath = MakeMetadataPathName(path, true);
+    const fs::path textMetadataPath = MakeMetadataPathName(path, false);
+    
+    bool binaryMetadataExists = fs->exists(binaryMetadataPath);
+    bool textMetadataExists = fs->exists(textMetadataPath);
+    
+    if (!(binaryMetadataExists || textMetadataExists)) {
+        LOG_W("Couldn't add \"" << path << "\" to the manifest. No metadata exists for it.");
+        return;
+    }
+    
+    if (binaryMetadataExists && textMetadataExists) {
+        LOG_W("Couldn't add \"" << path << "\" to the manifest. It has both text and binary metadata and it's impossible to know which one is valid.");
+        return;
+    }
+    
+    const hash32_t nameHash(parsedNumber);
+    
+    AssetManager::ManifestElement me = buildManifestElement(type, textMetadataExists, textMetadataExists ? textMetadataPath : binaryMetadataPath, path);
+    
+    std::lock_guard<std::mutex> manifestLock(manifestMutex);
+    std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
+    
+    const auto& loadedAsset = loadedAssets.find(nameHash);
+    if (loadedAsset != loadedAssets.end()) {
+        throw std::runtime_error("Handling of hot assets hasn't been implemented yet");
+    }
+    
+    manifest[nameHash] = std::move(me);
 }
 
 void AssetManager::requestAssetDeletion(const fs::path& path) {
-    // WARNING: Don't forget to mutex the manifest
+    if (!editorMode) {
+        throw std::logic_error("This method can't be used when the engine is running in game mode.");
+    }
+    
+    std::lock_guard<std::mutex> manifestLock(manifestMutex);
+    std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
+    
     throw std::runtime_error("NOT YET IMPLEMENTED");
 }
 
 void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& destinationPath) {
-    // WARNING: Don't forget to mutex the manifest
+    if (!editorMode) {
+        throw std::logic_error("This method can't be used when the engine is running in game mode.");
+    }
+    
+    std::lock_guard<std::mutex> manifestLock(manifestMutex);
+    std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
+    
     throw std::runtime_error("NOT YET IMPLEMENTED");
 }
 
