@@ -185,8 +185,8 @@ public:
         PHYSFS_freeList(list);
     }
     
-    /// A debug method that writes the current search path to a log (verbose priority).
-    void logSearchPath() const;
+    /// A debug method that writes the current search path to a string
+    std::string logSearchPath(const std::string& pathSeparator) const;
 
     inline PHYSFS_ErrorCode getLastErrorCode() const {
         return PHYSFS_getLastErrorCode();

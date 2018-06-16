@@ -140,7 +140,7 @@ void FileSystem::setResourcePathsForProject(const Project* project) {
         
         if (fs::exists(platformAssetPath)) {
             LOG_V("Mounting the asset folder for the current platform: " << platformAssetPath);
-            addReadPath(platformAssetPath, "assets", true);
+            addReadPath(platformAssetPath, "/", true);
         } else {
             /// This can happen before the first real project is loaded and, therefore, it's not an error.
             LOG_I("The asset path for the current platform (" << platformAssetPath << ") does not exist. Skipping its mounnting.");
@@ -159,14 +159,15 @@ const char* FileSystem::getLastErrorText() const {
     return PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode());
 }
 
-void FileSystem::logSearchPath() const {
+std::string FileSystem::logSearchPath(const std::string& pathSeparator) const {
+    std::stringstream ss;
     char **i;
 
-    LOG_V("SEARCH PATH OUTPUT STARTING...");
     for (i = PHYSFS_getSearchPath(); *i != NULL; i++) {
-        LOG_V(*i);
+        ss << *i << pathSeparator;
     }
-    LOG_V("SEARCH PATH OUTPUT FINISHED");
+    
+    return ss.str();
 }
 
 FileSystem::~FileSystem() {
