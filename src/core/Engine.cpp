@@ -86,13 +86,13 @@ void Engine::setProject(std::unique_ptr<Project> project) {
         throw std::runtime_error("The Project was nullptr");
     }
     
+    this->project = std::move(project);
+    fileSystem->setResourcePathsForProject(this->project.get());
+    
     // Remove the assets of the previous project. They should have been unloaded
     // when the last EditorState was popped. If they weren't, we will crash.
     assetManager->removeNonSystemAssetsFromManifest();
     assetManager->buildManifestFromFilesystem();
-    
-    this->project = std::move(project);
-    fileSystem->setResourcePathsForProject(this->project.get());
 }
 
 void Engine::init() {
