@@ -1596,7 +1596,7 @@ bool EditorState::executeAssetOperation(fs::path path, AssetOperation op) const 
         case AssetOperationType::Created:
         case AssetOperationType::Updated: {
             // No need to prepend con::ImportPath here. The hash does not contain it and computeNameHash would only strip it.
-            const hash32_t nameHash = converterManager->computeNameHash(path);
+            const hash32_t nameHash = AssetManager::ComputeNameHash(path);
             
             const fs::path sourcePath = con::ImportPath / path;
             auto collisionCheckResult = engine->getAssetManager()->checkForHashCollision(nameHash, sourcePath);
@@ -1617,10 +1617,24 @@ bool EditorState::executeAssetOperation(fs::path path, AssetOperation op) const 
             }
             break;
         }
-        case AssetOperationType::Deleted:
-            LOG_W("Deletion not implemented yet");
+        case AssetOperationType::Deleted: {
+            const fs::path sourcePath = con::ImportPath / path;
+            const fs::path settingsPath = fs::path(sourcePath).concat(con::ImportSettingsExtension);
+            
+            const FileSystem* fs = engine->getFileSystem();
+            if (fs->exists(settingsPath)) {
+                fs->remove(settingsPath);
+            } else {
+                LOG_W("Failed to find the import settings file: " << settingsPath);
+            }
+            
+            const PlatformIdentifier platform = con::GetCurrentPlatform();
+            const fs::path finalPath = converterManager->makeFinalPathForAsset(sourcePath, AssetManager::GetAssetTypeFromExtension(sourcePath), platform);
+            engine->getAssetManager()->requestAssetDeletion(finalPath);
+            
             result = true;
             break;
+        }
         case AssetOperationType::Moved:
             // This isn't a good solution, moves can be done a lot more efficiently, but it's easy
             throw std::runtime_error("Move ops should have been turned into deletions followed by creations by this point");

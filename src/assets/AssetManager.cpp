@@ -394,6 +394,8 @@ void AssetManager::buildManifestFromFilesystem() {
     
     LOG_V("Building the manifest using the following search path:\n\t" << filesystem->logSearchPath("\n\t"));
     
+    // TODO automatically convert or delete items that were added or removed while the engine was off (e.g. thanks
+    // to version control).
     std::lock_guard<std::mutex> manifestLock(manifestMutex);
     for (std::size_t i = 0; i < static_cast<std::size_t>(AssetType::COUNT); ++i) {
         addFilesToManifest(filesystem, static_cast<AssetType>(i), manifest);
@@ -429,7 +431,7 @@ void AssetManager::loadSystemAssets() {
 //     v.push_back(42);
 }
 
-inline fs::path MakeMetadataPathName(const fs::path& filePath, bool binary) {
+static inline fs::path MakeMetadataPathName(const fs::path& filePath, bool binary) {
     fs::path result = filePath;
     if (binary) {
         result += con::MetadataExtension;
@@ -440,32 +442,27 @@ inline fs::path MakeMetadataPathName(const fs::path& filePath, bool binary) {
     return result;
 }
 
-void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
-    if (!editorMode) {
-        throw std::logic_error("This method can't be used when the engine is running in game mode.");
-    }
-    
+static inline std::optional<hash32_t> ValidateAndHashPath(const FileSystem* fs, const fs::path& path) {
     if (path.empty()) {
-        LOG_W("Couldn't add an empty path to the manifest.");
-        return;
+        LOG_W("Couldn't process the file because an empty path was provided.");
+        return std::nullopt;
     }
     
     if (!path.extension().empty()) {
-        LOG_W("Couldn't add \"" << path << "\" to the manifest. A numeric filename without extension is required.");
-        return;
+        LOG_W("Couldn't process \"" << path << "\". A numeric filename without extension is required.");
+        return std::nullopt;
     }
     
     const std::string stem = path.stem().generic_string();
     const bool validName = isFileNameValid(stem);
     if (!validName) {
-        LOG_W("Couldn't add \"" << path << "\" to the manifest. It has a non-numeric name.");
-        return;
+        LOG_W("Couldn't process \"" << path << "\". It has a non-numeric name.");
+        return std::nullopt;
     }
     
-    const FileSystem* fs = engine->getFileSystem();
     if (!fs->exists(path)) {
-        LOG_W("Couldn't add \"" << path << "\" to the manifest. File does not exist. Was it erased before processing completed?");
-        return;
+        LOG_W("Couldn't process \"" << path << "\". File does not exist.");
+        return std::nullopt;
     }
     
     // Can't check for other errors here. I'm quite certain that both 0 and ULLONG_MAX can be valid hash values.
@@ -475,9 +472,26 @@ void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
     // Source: http://en.cppreference.com/w/cpp/string/basic_string/stoul
     const std::uint64_t parsedNumber = std::strtoull(stem.c_str(), nullptr, 10);
     if (parsedNumber > std::numeric_limits<std::uint32_t>::max()) {
-        LOG_W("Couldn't add \"" << path << "\" to the manifest. When converted to an unsigned integer, its numeric filename does not fit in hash32_t.");
+        LOG_W("Couldn't process \"" << path << "\". When converted to an unsigned integer, its numeric filename does not fit in hash32_t.");
+        return std::nullopt;
+    }
+    
+    return hash32_t(parsedNumber);
+}
+
+void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
+    if (!editorMode) {
+        throw std::logic_error("This method can't be used when the engine is running in game mode.");
+    }
+    
+    const FileSystem* fs = engine->getFileSystem();
+    
+    auto validationResult = ValidateAndHashPath(fs, path);
+    if (!validationResult) {
         return;
     }
+    
+    const hash32_t nameHash = *validationResult;
     
     const fs::path binaryMetadataPath = MakeMetadataPathName(path, true);
     const fs::path textMetadataPath = MakeMetadataPathName(path, false);
@@ -494,8 +508,6 @@ void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
         LOG_W("Couldn't add \"" << path << "\" to the manifest. It has both text and binary metadata and it's impossible to know which one is valid.");
         return;
     }
-    
-    const hash32_t nameHash(parsedNumber);
     
     AssetManager::ManifestElement me = buildManifestElement(type, textMetadataExists, textMetadataExists ? textMetadataPath : binaryMetadataPath, path);
     
@@ -518,7 +530,35 @@ void AssetManager::requestAssetDeletion(const fs::path& path) {
     std::lock_guard<std::mutex> manifestLock(manifestMutex);
     std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
     
-    throw std::runtime_error("NOT YET IMPLEMENTED");
+    const FileSystem* fs = engine->getFileSystem();
+    
+    auto validationResult = ValidateAndHashPath(fs, path);
+    if (!validationResult) {
+        return;
+    }
+    
+    const hash32_t nameHash = *validationResult;
+    
+    const auto& loadedAsset = loadedAssets.find(nameHash);
+    if (loadedAsset != loadedAssets.end()) {
+        LOG_W("The file (" << path << ") that was removed had live references. If you don't find "
+              "and fix them, they will be replaced with missing assets next time you start the editor.");
+    }
+    
+    const fs::path binaryMetadataPath = MakeMetadataPathName(path, true);
+    const fs::path textMetadataPath = MakeMetadataPathName(path, false);
+    
+    bool binaryMetadataExists = fs->exists(binaryMetadataPath);
+    if (binaryMetadataExists) {
+        fs->remove(binaryMetadataPath);
+    }
+    
+    bool textMetadataExists = fs->exists(textMetadataPath);
+    if (textMetadataExists) {
+        fs->remove(textMetadataPath);
+    }
+    
+    fs->remove(path);
 }
 
 void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& destinationPath) {
