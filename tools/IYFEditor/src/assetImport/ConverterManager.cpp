@@ -48,8 +48,8 @@
 
 namespace iyf {
 namespace editor {
-ConverterManager::ConverterManager(const FileSystem* fileSystem, fs::path assetDestination, bool withImportsDirName) 
-    : fileSystem(fileSystem), assetDestination(assetDestination), withImportsDirName(withImportsDirName) {
+ConverterManager::ConverterManager(const FileSystem* fileSystem, fs::path assetDestination) 
+    : fileSystem(fileSystem), assetDestination(assetDestination) {
     typeToConverter[AssetType::Mesh] = std::make_unique<MeshConverter>(this);
     typeToConverter[AssetType::Texture] = std::make_unique<TextureConverter>(this);
     typeToConverter[AssetType::Font] = std::make_unique<FontConverter>(this);
@@ -81,6 +81,14 @@ std::unique_ptr<ConverterState> ConverterManager::initializeConverter(const fs::
     return converterState;
 }
 
+hash32_t ConverterManager::computeNameHash(const fs::path& sourcePath) const {
+    if (*sourcePath.begin() == con::ImportPath) {
+        return HS(sourcePath.lexically_relative(con::ImportPath).generic_string());
+    } else {
+        return HS(sourcePath.generic_string());
+    }
+}
+
 fs::path ConverterManager::makeLocaleStringPath(const fs::path& sourcePath, const fs::path& directory, PlatformIdentifier platformID) const {
     if (!std::regex_match(sourcePath.filename().string(), regex::LocalizationFileNameValidationRegex)) {
         LOG_E("String files need to match a specific pattern filename.{LOCALE}.csv, where {LOCALE} is en_US, lt_LT, etc.");
@@ -88,22 +96,16 @@ fs::path ConverterManager::makeLocaleStringPath(const fs::path& sourcePath, cons
     }
     
     std::string locale = sourcePath.stem().extension().string().substr(1);
-    return getAssetDestinationPath(platformID) / directory / (locale + "." + std::to_string(HS(sourcePath.c_str())));
+    const hash32_t nameHash = computeNameHash(sourcePath);
+    return getAssetDestinationPath(platformID) / directory / (locale + "." + std::to_string(nameHash));
 }
 
 fs::path ConverterManager::makeFinalPathForAsset(const fs::path& sourcePath, AssetType type, PlatformIdentifier platformID) const {
-    fs::path pathToHash;
-    if (withImportsDirName) {
-        assert(*sourcePath.begin() == con::ImportPath);
-        pathToHash = sourcePath.lexically_relative(con::ImportPath);
-    } else {
-        pathToHash = sourcePath;
-    }
-    
     if (type == AssetType::Strings) {
-        return makeLocaleStringPath(pathToHash, con::AssetTypeToPath(type), platformID);
+        return makeLocaleStringPath(sourcePath, con::AssetTypeToPath(type), platformID);
     } else {
-        return getAssetDestinationPath(platformID) / con::AssetTypeToPath(type) / std::to_string(HS(pathToHash.c_str()));
+        const hash32_t nameHash = computeNameHash(sourcePath);
+        return getAssetDestinationPath(platformID) / con::AssetTypeToPath(type) / std::to_string(nameHash);
     }
 }
 

@@ -42,9 +42,7 @@ class ConverterManager {
 public:
     /// \param fileSystem Observer pointer to the currently active FileSystem instance.
     /// \param assetDestination Destination of converted assets. This path is relative to fileSystem->getCurrentWriteDirectory() and must be inside it
-    /// \param stripImportsDirName If this is set, the sourcePath parameters used in most functions of this class are expected to start with con::ImportPath
-    /// that needs to be stripped before the hash is computed.
-    ConverterManager(const FileSystem* fileSystem, fs::path assetDestination, bool withImportsDirName);
+    ConverterManager(const FileSystem* fileSystem, fs::path assetDestination);
     ~ConverterManager();
     
     inline const PlatformInfo& getPlatformInfo(PlatformIdentifier platformID) const  {
@@ -59,12 +57,11 @@ public:
         return fileSystem;
     }
     
+    /// Computes the hash of the provided path. If the path starts with con::ImportPath, it is stripped before computing the hash.
+    hash32_t computeNameHash(const fs::path& sourcePath) const;
+    
     /// Turns the sourcePath and the AssetType into a final virtual filesystem path where the converted asset will be written to.
     /// The path should be used to create a File object or a VirtualFilesystemSerializer.
-    ///
-    /// \remark The real path will be: /VirtualFileSystemRoot/getAssetDestinationPath()/con::AssetTypeToPath[type]/HS(sourcePath)
-    /// if withImportsDirName is false and /VirtualFileSystemRoot/getAssetDestinationPath()/con::AssetTypeToPath[type]/HS(sourcePathWithout_con::ImportsPath)
-    /// if it's true.
     ///
     /// \param sourcePath a relative path to an Asset awaiting conversion. Must be inside getAssetSourcePath().
     /// \param type the type of the asset that's being imported. Can be determined by calling getAssetType() with the same sourcePath
@@ -117,7 +114,6 @@ protected:
     
     const FileSystem* fileSystem;
     fs::path assetDestination;
-    bool withImportsDirName;
 };
 }
 }
