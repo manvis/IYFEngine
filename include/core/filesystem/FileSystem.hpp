@@ -113,7 +113,7 @@ public:
     /// 
     /// \param[in] path file or directory to delete
     /// \return whether the deletion was successful, or not
-    inline bool deleteFile(const fs::path& path) const {
+    inline bool remove(const fs::path& path) const {
         return PHYSFS_delete(path.generic_string().c_str());
     }
     
