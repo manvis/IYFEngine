@@ -583,4 +583,22 @@ void AssetManager::removeNonSystemAssetsFromManifest() {
         }
     }
 }
+
+std::optional<fs::path> AssetManager::checkForHashCollision(hash32_t nameHash, const fs::path& checkPath) const {
+    if (!editorMode) {
+        throw std::logic_error("This method can only be used when the engine is running in editor mode.");
+    }
+    
+    std::unique_lock<std::mutex>(manifestMutex);
+    
+    auto result = manifest.find(nameHash);
+    if (result != manifest.end()) {
+        const fs::path foundPath = std::visit([](auto&& arg){return arg.getSourceAssetPath();}, result->second.metadata);
+        if (foundPath != checkPath) {
+            return foundPath;
+        }
+    }
+    
+    return std::nullopt;
+}
 }

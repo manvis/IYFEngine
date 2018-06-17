@@ -279,6 +279,13 @@ public:
         return HS("raw/system/" + name);
     }
     
+    /// Checks for hash collisions. Should be called before performing asset conversion.
+    ///
+    /// \warning This function can only be used if the Engine that was passed to the constructor is running in game mode.
+    ///
+    /// \return A path to the colliding file or a nullopt if no hash collisions have been detected.
+    std::optional<fs::path> checkForHashCollision(hash32_t nameHash, const fs::path& checkPath) const;
+    
     /// \brief Obtains a copy of a Metadata object that corresponds to the file with the specified nameHash or an std::nullopt if
     /// the nameHash wasn't found in the manifest.
     ///
