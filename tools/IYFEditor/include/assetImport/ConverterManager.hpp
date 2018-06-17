@@ -57,9 +57,6 @@ public:
         return fileSystem;
     }
     
-    /// Computes the hash of the provided path. If the path starts with con::ImportPath, it is stripped before computing the hash.
-    hash32_t computeNameHash(const fs::path& sourcePath) const;
-    
     /// Turns the sourcePath and the AssetType into a final virtual filesystem path where the converted asset will be written to.
     /// The path should be used to create a File object or a VirtualFilesystemSerializer.
     ///

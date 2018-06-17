@@ -215,6 +215,15 @@ public:
     /// imported from mesh files, this function will return AssetType::Mesh, even if the file contains nothing but an animation library.
     static AssetType GetAssetTypeFromExtension(const fs::path& pathToFile);
     
+    /// Computes the hash of the provided path. If the path starts with con::ImportPath, it is stripped before computing the hash.
+    static inline hash32_t ComputeNameHash(const fs::path& sourcePath) {
+        if (*sourcePath.begin() == con::ImportPath) {
+            return HS(sourcePath.lexically_relative(con::ImportPath).generic_string());
+        } else {
+            return HS(sourcePath.generic_string());
+        }
+    }
+    
     /// Creates and initializes all type managers and loads all system assets that will be stored in memory
     /// persistently
     void initialize();
