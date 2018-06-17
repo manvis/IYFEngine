@@ -101,6 +101,8 @@ static const char* GetPayloadNameForAssetType(AssetType type) {
         case AssetType::ANY:
             throw std::runtime_error("ANY/COUNT is not a valid asset type");
     }
+    
+    throw std::runtime_error("Unknown AssetType value");
 }
 
 static void SquareConstraint(ImGuiSizeCallbackData* data) {
@@ -181,6 +183,7 @@ void EditorState::initialize() {
     FileSystem* filesystem = engine->getFileSystem();
     
     assetBrowserPathChanged = true;
+    assetDirUpdated = false;
     
 //     // TODO move this to tests
 //     {
@@ -224,7 +227,7 @@ void EditorState::initialize() {
     profilerZoom = 1.0f;
     profilerOpen = false;
     
-    converterManager = std::make_unique<ConverterManager>(filesystem, "", true);
+    converterManager = std::make_unique<ConverterManager>(filesystem, "");
     const fs::path platformDataPath = converterManager->getAssetDestinationPath(con::GetCurrentPlatform());
     const fs::path realPlatformDataPath = filesystem->getRealDirectory(platformDataPath.generic_string());
     LOG_V("Converted assets for this platform will be written to " << realPlatformDataPath);
@@ -1361,7 +1364,7 @@ void EditorState::showAssetWindow() {
         ImGui::PopItemWidth();
         //assert(currentlyPickedAssetType >= 0 && currentlyPickedAssetType <= static_cast<int>(AssetType::Custom));
         // TODO or dir contents changed
-        if ((filterUpdate || assetBrowserPathChanged)) {
+        if (filterUpdate || assetBrowserPathChanged || assetDirUpdated) {
             assetList.clear();
             
             auto paths = filesystem->getDirectoryContents(currentlyOpenDir);
@@ -1410,6 +1413,7 @@ void EditorState::showAssetWindow() {
             }
             
             assetBrowserPathChanged = false;
+            assetDirUpdated = false;
         }
         
         if (ImGui::TreeNode("Search and Filtering")) {
@@ -1579,22 +1583,7 @@ void EditorState::showAssetWindow() {
 //     
 //     filesToRemove.clear();
 // }
-
-bool ConvertAsset(const ConverterManager* cm, const fs::path& path) {
-    // The import path is stripped when calulating the hash because we set the withImportsDirName to false when
-    // constructing the ConverterManager
-    std::unique_ptr<ConverterState> converterState = cm->initializeConverter(con::ImportPath / path, con::GetCurrentPlatform());
-    
-    if (converterState == nullptr) {
-        return false;
-    }
-    
-    return cm->convert(*converterState);
-}
-
 bool EditorState::executeAssetOperation(fs::path path, AssetOperation op) const {
-    //AssetOperation op(std::move(temp));
-    //std::this_thread::sleep_for(std::chrono::seconds(5));
     // TODO implement deletions, moves (deletion folowed by creation, maybe some lookup method for old assets)
     // and folder operations
     if (op.isDirectory) {
@@ -1605,12 +1594,29 @@ bool EditorState::executeAssetOperation(fs::path path, AssetOperation op) const 
     bool result = false;
     switch (op.type) {
         case AssetOperationType::Created:
-        case AssetOperationType::Updated:
-            result = ConvertAsset(converterManager.get(), path);
-            if (result) {
-                engine->getAssetManager()->requestAssetRefresh(path);
+        case AssetOperationType::Updated: {
+            // No need to prepend con::ImportPath here. The hash does not contain it and computeNameHash would only strip it.
+            const hash32_t nameHash = converterManager->computeNameHash(path);
+            
+            const fs::path sourcePath = con::ImportPath / path;
+            auto collisionCheckResult = engine->getAssetManager()->checkForHashCollision(nameHash, sourcePath);
+            if (collisionCheckResult) {
+                LOG_W("Failed to import " << path << ". Detected a hash collision with " << *collisionCheckResult);
+                return false;
+            }
+            
+            const PlatformIdentifier platform = con::GetCurrentPlatform();
+            std::unique_ptr<ConverterState> converterState = converterManager->initializeConverter(sourcePath, platform);
+            
+            if (converterState != nullptr) {
+                if (converterManager->convert(*converterState)) {
+                    const fs::path finalPath = converterManager->makeFinalPathForAsset(sourcePath, converterState->getType(), platform);
+                    engine->getAssetManager()->requestAssetRefresh(converterState->getType(), finalPath);
+                    result = true;
+                }
             }
             break;
+        }
         case AssetOperationType::Deleted:
             LOG_W("Deletion not implemented yet");
             result = true;
@@ -1665,6 +1671,7 @@ void EditorState::updateProjectFiles() {
     if (ImGui::BeginPopupModal(modalName, NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("Processing %s, %lu more item(s) remain(s)", currentlyProcessedAsset.c_str(), operationCount);
         if (!popupShouldBeOpen) {
+            assetDirUpdated = true;
             ImGui::CloseCurrentPopup();
         }
         
@@ -1790,6 +1797,11 @@ void EditorState::fileSystemWatcherCallback(FileSystemWatcher::EventList eventLi
         
         const fs::path finalSourcePath = e.getSource().lexically_relative(importsDir);
         const fs::path finalDestinationPath = e.getDestination().lexically_relative(importsDir);
+        
+        // TODO updated settings files should probably trigger a re-import as well
+        if (!isDirectory && finalSourcePath.extension() == con::ImportSettingsExtension) {
+            continue;
+        }
         
         const hash32_t hashedName = HS(finalSourcePath.generic_string());
         

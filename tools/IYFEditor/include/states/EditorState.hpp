@@ -226,6 +226,7 @@ protected:
     fs::path importsDir;
     std::set<AssetListItem> assetList;
     bool assetBrowserPathChanged;
+    bool assetDirUpdated;
     int currentlyPickedAssetType;
     std::vector<std::string> assetTypeNames;
     fs::path currentlyOpenDir;
