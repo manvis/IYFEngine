@@ -510,16 +510,25 @@ void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
     }
     
     AssetManager::ManifestElement me = buildManifestElement(type, textMetadataExists, textMetadataExists ? textMetadataPath : binaryMetadataPath, path);
+    //manifest[nameHash] = std::move(me);
+    auto manifestElement = manifest.insert_or_assign(nameHash, std::move(me));
+    if (manifestElement.second) {
+        LOG_V("Inserted a new element into the manifest");
+    } else {
+        LOG_V("Updated an existing element of the manifest");
+    }
     
     std::lock_guard<std::mutex> manifestLock(manifestMutex);
     std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
     
     const auto& loadedAsset = loadedAssets.find(nameHash);
     if (loadedAsset != loadedAssets.end()) {
-        throw std::runtime_error("Handling of hot assets hasn't been implemented yet");
+        const AssetType type = loadedAsset->second.first;
+        const std::uint32_t id = loadedAsset->second.second;
+        const Metadata& metadata = manifestElement.first->second.metadata;
+        
+        typeManagers[static_cast<std::size_t>(type)]->refresh(nameHash, path, metadata, id);
     }
-    
-    manifest[nameHash] = std::move(me);
 }
 
 void AssetManager::requestAssetDeletion(const fs::path& path) {

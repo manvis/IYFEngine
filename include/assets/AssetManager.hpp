@@ -57,6 +57,13 @@ public:
     inline TypeManagerBase(AssetManager* manager) : manager(manager) { }
     virtual AssetType getType() = 0;
     virtual ~TypeManagerBase() {}
+    
+    /// Reload the specified asset from disk.
+    ///
+    /// \warning This function can only be used if the Engine is running in editor mode.
+    ///
+    /// \throws std::logic_error if the engine is running in game mode.
+    virtual bool refresh(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) = 0;
 protected:
     friend class AssetManager;
     /// Our friend AssetManager calls this function once it finishes building the manifest. The "missing" assets
@@ -90,6 +97,7 @@ public:
     inline AssetHandle<T> load(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut);
     /// Fetch a handle to an asset that has already been loaded
     inline AssetHandle<T> fetch(std::uint32_t id);
+    /// Return a handle that corresponds to a "missing" asset
     inline AssetHandle<T> getMissingAssetHandle();
     
     virtual void collectGarbage(GarbageCollectionRunPolicy policy = GarbageCollectionRunPolicy::FullCollection) override {
@@ -142,6 +150,12 @@ public:
 protected:
     virtual void performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, T& assetData) = 0;
     virtual void performFree(T& assetData) = 0;
+    
+    virtual bool refresh(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) final override {
+        return refreshImpl(nameHash, path, meta, id);
+    }
+    
+    inline bool refreshImpl(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id);
     
     std::vector<std::uint32_t> freeList;
     ChunkedVector<std::atomic<std::uint32_t>, chunkSize> counts;
@@ -367,6 +381,14 @@ public:
         return engine;
     }
     
+    inline bool isEditorMode() const {
+        return editorMode;
+    }
+    
+    inline bool isGameMode() const {
+        return !editorMode;
+    }
+    
     /// Writes metadata of a single asset to file
     ///
     /// \return true if written successfully, false if not (e.g., when no asset with the specified nameHash exists)
@@ -507,6 +529,19 @@ private:
     
     static const std::unordered_map<std::string, AssetType> ExtensionToType;
 };
+
+template <typename T, size_t chunkSize>
+inline bool TypeManager<T, chunkSize>::refreshImpl(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) {
+    if (manager->isGameMode()) {
+        throw std::logic_error("This method can't be used when the engine is running in game mode.");
+    }
+    
+    performFree(assets[id]);
+    performLoad(nameHash, path, meta, assets[id]);
+    assets[id].setNameHash(nameHash);
+    
+    return true;
+}
 
 inline void TypeManagerBase::notifyRemoval(hash32_t nameHash) {
     manager->notifyRemoval(nameHash);
