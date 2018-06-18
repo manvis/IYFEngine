@@ -283,6 +283,8 @@ protected:
     };
     
     struct Swapchain {
+        Swapchain() : version(0) {}
+        
         VkSwapchainKHR handle;
         
         VkExtent2D imageExtent;
@@ -293,6 +295,8 @@ protected:
         bool immediateAvailable;
         bool fifoAvailable;
         bool fifoRelaxedAvailable;
+        
+        std::uint32_t version;
         
         std::vector<VkImage> images;
         std::vector<VkImageView> imageViews;

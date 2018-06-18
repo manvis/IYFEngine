@@ -344,6 +344,8 @@ void GraphicsAPI::openWindow() {
         }
     }
     
+    SDL_SetWindowResizable(window, SDL_TRUE);
+    
 
 //    if (borderlessMode) {
 //        //if (SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN) != 0) { // fullscreen

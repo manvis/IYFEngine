@@ -755,7 +755,7 @@ bool VulkanAPI::evaluatePhysicalDeviceProperties(PhysicalDevice& device) {
                                        << "\n\t\t" << "Driver version: " << VK_VERSION_MAJOR(driverVersion) << "." << VK_VERSION_MINOR(driverVersion) << "." << VK_VERSION_PATCH(driverVersion)
                                        << "\n\t\t" << "API version: " << VK_VERSION_MAJOR(version) << "." << VK_VERSION_MINOR(version) << "." << VK_VERSION_PATCH(version));
             
-    // TODO print and evaluate all limits 
+    // TODO print and evaluate all limits based on the needs of the engine
     LOG_V("Physical device limits"
             << "\n\t\tMaxSamplerAllocationCount " << device.properties.limits.maxSamplerAllocationCount
             << "\n\t\tMaxVertexInputBindings " << device.properties.limits.maxVertexInputBindings
@@ -781,7 +781,7 @@ bool VulkanAPI::evaluatePhysicalDeviceExtensions(PhysicalDevice& device) {
         return false;
     }
 
-    // Listing all extensions that the gpu can provide
+    // Listing all extensions that the device can provide
     std::stringstream ss;
     for (std::uint32_t e = 0; e < device.extensionProperties.size(); e++) {
         ss << "\n\t\t" << device.extensionProperties[e].extensionName;
@@ -840,6 +840,7 @@ bool VulkanAPI::evaluatePhysicalDeviceExtensions(PhysicalDevice& device) {
 }
 
 void VulkanAPI::createSurface() {
+    // TODO The latest versions of SDL can handle most of this stuff automatically - start using that
     getPhysicalDeviceSurfaceSupport = (PFN_vkGetPhysicalDeviceSurfaceSupportKHR)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceSurfaceSupportKHR");
     getPhysicalDeviceSurfaceCapabilities = (PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
     getPhysicalDeviceSurfaceFormats = (PFN_vkGetPhysicalDeviceSurfaceFormatsKHR)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceSurfaceFormatsKHR");
@@ -1061,13 +1062,27 @@ void VulkanAPI::createLogicalDevice() {
         qcis.push_back(qciTransfer);
     }
     
+    if (physicalDevice.presentQueueFamilySeparateFromMain) {
+        float presentQueuePriorities[1] = {1.0};
+        
+        VkDeviceQueueCreateInfo qciPresent;
+        qciPresent.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        qciPresent.pNext            = nullptr;
+        qciPresent.flags            = 0;
+        qciPresent.queueFamilyIndex = physicalDevice.chosenPresentQueueFamilyId;
+        qciPresent.queueCount       = 1;
+        qciPresent.pQueuePriorities = presentQueuePriorities;
+
+        qcis.push_back(qciPresent);
+    }
+    
 //    assert(physicalDevice.features.textureCompressionBC == VK_TRUE && physicalDevice.features.multiViewport == VK_FALSE && physicalDevice.features.largePoints == VK_TRUE);
 
     VkDeviceCreateInfo dci;
     dci.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     dci.pNext                   = nullptr;
     dci.flags                   = 0;
-    dci.queueCreateInfoCount    = qcis.size();
+    dci.queueCreateInfoCount    = static_cast<std::uint32_t>(qcis.size());
     dci.pQueueCreateInfos       = qcis.data();
     if (!isDebug) {
         dci.enabledLayerCount   = 0;
@@ -1181,7 +1196,9 @@ VkSurfaceFormatKHR VulkanAPI::chooseSwapchainImageFormat() {
         std::uint32_t sRGBBufferId = 0;
         
         for (std::uint32_t i = 0; i < physicalDevice.surfaceFormats.size(); ++i) {
-            if (physicalDevice.surfaceFormats[i].format == VK_FORMAT_B8G8R8A8_SRGB || physicalDevice.surfaceFormats[i].format == VK_FORMAT_R8G8B8A8_SRGB) {
+            if ((physicalDevice.surfaceFormats[i].format == VK_FORMAT_B8G8R8A8_SRGB  ||
+                 physicalDevice.surfaceFormats[i].format == VK_FORMAT_R8G8B8A8_SRGB) &&
+                 physicalDevice.surfaceFormats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
                 sRGBBufferId = i;
                 sRGBFound = true;
                 
@@ -1212,7 +1229,9 @@ VkPresentModeKHR VulkanAPI::chooseSwapchainPresentMode() {
     swapchain.fifoAvailable        = false;
     swapchain.fifoRelaxedAvailable = false;
     
-    // TODO log available modes
+    // TODO what about these:
+//     VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR
+//     VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR
     
     for (std::uint32_t i = 0; i < physicalDevice.presentModes.size(); ++i) {
         if (physicalDevice.presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
@@ -1225,6 +1244,27 @@ VkPresentModeKHR VulkanAPI::chooseSwapchainPresentMode() {
             swapchain.immediateAvailable = true;
         }
     }
+    
+    std::stringstream ss;
+    ss << "Available present modes: ";
+    
+    if (swapchain.mailboxAvailable) {
+        ss << "\n\t\tmailbox";
+    }
+    
+    if (swapchain.immediateAvailable) {
+        ss << "\n\t\timmediate";
+    }
+    
+    if (swapchain.fifoAvailable) {
+        ss << "\n\t\tfifo";
+    }
+    
+    if (swapchain.fifoRelaxedAvailable) {
+        ss << "\n\t\tfifoRelaxed";
+    }
+    
+    LOG_V(ss.str());
     
     // TODO Make this changeable via CONFIGURATION
     
@@ -1239,8 +1279,7 @@ VkPresentModeKHR VulkanAPI::chooseSwapchainPresentMode() {
         chosenPresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
     }
     
-    std::stringstream ss;
-
+    ss = std::stringstream();
     ss << "Chosen present mode: ";
 
     switch (chosenPresentMode) {
@@ -1312,12 +1351,12 @@ void VulkanAPI::createSwapchain() {
         screenHeight = capabilities.currentExtent.height;
     }
     
-    // TODO do I still need this? Should I transfer images from intermediate effect buffers using
-    // transfer ops or by rendering a full screen quad?
-    // If this gets removed, VK_IMAGE_USAGE_TRANSFER_DST_BIT should be removed from sci.imageUsage as well
-    if (!(capabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT)) {
-        throw std::runtime_error("Surface does not support image transfer.");
-    }
+//     // TODO do I still need this? Should I transfer images from intermediate effect buffers using
+//     // transfer ops or by rendering a full screen quad?
+//     // If this gets removed, VK_IMAGE_USAGE_TRANSFER_DST_BIT should be removed from sci.imageUsage as well
+//     if (!(capabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT)) {
+//         throw std::runtime_error("Surface does not support image transfer.");
+//     }
     
     // We MAY not get as many images as we want, hence the check
     std::uint32_t numImagesToRequest = capabilities.minImageCount + 1;
@@ -1346,7 +1385,7 @@ void VulkanAPI::createSwapchain() {
     sci.imageColorSpace       = swapchain.imageColorSpace;
     sci.imageExtent           = swapchainExtent;
     sci.imageArrayLayers      = 1;
-    sci.imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    sci.imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;// | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     
     std::array<std::uint32_t, 2> queueFamilyIndices = {
         physicalDevice.chosenMainQueueFamilyId,
@@ -1364,7 +1403,7 @@ void VulkanAPI::createSwapchain() {
         sci.pQueueFamilyIndices   = nullptr;
     }
     
-    sci.preTransform          = (VkSurfaceTransformFlagBitsKHR)preTransformFlags;
+    sci.preTransform          = static_cast<VkSurfaceTransformFlagBitsKHR>(preTransformFlags);
     sci.compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     sci.presentMode           = presentMode;
     sci.clipped               = VK_TRUE;
@@ -1379,6 +1418,8 @@ void VulkanAPI::createSwapchain() {
     swapchain.images.resize(swapchainImageCount);
     swapchain.imageViews.resize(swapchainImageCount);
     checkResult(vkGetSwapchainImages(logicalDevice.handle, swapchain.handle, &swapchainImageCount, swapchain.images.data()), "Failed to enumerate swapchain images.");
+    
+    swapchain.version += 1;
 }
 
 void VulkanAPI::createSwapchainImageViews() {
@@ -1398,10 +1439,10 @@ void VulkanAPI::createSwapchainImageViews() {
         ivci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
         ivci.format           = swapchain.imageFormat;
         ivci.components       = {
-            VK_COMPONENT_SWIZZLE_R,
-            VK_COMPONENT_SWIZZLE_G,
-            VK_COMPONENT_SWIZZLE_B,
-            VK_COMPONENT_SWIZZLE_A,
+            VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_IDENTITY,
         };
         ivci.subresourceRange = isr;
 
