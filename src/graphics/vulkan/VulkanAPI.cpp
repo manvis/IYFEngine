@@ -2147,6 +2147,33 @@ bool VulkanAPI::destroyCommandPool(CommandPool* pool) {
     return true;
 }
 
+inline static VkAttachmentReference* ProcessAttachmentReferences(std::size_t count, const AttachmentReference* firstAttachment, std::vector<VkAttachmentReference>& convertedReferences) {
+    if (count == 0) {
+        return nullptr;
+    }
+    
+    assert(firstAttachment != nullptr);
+    
+    const std::size_t currentSize = convertedReferences.size();
+    if ((count + currentSize) >= convertedReferences.capacity()) {
+        throw std::runtime_error("Too many VkAttachmentReference objects");
+    }
+    
+    VkAttachmentReference* firstConvertedElement = convertedReferences.data() + currentSize;
+    
+    for (std::size_t i = 0; i < count; ++i) {
+        const AttachmentReference* currentAttachment = firstAttachment + i;
+        
+        VkAttachmentReference ar;
+        ar.attachment = currentAttachment->attachment;
+        ar.layout = vk::imageLayout(currentAttachment->layout);
+        
+        convertedReferences.push_back(ar);
+    }
+    
+    return firstConvertedElement;
+}
+
 RenderPassHnd VulkanAPI::createRenderPass(const RenderPassCreateInfo& info) {
     VkRenderPassCreateInfo rpci;
     rpci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -2158,15 +2185,17 @@ RenderPassHnd VulkanAPI::createRenderPass(const RenderPassCreateInfo& info) {
     std::vector<VkAttachmentDescription> ad;
     ad.reserve(info.attachments.size());
     for (const auto &d : info.attachments) {
-        VkAttachmentDescription adv = {static_cast<VkAttachmentDescriptionFlags>(d.flags),
-                         vk::format(d.format),
-                         static_cast<VkSampleCountFlagBits>(vk::sampleCount(d.samples)),
-                         vk::attachmentLoadOp(d.loadOp),
-                         vk::attachmentStoreOp(d.storeOp),
-                         vk::attachmentLoadOp(d.stencilLoadOp),
-                         vk::attachmentStoreOp(d.stencilStoreOp),
-                         vk::imageLayout(d.initialLayout),
-                         vk::imageLayout(d.finalLayout)}; 
+        VkAttachmentDescription adv;
+        adv.flags = static_cast<VkAttachmentDescriptionFlags>(d.flags);
+        adv.samples = static_cast<VkSampleCountFlagBits>(vk::sampleCount(d.samples));
+        adv.format = vk::format(d.format);
+        adv.loadOp = vk::attachmentLoadOp(d.loadOp);
+        adv.storeOp = vk::attachmentStoreOp(d.storeOp);
+        adv.stencilLoadOp = vk::attachmentLoadOp(d.stencilLoadOp);
+        adv.stencilStoreOp = vk::attachmentStoreOp(d.stencilStoreOp);
+        adv.initialLayout = vk::imageLayout(d.initialLayout);
+        adv.finalLayout = vk::imageLayout(d.finalLayout);
+        
         ad.emplace_back(std::move(adv));
     }
     rpci.pAttachments = (info.attachments.size() == 0) ? nullptr : ad.data();
@@ -2174,20 +2203,22 @@ RenderPassHnd VulkanAPI::createRenderPass(const RenderPassCreateInfo& info) {
     // Subpass contents
     rpci.subpassCount = info.subpasses.size();
     std::vector<VkSubpassDescription> sd;
+    std::vector<VkAttachmentReference> ar;
+    ar.reserve(40);
+    
     sd.reserve(info.subpasses.size());
     for (const auto &d : info.subpasses) {
-        VkSubpassDescription sdv = {0,
-                                    vkutil::mapPipelineBindPoint(d.pipelineBindPoint),
-                                    static_cast<std::uint32_t>(d.inputAttachments.size()),
-                                    (d.inputAttachments.size() == 0) ? nullptr : reinterpret_cast<const VkAttachmentReference*>(d.inputAttachments.data()),
-                                    static_cast<std::uint32_t>(d.colorAttachments.size()),
-                                    (d.colorAttachments.size() == 0) ? nullptr : reinterpret_cast<const VkAttachmentReference*>(d.colorAttachments.data()),
-                                    (d.resolveAttachments.size() == 0) ? nullptr : reinterpret_cast<const VkAttachmentReference*>(d.resolveAttachments.data()),
-//                                    d.usesDepth ? reinterpret_cast<const VkAttachmentReference*>(&d.depthStencilAttachment) : nullptr,
-                                    reinterpret_cast<const VkAttachmentReference*>(&d.depthStencilAttachment),
-                                    static_cast<std::uint32_t>(d.preserveAttachments.size()),
-                                    d.preserveAttachments.data()
-        };
+        VkSubpassDescription sdv;
+        sdv.flags = 0;
+        sdv.pipelineBindPoint = vkutil::mapPipelineBindPoint(d.pipelineBindPoint);
+        sdv.inputAttachmentCount = static_cast<std::uint32_t>(d.inputAttachments.size());
+        sdv.pInputAttachments = ProcessAttachmentReferences(d.inputAttachments.size(), d.inputAttachments.data(), ar);
+        sdv.colorAttachmentCount = static_cast<std::uint32_t>(d.colorAttachments.size());
+        sdv.pColorAttachments = ProcessAttachmentReferences(d.colorAttachments.size(), d.colorAttachments.data(), ar);
+        sdv.pResolveAttachments = ProcessAttachmentReferences(d.resolveAttachments.size(), d.resolveAttachments.data(), ar);
+        sdv.pDepthStencilAttachment = ProcessAttachmentReferences(1, &d.depthStencilAttachment, ar);
+        sdv.preserveAttachmentCount = static_cast<std::uint32_t>(d.preserveAttachments.size());
+        sdv.pPreserveAttachments = d.preserveAttachments.data();
         
         sd.emplace_back(std::move(sdv));
     }
@@ -2198,15 +2229,14 @@ RenderPassHnd VulkanAPI::createRenderPass(const RenderPassCreateInfo& info) {
     std::vector<VkSubpassDependency> spd;// = vkutil::mapSubpassDependencies(info.dependencies);
     spd.reserve(info.dependencies.size());
     for (const auto &d : info.dependencies) {
-        VkSubpassDependency spdv = {
-            d.srcSubpass,
-            d.dstSubpass,
-            static_cast<VkPipelineStageFlags>(d.srcStageMask),
-            static_cast<VkPipelineStageFlags>(d.dstStageMask),
-            static_cast<VkAccessFlags>(d.srcAccessMask),
-            static_cast<VkAccessFlags>(d.dstAccessMask),
-            static_cast<VkDependencyFlags>(d.dependencyFlags)
-        };
+        VkSubpassDependency spdv;
+        spdv.srcSubpass = d.srcSubpass;
+        spdv.dstSubpass = d.dstSubpass;
+        spdv.srcStageMask = static_cast<VkPipelineStageFlags>(d.srcStageMask);
+        spdv.dstStageMask = static_cast<VkPipelineStageFlags>(d.dstStageMask);
+        spdv.srcAccessMask = static_cast<VkAccessFlags>(d.srcAccessMask);
+        spdv.dstAccessMask = static_cast<VkAccessFlags>(d.dstAccessMask);
+        spdv.dependencyFlags = static_cast<VkDependencyFlags>(d.dependencyFlags);
 
         spd.emplace_back(std::move(spdv));
     }

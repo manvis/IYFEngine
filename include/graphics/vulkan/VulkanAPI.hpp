@@ -208,6 +208,9 @@ public:
     
     virtual Format getSurfaceFormat() override;
     virtual Format getDepthStencilFormat() override;
+    virtual std::uint32_t getCurrentSwapImage() const final override {
+        return currentSwapBuffer;
+    }
     virtual FramebufferHnd getScreenFramebuffer() override {
         return FramebufferHnd(framebuffers[currentSwapBuffer]);
     }

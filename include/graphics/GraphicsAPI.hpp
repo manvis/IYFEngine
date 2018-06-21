@@ -608,7 +608,8 @@ public:
 
 class AttachmentReference {
 public:
-    AttachmentReference() : attachment(0), layout(ImageLayout::Undefined) {}
+    /// \warning ~0U is important. It matches VK_ATTACHMENT_UNUSED
+    AttachmentReference() : attachment(~0U), layout(ImageLayout::Undefined) {}
     AttachmentReference(std::uint32_t attachment, ImageLayout layout) : attachment(attachment), layout(layout) {}
 
     std::uint32_t attachment;
@@ -648,7 +649,7 @@ public:
 class FramebufferAttachmentCreateInfo {
 public:
     Format format;
-    //bool isDepthStencil; //TODO spręsti iš formato
+    //bool isDepthStencil; //TODO decide from format
     bool isAttachment;
 };
 
@@ -900,6 +901,7 @@ public:
     }
     
     virtual FramebufferHnd getScreenFramebuffer() = 0;
+    virtual std::uint32_t getCurrentSwapImage() const = 0;
     virtual SemaphoreHnd getRenderCompleteSemaphore() = 0;
     virtual SemaphoreHnd getPresentationCompleteSemaphore() = 0;
     
