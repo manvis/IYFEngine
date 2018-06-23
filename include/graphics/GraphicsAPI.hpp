@@ -874,7 +874,7 @@ public:
         return screenHeight;
     }
     
-    // TODO tikro buferio dydis
+    // TODO this should go to the renderer
     std::uint32_t getRenderSurfaceWidth() {
         return screenWidth;
     }
@@ -890,15 +890,6 @@ public:
         return window;
     }
     
-    RenderPassHnd getWriteToScreenRenderPass() const {
-        return writeToScreenPass;
-    }
-    
-    RenderPassCreateInfo getWriteToScreenRenderPassCreateInfo() const {
-        return rpciScreen;
-    }
-    
-    virtual FramebufferHnd getScreenFramebuffer() = 0;
     virtual std::uint32_t getCurrentSwapImage() const = 0;
     virtual std::uint32_t getSwapImageCount() const = 0;
     virtual const Image& getSwapImage(std::uint32_t id) const = 0;
@@ -925,11 +916,6 @@ protected:
     void openWindow();
     void printWMInfo();
     virtual BackendType getBackendType() = 0;
-    void createHelperMeshesAndObjects();
-    void destroyHelperMeshesAndObjectsaryMeshes();
-    
-    RenderPassHnd writeToScreenPass;
-    RenderPassCreateInfo rpciScreen;
 };
 }
 

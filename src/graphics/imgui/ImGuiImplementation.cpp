@@ -237,13 +237,6 @@ void ImGuiImplementation::initializeAssets() {
     DescriptorSetLayoutCreateInfo dslci{{{0, DescriptorType::CombinedImageSampler, 1, ShaderStageFlagBits::Fragment, {}}}};
     descriptorSetLayout = gfxAPI->createDescriptorSetLayout(dslci);
     
-    // Render pass
-    RenderPassCreateInfo rpci = gfxAPI->getWriteToScreenRenderPassCreateInfo();
-    rpci.attachments[0].loadOp = AttachmentLoadOp::Load;// Don't clear the old one
-    rpci.attachments[1].loadOp = AttachmentLoadOp::DoNotCare;// This is definitely the final pass and it does not require depth
-    
-    guiRenderPass = gfxAPI->createRenderPass(rpci);
-    
     // Shaders and pipelines
     PipelineLayoutCreateInfo plci{{descriptorSetLayout}, {{ShaderStageFlagBits::Vertex, 0, sizeof(glm::mat4)}}};
     pipelineLayout = gfxAPI->createPipelineLayout(plci);
@@ -343,8 +336,6 @@ void ImGuiImplementation::disposeAssets() {
 //    gfxAPI->destroyVertexBuffer(VBOs[0]);
 //    gfxAPI->destroyIndexBuffer(IBO);
     VBOs.clear();
-    
-    gfxAPI->destroyRenderPass(guiRenderPass);
 }
 
 bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {

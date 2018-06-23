@@ -94,7 +94,6 @@ protected:
 //    
     Buffer IBO;
     std::vector<Buffer> VBOs;
-    RenderPassHnd guiRenderPass;
     
     std::string temp;
 //    Renderer* renderer;

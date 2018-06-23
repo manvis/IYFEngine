@@ -211,9 +211,6 @@ public:
     virtual std::uint32_t getCurrentSwapImage() const final override {
         return currentSwapBuffer;
     }
-    virtual FramebufferHnd getScreenFramebuffer() override {
-        return FramebufferHnd(framebuffers[currentSwapBuffer]);
-    }
     
     virtual std::uint32_t getSwapImageCount() const final override {
        return swapchain.images.size(); 
@@ -344,14 +341,10 @@ protected:
     VkCommandBuffer imageUploadCommandBuffer;
     VkPipelineCache pipelineCache;
     
-    //TODO remove
-    VkRenderPass renderPass;
-    
     Format surfaceFormatEngine;
     VkFormat depthStencilFormat;
     Format depthStencilFormatEngine;
     
-    std::vector<VkFramebuffer> framebuffers;
     std::uint32_t currentSwapBuffer;
     
     std::vector<VkCommandBuffer> prePresentationBarrierCommands;

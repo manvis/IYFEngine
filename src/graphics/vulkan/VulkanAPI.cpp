@@ -657,23 +657,16 @@ void VulkanAPI::freeCommandBuffer(const VkCommandBuffer& commandBuffer) {
 }
 
 void VulkanAPI::dispose() {
-    destroyHelperMeshesAndObjectsaryMeshes();
-    
     freePresentationBarrierCommandBuffers();
     physicalDevice.queueFamilyProperties.clear();
     
     vkFreeCommandBuffers(logicalDevice.handle, commandPool, 1, &mainCommandBuffer);
     vkFreeCommandBuffers(logicalDevice.handle, commandPool, 1, &imageUploadCommandBuffer);
     
-    for (auto& fb : framebuffers) {
-        vkDestroyFramebuffer(logicalDevice.handle, fb, nullptr);
-    }
-    
     for (std::uint32_t i = 0; i < swapchain.images.size(); ++i) {
         vkDestroyImageView(logicalDevice.handle, swapchain.imageViews[i], nullptr);
     }
     
-    vkDestroyRenderPass(logicalDevice.handle, renderPass, nullptr);
     vkDestroySwapchain(logicalDevice.handle, swapchain.handle, nullptr);
     
     vkDestroyImageView(logicalDevice.handle, depthStencilView, nullptr);
