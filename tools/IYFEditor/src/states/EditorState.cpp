@@ -1241,6 +1241,11 @@ void EditorState::showCameraComponentEditor(Entity& entity) {
         camera.setClippingDistance(near, far);
     }
     
+    float exposure = camera.getExposure();
+    if (ImGui::DragFloat("Exposure", &exposure, 0.01f, 0.01f, 20.0f)) {
+        camera.setExposure(exposure);
+    }
+    
     GraphicsSystem* graphicsSystem = dynamic_cast<GraphicsSystem*>(world->getSystemManagingComponentType(ComponentBaseType::Graphics));
     assert(graphicsSystem != nullptr);
     

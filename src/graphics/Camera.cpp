@@ -40,7 +40,7 @@
 
 namespace iyf {
 
-Camera::Camera() : Component(Camera::Type), transformation(nullptr), nearDistance(0.1f), farDistance(100.0f), aspect(1.0f), screenWidth(1.0f), screenHeight(1.0f), fovY(glm::radians(45.0f)), mode(Mode::ReverseZ), projectionNeedsUpdate(true) { }
+Camera::Camera() : Component(Camera::Type), transformation(nullptr), nearDistance(0.1f), farDistance(100.0f), aspect(1.0f), screenWidth(1.0f), screenHeight(1.0f), fovY(glm::radians(45.0f)), exposure(1.0f), mode(Mode::ReverseZ), projectionNeedsUpdate(true) { }
 
 Camera::Camera(int screenWidth, int screenHeight) : Camera() {
     this->screenWidth = screenWidth;

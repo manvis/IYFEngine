@@ -56,6 +56,14 @@ public:
     
     void update();
     
+    inline void setExposure(float exposure) {
+        this->exposure = exposure;
+    }
+    
+    inline float getExposure() const {
+        return exposure;
+    }
+    
     void setMode(Mode newMode) {
         mode = newMode;
         
@@ -176,6 +184,8 @@ private:
     std::uint32_t transformationUpdateCount;
 
     float fovY;
+    
+    float exposure;
 
     glm::mat4 projectionMatrix;
     glm::mat4 viewMatrix;
