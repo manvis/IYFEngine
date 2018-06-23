@@ -84,11 +84,13 @@ protected:
     virtual void drawSky(const World* world) final override;
     virtual void drawDebugAndHelperMeshes(const World* world, const DebugRenderer* renderer) final override;
     
+    void initializeTonemappingAndAdjustmentPipeline();
+    
     friend class Engine;
     ClusteredRenderer(Engine* engine, GraphicsAPI* api);
     
     enum class CommandBufferID {
-        World = 0, ImGui = 1, COUNT = 2
+        World = 0, Picking = 1, COUNT = 2
     };
     
     CommandPool* commandPool;

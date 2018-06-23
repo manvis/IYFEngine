@@ -234,26 +234,10 @@ void ClusteredRenderer::initializeFramebuffers() {
         mainFramebuffers.push_back(api->createFramebufferWithAttachments(extent, mainRenderPass, createInfo));
     }
     
-    LOG_V("Finished initializing the framebuffer")
+    LOG_V("Finished initializing the framebuffer");
 }
 
-void ClusteredRenderer::initialize() {
-    commandPool = api->createCommandPool(QueueType::Graphics, 0);
-    commandBuffers = commandPool->allocateCommandBuffers(static_cast<std::uint32_t>(CommandBufferID::COUNT));
-    worldRenderComplete = api->createSemaphore();
-    preGUIFence = api->createFence(false);
-    
-    initializeRenderPasses();
-    initializeFramebuffers();
-    
-    AssetManager* manager = engine->getAssetManager();
-    fullScreenQuad = manager->getSystemAsset<Mesh>("fullScreenQuad.dae");
-    
-    DescriptorPoolCreateInfo dpciInternal;
-    dpciInternal.maxSets = api->getSwapImageCount();
-    dpciInternal.poolSizes.push_back({DescriptorType::InputAttachment, api->getSwapImageCount()});
-    internalDescriptorPool = api->createDescriptorPool(dpciInternal);
-    
+void ClusteredRenderer::initializeTonemappingAndAdjustmentPipeline() {
     // TODO turn these into system assets
     fullScreenQuadVS = api->createShaderFromSource(iyf::ShaderStageFlagBits::Vertex, FullScreenQuadSource);
     tonemapFS = api->createShaderFromSource(iyf::ShaderStageFlagBits::Fragment, TonemapSource);
@@ -322,6 +306,26 @@ void ClusteredRenderer::initialize() {
     pciTonemap.subpass = 1;
     pciTonemap.vertexInputState = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(VertexDataLayout::MeshVertex)].createVertexInputStateCreateInfo(0);
     tonemapPipeline = api->createPipeline(pciTonemap);
+}
+
+void ClusteredRenderer::initialize() {
+    commandPool = api->createCommandPool(QueueType::Graphics, 0);
+    commandBuffers = commandPool->allocateCommandBuffers(static_cast<std::uint32_t>(CommandBufferID::COUNT));
+    worldRenderComplete = api->createSemaphore();
+    preGUIFence = api->createFence(false);
+    
+    initializeRenderPasses();
+    initializeFramebuffers();
+    
+    AssetManager* manager = engine->getAssetManager();
+    fullScreenQuad = manager->getSystemAsset<Mesh>("fullScreenQuad.dae");
+    
+    DescriptorPoolCreateInfo dpciInternal;
+    dpciInternal.maxSets = 1;
+    dpciInternal.poolSizes.push_back({DescriptorType::InputAttachment, 1});
+    internalDescriptorPool = api->createDescriptorPool(dpciInternal);
+    
+    initializeTonemappingAndAdjustmentPipeline();
     
     // TODO remove -------------------------------------------------------------------------------------------------------
     iyf::PipelineLayoutCreateInfo plci{{}, {{iyf::ShaderStageFlagBits::Vertex, 0, sizeof(PushBuffer)}}};
