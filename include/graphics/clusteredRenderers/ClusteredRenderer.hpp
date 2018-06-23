@@ -43,6 +43,8 @@ public:
     virtual void drawWorld(const World* world) final override;
     
     virtual CommandBuffer* getImGuiDesignatedCommandBuffer() final override;
+    
+    virtual std::pair<RenderPassHnd, std::uint32_t> getImGuiRenderPassAndSubPass() final override;
 
     virtual void submitCommandBuffers() final override;
     
@@ -72,6 +74,11 @@ public:
 
     virtual std::pair<RenderPassHnd, std::uint32_t> getSkyboxRenderPassAndSubPass() final;
 protected:
+    virtual void initializeRenderPasses() final override;
+    virtual void initializeFramebuffers() final override;
+    virtual void disposeRenderPasses() final override;
+    virtual void disposeFramebuffers() final override;
+    
     virtual void drawVisibleOpaque(const GraphicsSystem* graphicsSystem) final override;
     virtual void drawVisibleTransparent(const GraphicsSystem* graphicsSystem) final override;
     virtual void drawSky(const World* world) final override;
@@ -89,12 +96,33 @@ protected:
     SemaphoreHnd worldRenderComplete;
     FenceHnd preGUIFence;
     
+    RenderPassHnd mainRenderPass;
+    std::vector<Framebuffer> mainFramebuffers;
+    
+    RenderPassHnd itemPickRenderPass;
+    Framebuffer itemPickFramebuffer;
+    
+    Image depthImage;
+    Image hdrAttachmentImage;
+    SamplerHnd hdrAttachmentSampler;
+    
     PipelineLayoutHnd pipelineLayout;
     Pipeline simpleFlatPipeline;
     AssetHandle<Shader> vsSimpleFlat;
     AssetHandle<Shader> fsSimpleFlat;
     std::vector<SpecializationConstant> specializationConstants;
     
+    ShaderHnd fullScreenQuadVS;
+    ShaderHnd tonemapFS;
+    PipelineLayoutHnd tonemapPipelineLayout;
+    Pipeline tonemapPipeline;
+    std::vector<DescriptorSetHnd> tonemapSourceDescriptorSet;
+    DescriptorSetLayoutHnd tonemapSourceDescriptorSetLayout;
+    AssetHandle<Mesh> fullScreenQuad;
+    
+    // Helpers and other internal stuff
+    DescriptorPoolHnd internalDescriptorPool;
+    std::vector<std::uint32_t> emptyDynamicOffsets;
 };
 }
 

@@ -1416,8 +1416,13 @@ void VulkanAPI::createSwapchain() {
     checkResult(vkGetSwapchainImages(logicalDevice.handle, swapchain.handle, &swapchainImageCount, nullptr), "Failed to obtain swapchain image count.");
 
     swapchain.images.resize(swapchainImageCount);
+    swapchain.engineImages.reserve(swapchainImageCount);
     swapchain.imageViews.resize(swapchainImageCount);
     checkResult(vkGetSwapchainImages(logicalDevice.handle, swapchain.handle, &swapchainImageCount, swapchain.images.data()), "Failed to enumerate swapchain images.");
+    
+    for (VkImage image : swapchain.images) {
+        swapchain.engineImages.emplace_back(ImageHnd(image), screenWidth, screenHeight, 1, 1, ImageViewType::Im2D, getSurfaceFormat());
+    }
     
     swapchain.version += 1;
 }

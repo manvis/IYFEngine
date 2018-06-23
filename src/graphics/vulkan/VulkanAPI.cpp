@@ -41,6 +41,7 @@
 #undef Always // X11 Macro
 #undef None // X11 Macro
 
+#include "libshaderc/shaderc.hpp"
 #include "stb_image.h"
 #include "assets/loaders/TextureLoader.hpp"
 
@@ -857,9 +858,54 @@ ShaderHnd VulkanAPI::createShader(ShaderStageFlags shaderStageFlag, const void* 
     return ShaderHnd(module);
 }
 
-ShaderHnd VulkanAPI::createShaderFromSource(ShaderStageFlags, const std::string&) {
-    throw std::runtime_error("Method not supported");
-    return ShaderHnd();
+ShaderHnd VulkanAPI::createShaderFromSource(ShaderStageFlags shaderStage, const std::string& code) {
+    shaderc_shader_kind shaderKind;
+    switch (static_cast<ShaderStageFlagBits>(shaderStage.uint64())) {
+        case ShaderStageFlagBits::Vertex:
+            shaderKind = shaderc_vertex_shader;
+            break;
+        case ShaderStageFlagBits::TessControl:
+            shaderKind = shaderc_tess_control_shader;
+            break;
+        case ShaderStageFlagBits::TessEvaluation:
+            shaderKind = shaderc_tess_evaluation_shader;
+            break;
+        case ShaderStageFlagBits::Geometry:
+            shaderKind = shaderc_geometry_shader;
+            break;
+        case ShaderStageFlagBits::Fragment:
+            shaderKind = shaderc_fragment_shader;
+            break;
+        case ShaderStageFlagBits::Compute:
+            shaderKind = shaderc_vertex_shader;
+            break;
+        default:
+            throw std::invalid_argument("An unknown shader stage has been specified.");
+    }
+    
+    shaderc::Compiler compiler;
+    shaderc::CompileOptions compilerOptions;
+    compilerOptions.SetOptimizationLevel(shaderc_optimization_level_size);
+    
+    shaderc::SpvCompilationResult result = compiler.CompileGlslToSpv(code, shaderKind, "shaderFromSource", compilerOptions);
+    if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
+        LOG_E("Failed to compile a shader from source. Error: " << result.GetErrorMessage());
+        throw std::runtime_error("Failed to compile a shader from source. Check log for more info.");
+    }
+    
+    std::vector<std::uint32_t> content(result.begin(), result.end());
+    
+    VkShaderModuleCreateInfo mci;
+    mci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    mci.pNext    = nullptr;
+    mci.codeSize = content.size() * sizeof(std::uint32_t);
+    mci.pCode    = content.data();
+    mci.flags    = 0;
+
+    VkShaderModule module;
+    checkResult(vkCreateShaderModule(logicalDevice.handle, &mci, nullptr, &module), "Failed to create a shader module.");
+
+    return ShaderHnd(module);
 }
 
 bool VulkanAPI::destroyShader(ShaderHnd handle) {
@@ -1452,12 +1498,13 @@ Image VulkanAPI::createCompressedImage(const void* inputData, std::size_t byteCo
     return {ImageHnd(image), textureData.width, textureData.height, textureData.mipmapLevelCount, textureData.layers, imViewType, engineFormat};
 }
 
-Image VulkanAPI::createUncompressedImage(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable, bool usedAsColorAttachment, const void* data) {
+Image VulkanAPI::createUncompressedImage(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable, bool usedAsColorOrDepthAttachment, bool usedAsInputAttachment, const void* data) {
     std::uint64_t size;
     VkFormat format;
     Format engineFormat;
     
     bool needsMemoryUpload = (data != nullptr);
+    bool isDepthStencil = (type == ImageMemoryType::DepthStencilFloat);
     
     if (type == ImageMemoryType::RGB) {
         size = 3 * dimensions.x * dimensions.y;
@@ -1471,14 +1518,28 @@ Image VulkanAPI::createUncompressedImage(ImageMemoryType type, const glm::uvec2&
         size = 2 * 4 * dimensions.x * dimensions.y;
         format = VK_FORMAT_R16G16B16A16_SFLOAT;
         engineFormat = Format::R16_G16_B16_A16_sFloat;
+    } else if (type == ImageMemoryType::DepthStencilFloat) {
+        assert(Format::D32_sFloat_S8_uInt == depthStencilFormatEngine);
+        
+        size = (4 + 1) * (dimensions.x * dimensions.y); // 4 bytes for the depth part, 1 for stencil
+        format = depthStencilFormat;
+        engineFormat = depthStencilFormatEngine;
     } else {
         throw std::runtime_error("Invalid texture type.");
     }
     
     VkImageUsageFlags iuf = VK_IMAGE_USAGE_SAMPLED_BIT;
     
-    if (usedAsColorAttachment) {
-        iuf |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    if (usedAsColorOrDepthAttachment) {
+        if (isDepthStencil) {
+            iuf |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        } else {
+            iuf |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        }
+    }
+    
+    if (usedAsInputAttachment) {
+        iuf |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
     }
     
     if (needsMemoryUpload) {
@@ -1536,7 +1597,7 @@ Image VulkanAPI::createUncompressedImage(ImageMemoryType type, const glm::uvec2&
         checkResult(vkBeginCommandBuffer(imageUploadCommandBuffer, &cbbi), "Failed to begin a command buffer.");
         
         VkImageSubresourceRange sr;
-        sr.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        sr.aspectMask     = isDepthStencil ? (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT) : VK_IMAGE_ASPECT_COLOR_BIT;
         sr.baseMipLevel   = 0;
         sr.levelCount     = 1;
         sr.baseArrayLayer = 0;
@@ -1567,7 +1628,7 @@ Image VulkanAPI::createUncompressedImage(ImageMemoryType type, const glm::uvec2&
         bic.bufferRowLength   = 0;
         bic.bufferImageHeight = 0;
 
-        bic.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        bic.imageSubresource.aspectMask     = isDepthStencil ? (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT) : VK_IMAGE_ASPECT_COLOR_BIT;;
         bic.imageSubresource.mipLevel       = 0;
         bic.imageSubresource.baseArrayLayer = 0;
         bic.imageSubresource.layerCount     = 1;
@@ -1591,7 +1652,7 @@ Image VulkanAPI::createUncompressedImage(ImageMemoryType type, const glm::uvec2&
         checkResult(vkBeginCommandBuffer(imageUploadCommandBuffer, &cbbi), "Failed to begin a command buffer.");
 
         VkImageSubresourceRange sr;
-        sr.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        sr.aspectMask     = isDepthStencil ? (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT) : VK_IMAGE_ASPECT_COLOR_BIT;;
         sr.baseMipLevel   = 0;
         sr.levelCount     = 1;
         sr.baseArrayLayer = 0;
@@ -2387,7 +2448,7 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
             ivci.image            = img.handle.toNative<VkImage>();
             ivci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
             ivci.format           = vk::format(img.format);
-            ivci.components       = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A};
+            ivci.components       = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
             ivci.subresourceRange = isr;
 
             VkImageView imageView;
@@ -2465,7 +2526,7 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
             ivci.image            = image;
             ivci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
             ivci.format           = vk::format(i.format);
-            ivci.components       = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A};
+            ivci.components       = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
             ivci.subresourceRange = isr;
 
             VkImageView imageView;

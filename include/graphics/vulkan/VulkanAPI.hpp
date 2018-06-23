@@ -144,7 +144,7 @@ public:
     virtual Framebuffer createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<std::variant<Image, FramebufferAttachmentCreateInfo>>& info) override;
     virtual void destroyFramebufferWithAttachments(const Framebuffer& framebuffer) override;
     virtual Image createCompressedImage(const void* data, std::size_t size) override;
-    virtual Image createUncompressedImage(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable, bool usedAsColorAttachment, const void* data) override;
+    virtual Image createUncompressedImage(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable, bool usedAsColorOrDepthAttachment, bool usedAsInputAttachment, const void* data) override;
     virtual bool destroyImage(const Image& image) override;
     virtual SamplerHnd createSampler(const SamplerCreateInfo& info) override;
     virtual bool destroySampler(SamplerHnd handle) override;
@@ -213,6 +213,14 @@ public:
     }
     virtual FramebufferHnd getScreenFramebuffer() override {
         return FramebufferHnd(framebuffers[currentSwapBuffer]);
+    }
+    
+    virtual std::uint32_t getSwapImageCount() const final override {
+       return swapchain.images.size(); 
+    }
+    
+    virtual const Image& getSwapImage(std::uint32_t id) const final override {
+        return swapchain.engineImages[id];
     }
     
     virtual SemaphoreHnd getRenderCompleteSemaphore() override {
@@ -302,6 +310,7 @@ protected:
         std::uint32_t version;
         
         std::vector<VkImage> images;
+        std::vector<Image> engineImages;
         std::vector<VkImageView> imageViews;
     };
 

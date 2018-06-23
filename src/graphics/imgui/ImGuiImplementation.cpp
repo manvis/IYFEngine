@@ -35,6 +35,7 @@
 #include "assets/assetTypes/Shader.hpp"
 #include "assets/assetTypes/Font.hpp"
 #include "threading/ThreadProfiler.hpp"
+#include "graphics/Renderer.hpp"
 
 #include "imgui.h"
 #include <glm/vec2.hpp>
@@ -193,6 +194,7 @@ void ImGuiImplementation::dispose() {
 void ImGuiImplementation::initializeAssets() {
     GraphicsAPI* gfxAPI = engine->getGraphicsAPI();
     AssetManager* assetManager = engine->getAssetManager();
+    Renderer* renderer = engine->getRenderer();
     
     // Font texture atlas
     ImGuiIO& io = ImGui::GetIO();
@@ -214,14 +216,15 @@ void ImGuiImplementation::initializeAssets() {
     // This transfers the ownership to ImGui
     io.Fonts->AddFontFromMemoryTTF(fontData, fontAsset->size, con::ImGuiFontSize, nullptr, ranges);
     int fontAtlasWidth, fontAtlasHeight;
-    
     unsigned char* pixelData;
     
     //io.Fonts->GetTexDataAsAlpha8(&pixelData, &fontAtlasWidth, &fontAtlasHeight);
     io.Fonts->GetTexDataAsRGBA32(&pixelData, &fontAtlasWidth, &fontAtlasHeight);
     
+    LOG_V("Creating a font atlas for ImGui: " << fontAtlasWidth << "px x " << fontAtlasHeight << "px")
+    
     // TODO add ability to load single channel textures
-    fontAtlas = gfxAPI->createUncompressedImage(ImageMemoryType::RGBA, glm::ivec2(fontAtlasWidth, fontAtlasHeight), false, false, pixelData);
+    fontAtlas = gfxAPI->createUncompressedImage(ImageMemoryType::RGBA, glm::ivec2(fontAtlasWidth, fontAtlasHeight), false, false, false, pixelData);
     
     fontSampler = gfxAPI->createPresetSampler(SamplerPreset::ImguiTexture);
     fontView = gfxAPI->createDefaultImageView(fontAtlas);
@@ -259,6 +262,9 @@ void ImGuiImplementation::initializeAssets() {
     pci.colorBlendState.attachments[0].srcColorBlendFactor = BlendFactor::SrcAlpha;
     pci.colorBlendState.attachments[0].dstColorBlendFactor = BlendFactor::OneMinusSrcAlpha;
     pci.colorBlendState.attachments[0].colorBlendOp = BlendOp::Add;
+    pci.colorBlendState.attachments[0].srcAlphaBlendFactor = BlendFactor::OneMinusSrcAlpha;
+    pci.colorBlendState.attachments[0].dstAlphaBlendFactor = BlendFactor::Zero;
+    pci.colorBlendState.attachments[0].alphaBlendOp = BlendOp::Add;
     
     pci.rasterizationState.cullMode = CullModeFlagBits::None;
     pci.rasterizationState.frontFace = FrontFace::CounterClockwise;
@@ -275,7 +281,9 @@ void ImGuiImplementation::initializeAssets() {
          
     pci.layout = pipelineLayout;
     
-    pci.renderPass = guiRenderPass;
+    auto passData = renderer->getImGuiRenderPassAndSubPass();
+    pci.renderPass = passData.first;
+    pci.subpass = passData.second;
     
     pipeline = gfxAPI->createPipeline(pci);
     
@@ -357,17 +365,17 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
 
     drawData->ScaleClipRects(io.DisplayFramebufferScale);
     
-    // Begin the buffer
-    cmdBuff->begin();
-    
     GraphicsAPI* gfxAPI = engine->getGraphicsAPI();
-    
-    RenderPassBeginInfo rpbi;
-    rpbi.framebuffer = gfxAPI->getScreenFramebuffer();
-    rpbi.renderPass = guiRenderPass;
-    rpbi.renderArea.offset = {0, 0};
-    rpbi.renderArea.extent = {gfxAPI->getRenderSurfaceWidth(), gfxAPI->getRenderSurfaceHeight()};
-    cmdBuff->beginRenderPass(rpbi);
+//     // Begin the buffer
+//     cmdBuff->begin();
+//     
+//     
+//     RenderPassBeginInfo rpbi;
+//     rpbi.framebuffer = gfxAPI->getScreenFramebuffer();
+//     rpbi.renderPass = guiRenderPass;
+//     rpbi.renderArea.offset = {0, 0};
+//     rpbi.renderArea.extent = {gfxAPI->getRenderSurfaceWidth(), gfxAPI->getRenderSurfaceHeight()};
+//     cmdBuff->beginRenderPass(rpbi);
     
     cmdBuff->bindPipeline(pipeline);
     
@@ -439,8 +447,8 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
         VBOOffset += cmd_list->VtxBuffer.size();
     }
     
-    cmdBuff->endRenderPass();
-    cmdBuff->end();
+//     cmdBuff->endRenderPass();
+//     cmdBuff->end();
     
     frameHasAlreadyBegun = false;
     return true;

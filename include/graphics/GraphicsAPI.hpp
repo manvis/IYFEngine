@@ -183,7 +183,6 @@ public:
     ColorWriteMaskFlags colorWriteMask;
 };
 
-// TODO visiems bendra busena blendConstants ir logines operacijos
 class ColorBlendStateCreateInfo {
 public:
     ColorBlendStateCreateInfo() : logicOpEnable(false), logicOp(LogicOp::Copy), attachments({ColorBlendAttachmentState()}) {}
@@ -194,7 +193,6 @@ public:
     glm::vec4 blendConstants;
 };
 
-// TODO kas yra depth bias ir depthBiasConstantFactorVal, depthBiasClampVal, depthBiasSlopeFactorVal
 class RasterizationStateCreateInfo {
 public:
     RasterizationStateCreateInfo() : depthClampEnable(false), rasterizerDiscardEnable(false), polygonMode(PolygonMode::Fill), cullMode(CullModeFlagBits::Back), frontFace(FrontFace::CounterClockwise), depthBiasEnable(false), depthBiasConstantFactor(0.0f), depthBiasClamp(0.0f), depthBiasSlopeFactor(0.0f), lineWidth(1.0f)  {}
@@ -805,8 +803,8 @@ public:
     virtual Image createCompressedImage(const void* data, std::size_t size) = 0;
     /// Creates an uncompressed Image from the provided memory buffer. This function creates a 2D image (ImageViewType::Im2D) with 1 layer and 1 level.
     ///
-    /// This is used for some internal/debug stuff, e.g., ImGui's font atlas. Use createCompressedImage() for in-game textures.
-    virtual Image createUncompressedImage(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable = false, bool usedAsColorAttachment = false, const void* data = nullptr) = 0;
+    /// This is used for some internal and debug stuff, e.g., ImGui's font atlas, empty textures used as framebuffer images, etc. Use createCompressedImage() for in-game textures.
+    virtual Image createUncompressedImage(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable = false, bool usedAsColorOrDepthAttachment = false, bool usedAsInputAttachment = false, const void* data = nullptr) = 0;
     virtual bool destroyImage(const Image& image) = 0;
     virtual SamplerHnd createSampler(const SamplerCreateInfo& info) = 0;
     virtual SamplerHnd createPresetSampler(SamplerPreset preset, float maxLod = 0.0f);
@@ -902,6 +900,9 @@ public:
     
     virtual FramebufferHnd getScreenFramebuffer() = 0;
     virtual std::uint32_t getCurrentSwapImage() const = 0;
+    virtual std::uint32_t getSwapImageCount() const = 0;
+    virtual const Image& getSwapImage(std::uint32_t id) const = 0;
+    
     virtual SemaphoreHnd getRenderCompleteSemaphore() = 0;
     virtual SemaphoreHnd getPresentationCompleteSemaphore() = 0;
     

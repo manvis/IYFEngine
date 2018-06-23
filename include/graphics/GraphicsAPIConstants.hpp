@@ -470,7 +470,8 @@ enum class ImageLayout {
 enum class ImageMemoryType {
     RGB,
     RGBA,
-    RGBAHalf
+    RGBAHalf,
+    DepthStencilFloat
 };
 
 enum class ImageViewType {

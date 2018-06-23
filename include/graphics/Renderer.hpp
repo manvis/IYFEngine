@@ -107,6 +107,8 @@ public:
     /// constants (if any) appended at the end.
     virtual const std::vector<SpecializationConstant>& getShaderSpecializationConstants() const = 0;
     
+    virtual std::pair<RenderPassHnd, std::uint32_t> getImGuiRenderPassAndSubPass() = 0;
+    
     bool isInitialized() const {
         return initialized;
     }
@@ -117,6 +119,24 @@ public:
     
     virtual ~Renderer() {}
 protected:
+    /// Create the render pass (or passes) that the renderer needs.
+    ///
+    /// This must be called inside initialize()
+    virtual void initializeRenderPasses() = 0;
+    /// Create all framebuffers that the renderer needs.
+    ///
+    /// This must be called inside initialize()
+    virtual void initializeFramebuffers() = 0;
+    
+    /// Destroy the render pass (or passes) that the renderer used.
+    ///
+    /// This must be called inside dispose()
+    virtual void disposeRenderPasses() = 0;
+    /// Destory all framebuffers that the renderer used.
+    ///
+    /// This must be called inside dispose()
+    virtual void disposeFramebuffers() = 0;
+    
     // The following pure virtual functions don't necessarily have to be called if they don't fit the renderer you're creating.
     // Think of them as guidelines for what a renderer should do every frame.
     virtual void drawVisibleOpaque(const GraphicsSystem* graphicsSystem) = 0;
