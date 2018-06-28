@@ -70,16 +70,14 @@ bool ImGuiImplementation::requestRenderThisFrame() {
     GraphicsAPI* gfxAPI = engine->getGraphicsAPI();
     InputState* is = engine->getInputState();
     
-    // TODO these may be seriously wrong (not here, inside gfxAPI class). Test.
-    std::uint32_t windowWidth = gfxAPI->getScreenWidth();
-    std::uint32_t windowHeight = gfxAPI->getScreenHeight();
-    std::uint32_t surfaceWidth = gfxAPI->getRenderSurfaceWidth();
-    std::uint32_t surfaceHeight = gfxAPI->getRenderSurfaceHeight();
+    const glm::uvec2 windowSize = gfxAPI->getWindowSize();
+    // Imgui should always be rendered to the final swapchain image
+    const glm::uvec2 swapImageSize = gfxAPI->getSwapchainImageSize();
     
-    io.DisplaySize = ImVec2(static_cast<float>(windowWidth), static_cast<float>(windowHeight));
+    io.DisplaySize = ImVec2(static_cast<float>(windowSize.x), static_cast<float>(windowSize.y));
     
-    float widthScale = windowWidth > 0 ? (static_cast<float>(surfaceWidth) / windowWidth) : 0;
-    float heightScale = windowHeight > 0 ? (static_cast<float>(surfaceHeight) / windowHeight) : 0;
+    float widthScale = windowSize.x > 0 ? (static_cast<float>(swapImageSize.x) / windowSize.x) : 0;
+    float heightScale = windowSize.y > 0 ? (static_cast<float>(swapImageSize.y) / windowSize.y) : 0;
     io.DisplayFramebufferScale = ImVec2(widthScale, heightScale);
 
     // Update Delta
@@ -223,8 +221,12 @@ void ImGuiImplementation::initializeAssets() {
     
     LOG_V("Creating a font atlas for ImGui: " << fontAtlasWidth << "px x " << fontAtlasHeight << "px")
     
-    // TODO add ability to load single channel textures
-    fontAtlas = gfxAPI->createUncompressedImage(ImageMemoryType::RGBA, glm::ivec2(fontAtlasWidth, fontAtlasHeight), false, false, false, pixelData);
+    UncompressedImageCreateInfo uici;
+    uici.type = ImageMemoryType::RGBA;
+    uici.dimensions = glm::ivec2(fontAtlasWidth, fontAtlasHeight);
+    uici.data = pixelData;
+    
+    fontAtlas = gfxAPI->createUncompressedImage(uici);
     
     fontSampler = gfxAPI->createPresetSampler(SamplerPreset::ImguiTexture);
     fontView = gfxAPI->createDefaultImageView(fontAtlas);

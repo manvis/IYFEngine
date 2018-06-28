@@ -138,8 +138,11 @@ void GraphicsSystem::initialize() {
 
         editorCamera.transformation = &editorCameraTransformation;
         
+        assert(!renderer->isRenderSurfaceSizeDynamic());
+        const glm::uvec2 renderSurfaceSize = renderer->getRenderSurfaceSize();
+        editorCamera.setScreenSize(renderSurfaceSize.x, renderSurfaceSize.y);
+        
         // TODO these should be loaded from file
-        editorCamera.setScreenSize(api->getScreenWidth(), api->getScreenHeight());
         editorCameraTransformation.setPosition(10.0f, 5.0f, 10.0f);
         editorCameraTransformation.setRotation(glm::quat(-1.0f, 0.0f, 0.0f, 0.0f));
         editorCamera.setHorizontalFOV(glm::radians(105.518));
@@ -200,8 +203,11 @@ void GraphicsSystem::update(float delta, const EntityStateVector& entityStates) 
     const InputState* is = manager->getEngine()->getInputState();
     
     Camera& camera = getActiveCamera();
-    if (camera.getScreenWidth() != api->getScreenWidth() || camera.getScreenHeight() != api->getScreenHeight()) {
-        camera.setScreenSize(api->getScreenWidth(), api->getScreenHeight());
+    assert(!renderer->isRenderSurfaceSizeDynamic());
+    
+    const glm::uvec2 renderSurfaceSize = renderer->getRenderSurfaceSize();
+    if (camera.getScreenWidth() != renderSurfaceSize.x || camera.getScreenHeight() != renderSurfaceSize.y) {
+        camera.setScreenSize(renderSurfaceSize.x, renderSurfaceSize.y);
     }
 
     // TODO this should go to a CharacterController
@@ -316,7 +322,9 @@ void GraphicsSystem::createAndAttachComponent(const EntityKey& key, const Compon
             throw std::runtime_error("NOT YET IMPLEMENTED");
             break;
         case GraphicsComponent::Camera: {
-            Camera c(api->getScreenWidth(), api->getScreenHeight());
+            assert(!renderer->isRenderSurfaceSizeDynamic());
+            const glm::uvec2 surfaceSize = renderer->getRenderSurfaceSize();
+            Camera c(surfaceSize.x, surfaceSize.y);
             
             setComponent(key.getID(), std::move(c));
             

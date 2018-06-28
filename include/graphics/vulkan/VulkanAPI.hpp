@@ -90,6 +90,8 @@ public:
     virtual void nextSubpass(SubpassContents contents = SubpassContents::Inline) override;
     virtual void endRenderPass() override;
     
+    virtual void copyImageToBuffer(const Image& srcImage, ImageLayout layout, const Buffer& dstBuffer, const std::vector<BufferImageCopy>& regions) final override;
+    
     virtual CommandBufferHnd getHandle() override {
         return CommandBufferHnd(cmdBuff);
     }
@@ -144,7 +146,7 @@ public:
     virtual Framebuffer createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<std::variant<Image, FramebufferAttachmentCreateInfo>>& info) override;
     virtual void destroyFramebufferWithAttachments(const Framebuffer& framebuffer) override;
     virtual Image createCompressedImage(const void* data, std::size_t size) override;
-    virtual Image createUncompressedImage(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable, bool usedAsColorOrDepthAttachment, bool usedAsInputAttachment, const void* data) override;
+    virtual Image createUncompressedImage(const UncompressedImageCreateInfo& info) override;
     virtual bool destroyImage(const Image& image) override;
     virtual SamplerHnd createSampler(const SamplerCreateInfo& info) override;
     virtual bool destroySampler(SamplerHnd handle) override;
@@ -155,6 +157,7 @@ public:
     virtual bool updateHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) override;
     virtual void updateDeviceVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) override;
     virtual bool destroyBuffers(const std::vector<Buffer>& buffers) override;
+    virtual bool readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) final override;
     
 //     virtual UniformBufferSlice createUniformBuffer(std::uint64_t size, BufferUpdateFrequency flag, const void* data = nullptr) override;
 //     virtual bool setUniformBufferData(const UniformBufferSlice& slice, const void* data) override;
@@ -234,6 +237,10 @@ public:
     
     virtual Image getDefaultDepthBufferImage() const override {
         return depthStencil;
+    }
+    
+    virtual glm::uvec2 getSwapchainImageSize() const final override {
+        return glm::uvec2(swapchain.imageExtent.width, swapchain.imageExtent.height);
     }
     
     virtual ~VulkanAPI() { }
@@ -398,8 +405,8 @@ protected:
     VkSurfaceFormatKHR chooseSwapchainImageFormat();
     VkPresentModeKHR chooseSwapchainPresentMode();
     void createSwapchainImageViews();
+    void chooseDepthStencilFormat();
     
-    void setupDepthStencil(VkCommandBuffer commandBuffer);
     void setupCommandPool();
     void setupPresentationBarrierCommandBuffers();
     void freePresentationBarrierCommandBuffers();

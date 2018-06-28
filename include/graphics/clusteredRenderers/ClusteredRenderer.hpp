@@ -32,6 +32,9 @@
 #include "graphics/Renderer.hpp"
 #include "assets/AssetHandle.hpp"
 
+#include <mutex>
+#include <list>
+
 namespace iyf {
 class Shader;
 
@@ -72,7 +75,14 @@ public:
     virtual std::string makeRenderDataSet(ShaderLanguage language) const final;
     virtual std::string makeLightLoops(ShaderLanguage language, const std::string& lightingFunction) const final override;
 
-    virtual std::pair<RenderPassHnd, std::uint32_t> getSkyboxRenderPassAndSubPass() final;
+    virtual std::pair<RenderPassHnd, std::uint32_t> getSkyboxRenderPassAndSubPass() final override;
+    
+    virtual void retrieveDataFromIDBuffer() final override;
+    virtual std::future<std::uint32_t> getHoveredItemID() final override;
+    
+    virtual bool isRenderSurfaceSizeDynamic() const final override;
+    virtual glm::uvec2 getRenderSurfaceSize() const final override;
+    
 protected:
     virtual void initializeRenderPasses() final override;
     virtual void initializeFramebuffers() final override;
@@ -83,8 +93,12 @@ protected:
     virtual void drawVisibleTransparent(const GraphicsSystem* graphicsSystem) final override;
     virtual void drawSky(const World* world) final override;
     virtual void drawDebugAndHelperMeshes(const World* world, const DebugRenderer* renderer) final override;
+    virtual void drawIDBuffer(const GraphicsSystem* graphicsSystem) final override;
+    
+    void initializePickingPipeline();
     
     void initializeTonemappingAndAdjustmentPipeline();
+    void initializeMainRenderpassComponents();
     
     friend class Engine;
     ClusteredRenderer(Engine* engine, GraphicsAPI* api);
@@ -103,14 +117,23 @@ protected:
     
     RenderPassHnd itemPickRenderPass;
     Framebuffer itemPickFramebuffer;
+    Buffer pickResultBuffer;
+    std::mutex promiseMutex;
+    std::list<std::promise<std::uint32_t>> promiseList;
     
     Image depthImage;
     Image hdrAttachmentImage;
+    Image idImage;
     SamplerHnd hdrAttachmentSampler;
+    
+    PipelineLayoutHnd pickingPipelineLayout;
+    Pipeline pickingPipeline;
+    ShaderHnd idFS;
+    ShaderHnd idVS;
     
     PipelineLayoutHnd pipelineLayout;
     Pipeline simpleFlatPipeline;
-    AssetHandle<Shader> vsSimpleFlat;
+    AssetHandle<Shader> vsSimple;
     AssetHandle<Shader> fsSimpleFlat;
     std::vector<SpecializationConstant> specializationConstants;
     

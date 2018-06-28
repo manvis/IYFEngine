@@ -30,8 +30,6 @@
 #include "graphics/vulkan/VulkanAPI.hpp"
 #include "graphics/vulkan/VulkanConstantMappings.hpp"
 
-#include "core/Logger.hpp"
-
 #include <iostream>
 
 #include <fstream>
@@ -40,6 +38,11 @@
 
 #undef Always // X11 Macro
 #undef None // X11 Macro
+#undef Bool
+
+#include "core/Engine.hpp"
+#include "core/Logger.hpp"
+#include "graphics/Renderer.hpp"
 
 #include "libshaderc/shaderc.hpp"
 #include "stb_image.h"
@@ -48,6 +51,21 @@
 namespace iyf {
 
 namespace vkutil {
+enum class SupportedTiling {
+    Linear,
+    Optimal,
+    NotSupported
+};
+
+inline SupportedTiling getSupportedTiling(const VkFormatProperties& formatProperties, VkFormatFeatureFlagBits bitsToCheck) {
+    if (formatProperties.optimalTilingFeatures & bitsToCheck) {
+        return SupportedTiling::Optimal;
+    } else if (formatProperties.linearTilingFeatures & bitsToCheck) {
+        return SupportedTiling::Linear;
+    } else {
+        return SupportedTiling::NotSupported;
+    }
+}
 inline std::vector<VkDynamicState> mapDynamicState(const std::vector<DynamicState>& states) {
     std::vector<VkDynamicState> vkStates;
     vkStates.reserve(states.size());
@@ -837,7 +855,7 @@ bool VulkanAPI::endFrame() {
     return true;
 }
 
-ShaderHnd VulkanAPI::createShader(ShaderStageFlags shaderStageFlag, const void* data, std::size_t byteCount) {
+ShaderHnd VulkanAPI::createShader(ShaderStageFlags, const void* data, std::size_t byteCount) {
     VkShaderModuleCreateInfo mci;
     mci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     mci.pNext    = nullptr;
@@ -985,11 +1003,14 @@ Pipeline VulkanAPI::createPipeline(const PipelineCreateInfo& info) {
             viewports.push_back(vp);
         }
     } else {
+        assert(!engine->getRenderer()->isRenderSurfaceSizeDynamic());
+        const glm::uvec2 renderSurfaceSize = engine->getRenderer()->getRenderSurfaceSize();
+        
         VkViewport vp;
         vp.x = 0.0f;
         vp.y = 0.0f;
-        vp.width = getRenderSurfaceWidth();
-        vp.height = getRenderSurfaceHeight();
+        vp.width = renderSurfaceSize.x;
+        vp.height = renderSurfaceSize.y;
         vp.minDepth = 0.0f;
         vp.maxDepth = 1.0f;
 
@@ -1010,11 +1031,14 @@ Pipeline VulkanAPI::createPipeline(const PipelineCreateInfo& info) {
             scissors.push_back(sc);
         }
     } else {
+        assert(!engine->getRenderer()->isRenderSurfaceSizeDynamic());
+        const glm::uvec2 renderSurfaceSize = engine->getRenderer()->getRenderSurfaceSize();
+        
         VkRect2D sc;
         sc.offset.x = 0;
         sc.offset.y = 0;
-        sc.extent.width = getRenderSurfaceWidth();
-        sc.extent.height = getRenderSurfaceHeight();
+        sc.extent.width = renderSurfaceSize.x;
+        sc.extent.height = renderSurfaceSize.y;
                
         scissors.push_back(sc);
     }
@@ -1491,7 +1515,15 @@ Image VulkanAPI::createCompressedImage(const void* inputData, std::size_t byteCo
     return {ImageHnd(image), textureData.width, textureData.height, textureData.mipmapLevelCount, textureData.layers, imViewType, engineFormat};
 }
 
-Image VulkanAPI::createUncompressedImage(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable, bool usedAsColorOrDepthAttachment, bool usedAsInputAttachment, const void* data) {
+Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info) {
+    const ImageMemoryType type = info.type;
+    const glm::uvec2& dimensions = info.dimensions;
+    const bool isWritable = info.isWritable;
+    const bool usedAsColorOrDepthAttachment = info.usedAsColorOrDepthAttachment;
+    const bool usedAsInputAttachment = info.usedAsInputAttachment;
+    const bool usedAsTransferSource = info.usedAsTransferSource;
+    const void* data = info.data;
+    
     std::uint64_t size;
     VkFormat format;
     Format engineFormat;
@@ -1499,7 +1531,11 @@ Image VulkanAPI::createUncompressedImage(ImageMemoryType type, const glm::uvec2&
     bool needsMemoryUpload = (data != nullptr);
     bool isDepthStencil = (type == ImageMemoryType::DepthStencilFloat);
     
-    if (type == ImageMemoryType::RGB) {
+    if (type == ImageMemoryType::R32) {
+        size = 4 * dimensions.x * dimensions.y;
+        format = VK_FORMAT_R32_UINT;
+        engineFormat = Format::R32_uInt;
+    } else if (type == ImageMemoryType::RGB) {
         size = 3 * dimensions.x * dimensions.y;
         format = VK_FORMAT_R8G8B8_UNORM;
         engineFormat = Format::R8_G8_B8_uNorm;
@@ -1521,18 +1557,53 @@ Image VulkanAPI::createUncompressedImage(ImageMemoryType type, const glm::uvec2&
         throw std::runtime_error("Invalid texture type.");
     }
     
-    VkImageUsageFlags iuf = VK_IMAGE_USAGE_SAMPLED_BIT;
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(physicalDevice.handle, format, &formatProperties);
     
+    VkImageUsageFlags iuf = VK_IMAGE_USAGE_SAMPLED_BIT;
+    bool linearTilingRequired = false;
+    
+    // TODO what if some features are only supported in linear mode and some in optimal mode?
     if (usedAsColorOrDepthAttachment) {
         if (isDepthStencil) {
             iuf |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            
+            vkutil::SupportedTiling st = vkutil::getSupportedTiling(formatProperties, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+            if (st == vkutil::SupportedTiling::NotSupported) {
+                throw std::runtime_error("The required image format cannot be used as a depth stencil attachment");
+            } else if (st == vkutil::SupportedTiling::Linear) {
+                LOG_W("The image that is currently being created cannot use optimal tiling.")
+                linearTilingRequired = true;
+            }
         } else {
             iuf |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            
+            vkutil::SupportedTiling st = vkutil::getSupportedTiling(formatProperties, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
+            if (st == vkutil::SupportedTiling::NotSupported) {
+                throw std::runtime_error("The required image format cannot be used as a color attachment");
+            } else if (st == vkutil::SupportedTiling::Linear) {
+                LOG_W("The image that is currently being created cannot use optimal tiling.")
+                linearTilingRequired = true;
+            }
+        }
+    }
+    
+    if (usedAsTransferSource) {
+        iuf |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        
+        vkutil::SupportedTiling st = vkutil::getSupportedTiling(formatProperties, VK_FORMAT_FEATURE_TRANSFER_SRC_BIT);
+        if (st == vkutil::SupportedTiling::NotSupported) {
+            throw std::runtime_error("The required image format cannot be used as a transfer source");
+        } else if (st == vkutil::SupportedTiling::Linear) {
+            LOG_W("The image that is currently being created cannot use optimal tiling.")
+            linearTilingRequired = true;
         }
     }
     
     if (usedAsInputAttachment) {
         iuf |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+        
+        // TODO do I need a check here?
     }
     
     if (needsMemoryUpload) {
@@ -1554,7 +1625,7 @@ Image VulkanAPI::createUncompressedImage(ImageMemoryType type, const glm::uvec2&
     ici.mipLevels             = 1;
     ici.arrayLayers           = 1;
     ici.samples               = VK_SAMPLE_COUNT_1_BIT;
-    ici.tiling                = VK_IMAGE_TILING_OPTIMAL;
+    ici.tiling                = linearTilingRequired ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
     ici.usage                 = iuf;
     ici.sharingMode           = VK_SHARING_MODE_EXCLUSIVE;
     ici.queueFamilyIndexCount = 0;
@@ -1685,6 +1756,10 @@ Image VulkanAPI::createUncompressedImage(ImageMemoryType type, const glm::uvec2&
         vkDestroyBuffer(logicalDevice.handle, stagingData.first, nullptr);
     }
     
+    LOG_V("Created an image:" << 
+          "\n\t\tDimensions: " << dimensions.x << "x" << dimensions.y <<
+          "\n\t\tFormat: " << getFormatName(engineFormat) <<
+          "\n\t\tOptimal tiling: " << (linearTilingRequired ? "false" : "true"));
     
     return {ImageHnd(image), static_cast<std::uint64_t>(dimensions.x), static_cast<std::uint64_t>(dimensions.y), 1, 1, ImageViewType::Im2D, engineFormat};
 }
@@ -2062,6 +2137,30 @@ bool VulkanAPI::updateHostVisibleBuffer(const Buffer& buffer, const std::vector<
 //    fr.offset = buffer.offset();
 //    fr.size   = buffer.size();
 //    vkFlushMappedMemoryRanges(logicalDevice.handle, 1, &fr);
+
+    vkUnmapMemory(logicalDevice.handle, memory);
+    
+    return true;
+}
+
+bool VulkanAPI::readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) {
+    assert(buffer.memoryType() == MemoryType::HostVisible);
+    
+    VkDeviceMemory memory = bufferToMemory[buffer.handle().toNative<VkBuffer>()];
+    void* p;
+    // TODO non-coherent
+    // TODO stop unmapping buffers
+    checkResult(vkMapMemory(logicalDevice.handle, memory, buffer.offset(), buffer.size(), 0, &p), "Failed to map memory.");
+    
+    for (const auto& c : copies) {
+        const char* source = static_cast<const char*>(p);
+        source += c.srcOffset;
+        
+        char* destination = static_cast<char*>(data);
+        destination += c.dstOffset;
+        
+        std::memcpy(destination, source, c.size);
+    }
 
     vkUnmapMemory(logicalDevice.handle, memory);
     
@@ -2745,6 +2844,41 @@ void VulkanCommandBuffer::nextSubpass(SubpassContents contents) {
 
 void VulkanCommandBuffer::endRenderPass() {
     vkCmdEndRenderPass(cmdBuff);
+}
+
+// std::uint64_t bufferOffset;
+// std::uint32_t bufferRowLength;
+// std::uint32_t bufferImageHeight;
+// ImageSubresourceLayers imageSubresource;
+// glm::ivec3 imageOffset;
+// glm::uvec3 imageExtent;
+void VulkanCommandBuffer::copyImageToBuffer(const Image& srcImage, ImageLayout layout, const Buffer& dstBuffer, const std::vector<BufferImageCopy>& regions) {
+    std::vector<VkBufferImageCopy> convertedRegions;
+    convertedRegions.reserve(regions.size());
+    
+    for (const auto& r : regions) {
+        VkBufferImageCopy bic;
+        bic.bufferOffset      = r.bufferOffset;
+        bic.bufferRowLength   = r.bufferRowLength;
+        bic.bufferImageHeight = r.bufferImageHeight;
+        
+        bic.imageSubresource.aspectMask     = vkutil::mapAspectMask(r.imageSubresource.aspectMask);
+        bic.imageSubresource.mipLevel       = r.imageSubresource.mipLevel;
+        bic.imageSubresource.layerCount     = r.imageSubresource.layerCount;
+        bic.imageSubresource.baseArrayLayer = r.imageSubresource.baseArrayLayer;
+        
+        bic.imageOffset.x = r.imageOffset.x;
+        bic.imageOffset.y = r.imageOffset.y;
+        bic.imageOffset.z = r.imageOffset.z;
+        
+        bic.imageExtent.width = r.imageExtent.x;
+        bic.imageExtent.height = r.imageExtent.y;
+        bic.imageExtent.depth = r.imageExtent.z;
+        
+        convertedRegions.push_back(std::move(bic));
+    }
+    
+    vkCmdCopyImageToBuffer(cmdBuff, srcImage.handle.toNative<VkImage>(), vk::imageLayout(layout), dstBuffer.handle().toNative<VkBuffer>(), regions.size(), convertedRegions.data());
 }
 
 // --------------------------------- Command pool

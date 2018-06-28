@@ -157,6 +157,8 @@ protected:
     std::function<void()> pickPlaceModeDrawFunction;
     void handlePickOrPlaceMode(const char* modeName, bool buttonPressed, bool& buttonReleased, std::function<void()> handleLogic, std::function<void()> handleDraw);
     void clearActivePickOrPlaceMode();
+    std::future<std::uint32_t> hoveredItemIDFuture;
+    
 //    std::stack<> assetStack;
 // WORLD AND ENTITIES-----------------------------------------------------------
     World* world;
@@ -168,6 +170,9 @@ protected:
     /// Some systems need to update their components if transformation changes
     bool transformationChanged;
     
+    void changeSelection(std::uint32_t entityID);
+    void changeSelection(EntityHierarchy::value_type& entity);
+    void deselectCurrentItem();
     virtual void createWorldSpecificEditor() {}
     
     void showMaterialEditorWindow();

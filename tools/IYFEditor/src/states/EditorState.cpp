@@ -40,6 +40,7 @@
 #include "core/Project.hpp"
 #include "graphics/GraphicsSystem.hpp"
 #include "graphics/MeshComponent.hpp"
+#include "graphics/Renderer.hpp"
 #include "threading/ThreadProfiler.hpp"
 #include "threading/ThreadProfilerCore.hpp"
 #include "assets/AssetManager.hpp"
@@ -285,6 +286,19 @@ void EditorState::frame(float delta) {
     IYFT_PROFILE(EditorFrame, iyft::ProfilerTag::Editor)
     iyf::InputState* is = engine->getInputState();
     iyf::GraphicsAPI* api = engine->getGraphicsAPI();
+    
+    engine->getRenderer()->retrieveDataFromIDBuffer();
+    
+    if (hoveredItemIDFuture.valid()) {
+        std::uint32_t id = hoveredItemIDFuture.get();
+        
+        if (id == std::numeric_limits<std::uint32_t>::max()) {
+            deselectCurrentItem();
+        } else {
+            changeSelection(id);
+            LOG_V("Picked item ID: " << id);
+        }
+    }
     
 //    throw std::runtime_error("wrt");
     
@@ -547,17 +561,21 @@ void EditorState::frame(float delta) {
     ImGui::GetIO().MouseDrawCursor = (cameraMode == CameraMode::Stationary);
     
     if (world != nullptr) {
-        world->setInputProcessingPaused(cameraMode != CameraMode::Free);
-        world->update(delta);
-        
-        if (!ImGui::IsAnyItemHovered() && is->isMouseClicked(MouseButton::Left)) {
+        if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) && is->isMouseClicked(MouseButton::Left)) {
             int mouseX = is->getMouseX();
             int mouseY = is->getMouseY();
             
-            if (mouseX >= 0 && mouseX <= static_cast<int>(api->getScreenWidth()) && mouseY >= 0 && mouseY <= static_cast<int>(api->getScreenHeight())) {
-                world->rayPick(mouseX, mouseY);
+            glm::uvec2 windowSize = api->getWindowSize();
+            if (mouseX >= 0 && mouseX <= static_cast<int>(windowSize.x) && mouseY >= 0 && mouseY <= static_cast<int>(windowSize.y)) {
+                //world->rayPick(mouseX, mouseY);
+                assert(engine->getRenderer()->isPickingEnabled());
+                assert(!hoveredItemIDFuture.valid());
+                hoveredItemIDFuture = engine->getRenderer()->getHoveredItemID();
             }
         }
+        
+        world->setInputProcessingPaused(cameraMode != CameraMode::Free);
+        world->update(delta);
     }
 }
 
@@ -850,23 +868,11 @@ void EditorState::showWorldEditorWindow() {
         
         auto& entities = world->getEntityHierarchy();
 
-        // TODO multi select
+        // TODO multi select?
         // TODO this does NOT support hierarchies
         for (auto& entity : entities) {
             if (ImGui::Selectable(entity.first.c_str(), entity.second.isSelected())) {
-                auto previouslySelected = entities.find(selectedEntityName);
-                
-                if (previouslySelected != entities.end()) {
-                    (*previouslySelected).second.setSelected(false);
-                }
-                
-                selectedEntityName = entity.first;
-                assert(entity.first.length() + 1 <= con::MaxEntityNameLength);
-                std::memcpy(entityName, entity.first.c_str(), entity.first.length() + 1);
-                //entityName = entity.first;
-                entity.second.setSelected(true);
-                // Clear badName flag, if it's set
-                badName = false;
+                changeSelection(entity);
             }
 
             // TODO either this, or add right click menus
@@ -959,6 +965,58 @@ void EditorState::showWorldEditorWindow() {
     ImGui::Columns();
     
     ImGui::End();
+}
+
+void EditorState::deselectCurrentItem() {
+    if (world == nullptr) {
+        return;
+    }
+    
+    auto& entities = world->getEntityHierarchy();
+    auto previouslySelected = entities.find(selectedEntityName);
+    
+    if (previouslySelected != entities.end()) {
+        (*previouslySelected).second.setSelected(false);
+    }
+    
+    selectedEntityName.clear();
+    badName = false;
+}
+
+void EditorState::changeSelection(std::uint32_t entityID) {
+    if (world == nullptr) {
+        return;
+    }
+    
+    std::string name = world->getEntityByID(entityID).getName();
+    
+    auto& entities = world->getEntityHierarchy();
+    auto pickedItem = entities.find(name);
+    
+    assert(pickedItem != entities.end());
+    
+    changeSelection(*pickedItem);
+}
+
+void EditorState::changeSelection(EntityHierarchy::value_type& entity) {
+    if (world == nullptr) {
+        return;
+    }
+    
+    auto& entities = world->getEntityHierarchy();
+    auto previouslySelected = entities.find(selectedEntityName);
+    
+    if (previouslySelected != entities.end()) {
+        (*previouslySelected).second.setSelected(false);
+    }
+    
+    selectedEntityName = entity.first;
+    assert(entity.first.length() + 1 <= con::MaxEntityNameLength);
+    std::memcpy(entityName, entity.first.c_str(), entity.first.length() + 1);
+    //entityName = entity.first;
+    entity.second.setSelected(true);
+    // Clear badName flag, if it's set
+    badName = false;
 }
 
 void EditorState::showEntityEditorWindow() {
@@ -1935,9 +1993,10 @@ void ImGuiLog::show(const std::string& logStr) {
     // TODO rest of the functionality and DOCK at the bottom somehow?
     GraphicsAPI* api = engine->getGraphicsAPI();
     
-    float width = api->getRenderSurfaceWidth() * 0.7f;
-    float height = api->getRenderSurfaceHeight() * 0.2f;
-    float posY = api->getRenderSurfaceHeight() - height;
+    const glm::uvec2 swapImageSize = api->getSwapchainImageSize();
+    float width = swapImageSize.x * 0.7f;
+    float height = swapImageSize.y * 0.2f;
+    float posY = swapImageSize.y - height;
     
     ImGui::SetNextWindowPos(ImVec2(0, posY), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);

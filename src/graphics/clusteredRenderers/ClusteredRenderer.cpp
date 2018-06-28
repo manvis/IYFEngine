@@ -28,16 +28,24 @@
 
 #include "graphics/clusteredRenderers/ClusteredRenderer.hpp"
 #include "graphics/VertexDataLayouts.hpp"
+#include "graphics/Camera.hpp"
+#include "graphics/Skybox.hpp"
+#include "graphics/DebugRenderer.hpp"
+
 #include "assets/typeManagers/MeshTypeManager.hpp"
 #include "assets/assetTypes/Shader.hpp"
+
 #include "core/World.hpp"
-#include "graphics/Camera.hpp"
 #include "core/Engine.hpp"
-#include "graphics/Skybox.hpp"
-#include "graphics/Camera.hpp"
-#include "graphics/DebugRenderer.hpp"
+#include "core/InputState.hpp"
+
 #include "physics/PhysicsSystem.hpp"
+
 #include "threading/ThreadProfiler.hpp"
+
+#include "utilities/DataSizes.hpp"
+
+// TODO remove this
 
 #include <iostream>
 
@@ -109,6 +117,44 @@ void main () {
     color.a = 1.0f;
 })code";
 
+const std::string IDFragmentSource = 
+R"code(#version 450
+
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+
+layout (location = 0) out uint value;
+
+layout(std140, push_constant) uniform pickerPushBuffer {
+    mat4 MVP;
+    uint meshID;
+} push;
+
+void main () {
+    value = push.meshID;
+})code";
+
+const std::string PositionOnlyVertexSource = 
+R"code(#version 450
+
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+
+layout(location = 0) in vec3 pos;
+
+layout(std140, push_constant) uniform pickerPushBuffer {
+    mat4 MVP;
+    uint meshID;
+} push;
+
+out gl_PerVertex {
+    vec4 gl_Position;
+};
+
+void main () {
+    gl_Position = push.MVP * vec4(pos.xyz, 1.0f);
+})code";
+
 struct PushBuffer {
     glm::mat4 MVP;
     glm::mat4 M;
@@ -119,9 +165,16 @@ struct AdjustmentPushBuffer {
     glm::vec3 padding;
 };
 
+struct PickerPushBuffer {
+    glm::mat4 MVP;
+    std::uint32_t objectID;
+};
+
 ClusteredRenderer::ClusteredRenderer(Engine* engine, GraphicsAPI* api) : Renderer(engine, api), specializationConstants(con::DefaultSpecializationConstants.begin(), con::DefaultSpecializationConstants.end()) {
     specializationConstants.emplace_back(MaxClustersName, Format::R32_uInt, MaxClusters);
     specializationConstants.emplace_back(MaxLightIDsName, Format::R32_uInt, MaxLightIDs);
+    
+//     pickingEnabled = false;
 }
 
 void ClusteredRenderer::initializeRenderPasses() {
@@ -169,6 +222,21 @@ void ClusteredRenderer::initializeRenderPasses() {
     finalAttachment.finalLayout = ImageLayout::ColorAttachmentOptimal;
     rpci.attachments.push_back(std::move(finalAttachment));
     
+    if (isPickingEnabled()) {
+        // 3 - the ID buffer for pixel perfect picking
+        AttachmentDescription idBufferAttachment;
+        idBufferAttachment.flags = AttachmentDescriptionFlags();
+        idBufferAttachment.format = Format::R32_uInt;
+        idBufferAttachment.samples = SampleCountFlagBits::X1;
+        idBufferAttachment.loadOp = AttachmentLoadOp::Clear;
+        idBufferAttachment.storeOp = AttachmentStoreOp::Store;
+        idBufferAttachment.stencilLoadOp = AttachmentLoadOp::DoNotCare;
+        idBufferAttachment.stencilStoreOp = AttachmentStoreOp::DoNotCare;
+        idBufferAttachment.initialLayout = ImageLayout::Undefined;
+        idBufferAttachment.finalLayout = ImageLayout::TransferSrcOptimal;
+        rpci.attachments.push_back(std::move(idBufferAttachment));
+    }
+    
     // First subpass
     AttachmentReference hdrColorWriteReference;
     hdrColorWriteReference.attachment = 0;
@@ -197,9 +265,30 @@ void ClusteredRenderer::initializeRenderPasses() {
     SubpassDescription finalSubpass;
     finalSubpass.pipelineBindPoint = PipelineBindPoint::Graphics;
     finalSubpass.colorAttachments.push_back(finalColorWriteReference);
+    if (isPickingEnabled()) {
+        finalSubpass.preserveAttachments.push_back(1);
+    }
     finalSubpass.inputAttachments.push_back(hdrColorReadReference);
     
     rpci.subpasses.push_back(std::move(finalSubpass));
+    
+    if (isPickingEnabled()) {
+        // Third subpass
+        AttachmentReference idBufferAttachmentReference;
+        idBufferAttachmentReference.attachment = 3;
+        idBufferAttachmentReference.layout = ImageLayout::ColorAttachmentOptimal;
+        
+        AttachmentReference depthReadAttachmentReference;
+        depthReadAttachmentReference.attachment = 1;
+        depthReadAttachmentReference.layout = ImageLayout::DepthStencilReadOnlyOptimal;
+        
+        SubpassDescription idSubpass;
+        idSubpass.pipelineBindPoint = PipelineBindPoint::Graphics;
+        idSubpass.colorAttachments.push_back(idBufferAttachmentReference);
+        idSubpass.depthStencilAttachment = depthReadAttachmentReference;
+        
+        rpci.subpasses.push_back(std::move(idSubpass));
+    }
     
     // Dependencies
     SubpassDependency hdrWriteToReadDependency;
@@ -213,16 +302,71 @@ void ClusteredRenderer::initializeRenderPasses() {
     
     rpci.dependencies.push_back(std::move(hdrWriteToReadDependency));
     
+    if (isPickingEnabled()) {
+        SubpassDependency depthReadDependency;
+        depthReadDependency.srcSubpass = 0;
+        depthReadDependency.dstSubpass = 2;
+        depthReadDependency.srcStageMask = PipelineStageFlagBits::EarlyFragmentTests | PipelineStageFlagBits::LateFragmentTests;
+        depthReadDependency.dstStageMask = PipelineStageFlagBits::EarlyFragmentTests;
+        depthReadDependency.srcAccessMask = AccessFlagBits::DepthStencilAttachmentWrite;
+        depthReadDependency.dstAccessMask = AccessFlagBits::DepthStencilAttachmentRead;
+        depthReadDependency.dependencyFlags = DependencyFlagBits::ByRegion;
+        
+        rpci.dependencies.push_back(std::move(depthReadDependency));
+        
+        // TODO is this enough?
+        SubpassDependency idBufferTransfer;
+        idBufferTransfer.srcSubpass = 2;
+        idBufferTransfer.dstSubpass = renderingConstants::ExternalSubpass;
+        idBufferTransfer.srcStageMask = PipelineStageFlagBits::ColorAttachmentOutput;
+        idBufferTransfer.dstStageMask = PipelineStageFlagBits::Transfer;
+        idBufferTransfer.srcAccessMask = AccessFlagBits::ColorAttachmentWrite;
+        idBufferTransfer.dstAccessMask = AccessFlagBits::TransferRead;
+        idBufferTransfer.dependencyFlags = DependencyFlagBits::ByRegion;
+        
+        rpci.dependencies.push_back(std::move(idBufferTransfer));
+    }
+    
     mainRenderPass = getGraphicsAPI()->createRenderPass(rpci);
+}
+
+bool ClusteredRenderer::isRenderSurfaceSizeDynamic() const {
+    return false;
+}
+
+glm::uvec2 ClusteredRenderer::getRenderSurfaceSize() const {
+    GraphicsAPI* api = getGraphicsAPI();
+    return api->getSwapchainImageSize();
 }
 
 void ClusteredRenderer::initializeFramebuffers() {
     GraphicsAPI* api = getGraphicsAPI();
     
-    const glm::uvec2 extent(api->getScreenWidth(), api->getScreenHeight());
+    const glm::uvec2 extent = api->getSwapchainImageSize();
     
-    hdrAttachmentImage = api->createUncompressedImage(ImageMemoryType::RGBAHalf, extent, false, true, true);
-    depthImage = api->createUncompressedImage(ImageMemoryType::DepthStencilFloat, extent, false, true, true);
+    UncompressedImageCreateInfo uiciHDR;
+    uiciHDR.type = ImageMemoryType::RGBAHalf;
+    uiciHDR.dimensions = extent;
+    uiciHDR.usedAsColorOrDepthAttachment = true;
+    uiciHDR.usedAsInputAttachment = true;
+    hdrAttachmentImage = api->createUncompressedImage(uiciHDR);
+    
+    UncompressedImageCreateInfo uiciDepth;
+    uiciDepth.type = ImageMemoryType::DepthStencilFloat;
+    uiciDepth.dimensions = extent;
+    uiciDepth.usedAsColorOrDepthAttachment = true;
+    uiciDepth.usedAsInputAttachment = false;
+    depthImage = api->createUncompressedImage(uiciDepth);
+    
+    if (isPickingEnabled()) {
+        UncompressedImageCreateInfo uiciID;
+        uiciID.type = ImageMemoryType::R32;
+        uiciID.dimensions = extent;
+        uiciID.usedAsColorOrDepthAttachment = true;
+        uiciID.usedAsInputAttachment = false;
+        uiciID.usedAsTransferSource = true;
+        idImage = api->createUncompressedImage(uiciID);
+    }
     
     for (std::uint32_t i = 0; i < api->getSwapImageCount(); ++i) {
         std::vector<std::variant<Image, FramebufferAttachmentCreateInfo>> createInfo;
@@ -231,17 +375,17 @@ void ClusteredRenderer::initializeFramebuffers() {
         createInfo.push_back(depthImage);
         createInfo.push_back(api->getSwapImage(i));
         
+        if (isPickingEnabled()) {
+            createInfo.push_back(idImage);
+        }
+        
         mainFramebuffers.push_back(api->createFramebufferWithAttachments(extent, mainRenderPass, createInfo));
     }
     
     LOG_V("Finished initializing the framebuffer");
 }
 
-void ClusteredRenderer::initializeTonemappingAndAdjustmentPipeline() {
-    // TODO turn these into system assets
-    fullScreenQuadVS = api->createShaderFromSource(iyf::ShaderStageFlagBits::Vertex, FullScreenQuadSource);
-    tonemapFS = api->createShaderFromSource(iyf::ShaderStageFlagBits::Fragment, TonemapSource);
-    
+void ClusteredRenderer::initializeMainRenderpassComponents() {
     SamplerCreateInfo ciHdrSampler;
     ciHdrSampler.mipmapMode = SamplerMipmapMode::Nearest;// TODO Linear?
     ciHdrSampler.addressModeU = SamplerAddressMode::ClampToEdge;
@@ -282,6 +426,55 @@ void ClusteredRenderer::initializeTonemappingAndAdjustmentPipeline() {
     wdsTonemap.imageInfos.push_back(std::move(hdrImageInfo));
     
     api->updateDescriptorSets({wdsTonemap});
+}
+
+void ClusteredRenderer::initializePickingPipeline() {
+    if (!isPickingEnabled()) {
+        return;
+    }
+    
+    idVS = api->createShaderFromSource(iyf::ShaderStageFlagBits::Vertex, PositionOnlyVertexSource);
+    idFS = api->createShaderFromSource(iyf::ShaderStageFlagBits::Fragment, IDFragmentSource);
+    
+    PushConstantRange pickerPushBuffer;
+    pickerPushBuffer.offset = 0;
+    pickerPushBuffer.size = sizeof(PickerPushBuffer);
+    pickerPushBuffer.stageFlags = iyf::ShaderStageFlagBits::Vertex | iyf::ShaderStageFlagBits::Fragment;
+    
+    iyf::PipelineLayoutCreateInfo plciPicker;
+    plciPicker.pushConstantRanges.push_back(std::move(pickerPushBuffer));
+    pickingPipelineLayout = api->createPipelineLayout(plciPicker);
+    
+    PipelineCreateInfo pci;
+    pci.shaders = {{iyf::ShaderStageFlagBits::Vertex, idVS}, {iyf::ShaderStageFlagBits::Fragment, idFS}};
+    pci.layout = pickingPipelineLayout;
+    pci.rasterizationState.frontFace = iyf::FrontFace::Clockwise;
+    pci.depthStencilState.depthTestEnable = true;
+    pci.depthStencilState.depthWriteEnable = false;
+    pci.depthStencilState.depthCompareOp = CompareOp::GreaterEqual;
+    pci.vertexInputState = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(VertexDataLayout::MeshVertex)].createVertexInputStateCreateInfo(0);
+    pci.inputAssemblyState.topology = iyf::PrimitiveTopology::TriangleList;
+    pci.renderPass = mainRenderPass;
+    pci.subpass = 2;
+    
+    pickingPipeline = api->createPipeline(pci);
+    
+    BufferCreateInfo bci;
+    bci.size = Bytes(128);
+    bci.flags = BufferUsageFlagBits::TransferDestination;
+    
+    std::vector<Buffer> buffers;
+    if (!api->createBuffers({bci}, MemoryType::HostVisible, buffers)) {
+        throw std::runtime_error("Failed to create the picking result buffer");
+    }
+    
+    pickResultBuffer = buffers[0];
+}
+
+void ClusteredRenderer::initializeTonemappingAndAdjustmentPipeline() {
+    // TODO turn these into system assets
+    fullScreenQuadVS = api->createShaderFromSource(iyf::ShaderStageFlagBits::Vertex, FullScreenQuadSource);
+    tonemapFS = api->createShaderFromSource(iyf::ShaderStageFlagBits::Fragment, TonemapSource);
     
     PushConstantRange adjustmentPushBuffer;
     adjustmentPushBuffer.offset = 0;
@@ -319,13 +512,16 @@ void ClusteredRenderer::initialize() {
     
     AssetManager* manager = engine->getAssetManager();
     fullScreenQuad = manager->getSystemAsset<Mesh>("fullScreenQuad.dae");
+    vsSimple = manager->getSystemAsset<Shader>("defaultVertex.vert");
     
     DescriptorPoolCreateInfo dpciInternal;
     dpciInternal.maxSets = 1;
     dpciInternal.poolSizes.push_back({DescriptorType::InputAttachment, 1});
     internalDescriptorPool = api->createDescriptorPool(dpciInternal);
     
+    initializeMainRenderpassComponents();
     initializeTonemappingAndAdjustmentPipeline();
+    initializePickingPipeline();
     
     // TODO remove -------------------------------------------------------------------------------------------------------
     iyf::PipelineLayoutCreateInfo plci{{}, {{iyf::ShaderStageFlagBits::Vertex, 0, sizeof(PushBuffer)}}};
@@ -334,10 +530,9 @@ void ClusteredRenderer::initialize() {
     iyf::ShaderStageFlags ssf = iyf::ShaderStageFlagBits::Vertex | iyf::ShaderStageFlagBits::Fragment;
     
     iyf::PipelineCreateInfo pci;
-    
-    vsSimpleFlat = manager->getSystemAsset<Shader>("defaultVertex.vert");
+
     fsSimpleFlat = manager->getSystemAsset<Shader>("randomTests.frag");
-    pci.shaders = {{iyf::ShaderStageFlagBits::Vertex, vsSimpleFlat->handle}, {iyf::ShaderStageFlagBits::Fragment, fsSimpleFlat->handle}};
+    pci.shaders = {{iyf::ShaderStageFlagBits::Vertex, vsSimple->handle}, {iyf::ShaderStageFlagBits::Fragment, fsSimpleFlat->handle}};
     pci.layout = pipelineLayout;
     pci.rasterizationState.frontFace = iyf::FrontFace::Clockwise; // TODO if reverse z, GreaterEqual or Greater?
     pci.rasterizationState.lineWidth = 2.0f;
@@ -376,7 +571,7 @@ void ClusteredRenderer::disposeFramebuffers() {
 
 void ClusteredRenderer::dispose() {
     api->destroyPipeline(simpleFlatPipeline);
-    vsSimpleFlat.release();
+    vsSimple.release();
     fsSimpleFlat.release();
     api->destroyPipelineLayout(pipelineLayout);
     
@@ -436,10 +631,11 @@ void ClusteredRenderer::drawWorld(const World* world) {
     rpbi.framebuffer = mainFramebuffers[api->getCurrentSwapImage()].handle;
     rpbi.renderPass = mainRenderPass;
     rpbi.renderArea.offset = {0, 0};
-    //LOG_D(api->getRenderSurfaceWidth() << " " << api->getRenderSurfaceHeight())
-    rpbi.renderArea.extent = {api->getRenderSurfaceWidth(), api->getRenderSurfaceHeight()};
+    rpbi.renderArea.extent = getRenderSurfaceSize();
     rpbi.clearValues.push_back(ClearColorValue(0.0f, 1.0f, 0.0f, 1.0f));
     rpbi.clearValues.push_back(ClearDepthStencilValue(0.0f, 0));
+    rpbi.clearValues.push_back(ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f));
+    rpbi.clearValues.push_back(ClearColorValue(std::numeric_limits<std::uint32_t>::max(), 0, 0, 0, true));
 
     worldBuffer->beginRenderPass(rpbi);
     
@@ -475,8 +671,108 @@ void ClusteredRenderer::drawWorld(const World* world) {
     
     drawImGui(engine->getImGuiImplementation());
     
+    drawIDBuffer(graphicsSystem);
+    
     worldBuffer->endRenderPass();
+    
+    if (isPickingEnabled()) {
+        bool pendingPromises;
+        {
+            std::lock_guard<std::mutex> lock(promiseMutex);
+            pendingPromises = !promiseList.empty();
+        }
+        
+        if (pendingPromises) {
+            BufferImageCopy bic;
+            bic.bufferRowLength = 0;
+            bic.bufferImageHeight = 0;
+            bic.bufferOffset = 0;
+            
+            /// WARNING TODO FIXME - If I ever decide to render in higher (or lower) resolution, this will break, hence the assert
+            assert(!isRenderSurfaceSizeDynamic());
+            bic.imageOffset = glm::ivec3(engine->getInputState()->getMouseX(), engine->getInputState()->getMouseY(), 0);
+            bic.imageExtent = glm::uvec3(1, 1, 1);
+            
+            worldBuffer->copyImageToBuffer(idImage, ImageLayout::TransferSrcOptimal, pickResultBuffer, {std::move(bic)});
+        }
+    }
+    
     worldBuffer->end();
+}
+
+void ClusteredRenderer::drawIDBuffer(const GraphicsSystem* graphicsSystem) {
+    IYFT_PROFILE(DrawIDBuffer, iyft::ProfilerTag::Graphics);
+    
+    if (!isPickingEnabled()) {
+        return;
+    }
+    
+    CommandBuffer* worldBuffer = commandBuffers[static_cast<std::uint32_t>(CommandBufferID::World)];
+    const GraphicsSystem::VisibleComponents& visibleComponents = graphicsSystem->getVisibleComponents();
+    
+    worldBuffer->nextSubpass();
+    
+    if (visibleComponents.opaqueMeshEntityIDs.size() == 0) {
+        return;
+    }
+    
+    const MeshTypeManager* meshManager = dynamic_cast<const MeshTypeManager*>(engine->getAssetManager()->getTypeManager(AssetType::Mesh));
+    
+    const ChunkedMeshVector& components = graphicsSystem->getMeshComponents();
+    const MeshComponent& firstComponent = static_cast<const MeshComponent&>(components.get(visibleComponents.opaqueMeshEntityIDs[0].componentID));
+    const AssetHandle<Mesh>& firstMesh = firstComponent.getMesh();
+    
+    std::uint8_t previousVBO = firstMesh->vboID;
+    std::uint8_t previousIBO = firstMesh->iboID;
+    
+    Buffer ibo = meshManager->getIndexBuffer(previousIBO);
+    Buffer vbo = meshManager->getVertexBuffer(previousVBO);
+    
+    worldBuffer->bindVertexBuffers(0, vbo);
+    worldBuffer->bindIndexBuffer(ibo, IndexType::UInt16);
+    
+    const Camera& camera = graphicsSystem->getActiveCamera();
+    glm::mat4 VP = camera.getProjection() * camera.getViewMatrix();
+    worldBuffer->bindPipeline(pickingPipeline);
+    
+    for (const auto& vc : visibleComponents.opaqueMeshEntityIDs) {
+        //THIS IS PROBABLY BAD
+        const MeshComponent& c = static_cast<const MeshComponent&>(components.get(vc.componentID));
+        const AssetHandle<Mesh>& mesh = c.getMesh();
+        
+        if (previousVBO != mesh->vboID) {
+            previousVBO = mesh->vboID;
+            vbo = meshManager->getVertexBuffer(previousVBO);
+            
+            worldBuffer->bindVertexBuffers(0, vbo);
+        }
+        
+        if (previousIBO != mesh->iboID) {
+            previousIBO = mesh->iboID;
+            ibo = meshManager->getIndexBuffer(previousIBO);
+            
+            worldBuffer->bindIndexBuffer(ibo, IndexType::UInt16);
+        }
+        
+        const EntitySystemManager* manager = graphicsSystem->getManager();
+        const TransformationVector& transformations = manager->getEntityTransformations();
+        
+        const TransformationComponent transform = transformations[vc.componentID];
+        if (mesh->submeshCount == 1) {
+            PickerPushBuffer pushBuffer;
+            pushBuffer.MVP = VP * transform.getModelMatrix();
+            pushBuffer.objectID = vc.componentID;
+            
+            worldBuffer->pushConstants(pipelineLayout, ShaderStageFlagBits::Vertex, 0, sizeof(PushBuffer), &pushBuffer);
+            
+            const PrimitiveData& primitiveData = mesh->getMeshPrimitiveData();
+            worldBuffer->drawIndexed(primitiveData.indexCount, 1, primitiveData.indexOffset, primitiveData.vertexOffset, 0);
+        } else {
+            throw std::runtime_error("TODO IMPLEMENT ME");
+        }
+    }
+    
+//     worldBuffer->nextSubpass();
 }
 
 void ClusteredRenderer::drawVisibleOpaque(const GraphicsSystem* graphicsSystem) {
@@ -511,7 +807,7 @@ void ClusteredRenderer::drawVisibleOpaque(const GraphicsSystem* graphicsSystem) 
     worldBuffer->bindPipeline(simpleFlatPipeline);
     
     for (const auto& vc : visibleComponents.opaqueMeshEntityIDs) {
-        const MeshComponent& c = static_cast<const MeshComponent&>(components.get(visibleComponents.opaqueMeshEntityIDs[0].componentID));
+        const MeshComponent& c = static_cast<const MeshComponent&>(components.get(vc.componentID));
         const AssetHandle<Mesh>& mesh = c.getMesh();
         
         if (previousVBO != mesh->vboID) {
@@ -661,6 +957,42 @@ void ClusteredRenderer::submitCommandBuffers() {
 
 CommandBuffer* ClusteredRenderer::getImGuiDesignatedCommandBuffer() {
     return commandBuffers[static_cast<std::uint32_t>(CommandBufferID::World)];
+}
+
+void ClusteredRenderer::retrieveDataFromIDBuffer() {
+    if (!isPickingEnabled()) {
+        throw std::logic_error("This function can only be used when picking is enabled.");
+    }
+    
+    std::lock_guard<std::mutex> guard(promiseMutex);
+    
+    if (promiseList.empty()) {
+        return;
+    }
+    
+    // TODO if I decide to have multiple frames in flight, I should start using different positions for different frames.
+    // I should add fence waits here as well
+    GraphicsAPI* api = getGraphicsAPI();
+    std::uint32_t value;
+    api->readHostVisibleBuffer(pickResultBuffer, {BufferCopy(0, 0, sizeof(value))}, &value);
+//     LOG_V("VAL: " << value);
+    
+    for (auto& p : promiseList) {
+        p.set_value(value);
+    }
+    
+    promiseList.clear();
+}
+
+std::future<std::uint32_t> ClusteredRenderer::getHoveredItemID() {
+    if (!isPickingEnabled()) {
+        throw std::logic_error("This function can only be used when picking is enabled.");
+    }
+    
+    std::lock_guard<std::mutex> guard(promiseMutex);
+    
+    promiseList.emplace_back();
+    return promiseList.back().get_future();
 }
 
 std::string ClusteredRenderer::makeRenderDataSet(ShaderLanguage language) const {

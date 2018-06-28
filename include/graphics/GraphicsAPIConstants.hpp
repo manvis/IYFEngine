@@ -468,6 +468,7 @@ enum class ImageLayout {
 };
 
 enum class ImageMemoryType {
+    R32,
     RGB,
     RGBA,
     RGBAHalf,

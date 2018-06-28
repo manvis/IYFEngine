@@ -27,6 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "graphics/Renderer.hpp"
+#include "core/Engine.hpp"
 #include "ImGuiImplementation.hpp"
 
 #include <iostream>
@@ -34,6 +35,11 @@
 #include "threading/ThreadProfiler.hpp"
 
 namespace iyf {
+Renderer::Renderer(Engine* engine, GraphicsAPI* api) : engine(engine), api(api), imGuiSubmissionRequired(false), drawingWorldThisFrame(false), initialized(false) {
+    assert(engine != nullptr && api != nullptr);
+    
+    pickingEnabled = engine->isEditorMode();
+}
 // void Renderer::drawWorld(const World* world) {
 //     if (drawingWorldThisFrame) {
 //         throw std::runtime_error("Only one world can be drawn every frame");

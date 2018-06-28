@@ -262,8 +262,10 @@ void EditorWelcomeState::frame(float delta) {
     GraphicsAPI* api = engine->getGraphicsAPI();
     Configuration* config = engine->getConfiguration();
     
-    const std::uint32_t w = api->getScreenWidth();
-    const std::uint32_t h = api->getScreenHeight();
+    // ImGui should always render to the final image
+    const glm::uvec2 swapImageSize = api->getSwapchainImageSize();
+    const std::uint32_t w = swapImageSize.x;
+    const std::uint32_t h = swapImageSize.y;
     const std::uint32_t wMargin = w * 0.1f;
     const std::uint32_t hMargin = h * 0.1f;
     const std::uint32_t windowW = w - 2 * wMargin;

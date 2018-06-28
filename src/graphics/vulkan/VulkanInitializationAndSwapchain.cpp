@@ -82,10 +82,8 @@ bool VulkanAPI::initialize() {
     
     createSwapchain();
     createSwapchainImageViews();
+    chooseDepthStencilFormat();
     setupCommandPool();
-    
-    VkCommandBuffer initializationBuffer = allocateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, true);
-    setupDepthStencil(initializationBuffer);
     setupPresentationBarrierCommandBuffers();
     
     VkPipelineCacheCreateInfo pcci;
@@ -97,26 +95,6 @@ bool VulkanAPI::initialize() {
     
     // TODO load from disk
     checkResult(vkCreatePipelineCache(logicalDevice.handle, &pcci, nullptr, &pipelineCache), "");
-    
-    // Send out the setup command buffer
-    checkResult(vkEndCommandBuffer(initializationBuffer), "Failed to end a command buffer.");
-
-    VkSubmitInfo si;
-    si.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    si.pNext                = nullptr;
-    si.waitSemaphoreCount   = 0;
-    si.pWaitSemaphores      = nullptr;
-    si.pWaitDstStageMask    = nullptr;
-    si.commandBufferCount   = 1;
-    si.pCommandBuffers      = &initializationBuffer;
-    si.signalSemaphoreCount = 0;
-    si.pSignalSemaphores    = nullptr;
-
-    checkResult(vkQueueSubmit(logicalDevice.mainQueue, 1, &si, VK_NULL_HANDLE), "Failed to submit a queue");
-    checkResult(vkQueueWaitIdle(logicalDevice.mainQueue), "Failed to wait on a queue");
-
-    vkFreeCommandBuffers(logicalDevice.handle, commandPool, 1, &initializationBuffer);
-    initializationBuffer = VK_NULL_HANDLE;
 
     mainCommandBuffer = allocateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, false);//TODO allocate >1
     imageUploadCommandBuffer = allocateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, false);
@@ -145,114 +123,6 @@ void VulkanAPI::setupCommandPool() {
     
     result = vkCreateCommandPool(logicalDevice.handle, &cpci, nullptr, &commandPool);
     checkResult(result, "Failed to create a command pool.");
-}
-
-void VulkanAPI::setupDepthStencil(VkCommandBuffer) {
-    // TODO maybe disable stencil? I'm not using it (YET). Would save on memory
-    
-    // All depth stencil formats in the order of quality
-    std::vector<VkFormat> depthStencilFormats = { 
-        VK_FORMAT_D32_SFLOAT_S8_UINT, 
-        //VK_FORMAT_D32_SFLOAT,
-        VK_FORMAT_D24_UNORM_S8_UINT, 
-        VK_FORMAT_D16_UNORM_S8_UINT, 
-        //VK_FORMAT_D16_UNORM 
-    };
-    
-    std::vector<Format> depthStencilFormatsEngine = {
-        Format::D32_sFloat_S8_uInt,
-//        Format::D32_sFloat,
-        Format::D24_uNorm_S8_uInt,
-        Format::D16_uNorm_S8_uInt,
-//        Format::D16_uNorm
-    };
-
-    for (std::size_t i = 0; i < depthStencilFormats.size(); ++i) {
-        VkFormatProperties formatProperties;
-        vkGetPhysicalDeviceFormatProperties(physicalDevice.handle, depthStencilFormats[i], &formatProperties);
-
-        if (formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-            depthStencilFormat = depthStencilFormats[i];
-            depthStencilFormatEngine = depthStencilFormatsEngine[i];
-            
-            break;
-        }
-    }
-    
-    std::string formatName = getFormatName(depthStencilFormatEngine);
-    LOG_V("Chosen depth stencil format: " << formatName);
-
-    VkImageCreateInfo ici;
-    ici.sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    ici.pNext                 = nullptr;
-    ici.flags                 = 0;
-    ici.imageType             = VK_IMAGE_TYPE_2D;
-    ici.format                = depthStencilFormat;
-    ici.extent                = {screenWidth, screenHeight, 1};
-    ici.mipLevels             = 1;
-    ici.arrayLayers           = 1;
-    ici.samples               = VK_SAMPLE_COUNT_1_BIT;
-    ici.tiling                = VK_IMAGE_TILING_OPTIMAL;
-    ici.usage                 = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;//TODO do we really need VK_IMAGE_USAGE_SAMPLED_BIT here?
-    ici.sharingMode           = VK_SHARING_MODE_EXCLUSIVE;
-    ici.queueFamilyIndexCount = 0;
-    ici.pQueueFamilyIndices   = nullptr;
-    ici.initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    VkImageSubresourceRange isr;
-    isr.aspectMask     = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-    isr.baseMipLevel   = 0;
-    isr.levelCount     = 1;
-    isr.baseArrayLayer = 0;
-    isr.layerCount     = 1;
-    
-    VkImageViewCreateInfo ivci;
-    ivci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    ivci.pNext            = nullptr;
-    ivci.flags            = 0;
-    ivci.image            = VK_NULL_HANDLE;
-    ivci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
-    ivci.format           = depthStencilFormat;
-    ivci.components       = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A};
-    ivci.subresourceRange = isr;
-
-    VkMemoryRequirements memoryRequirements;
-    checkResult(vkCreateImage(logicalDevice.handle, &ici, nullptr, &depthStencilImage), "Failed to create an image.");
-
-    vkGetImageMemoryRequirements(logicalDevice.handle, depthStencilImage, &memoryRequirements);
-
-    VkMemoryAllocateInfo mai;
-    mai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    mai.pNext           = nullptr;
-    mai.allocationSize  = memoryRequirements.size;
-    mai.memoryTypeIndex = getMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    checkResult(vkAllocateMemory(logicalDevice.handle, &mai, nullptr, &depthStencilMemory), "Failed to allocate memory.");
-    checkResult(vkBindImageMemory(logicalDevice.handle, depthStencilImage, depthStencilMemory, 0), "Failed to bind memory.");
-    
-    // TODO is this really not needed
-//     VkImageAspectFlags af = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-//     
-//     VkImageSubresourceRange isrr;
-//     isrr.aspectMask     = af;
-//     isrr.baseMipLevel   = 0;
-//     isrr.levelCount     = 1;
-//     isrr.baseArrayLayer = 0;
-//     isrr.layerCount     = 1;
-// 
-//     setImageLayout(commandBuffer, depthStencilImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, isrr, );
-
-    ivci.image = depthStencilImage;
-    checkResult(vkCreateImageView(logicalDevice.handle, &ivci, nullptr, &depthStencilView), "Failed to create an image view.");
-    
-    // Set up our internal data structure
-    depthStencil.handle = ImageHnd(depthStencilImage);
-    depthStencil.format = depthStencilFormatEngine;
-    depthStencil.width  = screenWidth;
-    depthStencil.height = screenHeight;
-    depthStencil.levels = 1;
-    depthStencil.layers = 1;
-    depthStencil.type   = ImageViewType::Im2D;
 }
 
 void VulkanAPI::findLayers(LayerType type, const std::vector<const char*>& expectedLayers) {
@@ -1253,23 +1123,24 @@ void VulkanAPI::createSwapchain() {
         LOG_V("Recreating swapchain");
     }
 
+    glm::uvec2 determinedSize = getWindowSize();
+    
     VkExtent2D swapchainExtent;
     // 0xFFFFFFFF (-1) means that size of surface will change depending on the extents of the swapchain images
     if (capabilities.currentExtent.width == static_cast<uint32_t>(-1)) {
-        LOG_V("Surface width and height depend of swapchain image extents and are currently equal to\n\tW: " << screenWidth << "\n\tH: " << screenHeight);
+        LOG_V("Surface width and height depend of swapchain image extents and are currently equal to\n\tW: " << determinedSize.x << "\n\tH: " << determinedSize.y);
                 
-        swapchainExtent.width  = std::max(capabilities.minImageExtent.width,  std::min(capabilities.maxImageExtent.width,  screenWidth));
-        swapchainExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, screenHeight));
+        swapchainExtent.width  = std::max(capabilities.minImageExtent.width,  std::min(capabilities.maxImageExtent.width,  determinedSize.x));
+        swapchainExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, determinedSize.y));
         
-        // TODO this should probably be the render surface size
-        screenWidth  = swapchainExtent.width;
-        screenHeight = swapchainExtent.height;
+        determinedSize.x  = swapchainExtent.width;
+        determinedSize.y = swapchainExtent.height;
     } else {
         LOG_V("Surface width and height are set and are equal to\n\tW: " << capabilities.currentExtent.width << "\n\tH: " << capabilities.currentExtent.height);
         swapchainExtent = capabilities.currentExtent;
         
-        screenWidth  = capabilities.currentExtent.width;
-        screenHeight = capabilities.currentExtent.height;
+        determinedSize.x  = capabilities.currentExtent.width;
+        determinedSize.y = capabilities.currentExtent.height;
     }
     
 //     // TODO do I still need this? Should I transfer images from intermediate effect buffers using
@@ -1342,10 +1213,44 @@ void VulkanAPI::createSwapchain() {
     checkResult(vkGetSwapchainImages(logicalDevice.handle, swapchain.handle, &swapchainImageCount, swapchain.images.data()), "Failed to enumerate swapchain images.");
     
     for (VkImage image : swapchain.images) {
-        swapchain.engineImages.emplace_back(ImageHnd(image), screenWidth, screenHeight, 1, 1, ImageViewType::Im2D, getSurfaceFormat());
+        swapchain.engineImages.emplace_back(ImageHnd(image), determinedSize.x, determinedSize.y, 1, 1, ImageViewType::Im2D, getSurfaceFormat());
     }
     
     swapchain.version += 1;
+}
+
+void VulkanAPI::chooseDepthStencilFormat() {
+    // All depth stencil formats in the order of quality
+    std::vector<VkFormat> depthStencilFormats = { 
+        VK_FORMAT_D32_SFLOAT_S8_UINT, 
+        //VK_FORMAT_D32_SFLOAT,
+        VK_FORMAT_D24_UNORM_S8_UINT, 
+        VK_FORMAT_D16_UNORM_S8_UINT, 
+        //VK_FORMAT_D16_UNORM 
+    };
+    
+    std::vector<Format> depthStencilFormatsEngine = {
+        Format::D32_sFloat_S8_uInt,
+//        Format::D32_sFloat,
+        Format::D24_uNorm_S8_uInt,
+        Format::D16_uNorm_S8_uInt,
+//        Format::D16_uNorm
+    };
+
+    for (std::size_t i = 0; i < depthStencilFormats.size(); ++i) {
+        VkFormatProperties formatProperties;
+        vkGetPhysicalDeviceFormatProperties(physicalDevice.handle, depthStencilFormats[i], &formatProperties);
+
+        if (formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+            depthStencilFormat = depthStencilFormats[i];
+            depthStencilFormatEngine = depthStencilFormatsEngine[i];
+            
+            break;
+        }
+    }
+    
+    std::string formatName = getFormatName(depthStencilFormatEngine);
+    LOG_V("Chosen depth stencil format: " << formatName);
 }
 
 void VulkanAPI::createSwapchainImageViews() {

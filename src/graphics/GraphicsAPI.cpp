@@ -290,13 +290,13 @@ void GraphicsAPI::openWindow() {
     if (engine->isEditorMode() && !borderlessMode) {
         borderlessMode = true;
         
-        screenWidth = mode.w - 50;
-        screenHeight = mode.h - 150;
+        windowSize.x = mode.w - 50;
+        windowSize.y = mode.h - 150;
 //        screenWidth = mode.w;
 //        screenHeight = mode.h;
     } else {
-        screenWidth = mode.w;
-        screenHeight = mode.h;
+        windowSize.x = mode.w;
+        windowSize.y = mode.h;
     }
     
     // TODO this only applies if full screen mode is chosen. Figure out what to log otherwise
@@ -314,8 +314,8 @@ void GraphicsAPI::openWindow() {
         (windowName.c_str(),
          SDL_WINDOWPOS_CENTERED,
          SDL_WINDOWPOS_CENTERED,
-         screenWidth,
-         screenHeight,
+         windowSize.x,
+         windowSize.y,
          flags);
          //SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN);
          //SDL_WINDOW_BORDERLESS SDL_WINDOW_ALLOW_HIGHDPI

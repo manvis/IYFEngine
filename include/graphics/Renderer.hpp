@@ -37,6 +37,7 @@
 #include "utilities/NonCopyable.hpp"
 
 #include <initializer_list>
+#include <future>
 
 namespace iyf {
 class World;
@@ -109,6 +110,14 @@ public:
     
     virtual std::pair<RenderPassHnd, std::uint32_t> getImGuiRenderPassAndSubPass() = 0;
     
+    /// If true, meshes are rendered into a separate ID buffer that can be used for pixel perfect 3D picking.
+    ///
+    /// \remark The ID buffer is only enabled if the Engine is running in edior mode. For picking during gameplay, use
+    /// the physics engine.
+    inline bool isPickingEnabled() const {
+        return pickingEnabled;
+    }
+    
     bool isInitialized() const {
         return initialized;
     }
@@ -116,6 +125,32 @@ public:
     GraphicsAPI* getGraphicsAPI() const {
         return api;
     }
+    
+    /// If isPickingEnabled() is true, this function fetches the data from the ID buffer and pushes it to
+    /// all std::future objects that were retrieved from getHoveredItemID().
+    ///
+    /// \warning This must be executed AFTER rendering of the current frame completes and before the rendering
+    /// of the next frame starts. Otherwise, you may get stale data, invalid ID values or cause validation errors.
+    ///
+    /// \throws std::logic_error if isPickingEnabled() is false
+    virtual void retrieveDataFromIDBuffer() = 0;
+    
+    /// Request the ID of the currently hovered item.
+    ///
+    /// This uses the current mouse coordinates. The result will be available during the next frame, after
+    /// retrieveDataFromIDBuffer() is called.
+    ///
+    /// \throws std::logic_error if isPickingEnabled() is false
+    virtual std::future<std::uint32_t> getHoveredItemID() = 0;
+    
+    /// \brief Indicates if dynamic resolution is used or not.
+    virtual bool isRenderSurfaceSizeDynamic() const = 0;
+    
+    /// \brief Returns the size of the render surface.
+    ///
+    /// If isRenderSurfaceSizeDynamic() is true, then some sort of a dynamic resolution technique 
+    /// is in use and this value may be different every frame.
+    virtual glm::uvec2 getRenderSurfaceSize() const = 0;
     
     virtual ~Renderer() {}
 protected:
@@ -141,17 +176,17 @@ protected:
     // Think of them as guidelines for what a renderer should do every frame.
     virtual void drawVisibleOpaque(const GraphicsSystem* graphicsSystem) = 0;
     virtual void drawVisibleTransparent(const GraphicsSystem* graphicsSystem) = 0;
+    virtual void drawIDBuffer(const GraphicsSystem* graphicsSystem) = 0;
     virtual void drawSky(const World* world) = 0;
     virtual void drawDebugAndHelperMeshes(const World* world, const DebugRenderer* renderer) = 0;
     
-    Renderer(Engine* engine, GraphicsAPI* api) : engine(engine), api(api), imGuiSubmissionRequired(false), drawingWorldThisFrame(false), initialized(false) {
-        assert(engine != nullptr && api != nullptr);
-    }
+    Renderer(Engine* engine, GraphicsAPI* api);
     
     Engine* engine;
     GraphicsAPI* api;
     bool imGuiSubmissionRequired;
     bool drawingWorldThisFrame;
+    bool pickingEnabled;
     bool initialized;
 };
 }

@@ -44,6 +44,7 @@
 
 #include <glm/fwd.hpp>
 #include <glm/vec4.hpp>
+#include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
 
 struct SDL_Window;
@@ -93,6 +94,28 @@ protected:
     MemoryType backingMemoryType;
     Bytes bufferSize;
     Bytes memoryOffset;
+};
+
+class ImageSubresourceLayers {
+public:
+    ImageSubresourceLayers() : aspectMask(ImageAspectFlagBits::Color), mipLevel(0), baseArrayLayer(0), layerCount(1) {}
+    ImageSubresourceLayers(ImageAspectFlags mask, std::uint32_t mipLevel, std::uint32_t baseArrayLayer, std::uint32_t layerCount) 
+        : aspectMask(mask), mipLevel(mipLevel), baseArrayLayer(baseArrayLayer), layerCount(layerCount) {}
+    
+    ImageAspectFlags aspectMask;
+    std::uint32_t mipLevel;
+    std::uint32_t baseArrayLayer;
+    std::uint32_t layerCount;
+};
+
+class BufferImageCopy {
+public:
+    std::uint64_t bufferOffset;
+    std::uint32_t bufferRowLength;
+    std::uint32_t bufferImageHeight;
+    ImageSubresourceLayers imageSubresource;
+    glm::ivec3 imageOffset;
+    glm::uvec3 imageExtent;
 };
 
 class BufferCopy {
@@ -644,11 +667,29 @@ public:
     std::vector<SubpassDependency> dependencies;
 };
 
+class UncompressedImageCreateInfo {
+public:
+    UncompressedImageCreateInfo() 
+        : type(ImageMemoryType::RGBA), dimensions(100, 100), isWritable(false), usedAsColorOrDepthAttachment(false),
+          usedAsInputAttachment(false), usedAsTransferSource(false), data(nullptr) {}
+    
+    ImageMemoryType type;
+    glm::uvec2 dimensions;
+    bool isWritable;
+    bool usedAsColorOrDepthAttachment;
+    bool usedAsInputAttachment;
+    bool usedAsTransferSource;
+    void* data;
+};
+
 class FramebufferAttachmentCreateInfo {
 public:
     Format format;
-    //bool isDepthStencil; //TODO decide from format
     bool isAttachment;
+};
+
+class FramebufferCreateInfo {
+    
 };
 
 class Framebuffer {
@@ -708,6 +749,8 @@ public:
     virtual void beginRenderPass(const RenderPassBeginInfo& rpbi, SubpassContents contents = SubpassContents::Inline) = 0;
     virtual void nextSubpass(SubpassContents contents = SubpassContents::Inline) = 0;
     virtual void endRenderPass() = 0;
+    
+    virtual void copyImageToBuffer(const Image& srcImage, ImageLayout layout, const Buffer& dstBuffer, const std::vector<BufferImageCopy>& regions) = 0;
     
     virtual CommandBufferHnd getHandle() = 0;
 //    static void beginAll(const std::vector<CommandBuffer*> cmdBuffs) {
@@ -804,7 +847,7 @@ public:
     /// Creates an uncompressed Image from the provided memory buffer. This function creates a 2D image (ImageViewType::Im2D) with 1 layer and 1 level.
     ///
     /// This is used for some internal and debug stuff, e.g., ImGui's font atlas, empty textures used as framebuffer images, etc. Use createCompressedImage() for in-game textures.
-    virtual Image createUncompressedImage(ImageMemoryType type, const glm::uvec2& dimensions, bool isWritable = false, bool usedAsColorOrDepthAttachment = false, bool usedAsInputAttachment = false, const void* data = nullptr) = 0;
+    virtual Image createUncompressedImage(const UncompressedImageCreateInfo& info) = 0;
     virtual bool destroyImage(const Image& image) = 0;
     virtual SamplerHnd createSampler(const SamplerCreateInfo& info) = 0;
     virtual SamplerHnd createPresetSampler(SamplerPreset preset, float maxLod = 0.0f);
@@ -818,6 +861,7 @@ public:
     virtual bool destroyBuffers(const std::vector<Buffer>& buffers) = 0;
     
     // TODO stop unmapping buffers
+    virtual bool readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) = 0;
     
     /// Updates data in a host visible buffer. To update buffers that reside in device memory, use a DeviceMemoryUpdateBatcher or
     /// a blocking function called updateDeviceVisibleBuffer()
@@ -866,22 +910,14 @@ public:
     virtual MultithreadingSupport doesBackendSupportMultithreading() = 0;
     virtual bool exposesMultipleCommandBuffers() const = 0;
     
-    std::uint32_t getScreenWidth() {
-        return screenWidth;
-    }
-
-    std::uint32_t getScreenHeight() {
-        return screenHeight;
-    }
-    
-    // TODO this should go to the renderer
-    std::uint32_t getRenderSurfaceWidth() {
-        return screenWidth;
+    /// \brief Get the size of the window.
+    ///
+    /// \warning The size of the render surfaces may be different. To get that, use Renderer::getRenderSurfaceSize()
+    glm::uvec2 getWindowSize() const {
+       return windowSize; 
     }
     
-    std::uint32_t getRenderSurfaceHeight() {
-        return screenHeight;
-    }
+    virtual glm::uvec2 getSwapchainImageSize() const = 0;
     
     virtual ImageViewHnd getDefaultDepthBufferViewHnd() const = 0;
     virtual Image getDefaultDepthBufferImage() const = 0;
@@ -904,11 +940,10 @@ public:
     virtual void handleConfigChange(const ConfigurationValueMap& changedValues) override;
     
     virtual ~GraphicsAPI() { }
-    //TODO HANDLE window opening and updates here    
 protected:
     Engine* engine;
     SDL_Window* window;
-    std::uint32_t screenHeight, screenWidth;
+    glm::uvec2 windowSize;
     
     bool isDebug;
     bool isInit;
