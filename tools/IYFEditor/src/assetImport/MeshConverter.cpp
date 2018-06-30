@@ -312,13 +312,15 @@ bool MeshConverter::convertV1(ConverterState& state) const {
 //            return false;
 //        }
         
-       if (mesh->GetNumColorChannels() > mf::v1::MaxColorChannels) {
-           hasVertexColors = true;
+       if (mesh->GetNumColorChannels() > 0) {
+            hasVertexColors = true;
            
-           LOG_W("File " << inFile << " contains more than "
-               << mf::v1::MaxColorChannels << " color channel(s), only the "
-               << " first "<< mf::v1::MaxColorChannels << " will be "
-               "processed.")
+            if (mesh->GetNumColorChannels() > mf::v1::MaxColorChannels) {
+                LOG_W("File " << inFile << " contains more than "
+                    << mf::v1::MaxColorChannels << " color channel(s), only the "
+                    << " first "<< mf::v1::MaxColorChannels << " will be "
+                    "processed.")
+            }
        }
         
         if (mesh->HasBones()) {
@@ -554,9 +556,9 @@ bool MeshConverter::convertV1(ConverterState& state) const {
             if (hasVertexColors && mesh->GetNumColorChannels() > 0) {
                 aiColor4D* c = mesh->mColors[0];
                 
-                glm::packUnorm4x8(glm::vec4(c->r, c->g, c->b, c->a));
+                fw.writeUInt32(glm::packUnorm4x8(glm::vec4(c->r, c->g, c->b, c->a)));
             } else if (hasVertexColors && mesh->GetNumColorChannels() == 0) {
-                glm::packUnorm4x8(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+                fw.writeUInt32(glm::packUnorm4x8(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f)));
             }
         }
         
