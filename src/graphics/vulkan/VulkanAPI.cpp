@@ -43,6 +43,7 @@
 #include "core/Engine.hpp"
 #include "core/Logger.hpp"
 #include "graphics/Renderer.hpp"
+#include "threading/ThreadProfiler.hpp"
 
 #include "libshaderc/shaderc.hpp"
 #include "stb_image.h"
@@ -686,6 +687,7 @@ void VulkanAPI::dispose() {
     }
     
     vkDestroySwapchain(logicalDevice.handle, swapchain.handle, nullptr);
+    vkDestroyFence(logicalDevice.handle, swapchain.frameCompleteFence, nullptr);
     
     vkDestroyImageView(logicalDevice.handle, depthStencilView, nullptr);
     vkDestroyImage(logicalDevice.handle, depthStencilImage, nullptr);
@@ -713,6 +715,7 @@ void VulkanAPI::dispose() {
 }
 
 bool VulkanAPI::startFrame() {
+    IYFT_PROFILE(startFrame, iyft::ProfilerTag::Graphics);
     VkResult result = vkAcquireNextImage(logicalDevice.handle, swapchain.handle, UINT64_MAX, presentationComplete, (VkFence)nullptr, &currentSwapBuffer);
     switch (result) {
     case VK_SUCCESS:
@@ -777,6 +780,7 @@ bool VulkanAPI::startFrame() {
 }
 
 bool VulkanAPI::endFrame() {
+    IYFT_PROFILE(endFrame, iyft::ProfilerTag::Graphics);
     VkResult result;
     VkSubmitInfo si;
  /*   vkCmdEndRenderPass(mainCommandBuffer);
@@ -809,7 +813,7 @@ bool VulkanAPI::endFrame() {
     si.signalSemaphoreCount = 0;
     si.pSignalSemaphores    = nullptr;
     
-    result = vkQueueSubmit(logicalDevice.mainQueue, 1, &si, VK_NULL_HANDLE);
+    result = vkQueueSubmit(logicalDevice.mainQueue, 1, &si, swapchain.frameCompleteFence);
     checkResult(result, "Failed to submit a queue");
     
     // TODO fence?
@@ -847,10 +851,13 @@ bool VulkanAPI::endFrame() {
         return false;
     }
     
-    // TODO no longer explicitly wait. Look for examples
-    result = vkQueueWaitIdle(logicalDevice.mainQueue);
-    checkResult(result, "Failed to wait on a queue.");
-    //vkDeviceWaitIdle(logicalDevice.handle);
+    
+    checkResult(vkWaitForFences(logicalDevice.handle, 1, &swapchain.frameCompleteFence, VK_TRUE, 50000000000), "Failed to wait on a fence."); //TODO good timeout value?
+    checkResult(vkResetFences(logicalDevice.handle, 1, &swapchain.frameCompleteFence), "Failed to reset a fence");
+    
+//     result = vkQueueWaitIdle(logicalDevice.mainQueue);
+//     checkResult(result, "Failed to wait on a queue.");
+//     //vkDeviceWaitIdle(logicalDevice.handle);
     
     return true;
 }

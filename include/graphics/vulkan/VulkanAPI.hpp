@@ -301,6 +301,7 @@ protected:
         Swapchain() : version(0) {}
         
         VkSwapchainKHR handle;
+        VkFence frameCompleteFence;
         
         VkExtent2D imageExtent;
         VkFormat imageFormat;

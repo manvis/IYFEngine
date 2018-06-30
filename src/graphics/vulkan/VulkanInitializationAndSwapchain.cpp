@@ -80,6 +80,12 @@ bool VulkanAPI::initialize() {
     
     swapchain.handle = VK_NULL_HANDLE;
     
+    VkFenceCreateInfo fci;
+    fci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fci.pNext = nullptr;
+    fci.flags = 0;
+    vkCreateFence(logicalDevice.handle, &fci, nullptr, &swapchain.frameCompleteFence);
+    
     createSwapchain();
     createSwapchainImageViews();
     chooseDepthStencilFormat();
