@@ -46,7 +46,7 @@ ShaderGenerationResultErrorPair ShaderGenerator::generateAndReportError(ShaderGe
     return {result, error};
 }
 
-MultipleShaderGenerationResult ShaderGenerator::generateAllShaders(const MaterialPipelineDefinition& definition, bool compile) const {
+MultipleShaderGenerationResult ShaderGenerator::generateAllShaders(const fs::path& path, const MaterialPipelineDefinition& definition, bool compile) const {
     MultipleShaderGenerationResult multiResult;
     
     ShaderGenerationResultErrorPair result = validatePipelineDefinition(definition);
@@ -55,8 +55,8 @@ MultipleShaderGenerationResult ShaderGenerator::generateAllShaders(const Materia
         return multiResult;
     }
     
-    generateAllVertexShaders(multiResult, definition, compile);
-    generateAllFragmentShaders(multiResult, definition, compile);
+    generateAllVertexShaders(path, multiResult, definition, compile);
+    generateAllFragmentShaders(path, multiResult, definition, compile);
     
     
     LOG_I("Generated " << multiResult.generatedVertexShaderCount << " vertex shaders out of " << multiResult.totalVertexShaderCount << " and " << multiResult.generatedFragmentShaderCount << " fragment shaders out of " << multiResult.generatedFragmentShaderCount << " for a material pipeline called \"" << definition.name << "\"");
@@ -128,7 +128,7 @@ ShaderGenerationResultErrorPair ShaderGenerator::validateVertexShader(const Mate
     return {ShaderGenerationResult::Success, ""};
 }
 
-void ShaderGenerator::generateAllVertexShaders(MultipleShaderGenerationResult& multiResult, const MaterialPipelineDefinition& definition, bool compile) const {
+void ShaderGenerator::generateAllVertexShaders(const fs::path& path, MultipleShaderGenerationResult& multiResult, const MaterialPipelineDefinition& definition, bool compile) const {
     std::size_t count = 0;
     std::size_t successCount = 0;
     
@@ -141,14 +141,14 @@ void ShaderGenerator::generateAllVertexShaders(MultipleShaderGenerationResult& m
         
         if (normalMappable && definition.normalDataRequired) {
             // We still need a version without normal mapping when no normal map texture is attached to the shader
-            ShaderGenerationResultErrorPair result = generateVertexShaderImpl(definition, vertexDataLayout, false, compile);
+            ShaderGenerationResultErrorPair result = generateVertexShaderImpl(path, definition, vertexDataLayout, false, compile);
             if (result.first == ShaderGenerationResult::Success) {
                 successCount++;
             } else {
                 multiResult.vertexShaderErrors.push_back({makeVertexShaderName(definition.name, layout.getName(), getVertexShaderExtension(), false), result});
             }
             
-            result = generateVertexShaderImpl(definition, vertexDataLayout, true, compile);
+            result = generateVertexShaderImpl(path, definition, vertexDataLayout, true, compile);
             if (result.first == ShaderGenerationResult::Success) {
                 successCount++;
             } else {
@@ -157,7 +157,7 @@ void ShaderGenerator::generateAllVertexShaders(MultipleShaderGenerationResult& m
             
             count += 2;
         } else {
-             ShaderGenerationResultErrorPair result = generateVertexShaderImpl(definition, vertexDataLayout, false, compile);
+             ShaderGenerationResultErrorPair result = generateVertexShaderImpl(path, definition, vertexDataLayout, false, compile);
             if (result.first == ShaderGenerationResult::Success) {
                 successCount++;
             } else {
@@ -172,7 +172,7 @@ void ShaderGenerator::generateAllVertexShaders(MultipleShaderGenerationResult& m
     multiResult.generatedVertexShaderCount = successCount;
 }
 
-void ShaderGenerator::generateAllFragmentShaders(MultipleShaderGenerationResult& multiResult, const MaterialPipelineDefinition& definition, bool compile) const {
+void ShaderGenerator::generateAllFragmentShaders(const fs::path& path, MultipleShaderGenerationResult& multiResult, const MaterialPipelineDefinition& definition, bool compile) const {
     std::size_t materialComponentCount = definition.getMaterialComponents().size();
     
     std::size_t count = 0;
@@ -182,14 +182,14 @@ void ShaderGenerator::generateAllFragmentShaders(MultipleShaderGenerationResult&
     // TODO what if no UV coordinates are present in vertex layout? ComponentsReadFromTexture == 0?
     if (materialComponentCount == 0) {
         if (definition.normalDataRequired) {
-            ShaderGenerationResultErrorPair result = generateFragmentShaderImpl(ComponentsReadFromTexture(0), definition, false, compile);
+            ShaderGenerationResultErrorPair result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(0), definition, false, compile);
             if (result.first == ShaderGenerationResult::Success) {
                 successCount++;
             } else {
                 multiResult.fragmentShaderErrors.push_back({makeFragmentShaderName(definition.name, 0, getFragmentShaderExtension(), false), result});
             }
             
-            result = generateFragmentShaderImpl(ComponentsReadFromTexture(0), definition, true, compile);
+            result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(0), definition, true, compile);
             if (result.first == ShaderGenerationResult::Success) {
                 successCount++;
             } else {
@@ -198,7 +198,7 @@ void ShaderGenerator::generateAllFragmentShaders(MultipleShaderGenerationResult&
             
             count += 2;
         } else {
-            ShaderGenerationResultErrorPair result = generateFragmentShaderImpl(ComponentsReadFromTexture(0), definition, false, compile);
+            ShaderGenerationResultErrorPair result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(0), definition, false, compile);
             if (result.first == ShaderGenerationResult::Success) {
                 successCount++;
             } else {
@@ -215,14 +215,14 @@ void ShaderGenerator::generateAllFragmentShaders(MultipleShaderGenerationResult&
         
         for (std::size_t i = 0; i <= maxVal.to_ullong(); ++i) {
             if (definition.normalDataRequired) {
-                ShaderGenerationResultErrorPair result = generateFragmentShaderImpl(ComponentsReadFromTexture(i), definition, false, compile);
+                ShaderGenerationResultErrorPair result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(i), definition, false, compile);
                 if (result.first == ShaderGenerationResult::Success) {
                     successCount++;
                 } else {
                     multiResult.fragmentShaderErrors.push_back({makeFragmentShaderName(definition.name, i, getFragmentShaderExtension(), false), result});
                 }
                 
-                result = generateFragmentShaderImpl(ComponentsReadFromTexture(i), definition, true, compile);
+                result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(i), definition, true, compile);
                 if (result.first == ShaderGenerationResult::Success) {
                     successCount++;
                 } else {
@@ -231,7 +231,7 @@ void ShaderGenerator::generateAllFragmentShaders(MultipleShaderGenerationResult&
             
                 count += 2;
             } else {
-                ShaderGenerationResultErrorPair result = generateFragmentShaderImpl(ComponentsReadFromTexture(i), definition, false, compile);
+                ShaderGenerationResultErrorPair result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(i), definition, false, compile);
                 if (result.first == ShaderGenerationResult::Success) {
                     successCount++;
                 } else {
@@ -255,21 +255,21 @@ std::string ShaderGenerator::makeFragmentShaderName(const std::string& pipelineN
     return fmt::format("{}_{}_{}{}{}", pipelineName, renderer->getName(), readFromTexture.to_ullong(), normalMapped ? "_normalMapped" : "", extension);
 }
 
-ShaderGenerationResultErrorPair ShaderGenerator::generateFragmentShader(const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const {
+ShaderGenerationResultErrorPair ShaderGenerator::generateFragmentShader(const fs::path& path, const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const {
     const ShaderGenerationResultErrorPair result = validatePipelineDefinition(definition);
     if (result.first != ShaderGenerationResult::Success) {
         return result;
     }
-    return generateFragmentShaderImpl(readFromTexture, definition, normalMapped, compile);
+    return generateFragmentShaderImpl(path, readFromTexture, definition, normalMapped, compile);
 }
 
-ShaderGenerationResultErrorPair ShaderGenerator::generateVertexShader(const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const {
+ShaderGenerationResultErrorPair ShaderGenerator::generateVertexShader(const fs::path& path, const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const {
     const ShaderGenerationResultErrorPair result = validatePipelineDefinition(definition);
     if (result.first != ShaderGenerationResult::Success) {
         return result;
     }
     
-    return generateVertexShaderImpl(definition, vertexDataLayout, normalMapped, compile);
+    return generateVertexShaderImpl(path, definition, vertexDataLayout, normalMapped, compile);
 }
 
 }

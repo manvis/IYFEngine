@@ -48,16 +48,17 @@ public:
     virtual std::string getVertexShaderExtension() const final override;
     virtual std::string getFragmentShaderExtension() const final override;
 protected:
-    virtual ShaderGenerationResultErrorPair generateFragmentShaderImpl(const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const final override;
-    virtual ShaderGenerationResultErrorPair generateVertexShaderImpl(const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const final override;
+    virtual ShaderGenerationResultErrorPair generateFragmentShaderImpl(const fs::path& path, const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const final override;
+    virtual ShaderGenerationResultErrorPair generateVertexShaderImpl(const fs::path& path, const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const final override;
     
     virtual std::string generatePerFrameData(const ShaderDataSets& requiredDataSets, const MaterialPipelineDefinition& definition) const final override;
     
+//     std::string gatherMaterial
     std::string generateMaterialDataUnpacker(const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition) const;
     
     virtual std::string generateLightProcessingFunctionCall(const MaterialPipelineDefinition& definition) const final override;
     
-    virtual ShaderGenerationResultErrorPair compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const std::string& savePath, ShaderStageFlagBits shaderStage) const final override;
+    virtual ShaderGenerationResultErrorPair compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const fs::path& savePath, const fs::path& fileName, ShaderStageFlagBits shaderStage) const final override;
     
     shaderc::Compiler compiler;
     shaderc::CompileOptions compilerOptions;

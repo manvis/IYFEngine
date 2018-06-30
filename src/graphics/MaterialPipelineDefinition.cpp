@@ -256,7 +256,7 @@ std::pair<bool, std::string> MaterialPipelineDefinition::setMaterialComponents(c
     std::vector<MaterialComponent> materialComponentsSorted = componentList;
     if (packMaterialData(materialComponentsSorted).first != true) {
         std::stringstream ss;
-        ss <<"The amount of required per-material data exceeds " << con::MaxBytesPerMaterial << " bytes." << "\n\tPlease note possible padding:";
+        ss <<"The material has more than " << con::MaxMaterialComponents << " components." << "\n\tPlease note possible padding:";
         for (const auto& c : materialComponentsSorted) {
             ss << "\n\t\t" << c.name << "; Size: " << c.componentCount << "; Offset: " << c.offset;
         }
@@ -327,7 +327,7 @@ std::pair<bool, std::string> MaterialPipelineDefinition::packMaterialData(std::v
     }
     
     // See if we still fit into memory.
-    if (totalSize <= con::MaxBytesPerMaterial) {
+    if (totalSize <= con::MaxMaterialComponents) {
         return {true, ""};
     } else {
         return {false, ""};

@@ -210,11 +210,8 @@ extern const fs::path SystemStringPath;
 // Default file extensions 
 // -----------------------------------------------------------------------------
 
-/// \brief Extension that's used for bone animations imported into the engine
-extern const std::string AnimationFormatExtension;
-
-/// \brief Extension that's used for meshes imported into the engine
-extern const std::string MeshFormatExtension;
+/// \brief Extension to use for all material files
+extern const std::string MaterialFormatExtension;
 
 /// \brief Extension to use for engine's project files
 extern const std::string ProjectFileExtension;
@@ -325,14 +322,10 @@ const std::size_t MaxAnimations = 64;
 /// MeshData and modify Pipeline editing classes. It's possible that even more changes may be required.
 const std::size_t MaxVerticesPerMesh = 65535;
 
-/// \brief Maximum number of texture and color components a single Material (or MaterialDefinition) can have
+/// \brief Maximum number of floating point components a single Material (or MaterialDefinition) can have
 const std::size_t MaxMaterialComponents = 16;
 
-/// \brief The number of bytes that a single material is allowed to use. Must be equal to MaxMaterialComponents, that is, a material
-/// can have a maximum of 16 components that are 1 byte in size.
-const std::size_t MaxBytesPerMaterial = MaxMaterialComponents;
-
-static_assert(MaxBytesPerMaterial % 16 == 0, "Material data must be aligned to a multiple of 16.");
+static_assert(MaxMaterialComponents % 4 == 0, "The number of components must be a multiple of 4");
 // WARNING: Shader generation depends on not having more than 64 material components. Unfortunately,
 // this also limits the MaxBytesPerMaterial value.
 static_assert(MaxMaterialComponents <= 64, "Can't use more than 64 material components.");

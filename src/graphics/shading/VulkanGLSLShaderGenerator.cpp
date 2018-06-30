@@ -169,7 +169,7 @@ std::string VulkanGLSLShaderGenerator::getFragmentShaderExtension() const {
     return ".frag";
 }
 
-ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::generateVertexShaderImpl(const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const {
+ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::generateVertexShaderImpl(const fs::path& path, const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const {
     ShaderGenerationResultErrorPair validationResult = validateVertexShader(definition, vertexDataLayout);
     if (validationResult.first != ShaderGenerationResult::Success) {
         return validationResult;
@@ -300,13 +300,13 @@ ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::generateVertexShaderI
     
     std::string fileName = makeVertexShaderName(definition.name, layout.getName(), getVertexShaderExtension(), normalMapped);
     
-    File fw((con::ShaderPath / fileName).generic_string(), File::OpenMode::Write);
+    File fw((path / fileName).generic_string(), File::OpenMode::Write);
     
     const std::string shaderSource = ss.str();
     fw.writeString(shaderSource);
     
     if (compile) {
-        return compileShader(definition, fileName, shaderSource, (con::ShaderPath / "spv" / (fileName + ".spv")).generic_string(), ShaderStageFlagBits::Vertex);
+        return compileShader(definition, fileName, shaderSource, path / "spv", fileName + ".spv", ShaderStageFlagBits::Vertex);
     }
     
     return {ShaderGenerationResult::Success, ""};
@@ -408,13 +408,13 @@ std::string VulkanGLSLShaderGenerator::generatePerFrameData(const ShaderDataSets
     
     const std::vector<MaterialComponent>& materialComponents = definition.getMaterialComponents();
     if (requiredDataSets[static_cast<std::size_t>(PerFrameDataSets::MaterialData)] && materialComponents.size() != 0) {
-        std::size_t lastOffset = materialComponents.back().offset;
-        std::size_t vectorCount = lastOffset / 16;
+        assert(con::MaxMaterialComponents % 4 == 0);
+        const std::size_t dataVectorCount = con::MaxMaterialComponents / 4;
         
         ss << "// Material data\n";
         ss << "struct Material {\n";
-        for (std::size_t i = 0; i <= vectorCount; ++i) {
-            ss << "    ivec4 data" << i << ";\n";
+        for (std::size_t i = 0; i < dataVectorCount; ++i) {
+            ss << "    vec4 data" << i << ";\n";
         }
         ss << "};\n\n";
         
@@ -442,7 +442,7 @@ std::string VulkanGLSLShaderGenerator::generatePerFrameData(const ShaderDataSets
     return ss.str();
 }
 
-ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::generateFragmentShaderImpl(const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const {
+ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::generateFragmentShaderImpl(const fs::path& path, const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const {
     std::size_t codeID = 0;
     for (std::size_t i = 0; i < definition.languages.size(); ++i) {
         if (definition.languages[i] == getShaderLanguage()) {
@@ -529,7 +529,7 @@ ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::generateFragmentShade
     
     std::string fileName = makeFragmentShaderName(definition.name, readFromTexture.to_ullong(), getFragmentShaderExtension(), normalMapped);
     
-    File fw((con::ShaderPath / fileName).generic_string(), File::OpenMode::Write);
+    File fw((path / fileName).generic_string(), File::OpenMode::Write);
     
     std::string shaderSource = ss.str();
     fw.writeString(shaderSource);
@@ -540,7 +540,7 @@ ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::generateFragmentShade
     //layout (std140, set = 1, binding = 0) buffer lightAndCameraDataBuffer {
     
     if (compile) {
-        return compileShader(definition, fileName, shaderSource, (con::ShaderPath / "spv" / (fileName + ".spv")).generic_string(), ShaderStageFlagBits::Fragment);
+        return compileShader(definition, fileName, shaderSource, path / "spv", fileName + ".spv", ShaderStageFlagBits::Fragment);
     }
     
     return {ShaderGenerationResult::Success, ""};
@@ -650,31 +650,6 @@ std::string VulkanGLSLShaderGenerator::generateMaterialDataUnpacker(const Compon
     
     std::stringstream ss;
     
-    std::size_t lastOffset = definition.getMaterialComponents().back().offset;
-    std::size_t vectorCount = lastOffset / 16;
-    std::size_t lastElement = lastOffset % 16 / 4;
-    
-    for (std::size_t i = 0; i <= vectorCount; ++i) {
-        ss << "    vec4 unpacked" << (i * 4 + 0) << " = " << " unpackUnorm4x8(materials.materials[ID.material + fragmentInput.instanceID].data" << i << ".x);\n";
-        if (i == vectorCount && lastElement == 0) {
-            break;
-        }
-        
-        ss << "    vec4 unpacked" << (i * 4 + 1) << " = " << " unpackUnorm4x8(materials.materials[ID.material + fragmentInput.instanceID].data" << i << ".y);\n";
-        if (i == vectorCount && lastElement == 1) {
-            break;
-        }
-        
-        ss << "    vec4 unpacked" << (i * 4 + 2) << " = " << " unpackUnorm4x8(materials.materials[ID.material + fragmentInput.instanceID].data" << i << ".z);\n";
-        if (i == vectorCount && lastElement == 2) {
-            break;
-        }
-        
-        ss << "    vec4 unpacked" << (i * 4 + 3) << " = " << " unpackUnorm4x8(materials.materials[ID.material + fragmentInput.instanceID].data" << i << ".w);\n";
-    }
-    
-    ss << "\n";
-    
     for (std::size_t i = 0; i < definition.getMaterialComponents().size(); ++i) {
         const MaterialComponent& c = definition.getMaterialComponents()[i];
         
@@ -707,34 +682,17 @@ std::string VulkanGLSLShaderGenerator::generateMaterialDataUnpacker(const Compon
                 ss << "    " << typeName << " " << c.name << " = " << "texture(" << c.name << "Texture, fragmentInput.UV)" << textureComponents << ";\n";
             }
         } else {
-            std::size_t vector  = c.offset / 16;
-            std::size_t element = c.offset % 16 / 4;
-            
-            std::string elemName;
-            switch (element) {
-            case 0:
-                elemName = ".x";
-                break;
-            case 1:
-                elemName = ".y";
-                break;
-            case 2:
-                elemName = ".z";
-                break;
-            case 3:
-                elemName = ".w";
-                break;
-            }
+            std::size_t vector  = c.offset / 4;
             
             std::string typeName;
             std::string unpackedElement;
-            std::size_t subElement = c.offset % 16 % 4;
+            std::size_t element = c.offset % 4;
             
             switch (c.componentCount) {
             case 1:
                 typeName = "float";
                 
-                switch (subElement) {
+                switch (element) {
                 case 0:
                     unpackedElement = ".x";
                     break;
@@ -750,29 +708,31 @@ std::string VulkanGLSLShaderGenerator::generateMaterialDataUnpacker(const Compon
                 }
                 break;
             case 2:
+                assert(element == 0 || element == 2);
+                
                 typeName = "vec2";
                 
-                if (subElement == 0) {
+                if (element == 0) {
                     unpackedElement = ".xy";
-                } else {
+                } else if (element == 2) {
                     unpackedElement = ".zw";
                 }
                 break;
             case 3:
+                assert(element == 0);
+                
                 typeName = "vec3";
                 unpackedElement = ".xyz";
                 break;
             case 4:
+                assert(element == 0);
+                
                 typeName = "vec4";
                 unpackedElement = ".xyzw";
                 break;
             }
             
-            if (c.isSigned) {
-                ss << "    " << typeName << " " << c.name << " = " << "(unpacked" << (vector * 4 + element) << unpackedElement << " * 2) - " << typeName << "(1.0f)" << ";\n";
-            } else { 
-                ss << "    " << typeName << " " << c.name << " = " << "unpacked" << (vector * 4 + element) << unpackedElement << ";\n";
-            }
+            ss << "    " << typeName << " " << c.name << " = " << "materials.materials[ID.material + fragmentInput.instanceID].data" << vector << unpackedElement << ";\n";
         }
         
         ss << "\n";
@@ -781,7 +741,7 @@ std::string VulkanGLSLShaderGenerator::generateMaterialDataUnpacker(const Compon
     return ss.str();
 }
 
-ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const std::string& savePath, ShaderStageFlagBits shaderStage) const {
+ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const fs::path& savePath, const fs::path& fileName, ShaderStageFlagBits shaderStage) const {
     shaderc_shader_kind shaderKind;
     switch (shaderStage) {
         case ShaderStageFlagBits::Vertex:
@@ -823,9 +783,9 @@ ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::compileShader(const M
         
         std::vector<std::uint32_t> content(result.begin(), result.end());
         
-        fileSystem->createDirectory((con::ShaderPath / "spv").generic_string());
+        fileSystem->createDirectory(savePath);
         
-        File fw(savePath, File::OpenMode::Write);
+        File fw(savePath / fileName, File::OpenMode::Write);
         fw.writeBytes(content.data(), content.size() * sizeof(std::uint32_t));
         
         return {ShaderGenerationResult::Success, ""};

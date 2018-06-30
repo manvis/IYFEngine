@@ -59,6 +59,7 @@ assets/metadata/StringMetadata.cpp
 assets/metadata/MaterialMetadata.cpp
 #------- typeManager directory
 assets/typeManagers/FontTypeManager.cpp
+assets/typeManagers/MaterialTypeManager.cpp
 assets/typeManagers/MeshTypeManager.cpp
 assets/typeManagers/ShaderTypeManager.cpp
 assets/typeManagers/TextureTypeManager.cpp

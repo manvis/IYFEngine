@@ -40,7 +40,6 @@
 #include "utilities/hashing/Hashing.hpp"
 
 namespace iyf {
-/// \warning All material data, except for normals that are handled separately, ends up packed into 8 bit values.
 struct MaterialComponent : public Serializable {
     MaterialComponent() : componentCount(1), isSigned(false), offset(0) {}
     MaterialComponent(std::string name, std::uint16_t componentCount, bool isSigned = false) : name(name), componentCount(componentCount), isSigned(isSigned), offset(0) { }
@@ -48,7 +47,7 @@ struct MaterialComponent : public Serializable {
     std::string name;
     std::uint16_t componentCount;
     bool isSigned;
-    std::uint8_t padding;
+    std::uint8_t paddingByte;
     std::uint32_t offset;
     
     friend bool operator<(const MaterialComponent& left, const MaterialComponent& right) {

@@ -186,30 +186,30 @@ void EditorState::initialize() {
     assetBrowserPathChanged = true;
     assetDirUpdated = false;
     
-//     // TODO move this to tests
-//     {
-//         MaterialPipelineDefinition def = DefaultMaterialPipelineDefinitions[static_cast<std::size_t>(DefaultMaterialPipeline::Toon)];
-//         {
-//             File output("toon.iyfpl", File::OpenMode::Write);
-//             def.serialize(output);
-//         }
-//         
-//         MaterialPipelineDefinition empty;
-//         {
-//             File input("toon.iyfpl", File::OpenMode::Read);
-//             empty.deserialize(input);
-//         }
-//         
-//         LOG_D(def.name << " " << empty.name);
-//         LOG_D(def.languages.size() << " " << empty.languages.size());
-//         LOG_D("Code matches? " << (def.lightProcessingCode[0] == empty.lightProcessingCode[0]) << "\n" << empty.lightProcessingCode[0]);
-//         
-//         empty.name.append("1");
-//         
-//         iyf::VulkanGLSLShaderGenerator vkGen(engine);
-//         vkGen.generateFragmentShader(ComponentsReadFromTexture(0), def, true, true);
-//         vkGen.generateFragmentShader(ComponentsReadFromTexture(0), empty, true, true);
-//     }
+    // TODO move this to tests
+    {
+        MaterialPipelineDefinition def = DefaultMaterialPipelineDefinitions[static_cast<std::size_t>(DefaultMaterialPipeline::Toon)];
+        {
+            VirtualFileSystemSerializer output("toon.iyfpl", File::OpenMode::Write);
+            def.serialize(output);
+        }
+        
+        MaterialPipelineDefinition empty;
+        {
+            VirtualFileSystemSerializer input("toon.iyfpl", File::OpenMode::Read);
+            empty.deserialize(input);
+        }
+        
+        LOG_D(def.name << " " << empty.name);
+        LOG_D(def.languages.size() << " " << empty.languages.size());
+        LOG_D("Code matches? " << (def.lightProcessingCode[0] == empty.lightProcessingCode[0]) << "\n" << empty.lightProcessingCode[0]);
+        
+        empty.name.append("1");
+        
+        iyf::VulkanGLSLShaderGenerator vkGen(engine);
+        vkGen.generateFragmentShader("", ComponentsReadFromTexture(0), def, true, true);
+        vkGen.generateFragmentShader("", ComponentsReadFromTexture(0), empty, true, true);
+    }
     
     for (std::size_t i = 0; i < static_cast<std::size_t>(MaterialRenderMode::COUNT); ++i) {
         renderModeNames.push_back(LOC_SYS(MaterialRenderModeNames[i]));

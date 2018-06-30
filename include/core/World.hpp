@@ -31,7 +31,6 @@
 
 // TODO at least some of these should no longer be required
 #include "graphics/MaterialDefinition.hpp"
-#include "graphics/Material.hpp"
 #include "graphics/Lights.hpp"
 
 #include "core/EntitySystemManager.hpp"
@@ -153,10 +152,6 @@ protected:
     std::vector<PointLight> lights;
     
     //EntitySystemManager entitySystemManager;
-    
-    /// \warning For now, it is MANDATORY to NEVER remove elements from this vector
-    /// \todo a system to allow dynamic adding and removing of materials (probably via an indirection)
-    std::vector<Material> materials;
 
 //     /// \todo This should map EntityName to some kind of a meta-Entity in order to support attachments, Moreover, that bool
 //     /// screws with packing.

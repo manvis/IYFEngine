@@ -51,8 +51,7 @@ const fs::path CustomPath = AssetPath / u8"custom";
 const fs::path MaterialPath = AssetPath / u8"materials";
 const fs::path SystemStringPath = AssetPath / u8"systemStrings";
 
-const std::string AnimationFormatExtension = u8".iyfa";
-const std::string MeshFormatExtension = u8".iyfm";
+const std::string MaterialFormatExtension = u8".iyfm";
 const std::string ProjectFileExtension = u8".iyfp";
 const std::string MetadataExtension = u8".iyfd";
 const std::string TextMetadataExtension = u8".iyfjd";
