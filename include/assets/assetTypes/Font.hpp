@@ -30,10 +30,9 @@
 #define IYF_FONT_HPP
 
 #include "assets/Asset.hpp"
-#include "graphics/GraphicsAPIHandles.hpp"
 
 namespace iyf {
-/// \brief a font Asset
+/// \brief A font Asset
 class Font : public Asset {
 public:
     const char* data;
