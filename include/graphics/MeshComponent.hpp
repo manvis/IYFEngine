@@ -41,11 +41,6 @@
 #include <glm/mat4x4.hpp>
 
 namespace iyf {
-
-class MaterialData {
-    //
-};
-
 /// \todo Use AABBs. Remove sphere methods
 class MeshComponent : public Component {
 public:
