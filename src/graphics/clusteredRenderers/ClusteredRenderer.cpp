@@ -29,6 +29,9 @@
 #include "graphics/clusteredRenderers/ClusteredRenderer.hpp"
 #include "graphics/VertexDataLayouts.hpp"
 #include "graphics/Camera.hpp"
+#include "graphics/CameraAndLightBufferLayout.hpp"
+#include "graphics/TransformationBufferLayout.hpp"
+#include "graphics/MaterialBufferLayout.hpp"
 #include "graphics/Skybox.hpp"
 #include "graphics/DebugRenderer.hpp"
 
@@ -168,6 +171,17 @@ struct AdjustmentPushBuffer {
 struct PickerPushBuffer {
     glm::mat4 MVP;
     std::uint32_t objectID;
+};
+
+struct Cluster {
+    std::uint32_t offset;
+    std::uint32_t lightCount;
+};
+
+struct ClusterData {
+    glm::vec4 gridParameters;
+    Cluster clusters[MaxClusters];
+    std::uint32_t lightIDs[MaxLightIDs];
 };
 
 ClusteredRenderer::ClusteredRenderer(Engine* engine, GraphicsAPI* api) : Renderer(engine, api), specializationConstants(con::DefaultSpecializationConstants.begin(), con::DefaultSpecializationConstants.end()) {
@@ -502,6 +516,17 @@ void ClusteredRenderer::initializeTonemappingAndAdjustmentPipeline() {
 }
 
 void ClusteredRenderer::initialize() {
+    const std::size_t cameraAndLightDataSize = sizeof(CameraAndLightData);
+    const std::size_t transformationDataSize = sizeof(TransformationData);
+    const std::size_t clusterDataSize = sizeof(ClusterData);
+    const std::size_t materialDataSize = sizeof(MaterialData);
+    const std::size_t sumOfSizes = cameraAndLightDataSize + transformationDataSize + clusterDataSize + materialDataSize;
+    LOG_D("TOTAL SIZE: " << cameraAndLightDataSize << " + " 
+                         << transformationDataSize << " + "
+                         << clusterDataSize << " + "
+                         << materialDataSize << " = "
+                         << sumOfSizes);
+    
     commandPool = api->createCommandPool(QueueType::Graphics, 0);
     commandBuffers = commandPool->allocateCommandBuffers(static_cast<std::uint32_t>(CommandBufferID::COUNT));
     worldRenderComplete = api->createSemaphore();
