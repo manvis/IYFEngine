@@ -56,5 +56,5 @@ struct CameraAndLightData {
     PointLight pointLights[con::MaxPointLights];
     SpotLight spotLights[con::MaxSpotLights];
 };
-};
+}
 #endif // CAMERA_AND_LIGHT_BUFFER_LAYOUT_HPP

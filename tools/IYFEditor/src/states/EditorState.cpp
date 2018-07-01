@@ -209,6 +209,8 @@ void EditorState::initialize() {
         iyf::VulkanGLSLShaderGenerator vkGen(engine);
         vkGen.generateFragmentShader("", ComponentsReadFromTexture(0), def, true, true);
         vkGen.generateFragmentShader("", ComponentsReadFromTexture(0), empty, true, true);
+        vkGen.generateVertexShader("", def, VertexDataLayout::MeshVertexColored, true, true);
+        vkGen.generateVertexShader("", empty, VertexDataLayout::MeshVertexColored, true, true);
     }
     
     for (std::size_t i = 0; i < static_cast<std::size_t>(MaterialRenderMode::COUNT); ++i) {
