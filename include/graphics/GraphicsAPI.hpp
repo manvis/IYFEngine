@@ -873,25 +873,6 @@ public:
     ///
     /// \warning This is a blocking function. It will wait until the data ends up in GPU memory. You should use a DeviceMemoryUpdateBatcher instead.
     virtual void updateDeviceVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) = 0;
-//     virtual UniformBufferSlice createUniformBuffer(std::uint64_t size, BufferUpdateFrequency flag, const void* data = nullptr) = 0;
-//     virtual bool setUniformBufferData(const UniformBufferSlice& slice, const void* data) = 0;
-//     virtual bool updateUniformBufferData(const UniformBufferSlice& slice, const BufferSubSlice& subSlice, const void* data) = 0;
-//     virtual bool destroyUniformBuffer(const UniformBufferSlice& slice) = 0;
-//     
-//     virtual VertexBufferSlice createVertexBuffer(std::uint64_t size, BufferUpdateFrequency flag, const void* data = nullptr) = 0;
-//     virtual bool setVertexBufferData(const VertexBufferSlice& slice, const void* data) = 0;
-//     virtual bool updateVertexBufferData(const VertexBufferSlice& slice, const BufferSubSlice& subSlice, const void* data) = 0;
-//     virtual bool destroyVertexBuffer(const VertexBufferSlice& slice) = 0;
-//     
-//     virtual IndexBufferSlice createIndexBuffer(std::uint64_t size, IndexType type, BufferUpdateFrequency flag, const void* data = nullptr) = 0;
-//     virtual bool setIndexBufferData(const IndexBufferSlice& slice, const void* data) = 0;
-//     virtual bool updateIndexBufferData(const IndexBufferSlice& slice, const BufferSubSlice& subSlice, const void* data) = 0;
-//     virtual bool destroyIndexBuffer(const IndexBufferSlice& slice) = 0;
-//     
-//     virtual StorageBufferSlice createStorageBuffer(std::uint64_t size, BufferUpdateFrequency flag, const void* data = nullptr) = 0;
-//     virtual bool setStorageBufferData(const StorageBufferSlice& slice, const void* data) = 0;
-//     virtual bool updateStorageBufferData(const StorageBufferSlice& slice, const BufferSubSlice& subSlice, const void* data) = 0;
-//     virtual bool destroyStorageBuffer(const StorageBufferSlice& slice) = 0;
     
     virtual SemaphoreHnd createSemaphore() = 0;
     virtual void destroySemaphore(SemaphoreHnd hnd) = 0;
