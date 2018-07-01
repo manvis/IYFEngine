@@ -5,7 +5,7 @@
 	"sourceFileHash": 7825643002418541588,
 	"isSystemAsset": true,
 	"tags": [],
-	"use32BitIndices": true,
+	"use32BitIndices": false,
 	"exportAnimations": true,
 	"scale": 1.0
 }

@@ -85,20 +85,14 @@ static const char* GetPayloadNameForAssetType(AssetType type) {
             return "pldAudAss";
         case AssetType::Video:
             return "pldVidAss";
-        case AssetType::World:
-            return "pldWrldAss";
         case AssetType::Script:
             return "pldScrAss";
         case AssetType::Shader:
             return "pldShaAss";
-        case AssetType::Pipeline:
-            return "pldPiplAss";
         case AssetType::Strings:
             return "pldStrAss";
         case AssetType::Custom:
             return "pldCustAss";
-        case AssetType::Material:
-            return "pldMatAss";
         case AssetType::ANY:
             throw std::runtime_error("ANY/COUNT is not a valid asset type");
     }

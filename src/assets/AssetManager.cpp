@@ -38,7 +38,6 @@
 #include "assets/typeManagers/MeshTypeManager.hpp"
 #include "assets/typeManagers/ShaderTypeManager.hpp"
 #include "assets/typeManagers/TextureTypeManager.hpp"
-#include "assets/typeManagers/MaterialTypeManager.hpp"
 #include "utilities/DataSizes.hpp"
 
 namespace iyf {
@@ -84,7 +83,6 @@ const std::unordered_map<std::string, AssetType> AssetManager::ExtensionToType =
     {".frag", AssetType::Shader},
     {".comp", AssetType::Shader},
     {".csv", AssetType::Strings},
-    {con::MaterialFormatExtension, AssetType::Material}
 };
 
 AssetManager::AssetManager(Engine* engine) : engine(engine), isInit(false) {
@@ -133,7 +131,6 @@ void AssetManager::initialize() {
     typeManagers[static_cast<std::size_t>(AssetType::Shader)] = std::unique_ptr<ShaderTypeManager>(new ShaderTypeManager(this));
     typeManagers[static_cast<std::size_t>(AssetType::Texture)] = std::unique_ptr<TextureTypeManager>(new TextureTypeManager(this));
     typeManagers[static_cast<std::size_t>(AssetType::Font)] = std::unique_ptr<FontTypeManager>(new FontTypeManager(this));
-    typeManagers[static_cast<std::size_t>(AssetType::Material)] = std::unique_ptr<MaterialTypeManager>(new MaterialTypeManager(this));
     //AssetHandle<Mesh> r = load<Mesh>(HS("nano"));
     
     buildManifestFromFilesystem();
@@ -284,26 +281,17 @@ inline AssetManager::ManifestElement buildManifestElement(AssetType type, bool i
         case AssetType::Video:
             me.metadata = loadMetadata<VideoMetadata>(metadataPath, isJSON);
             break;
-        case AssetType::World:
-            me.metadata = loadMetadata<WorldMetadata>(metadataPath, isJSON);
-            break;
         case AssetType::Script:
             me.metadata = loadMetadata<ScriptMetadata>(metadataPath, isJSON);
             break;
         case AssetType::Shader:
             me.metadata = loadMetadata<ShaderMetadata>(metadataPath, isJSON);
             break;
-        case AssetType::Pipeline:
-            me.metadata = loadMetadata<PipelineMetadata>(metadataPath, isJSON);
-            break;
         case AssetType::Strings:
             me.metadata = loadMetadata<StringMetadata>(metadataPath, isJSON);
             break;
         case AssetType::Custom:
             me.metadata = loadMetadata<CustomMetadata>(metadataPath, isJSON);
-            break;
-        case AssetType::Material:
-            me.metadata = loadMetadata<MaterialMetadata>(metadataPath, isJSON);
             break;
         case AssetType::COUNT:
             throw std::runtime_error("COUNT is not an asset type");

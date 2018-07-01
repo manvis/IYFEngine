@@ -60,13 +60,10 @@ enum class AssetType : std::uint8_t {
     Font = 3,
     Audio = 4,
     Video = 5,
-    World = 6,
-    Script = 7,
-    Shader = 8,
-    Pipeline = 9,
-    Strings = 10,
-    Custom = 11,
-    Material = 12,
+    Script = 6,
+    Shader = 7,
+    Strings = 8,
+    Custom = 9,
     COUNT,
     /// Any is equal to COUNT
     ANY = COUNT

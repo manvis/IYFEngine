@@ -51,15 +51,11 @@ assets/metadata/MetadataBase.cpp
 assets/metadata/CustomMetadata.cpp
 assets/metadata/TextureMetadata.cpp
 assets/metadata/VideoMetadata.cpp
-assets/metadata/WorldMetadata.cpp
 assets/metadata/ScriptMetadata.cpp
 assets/metadata/ShaderMetadata.cpp
-assets/metadata/PipelineMetadata.cpp
 assets/metadata/StringMetadata.cpp
-assets/metadata/MaterialMetadata.cpp
 #------- typeManager directory
 assets/typeManagers/FontTypeManager.cpp
-assets/typeManagers/MaterialTypeManager.cpp
 assets/typeManagers/MeshTypeManager.cpp
 assets/typeManagers/ShaderTypeManager.cpp
 assets/typeManagers/TextureTypeManager.cpp

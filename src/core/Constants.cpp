@@ -73,13 +73,10 @@ static const std::array<fs::path, static_cast<std::size_t>(AssetType::COUNT)> As
     FontPath,      // 3
     AudioPath,     // 4
     VideoPath,     // 5
-    WorldPath,     // 6
-    ScriptPath,    // 7
-    ShaderPath,    // 8
-    PipelinePath,  // 9
-    StringPath,    // 10
-    CustomPath,    // 11
-    MaterialPath,  // 12
+    ScriptPath,    // 6
+    ShaderPath,    // 7
+    StringPath,    // 8
+    CustomPath,    // 9
 };
 
 const fs::path& AssetTypeToPath(AssetType type) {
@@ -93,13 +90,10 @@ static const std::array<std::string, static_cast<std::size_t>(AssetType::COUNT) 
     "font",      // 3
     "audio",     // 4
     "video",     // 5
-    "world",     // 6
-    "script",    // 7
-    "shader",    // 8
-    "pipeline",  // 9
-    "string",    // 10
-    "custom",    // 11
-    "material",  // 12
+    "script",    // 6
+    "shader",    // 7
+    "string",    // 8
+    "custom",    // 9
     "any",       // COUNT/ANY
 };
 

@@ -35,13 +35,10 @@
 #include "assets/metadata/FontMetadata.hpp"
 #include "assets/metadata/AudioMetadata.hpp"
 #include "assets/metadata/VideoMetadata.hpp"
-#include "assets/metadata/WorldMetadata.hpp"
 #include "assets/metadata/ScriptMetadata.hpp"
 #include "assets/metadata/ShaderMetadata.hpp"
-#include "assets/metadata/PipelineMetadata.hpp"
 #include "assets/metadata/StringMetadata.hpp"
 #include "assets/metadata/CustomMetadata.hpp"
-#include "assets/metadata/MaterialMetadata.hpp"
 #include "utilities/ForceInline.hpp"
 
 #include <variant>
@@ -51,8 +48,8 @@ namespace iyf {
 /// extension, an extra layer of indirection.
 /// 
 /// \warning The order of metadata elements must match con::AssetType
-using Metadata = std::variant<AnimationMetadata, MeshMetadata, TextureMetadata, FontMetadata, AudioMetadata, VideoMetadata, WorldMetadata, ScriptMetadata,
-                              ShaderMetadata, PipelineMetadata, StringMetadata, CustomMetadata, MaterialMetadata>;
+using Metadata = std::variant<AnimationMetadata, MeshMetadata, TextureMetadata, FontMetadata, AudioMetadata, VideoMetadata, ScriptMetadata,
+                              ShaderMetadata, StringMetadata, CustomMetadata>;
 
 IYF_FORCE_INLINE bool MetadataCorrespondsToAssetType(const Metadata& metadata, AssetType type) {
     return static_cast<std::size_t>(type) == metadata.index();
