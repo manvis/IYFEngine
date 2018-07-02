@@ -40,17 +40,17 @@
 namespace iyf {
 ShaderGenerator::ShaderGenerator(const Engine* engine) : engine(engine), renderer(engine->getRenderer()) {}
 
-ShaderGenerationResultErrorPair ShaderGenerator::generateAndReportError(ShaderGenerationResult result, const std::string& error) const {
+ShaderGenerationResult ShaderGenerator::generateAndReportError(ShaderGenerationResult::Status status, const std::string& error) const {
     LOG_E("Shader generation error: " << error);
     
-    return {result, error};
+    return {status, error};
 }
 
 MultipleShaderGenerationResult ShaderGenerator::generateAllShaders(const fs::path& path, const MaterialPipelineDefinition& definition, bool compile) const {
     MultipleShaderGenerationResult multiResult;
     
-    ShaderGenerationResultErrorPair result = validatePipelineDefinition(definition);
-    if (result.first != ShaderGenerationResult::Success) {
+    ShaderGenerationResult result = validatePipelineDefinition(definition);
+    if (result.getStatus() != ShaderGenerationResult::Status::Success) {
         multiResult.pipelineValidationError = result;
         return multiResult;
     }
@@ -64,19 +64,19 @@ MultipleShaderGenerationResult ShaderGenerator::generateAllShaders(const fs::pat
     return multiResult;
 }
 
-ShaderGenerationResultErrorPair ShaderGenerator::validatePipelineDefinition(const MaterialPipelineDefinition& definition) const {
+ShaderGenerationResult ShaderGenerator::validatePipelineDefinition(const MaterialPipelineDefinition& definition) const {
     if (definition.name.empty()) {
-        return generateAndReportError(ShaderGenerationResult::InvalidPipelineName, "The name of the material pipeline can't be empty");
+        return generateAndReportError(ShaderGenerationResult::Status::InvalidPipelineName, "The name of the material pipeline can't be empty");
     }
     
     LOG_I("Generating shaders for a material pipeline called \"" << definition.name << "\"");
     
     if (!std::regex_match(definition.name, regex::FunctionAndFileNameRegex)) {
-        return generateAndReportError(ShaderGenerationResult::InvalidPipelineName, "The name does not match the regex [a-zA-Z][a-zA-Z0-9]*");
+        return generateAndReportError(ShaderGenerationResult::Status::InvalidPipelineName, "The name does not match the regex [a-zA-Z][a-zA-Z0-9]*");
     }
     
     if (definition.languages.size() != definition.lightProcessingCode.size()) {
-        return generateAndReportError(ShaderGenerationResult::MissingLightProcessing, "The number of components in the lightProcessingCode vector must match the number of components in the languages vector.");
+        return generateAndReportError(ShaderGenerationResult::Status::MissingLightProcessing, "The number of components in the lightProcessingCode vector must match the number of components in the languages vector.");
     }
     
     // TODO validate data that's important to all shaders
@@ -90,42 +90,45 @@ ShaderGenerationResultErrorPair ShaderGenerator::validatePipelineDefinition(cons
             
             const auto result = uniqueLanguages.insert(sl);
             if (!result.second) {
-                return generateAndReportError(ShaderGenerationResult::DuplicateLanguages, "The list of supported shading lanuages must not contain duplicates.");
+                return generateAndReportError(ShaderGenerationResult::Status::DuplicateLanguages, "The list of supported shading lanuages must not contain duplicates.");
             }
         }
     }
     
     if (!found) {
-        return generateAndReportError(ShaderGenerationResult::LanguageNotSupported, "This generator does not support any of the required shading lanuages.");
+        return generateAndReportError(ShaderGenerationResult::Status::LanguageNotSupported, "This generator does not support any of the required shading lanuages.");
     }
     
-    return {ShaderGenerationResult::Success, ""};
+    return {ShaderGenerationResult::Status::Success, ""};
 }
 
-ShaderGenerationResultErrorPair ShaderGenerator::validateVertexShader(const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout) const {
+ShaderGenerationResult ShaderGenerator::validateVertexShader(const MaterialPipelineDefinition& definition) const {
     if (definition.requiresAdditionalVertexProcessing && (definition.additionalVertexProcessingCode.size() != definition.languages.size())) {
-        return generateAndReportError(ShaderGenerationResult::MissingAdditionalVertexProcessingCode, "RequiresAdditionalVertexProcessing is marked as true, however, the additionalVertexProcessingCode vector is empty");
+        return generateAndReportError(ShaderGenerationResult::Status::MissingAdditionalVertexProcessingCode, "RequiresAdditionalVertexProcessing is marked as true, however, the additionalVertexProcessingCode vector is empty");
     }
     
-    // Check for compatibility
+    return {ShaderGenerationResult::Status::Success, ""};
+}
+
+ShaderGenerationResult ShaderGenerator::checkVertexDataLayoutCompatibility(const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout) const {
     const VertexDataLayoutDefinition& layout = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(vertexDataLayout)];
     
     bool hasNormals = layout.hasAttribute(VertexAttributeType::Normal);
     if (definition.normalDataRequired && !hasNormals) {
-        return generateAndReportError(ShaderGenerationResult::MissingVertexAttribute, "Vertex layout " + layout.getName() + " is incompatible with the material pipeline definition because it lacks normals.");
+        return generateAndReportError(ShaderGenerationResult::Status::MissingVertexAttribute, "Vertex layout " + layout.getName() + " is incompatible with the material pipeline definition because it lacks normals.");
     }
     
     bool hasVertexColors = layout.hasAttribute(VertexAttributeType::Color);
     if (definition.vertexColorDataRequired && !hasVertexColors) {
-        return generateAndReportError(ShaderGenerationResult::MissingVertexAttribute, "Vertex layout " + layout.getName() + " is incompatible with the material pipeline definition because it lacks vertex colors.");
+        return generateAndReportError(ShaderGenerationResult::Status::MissingVertexAttribute, "Vertex layout " + layout.getName() + " is incompatible with the material pipeline definition because it lacks vertex colors.");
     }
     
     bool hasUV = layout.hasAttribute(VertexAttributeType::UV);
     if (definition.textureCoordinatesRequired && !hasUV) {
-        return generateAndReportError(ShaderGenerationResult::MissingVertexAttribute, "Vertex layout " + layout.getName() + " is incompatible with the material pipeline definition because it texture coordinates.");
+        return generateAndReportError(ShaderGenerationResult::Status::MissingVertexAttribute, "Vertex layout " + layout.getName() + " is incompatible with the material pipeline definition because it texture coordinates.");
     }
     
-    return {ShaderGenerationResult::Success, ""};
+    return {ShaderGenerationResult::Status::Success, ""};
 }
 
 void ShaderGenerator::generateAllVertexShaders(const fs::path& path, MultipleShaderGenerationResult& multiResult, const MaterialPipelineDefinition& definition, bool compile) const {
@@ -141,15 +144,15 @@ void ShaderGenerator::generateAllVertexShaders(const fs::path& path, MultipleSha
         
         if (normalMappable && definition.normalDataRequired) {
             // We still need a version without normal mapping when no normal map texture is attached to the shader
-            ShaderGenerationResultErrorPair result = generateVertexShaderImpl(path, definition, vertexDataLayout, false, compile);
-            if (result.first == ShaderGenerationResult::Success) {
+            ShaderGenerationResult result = generateVertexShaderImpl(path, definition, vertexDataLayout, false, compile);
+            if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                 successCount++;
             } else {
                 multiResult.vertexShaderErrors.push_back({makeVertexShaderName(definition.name, layout.getName(), getVertexShaderExtension(), false), result});
             }
             
             result = generateVertexShaderImpl(path, definition, vertexDataLayout, true, compile);
-            if (result.first == ShaderGenerationResult::Success) {
+            if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                 successCount++;
             } else {
                 multiResult.vertexShaderErrors.push_back({makeVertexShaderName(definition.name, layout.getName(), getVertexShaderExtension(), true), result});
@@ -157,8 +160,8 @@ void ShaderGenerator::generateAllVertexShaders(const fs::path& path, MultipleSha
             
             count += 2;
         } else {
-             ShaderGenerationResultErrorPair result = generateVertexShaderImpl(path, definition, vertexDataLayout, false, compile);
-            if (result.first == ShaderGenerationResult::Success) {
+             ShaderGenerationResult result = generateVertexShaderImpl(path, definition, vertexDataLayout, false, compile);
+            if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                 successCount++;
             } else {
                 multiResult.vertexShaderErrors.push_back({makeVertexShaderName(definition.name, layout.getName(), getVertexShaderExtension(), false), result});
@@ -182,15 +185,15 @@ void ShaderGenerator::generateAllFragmentShaders(const fs::path& path, MultipleS
     // TODO what if no UV coordinates are present in vertex layout? ComponentsReadFromTexture == 0?
     if (materialComponentCount == 0) {
         if (definition.normalDataRequired) {
-            ShaderGenerationResultErrorPair result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(0), definition, false, compile);
-            if (result.first == ShaderGenerationResult::Success) {
+            ShaderGenerationResult result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(0), definition, false, compile);
+            if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                 successCount++;
             } else {
                 multiResult.fragmentShaderErrors.push_back({makeFragmentShaderName(definition.name, 0, getFragmentShaderExtension(), false), result});
             }
             
             result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(0), definition, true, compile);
-            if (result.first == ShaderGenerationResult::Success) {
+            if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                 successCount++;
             } else {
                 multiResult.fragmentShaderErrors.push_back({makeFragmentShaderName(definition.name, 0, getFragmentShaderExtension(), true), result});
@@ -198,8 +201,8 @@ void ShaderGenerator::generateAllFragmentShaders(const fs::path& path, MultipleS
             
             count += 2;
         } else {
-            ShaderGenerationResultErrorPair result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(0), definition, false, compile);
-            if (result.first == ShaderGenerationResult::Success) {
+            ShaderGenerationResult result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(0), definition, false, compile);
+            if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                 successCount++;
             } else {
                 multiResult.fragmentShaderErrors.push_back({makeFragmentShaderName(definition.name, 0, getFragmentShaderExtension(), false), result});
@@ -215,15 +218,15 @@ void ShaderGenerator::generateAllFragmentShaders(const fs::path& path, MultipleS
         
         for (std::size_t i = 0; i <= maxVal.to_ullong(); ++i) {
             if (definition.normalDataRequired) {
-                ShaderGenerationResultErrorPair result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(i), definition, false, compile);
-                if (result.first == ShaderGenerationResult::Success) {
+                ShaderGenerationResult result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(i), definition, false, compile);
+                if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                     successCount++;
                 } else {
                     multiResult.fragmentShaderErrors.push_back({makeFragmentShaderName(definition.name, i, getFragmentShaderExtension(), false), result});
                 }
                 
                 result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(i), definition, true, compile);
-                if (result.first == ShaderGenerationResult::Success) {
+                if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                     successCount++;
                 } else {
                     multiResult.fragmentShaderErrors.push_back({makeFragmentShaderName(definition.name, i, getFragmentShaderExtension(), true), result});
@@ -231,8 +234,8 @@ void ShaderGenerator::generateAllFragmentShaders(const fs::path& path, MultipleS
             
                 count += 2;
             } else {
-                ShaderGenerationResultErrorPair result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(i), definition, false, compile);
-                if (result.first == ShaderGenerationResult::Success) {
+                ShaderGenerationResult result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(i), definition, false, compile);
+                if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                     successCount++;
                 } else {
                     multiResult.fragmentShaderErrors.push_back({makeFragmentShaderName(definition.name, i, getFragmentShaderExtension(), false), result});
@@ -255,17 +258,17 @@ std::string ShaderGenerator::makeFragmentShaderName(const std::string& pipelineN
     return fmt::format("{}_{}_{}{}{}", pipelineName, renderer->getName(), readFromTexture.to_ullong(), normalMapped ? "_normalMapped" : "", extension);
 }
 
-ShaderGenerationResultErrorPair ShaderGenerator::generateFragmentShader(const fs::path& path, const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const {
-    const ShaderGenerationResultErrorPair result = validatePipelineDefinition(definition);
-    if (result.first != ShaderGenerationResult::Success) {
+ShaderGenerationResult ShaderGenerator::generateFragmentShader(const fs::path& path, const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const {
+    const ShaderGenerationResult result = validatePipelineDefinition(definition);
+    if (result.getStatus() != ShaderGenerationResult::Status::Success) {
         return result;
     }
     return generateFragmentShaderImpl(path, readFromTexture, definition, normalMapped, compile);
 }
 
-ShaderGenerationResultErrorPair ShaderGenerator::generateVertexShader(const fs::path& path, const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const {
-    const ShaderGenerationResultErrorPair result = validatePipelineDefinition(definition);
-    if (result.first != ShaderGenerationResult::Success) {
+ShaderGenerationResult ShaderGenerator::generateVertexShader(const fs::path& path, const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const {
+    const ShaderGenerationResult result = validatePipelineDefinition(definition);
+    if (result.getStatus() != ShaderGenerationResult::Status::Success) {
         return result;
     }
     

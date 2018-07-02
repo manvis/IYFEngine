@@ -169,9 +169,14 @@ std::string VulkanGLSLShaderGenerator::getFragmentShaderExtension() const {
     return ".frag";
 }
 
-ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::generateVertexShaderImpl(const fs::path& path, const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const {
-    ShaderGenerationResultErrorPair validationResult = validateVertexShader(definition, vertexDataLayout);
-    if (validationResult.first != ShaderGenerationResult::Success) {
+ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShaderImpl(const fs::path& path, const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const {
+    ShaderGenerationResult validationResult = validateVertexShader(definition);
+    if (validationResult.getStatus() != ShaderGenerationResult::Status::Success) {
+        return validationResult;
+    }
+    
+    validationResult = checkVertexDataLayoutCompatibility(definition, vertexDataLayout);
+    if (validationResult.getStatus() != ShaderGenerationResult::Status::Success) {
         return validationResult;
     }
     
@@ -200,6 +205,8 @@ ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::generateVertexShaderI
     if (normalMapped) {
         ss << " With normal mapping.";
     }
+    
+    ss << "\n// WARNING: DO NOT MODIFY BY HAND. Update the material definition and regenerate these shaders instead.";
     
     ss << "\n\n";
     
@@ -309,7 +316,7 @@ ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::generateVertexShaderI
         return compileShader(definition, fileName, shaderSource, path / "spv", fileName + ".spv", ShaderStageFlagBits::Vertex);
     }
     
-    return {ShaderGenerationResult::Success, ""};
+    return {ShaderGenerationResult::Status::Success, ""};
 }
 
 std::string VulkanGLSLShaderGenerator::generatePerFrameData(const ShaderDataSets& requiredDataSets, const MaterialPipelineDefinition& definition) const {
@@ -442,7 +449,7 @@ std::string VulkanGLSLShaderGenerator::generatePerFrameData(const ShaderDataSets
     return ss.str();
 }
 
-ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::generateFragmentShaderImpl(const fs::path& path, const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const {
+ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShaderImpl(const fs::path& path, const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const {
     std::size_t codeID = 0;
     for (std::size_t i = 0; i < definition.languages.size(); ++i) {
         if (definition.languages[i] == getShaderLanguage()) {
@@ -453,7 +460,8 @@ ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::generateFragmentShade
     
     std::stringstream ss;
     ss << VulkanGLSLHeader;
-    ss << "// IYFEngine. Automatically generated fragment shader for a material called " << definition.name << ".\n\n";
+    ss << "// IYFEngine. Automatically generated fragment shader for a material called " << definition.name << ".\n" <<
+          "// WARNING: DO NOT MODIFY BY HAND. Update the material definition and regenerate these shaders instead.\n\n";
     
     ss << "// Per vertex output to other shaders in the pipeline\n";
     ss << "layout (location = 0) in FragmentInput {\n";
@@ -543,7 +551,7 @@ ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::generateFragmentShade
         return compileShader(definition, fileName, shaderSource, path / "spv", fileName + ".spv", ShaderStageFlagBits::Fragment);
     }
     
-    return {ShaderGenerationResult::Success, ""};
+    return {ShaderGenerationResult::Status::Success, ""};
 }
 
 std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionSignature(const MaterialPipelineDefinition& definition) const {
@@ -741,7 +749,7 @@ std::string VulkanGLSLShaderGenerator::generateMaterialDataUnpacker(const Compon
     return ss.str();
 }
 
-ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const fs::path& savePath, const fs::path& fileName, ShaderStageFlagBits shaderStage) const {
+ShaderGenerationResult VulkanGLSLShaderGenerator::compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const fs::path& savePath, const fs::path& fileName, ShaderStageFlagBits shaderStage) const {
     shaderc_shader_kind shaderKind;
     switch (shaderStage) {
         case ShaderStageFlagBits::Vertex:
@@ -776,7 +784,7 @@ ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::compileShader(const M
     
     shaderc::SpvCompilationResult result = compiler.CompileGlslToSpv(shaderSource, shaderKind, shaderName.c_str(), compilerOptions);
     if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
-        return generateAndReportError(ShaderGenerationResult::CompilationFailed, fmt::format("Shader \"{}\" compilation failed with error {}", shaderName, result.GetErrorMessage()));
+        return generateAndReportError(ShaderGenerationResult::Status::CompilationFailed, fmt::format("Shader \"{}\" compilation failed with error {}", shaderName, result.GetErrorMessage()));
     } else {
         LOG_V("Successfully compiled a shader called \"" << shaderName << "\"\n\tWarnings: " << result.GetNumWarnings());
         // TODO output warnings if any
@@ -788,7 +796,7 @@ ShaderGenerationResultErrorPair VulkanGLSLShaderGenerator::compileShader(const M
         File fw(savePath / fileName, File::OpenMode::Write);
         fw.writeBytes(content.data(), content.size() * sizeof(std::uint32_t));
         
-        return {ShaderGenerationResult::Success, ""};
+        return {ShaderGenerationResult::Status::Success, ""};
     }
 }
 }
