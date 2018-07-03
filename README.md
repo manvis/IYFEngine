@@ -12,11 +12,9 @@
 The IYFEngine is my pet project. I want to create a fully-featured open source engine for desktop (Windows, Linux, Mac) and mobile (Android and iOS) platforms. I want to focus on performance and the use of up-to-date technologies or standards, such as Vulkan and C++17.
 
 ## A word of caution
-The IYFEngine is in a **very rough state** at the moment. Many systems are incomplete or haven't even been started and I'm in the middle of a major asset pipeline refactoring, which prevents the UI from starting because mandatory shaders or meshes can't be loaded. Moreover, while I will make the engine cross platform eventually, at the moment it requires some Linux specific libraries to compile (e.g., inotify that is used to monitor the project directory for newly added or changed asset files). Moreover, my CMake files were made to be used with GCC or Clang (some compilation and linking options are hard-coded) and will break if you try to generate build scripts for Visual Studio.
+The IYFEngine is in a **very incomplete state** at the moment. Many systems are work in progress or haven't even been started yet. Moreover, while I will make the engine cross platform eventually, at the moment it requires some Linux specific libraries to compile (e.g., inotify that is used to monitor the project directory for newly added or changed asset files). Last but not least, my CMake files were made to be used with GCC or Clang (some compilation and linking options are hard-coded) and will break if you try to generate build scripts for Visual Studio.
 
-Still, despite these problems, the code should at least compile on Linux (if it doesn't, create an issue).
-
-I do my best to immediately fix (**NOT SILENCE**) most warnings that I come across. The CMake scripts set `-Wall`, `-Wextra` and `-pedantic` compilation flags. However, you should only see warnings about unused parameters from methods that I haven't implemented yet. They're kept to remind me there's still work to do in specific classes. Any other warnings should be reported immediately.
+I do my best to immediately fix (**NOT SILENCE**) most warnings that I come across. The CMake scripts set `-Wall`, `-Wextra` and `-pedantic` compilation flags. However, you will still see warnings about unused parameters from methods that I haven't implemented yet. They're kept to remind me there's still work to do in specific classes. Any other warnings should be reported immediately.
 
 ## Building the engine
 0. Clone the code stored in this repository.
