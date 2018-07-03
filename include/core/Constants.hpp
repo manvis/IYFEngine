@@ -319,12 +319,18 @@ const std::size_t MaxAnimations = 64;
 /// MeshData and modify Pipeline editing classes. It's possible that even more changes may be required.
 const std::size_t MaxVerticesPerMesh = 65535;
 
-/// \brief Maximum number of floating point components a single Material (or MaterialDefinition) can have
+/// \brief The maximum number of floating point inputs a single Material (or MaterialDefinition) can have.
+///
+/// E.g., if this is 16, the material may have up to 16 float inputs or four vec4 inputs or almost any other combination, 
+/// for as long as the total number floats is less than MaxMaterialComponents.
+///
+/// \warning Some combinations may introduce padding and prevent some floats from being used.
 const std::size_t MaxMaterialComponents = 16;
 
 static_assert(MaxMaterialComponents % 4 == 0, "The number of components must be a multiple of 4");
-// WARNING: Shader generation depends on not having more than 64 material components. Unfortunately,
-// this also limits the MaxBytesPerMaterial value.
+
+/// A 64bit bitset is used to track which floats are loaded from texture and which ones are loaded from the
+/// material data buffers.
 static_assert(MaxMaterialComponents <= 64, "Can't use more than 64 material components.");
 
 // -----------------------------------------------------------------------------

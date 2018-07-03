@@ -56,7 +56,7 @@ MultipleShaderGenerationResult ShaderGenerator::generateAllShaders(const fs::pat
     }
     
     generateAllVertexShaders(path, multiResult, definition);
-    generateAllFragmentShaders(path, multiResult, definition, true);
+    generateAllFragmentShaders(path, multiResult, definition);
     
     
     LOG_I("Generated " << multiResult.generatedVertexShaderCount << " vertex shaders out of " << multiResult.totalVertexShaderCount << " and " << multiResult.generatedFragmentShaderCount << " fragment shaders out of " << multiResult.generatedFragmentShaderCount << " for a material pipeline called \"" << definition.name << "\"");
@@ -184,24 +184,34 @@ void ShaderGenerator::generateAllVertexShaders(const fs::path& path, MultipleSha
     multiResult.generatedVertexShaderCount = successCount;
 }
 
-void ShaderGenerator::generateAllFragmentShaders(const fs::path& path, MultipleShaderGenerationResult& multiResult, const MaterialPipelineDefinition& definition, bool compile) const {
+void ShaderGenerator::generateAllFragmentShaders(const fs::path& path, MultipleShaderGenerationResult& multiResult, const MaterialPipelineDefinition& definition) const {
     std::size_t materialComponentCount = definition.getMaterialComponents().size();
     
     std::size_t count = 0;
     std::size_t successCount = 0;
     
+    FragmentShaderGenerationSettings genSettings;
+    genSettings.compiledShaderPath = path;
+    genSettings.materialDefinition = &definition;
+    genSettings.compileShader = true;
+    genSettings.writeSource = false;
+    
     // Generate something even if the shader has no required material data
     // TODO what if no UV coordinates are present in vertex layout? ComponentsReadFromTexture == 0?
     if (materialComponentCount == 0) {
         if (definition.normalDataRequired) {
-            ShaderGenerationResult result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(0), definition, false, compile);
+            genSettings.readFromTexture = 0;
+            genSettings.normalMapped = false;
+            ShaderGenerationResult result = generateFragmentShaderImpl(genSettings);
             if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                 successCount++;
             } else {
                 multiResult.fragmentShaderErrors.push_back({makeFragmentShaderName(definition.name, 0, getFragmentShaderExtension(), false), result});
             }
             
-            result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(0), definition, true, compile);
+            genSettings.readFromTexture = 0;
+            genSettings.normalMapped = true;
+            result = generateFragmentShaderImpl(genSettings);
             if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                 successCount++;
             } else {
@@ -210,7 +220,10 @@ void ShaderGenerator::generateAllFragmentShaders(const fs::path& path, MultipleS
             
             count += 2;
         } else {
-            ShaderGenerationResult result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(0), definition, false, compile);
+            genSettings.readFromTexture = 0;
+            genSettings.normalMapped = false;
+            
+            ShaderGenerationResult result = generateFragmentShaderImpl(genSettings);
             if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                 successCount++;
             } else {
@@ -227,14 +240,18 @@ void ShaderGenerator::generateAllFragmentShaders(const fs::path& path, MultipleS
         
         for (std::size_t i = 0; i <= maxVal.to_ullong(); ++i) {
             if (definition.normalDataRequired) {
-                ShaderGenerationResult result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(i), definition, false, compile);
+                genSettings.readFromTexture = ComponentsReadFromTexture(i);
+                genSettings.normalMapped = false;
+                ShaderGenerationResult result = generateFragmentShaderImpl(genSettings);
                 if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                     successCount++;
                 } else {
                     multiResult.fragmentShaderErrors.push_back({makeFragmentShaderName(definition.name, i, getFragmentShaderExtension(), false), result});
                 }
                 
-                result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(i), definition, true, compile);
+                genSettings.readFromTexture = ComponentsReadFromTexture(i);
+                genSettings.normalMapped = true;
+                result = generateFragmentShaderImpl(genSettings);
                 if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                     successCount++;
                 } else {
@@ -243,7 +260,9 @@ void ShaderGenerator::generateAllFragmentShaders(const fs::path& path, MultipleS
             
                 count += 2;
             } else {
-                ShaderGenerationResult result = generateFragmentShaderImpl(path, ComponentsReadFromTexture(i), definition, false, compile);
+                genSettings.readFromTexture = ComponentsReadFromTexture(i);
+                genSettings.normalMapped = false;
+                ShaderGenerationResult result = generateFragmentShaderImpl(genSettings);
                 if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                     successCount++;
                 } else {
@@ -267,12 +286,17 @@ std::string ShaderGenerator::makeFragmentShaderName(const std::string& pipelineN
     return fmt::format("{}_{}_{}{}{}", pipelineName, renderer->getName(), readFromTexture.to_ullong(), normalMapped ? "_normalMapped" : "", extension);
 }
 
-ShaderGenerationResult ShaderGenerator::generateFragmentShader(const fs::path& path, const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const {
-    const ShaderGenerationResult result = validatePipelineDefinition(definition);
+ShaderGenerationResult ShaderGenerator::generateFragmentShader(const FragmentShaderGenerationSettings& settings) const {
+    ShaderGenerationResult result = validateShaderGenerationSettings(settings);
     if (result.getStatus() != ShaderGenerationResult::Status::Success) {
         return result;
     }
-    return generateFragmentShaderImpl(path, readFromTexture, definition, normalMapped, compile);
+    
+    result = validatePipelineDefinition(*settings.materialDefinition);
+    if (result.getStatus() != ShaderGenerationResult::Status::Success) {
+        return result;
+    }
+    return generateFragmentShaderImpl(settings);
 }
 
 ShaderGenerationResult ShaderGenerator::generateVertexShader(const VertexShaderGenerationSettings& settings) const {
@@ -297,8 +321,8 @@ ShaderGenerationResult ShaderGenerator::validateShaderGenerationSettings(const V
     return {ShaderGenerationResult::Status::Success, ""};
 }
 
-ShaderGenerationResult ShaderGenerator::validateShaderGenerationSettings(const FragmentShaderGenerationSettings& settings) const {
-    throw std::runtime_error("NOT IMPLEMENTED YET");
+ShaderGenerationResult ShaderGenerator::validateShaderGenerationSettings(const FragmentShaderGenerationSettings&) const {
+    return {ShaderGenerationResult::Status::Success, ""};
 }
 
 }

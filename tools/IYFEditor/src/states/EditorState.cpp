@@ -201,8 +201,20 @@ void EditorState::initialize() {
         empty.name.append("1");
         
         iyf::VulkanGLSLShaderGenerator vkGen(engine);
-        vkGen.generateFragmentShader("", ComponentsReadFromTexture(0), def, true, true);
-        vkGen.generateFragmentShader("", ComponentsReadFromTexture(0), empty, true, true);
+        
+        FragmentShaderGenerationSettings fsSettings;
+        fsSettings.platform = con::GetCurrentPlatform();
+        fsSettings.compileShader = true;
+        fsSettings.writeSource = true;
+        fsSettings.compiledShaderPath = "spv";
+        fsSettings.shaderSourcePath = "";
+        fsSettings.normalMapped = true;
+        
+        fsSettings.materialDefinition = &def;
+        vkGen.generateFragmentShader(fsSettings);
+        
+        fsSettings.materialDefinition = &empty;
+        vkGen.generateFragmentShader(fsSettings);
         
         VertexShaderGenerationSettings vsSettings;
         vsSettings.platform = con::GetCurrentPlatform();

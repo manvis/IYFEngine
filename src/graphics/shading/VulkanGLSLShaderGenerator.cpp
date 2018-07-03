@@ -453,7 +453,9 @@ std::string VulkanGLSLShaderGenerator::generatePerFrameData(const ShaderDataSets
     return ss.str();
 }
 
-ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShaderImpl(const fs::path& path, const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const {
+ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShaderImpl(const FragmentShaderGenerationSettings& settings) const {
+    const MaterialPipelineDefinition& definition = *settings.materialDefinition;
+    
     std::size_t codeID = 0;
     for (std::size_t i = 0; i < definition.languages.size(); ++i) {
         if (definition.languages[i] == getShaderLanguage()) {
@@ -482,7 +484,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShaderImpl(con
         ss << "    vec2 UV;\n";
     }
     
-    if (normalMapped) {
+    if (settings.normalMapped) {
         ss << "    mat3 TBN;\n";
     } else if (definition.normalDataRequired) {
         ss << "    vec3 normalWS;\n";
@@ -510,9 +512,9 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShaderImpl(con
     
     ss << "void main() {\n";
     
-    ss << generateMaterialDataUnpacker(readFromTexture, definition);
+    ss << generateMaterialDataUnpacker(settings.readFromTexture, definition);
     
-    if (normalMapped) {
+    if (settings.normalMapped) {
         ss << "    vec2 normalXY = texture(NormalTexture, fragmentInput.UV).xy;\n";
         ss << "    normalXY = 2.0f * normalXY - vec2(1.0f, 1.0f);\n";
         ss << "    float normalZ = sqrt(1 - (normalXY.x * normalXY.x) - (normalXY.y * normalXY.y));\n";
@@ -539,20 +541,17 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShaderImpl(con
     ss << "    finalColor = lightSum;\n";
     ss << "}";
     
-    std::string fileName = makeFragmentShaderName(definition.name, readFromTexture.to_ullong(), getFragmentShaderExtension(), normalMapped);
+    std::string fileName = makeFragmentShaderName(definition.name, settings.readFromTexture.to_ullong(), getFragmentShaderExtension(), settings.normalMapped);
     
-    File fw((path / fileName).generic_string(), File::OpenMode::Write);
+    const std::string shaderSource = ss.str();
     
-    std::string shaderSource = ss.str();
-    fw.writeString(shaderSource);
-//     const BindingAndSet CameraAndLightBuffer(0, 0);
-//     const BindingAndSet MaterialDataBuffer(0, 1);
-//     const BindingAndSet TransformationDataBuffer(0, 2);
-//     const std::size_t FirstAvailableDescriptorSet = 1;
-    //layout (std140, set = 1, binding = 0) buffer lightAndCameraDataBuffer {
+    if (settings.writeSource) {
+        File fw((settings.shaderSourcePath / fileName).generic_string(), File::OpenMode::Write);
+        fw.writeString(shaderSource);
+    }
     
-    if (compile) {
-        return compileShader(definition, fileName, shaderSource, path / "spv", fileName + ".spv", ShaderStageFlagBits::Fragment);
+    if (settings.compileShader) {
+        return compileShader(definition, fileName, shaderSource, settings.compiledShaderPath, fileName + ".spv", ShaderStageFlagBits::Fragment);
     }
     
     return {ShaderGenerationResult::Status::Success, ""};
