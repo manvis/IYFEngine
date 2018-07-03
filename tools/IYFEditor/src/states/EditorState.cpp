@@ -203,8 +203,21 @@ void EditorState::initialize() {
         iyf::VulkanGLSLShaderGenerator vkGen(engine);
         vkGen.generateFragmentShader("", ComponentsReadFromTexture(0), def, true, true);
         vkGen.generateFragmentShader("", ComponentsReadFromTexture(0), empty, true, true);
-        vkGen.generateVertexShader("", def, VertexDataLayout::MeshVertexColored, true, true);
-        vkGen.generateVertexShader("", empty, VertexDataLayout::MeshVertexColored, true, true);
+        
+        VertexShaderGenerationSettings vsSettings;
+        vsSettings.platform = con::GetCurrentPlatform();
+        vsSettings.compileShader = true;
+        vsSettings.writeSource = true;
+        vsSettings.compiledShaderPath = "spv";
+        vsSettings.shaderSourcePath = "";
+        vsSettings.normalMapped = true;
+        vsSettings.vertexDataLayout = VertexDataLayout::MeshVertexColored;
+        
+        vsSettings.materialDefinition = &def;
+        vkGen.generateVertexShader(vsSettings);
+        
+        vsSettings.materialDefinition = &empty;
+        vkGen.generateVertexShader(vsSettings);
     }
     
     for (std::size_t i = 0; i < static_cast<std::size_t>(MaterialRenderMode::COUNT); ++i) {

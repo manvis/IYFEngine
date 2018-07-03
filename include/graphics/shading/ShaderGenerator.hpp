@@ -34,6 +34,7 @@
 #include <bitset>
 
 #include "core/Constants.hpp"
+#include "core/Platform.hpp"
 #include "graphics/GraphicsAPIConstants.hpp"
 #include "graphics/VertexDataLayouts.hpp"
 #include "graphics/Lights.hpp"
@@ -49,6 +50,7 @@ public:
     enum class Status {
         Success,
         InvalidPipelineName,
+        InvalidGenerationSettings,
         MissingLightProcessing,
         DuplicateLanguages,
         LanguageNotSupported,
@@ -76,6 +78,46 @@ public:
 private:
     Status status;
     std::string contents;
+};
+
+struct ShaderGenerationSettings {
+    ShaderGenerationSettings() : platform(con::GetCurrentPlatform()), compileShader(true), writeSource(false) {}
+    
+    /// The platform to compile/generate for
+    PlatformIdentifier platform;
+    
+    /// If compileShader is true, the final compiled shader will be written to this path.
+    ///
+    /// This path should point to a directory. An appropriate filename will be generated automatically and appended to it.
+    fs::path compiledShaderPath;
+    
+    /// If this is not empty, the source code of the generated shader will be written to this path.
+    ///
+    /// This path should point to a directory. An appropriate filename will be generated automatically and appended to it.
+    fs::path shaderSourcePath;
+    
+    /// A pointer to the definition of a material. Must not be nullptr.
+    const MaterialPipelineDefinition* materialDefinition;
+    
+    /// If this is true, the shader will be compiled and placed in the compiledShaderPath.
+    bool compileShader;
+    
+    /// If this is true, the generated shader source will be placed in the shaderSourcePath.
+    bool writeSource;
+};
+
+struct VertexShaderGenerationSettings : ShaderGenerationSettings {
+    VertexShaderGenerationSettings() : ShaderGenerationSettings(), vertexDataLayout(VertexDataLayout::MeshVertexColored), normalMapped(true) {}
+    
+    /// The vertex data layout to generate for.
+    VertexDataLayout vertexDataLayout;
+    
+    /// Is normal mapping supported (requires tangents and bitangents)
+    bool normalMapped;
+};
+
+struct FragmentShaderGenerationSettings : ShaderGenerationSettings {
+    //
 };
 
 struct MultipleShaderGenerationResult {
@@ -140,8 +182,7 @@ public:
     /// shader variants, HUNDREDS if not THOUSANDS of files may be created and compiled.
     ///
     /// \param[in] definition All features and extra code required by the pipeline you wish to generate.
-    /// \param[in] compile Should the shaders be compiled (not all classes derived from ShaderGenerator can compile shaders).
-    virtual MultipleShaderGenerationResult generateAllShaders(const fs::path& path, const MaterialPipelineDefinition& definition, bool compile) const;
+    virtual MultipleShaderGenerationResult generateAllShaders(const fs::path& path, const MaterialPipelineDefinition& definition) const;
     
     /// Generates a name for a vertex shader
     virtual std::string makeVertexShaderName(const std::string& pipelineName, const std::string& vertexLayoutName, const std::string& extension, bool normalMapped) const;
@@ -150,7 +191,7 @@ public:
     virtual std::string makeFragmentShaderName(const std::string& pipelineName, const ComponentsReadFromTexture& readFromTexture, const std::string& extension, bool normalMapped) const;
 protected:
     /// \brief This function finds all compatible VertexDataLayout types and generates vertex shaders for them by calling generateVertexShader
-    virtual void generateAllVertexShaders(const fs::path& path, MultipleShaderGenerationResult& multiResult, const MaterialPipelineDefinition& definition, bool compile) const;
+    virtual void generateAllVertexShaders(const fs::path& path, MultipleShaderGenerationResult& multiResult, const MaterialPipelineDefinition& definition) const;
     
     /// \brief This function generates all possible variants of the fragment shader by calling generateFragmentShader()
     virtual void generateAllFragmentShaders(const fs::path& path, MultipleShaderGenerationResult& multiResult, const MaterialPipelineDefinition& definition, bool compile) const;
@@ -181,19 +222,22 @@ public:
     /// \param[in] vertexDataLayout A vertex data layout that thė shader will be generated for.
     /// \param[in] normalMapped Should normal mapping code be generated or not.
     /// \param[in] compile Should the shader be compiled (not all classes derived from ShaderGenerator can compile shaders).
-    ShaderGenerationResult generateVertexShader(const fs::path& path, const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const;
+    ShaderGenerationResult generateVertexShader(const VertexShaderGenerationSettings& settings) const;
     
     virtual std::string getVertexShaderExtension() const = 0;
     virtual std::string getFragmentShaderExtension() const = 0;
 protected:
     virtual ShaderGenerationResult generateFragmentShaderImpl(const fs::path& path, const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const = 0;
-    virtual ShaderGenerationResult generateVertexShaderImpl(const fs::path& path, const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const = 0;
+    virtual ShaderGenerationResult generateVertexShaderImpl(const VertexShaderGenerationSettings& settings) const = 0;
     
     virtual std::string generatePerFrameData(const ShaderDataSets& requiredDataSets, const MaterialPipelineDefinition& definition) const = 0;
     
     virtual std::string generateLightProcessingFunctionCall(const MaterialPipelineDefinition& definition) const = 0;
     
     virtual ShaderGenerationResult compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const fs::path& savePath, const fs::path& fileName, ShaderStageFlagBits shaderStage) const = 0;
+    
+    ShaderGenerationResult validateShaderGenerationSettings(const VertexShaderGenerationSettings& settings) const;
+    ShaderGenerationResult validateShaderGenerationSettings(const FragmentShaderGenerationSettings& settings) const;
     
     const Engine* engine;
     const Renderer* renderer;

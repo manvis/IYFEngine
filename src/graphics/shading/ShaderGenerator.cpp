@@ -46,7 +46,7 @@ ShaderGenerationResult ShaderGenerator::generateAndReportError(ShaderGenerationR
     return {status, error};
 }
 
-MultipleShaderGenerationResult ShaderGenerator::generateAllShaders(const fs::path& path, const MaterialPipelineDefinition& definition, bool compile) const {
+MultipleShaderGenerationResult ShaderGenerator::generateAllShaders(const fs::path& path, const MaterialPipelineDefinition& definition) const {
     MultipleShaderGenerationResult multiResult;
     
     ShaderGenerationResult result = validatePipelineDefinition(definition);
@@ -55,8 +55,8 @@ MultipleShaderGenerationResult ShaderGenerator::generateAllShaders(const fs::pat
         return multiResult;
     }
     
-    generateAllVertexShaders(path, multiResult, definition, compile);
-    generateAllFragmentShaders(path, multiResult, definition, compile);
+    generateAllVertexShaders(path, multiResult, definition);
+    generateAllFragmentShaders(path, multiResult, definition, true);
     
     
     LOG_I("Generated " << multiResult.generatedVertexShaderCount << " vertex shaders out of " << multiResult.totalVertexShaderCount << " and " << multiResult.generatedFragmentShaderCount << " fragment shaders out of " << multiResult.generatedFragmentShaderCount << " for a material pipeline called \"" << definition.name << "\"");
@@ -131,7 +131,7 @@ ShaderGenerationResult ShaderGenerator::checkVertexDataLayoutCompatibility(const
     return {ShaderGenerationResult::Status::Success, ""};
 }
 
-void ShaderGenerator::generateAllVertexShaders(const fs::path& path, MultipleShaderGenerationResult& multiResult, const MaterialPipelineDefinition& definition, bool compile) const {
+void ShaderGenerator::generateAllVertexShaders(const fs::path& path, MultipleShaderGenerationResult& multiResult, const MaterialPipelineDefinition& definition) const {
     std::size_t count = 0;
     std::size_t successCount = 0;
     
@@ -142,16 +142,25 @@ void ShaderGenerator::generateAllVertexShaders(const fs::path& path, MultipleSha
         bool hasNormals = layout.hasAttribute(VertexAttributeType::Normal);
         bool normalMappable = hasNormals && layout.hasAttribute(VertexAttributeType::UV) && (layout.hasAttribute(VertexAttributeType::Tangent) || layout.hasAttribute(VertexAttributeType::TangentAndBias));
         
+        VertexShaderGenerationSettings genSettings;
+        genSettings.compiledShaderPath = path;
+        genSettings.materialDefinition = &definition;
+        genSettings.vertexDataLayout = vertexDataLayout;
+        genSettings.compileShader = true;
+        genSettings.writeSource = false;
+        
         if (normalMappable && definition.normalDataRequired) {
             // We still need a version without normal mapping when no normal map texture is attached to the shader
-            ShaderGenerationResult result = generateVertexShaderImpl(path, definition, vertexDataLayout, false, compile);
+            genSettings.normalMapped = false;
+            ShaderGenerationResult result = generateVertexShaderImpl(genSettings);
             if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                 successCount++;
             } else {
                 multiResult.vertexShaderErrors.push_back({makeVertexShaderName(definition.name, layout.getName(), getVertexShaderExtension(), false), result});
             }
             
-            result = generateVertexShaderImpl(path, definition, vertexDataLayout, true, compile);
+            genSettings.normalMapped = true;
+            result = generateVertexShaderImpl(genSettings);
             if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                 successCount++;
             } else {
@@ -160,7 +169,7 @@ void ShaderGenerator::generateAllVertexShaders(const fs::path& path, MultipleSha
             
             count += 2;
         } else {
-             ShaderGenerationResult result = generateVertexShaderImpl(path, definition, vertexDataLayout, false, compile);
+             ShaderGenerationResult result = generateVertexShaderImpl(genSettings);
             if (result.getStatus() == ShaderGenerationResult::Status::Success) {
                 successCount++;
             } else {
@@ -266,13 +275,30 @@ ShaderGenerationResult ShaderGenerator::generateFragmentShader(const fs::path& p
     return generateFragmentShaderImpl(path, readFromTexture, definition, normalMapped, compile);
 }
 
-ShaderGenerationResult ShaderGenerator::generateVertexShader(const fs::path& path, const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const {
-    const ShaderGenerationResult result = validatePipelineDefinition(definition);
+ShaderGenerationResult ShaderGenerator::generateVertexShader(const VertexShaderGenerationSettings& settings) const {
+    ShaderGenerationResult result = validateShaderGenerationSettings(settings);
     if (result.getStatus() != ShaderGenerationResult::Status::Success) {
         return result;
     }
     
-    return generateVertexShaderImpl(path, definition, vertexDataLayout, normalMapped, compile);
+    result = validatePipelineDefinition(*settings.materialDefinition);
+    if (result.getStatus() != ShaderGenerationResult::Status::Success) {
+        return result;
+    }
+    
+    return generateVertexShaderImpl(settings);
+}
+
+ShaderGenerationResult ShaderGenerator::validateShaderGenerationSettings(const VertexShaderGenerationSettings& settings) const {
+    if (settings.materialDefinition == nullptr) {
+        return {ShaderGenerationResult::Status::InvalidGenerationSettings, "The materialDefinition cannot be nullptr"};
+    }
+    
+    return {ShaderGenerationResult::Status::Success, ""};
+}
+
+ShaderGenerationResult ShaderGenerator::validateShaderGenerationSettings(const FragmentShaderGenerationSettings& settings) const {
+    throw std::runtime_error("NOT IMPLEMENTED YET");
 }
 
 }

@@ -49,7 +49,7 @@ public:
     virtual std::string getFragmentShaderExtension() const final override;
 protected:
     virtual ShaderGenerationResult generateFragmentShaderImpl(const fs::path& path, const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition, bool normalMapped, bool compile) const final override;
-    virtual ShaderGenerationResult generateVertexShaderImpl(const fs::path& path, const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const final override;
+    virtual ShaderGenerationResult generateVertexShaderImpl(const VertexShaderGenerationSettings& settings) const final override;
     
     virtual std::string generatePerFrameData(const ShaderDataSets& requiredDataSets, const MaterialPipelineDefinition& definition) const final override;
     

@@ -169,13 +169,15 @@ std::string VulkanGLSLShaderGenerator::getFragmentShaderExtension() const {
     return ".frag";
 }
 
-ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShaderImpl(const fs::path& path, const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout, bool normalMapped, bool compile) const {
+ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShaderImpl(const VertexShaderGenerationSettings& settings) const {
+    const MaterialPipelineDefinition& definition = *settings.materialDefinition;
+    
     ShaderGenerationResult validationResult = validateVertexShader(definition);
     if (validationResult.getStatus() != ShaderGenerationResult::Status::Success) {
         return validationResult;
     }
     
-    validationResult = checkVertexDataLayoutCompatibility(definition, vertexDataLayout);
+    validationResult = checkVertexDataLayoutCompatibility(definition, settings.vertexDataLayout);
     if (validationResult.getStatus() != ShaderGenerationResult::Status::Success) {
         return validationResult;
     }
@@ -189,12 +191,12 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShaderImpl(const
     }
     
     // TODO BONE DATA
-    const VertexDataLayoutDefinition& layout = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(vertexDataLayout)];
+    const VertexDataLayoutDefinition& layout = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(settings.vertexDataLayout)];
     
     bool regularNormalMapping = layout.hasAttribute(VertexAttributeType::Tangent);
     bool bitangentRecoveringNormalMapping = layout.hasAttribute(VertexAttributeType::TangentAndBias);
     
-    if (normalMapped && !(regularNormalMapping || bitangentRecoveringNormalMapping)) {
+    if (settings.normalMapped && !(regularNormalMapping || bitangentRecoveringNormalMapping)) {
         throw std::logic_error("Can't create a shader with normal mapping support for a vertex type that lacks appropriate data");
     }
     
@@ -202,7 +204,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShaderImpl(const
     ss << VulkanGLSLHeader;
     ss << "// IYFEngine. Automatically generated vertex shader for vertex layout called " << layout.getName() << ".";
     
-    if (normalMapped) {
+    if (settings.normalMapped) {
         ss << " With normal mapping.";
     }
     
@@ -241,7 +243,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShaderImpl(const
         ss << "    vec2 UV;\n";
     }
     
-    if (normalMapped) {
+    if (settings.normalMapped) {
         ss << "    mat3 TBN;\n";
     } else if (definition.normalDataRequired) {
         ss << "    vec3 normalWS;\n";
@@ -268,7 +270,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShaderImpl(const
         ss << "    vertexOutput.positionWS = (transformations.M[ID.transformation + gl_InstanceIndex] * vec4(" << con::VertexShaderAttributeNames[static_cast<std::size_t>(VertexAttributeType::Position3D)] << ", 1.0f)).xyz;\n\n";
     }
     
-    if (normalMapped) {
+    if (settings.normalMapped) {
         if (regularNormalMapping) {
             ss << "    // Creation of a TBN matrix for normal mapping\n";
             ss << "    vec3 normalWS    = normalize(mat3(transformations.M[ID.transformation + gl_InstanceIndex]) * " << con::VertexShaderAttributeNames[static_cast<std::size_t>(VertexAttributeType::Normal)] << ".xyz);\n";
@@ -305,15 +307,17 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShaderImpl(const
     
     ss << "}";
     
-    std::string fileName = makeVertexShaderName(definition.name, layout.getName(), getVertexShaderExtension(), normalMapped);
-    
-    File fw((path / fileName).generic_string(), File::OpenMode::Write);
+    std::string fileName = makeVertexShaderName(definition.name, layout.getName(), getVertexShaderExtension(), settings.normalMapped);
     
     const std::string shaderSource = ss.str();
-    fw.writeString(shaderSource);
     
-    if (compile) {
-        return compileShader(definition, fileName, shaderSource, path / "spv", fileName + ".spv", ShaderStageFlagBits::Vertex);
+    if (settings.writeSource) {
+        File fw((settings.shaderSourcePath / fileName).generic_string(), File::OpenMode::Write);
+        fw.writeString(shaderSource);
+    }
+    
+    if (settings.compileShader) {
+        return compileShader(definition, fileName, shaderSource, settings.compiledShaderPath, fileName + ".spv", ShaderStageFlagBits::Vertex);
     }
     
     return {ShaderGenerationResult::Status::Success, ""};
@@ -791,7 +795,9 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::compileShader(const MaterialPi
         
         std::vector<std::uint32_t> content(result.begin(), result.end());
         
-        fileSystem->createDirectory(savePath);
+        if (!fileSystem->exists(savePath)) {
+            fileSystem->createDirectory(savePath);
+        }
         
         File fw(savePath / fileName, File::OpenMode::Write);
         fw.writeBytes(content.data(), content.size() * sizeof(std::uint32_t));
