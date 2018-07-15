@@ -63,6 +63,7 @@
 
 #include "threading/ThreadProfiler.hpp"
 
+#include "graphics/MaterialDatabase.hpp"
 #include "graphics/clusteredRenderers/ClusteredRenderer.hpp"
 
 #include "../../VERSION.hpp"

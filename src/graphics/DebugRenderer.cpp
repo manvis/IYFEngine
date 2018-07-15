@@ -28,6 +28,8 @@
 
 #include "graphics/DebugRenderer.hpp"
 
+#include "core/Logger.hpp"
+
 #include "graphics/Camera.hpp"
 #include "graphics/Renderer.hpp"
 #include "graphics/VertexDataLayouts.hpp"

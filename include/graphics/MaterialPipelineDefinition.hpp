@@ -104,7 +104,7 @@ struct MaterialPipelineDefinition : public Serializable {
     /// regular expression: [a-zA-Z][a-zA-Z0-9]*
     std::string name;
     
-    /// Does the material pipeline require normal data to compute lighting or to perform normal mapping. Most do.
+    /// Does the material pipeline require normal data (e.g., to compute lighting). Setting 
     bool normalDataRequired;
     
     /// Does the material pipeline support lights. If this is false, the light loop won't be generated and the

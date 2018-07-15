@@ -402,7 +402,7 @@ public:
     
     /// \return Number of unique assets that are currently loaded
     std::size_t getLoadedAssetCount() const {
-        std::unique_lock<std::mutex>(loadedAssetListMutex);
+        std::unique_lock<std::mutex> lock(loadedAssetListMutex);
         return loadedAssets.size();
     }
     

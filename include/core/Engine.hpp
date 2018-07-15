@@ -44,6 +44,7 @@ class ImGuiImplementation;
 class InputState;
 class Configuration;
 class AssetManager;
+class MaterialDatabase;
 class SoundAPI;
 class FileSystem;
 class Renderer;
@@ -192,6 +193,10 @@ public:
     AssetManager* getAssetManager() const {
         return assetManager.get();
     }
+    
+    MaterialDatabase* getMaterialDatabase() const {
+        return materialDatabase.get();
+    }
 
     const std::string& getLogString() {
         return log;
@@ -228,6 +233,9 @@ private:
 
     // Assets
     std::unique_ptr<AssetManager> assetManager;
+    
+    // Materials
+    std::unique_ptr<MaterialDatabase> materialDatabase;
 
     // SDL video
     SDL_Window* window;

@@ -39,6 +39,7 @@
 #include "graphics/VertexDataLayouts.hpp"
 #include "graphics/Lights.hpp"
 #include "graphics/MaterialPipelineDefinition.hpp"
+#include "graphics/ShaderMacros.hpp"
 #include "core/interfaces/Serializable.hpp"
 
 namespace iyf {
@@ -60,10 +61,10 @@ public:
         MissingAdditionalVertexProcessingCode,
         MissingVertexAttribute,
         CompilationFailed,
-        ShaderGenerationNotAttempted,
+        Invalid,
     };
     
-    inline ShaderGenerationResult() : status(Status::ShaderGenerationNotAttempted), contents("You're reading the result before even calling the shader generation function") {}
+    inline ShaderGenerationResult() : status(Status::Invalid), contents("This is a default constructed result with no information.") {}
     inline ShaderGenerationResult(Status status, std::string contents) : status(status), contents(contents) { }
     
     /// \return The status of the shader generation operation.
@@ -78,6 +79,39 @@ public:
 private:
     Status status;
     std::string contents;
+};
+
+class ShaderCompilationResult {
+public:
+    enum class Status {
+        Success,
+        NotSupported,
+        CompilationFailed,
+        Invalid
+    };
+    
+    inline ShaderCompilationResult() : status(Status::Invalid), errorsAndWarnings("This is a default constructed result with no information.") {}
+    inline ShaderCompilationResult(Status status, std::string errorsAndWarnings, std::vector<std::uint8_t> bytecode) : status(status), errorsAndWarnings(errorsAndWarnings), bytecode(bytecode) { }
+    
+    /// \return The status of the shader compilation operation.
+    inline Status getStatus() const {
+        return status;
+    }
+    
+    /// \return A human readable error and warning string.
+    inline const std::string& getErrorsAndWarnings() const {
+        return errorsAndWarnings;
+    }
+    
+    /// \return Compiled bytecode. Empty if getStatus() != Status::Success.
+    inline const std::vector<std::uint8_t>& getBytecode() const {
+        return bytecode;
+    }
+    
+private:
+    Status status;
+    std::string errorsAndWarnings;
+    std::vector<std::uint8_t> bytecode;
 };
 
 struct ShaderGenerationSettings {
@@ -155,6 +189,33 @@ struct MultipleShaderGenerationResult {
     std::vector<NameErrorPair> fragmentShaderErrors;
 };
 
+// /// \warning Use explicit, sequential IDs. They're written to files and having them visible makes debugging easier. Adding IDs at the end
+// /// is safe. To reduce the chance of causing bugs, you should avoid removing, reusing or reordering existing IDs.
+// /// 
+// /// \warning Do not change the underlying type
+// enum class ShaderInclude : std::uint16_t {
+//     MaterialVertexProcessing = 0, /// < Material specific vertex shader code that gets injected 
+//     MaterialFragmentProcessing = 1
+// };
+
+enum class ShaderOptimizationLevel : std::uint8_t {
+    NoOptimization, /// < Disable all optimizations
+    Size, /// < Optimize for minimal assembly size
+    Performance /// < Optimize for maximum performance
+};
+
+struct ShaderCompilationSettings {
+    ShaderCompilationSettings() : logAssembly(false), optimizationLevel(ShaderOptimizationLevel::Performance) {}
+    
+    /// If this is true and the ShaderGenerator supports it, human readable shader assembly will be written to log.
+    bool logAssembly;
+    
+    ShaderOptimizationLevel optimizationLevel;
+    
+    /// Macros that need to be defined before compiling the shader.
+    std::vector<ShaderMacroWithValue> macros;
+};
+
 /// \brief This class generates shader code based on data provided in MaterialPipelineDefinition objects.
 ///
 /// \remark The methods of this class are thread safe for as long as you can ensure that different invocations write to different files.
@@ -168,6 +229,9 @@ struct MultipleShaderGenerationResult {
 class ShaderGenerator {
 public:
     ShaderGenerator(const Engine* engine);
+    
+    virtual ShaderCompilationResult compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) = 0;
+    virtual ShaderGenerationResult generateVertexShader2(const MaterialPipelineDefinition& definition) const = 0;
     
     /// This checks for major errors that would prenvent ANY variant of the vertex shader from being generated.
     ///
@@ -227,7 +291,7 @@ protected:
     
     virtual std::string generateLightProcessingFunctionCall(const MaterialPipelineDefinition& definition) const = 0;
     
-    virtual ShaderGenerationResult compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const fs::path& savePath, const fs::path& fileName, ShaderStageFlagBits shaderStage) const = 0;
+    virtual ShaderCompilationResult compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const fs::path& savePath, const fs::path& fileName, ShaderStageFlagBits shaderStage) const = 0;
     
     ShaderGenerationResult validateShaderGenerationSettings(const VertexShaderGenerationSettings& settings) const;
     ShaderGenerationResult validateShaderGenerationSettings(const FragmentShaderGenerationSettings& settings) const;

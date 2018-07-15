@@ -29,11 +29,25 @@
 #ifndef VULKAN_GLSL_SHADER_GENERATOR_HPP
 #define VULKAN_GLSL_SHADER_GENERATOR_HPP
 
-#include "graphics/shading/ShaderGenerator.hpp"
+#include "graphics/shaderGeneration/ShaderGenerator.hpp"
 #include "libshaderc/shaderc.hpp"
 
 namespace iyf {
 class FileSystem;
+
+/// \remark This isn't used at the moment
+class VulkanGLSLIncluder : public shaderc::CompileOptions::IncluderInterface {
+public:
+    virtual shaderc_include_result* GetInclude(const char* requested_source,
+                                               shaderc_include_type type,
+                                               const char* requesting_source,
+                                               size_t include_depth) final override;
+
+    virtual void ReleaseInclude(shaderc_include_result* data) final override;
+private:
+    static const std::string EmptyString;
+    static const std::string UnknownNameError;
+};
 
 class VulkanGLSLShaderGenerator : public ShaderGenerator {
 public:
@@ -42,6 +56,9 @@ public:
     virtual ShaderLanguage getShaderLanguage() const final override {
         return ShaderLanguage::GLSLVulkan;
     }
+    
+    virtual ShaderCompilationResult compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) final override;
+    virtual ShaderGenerationResult generateVertexShader2(const MaterialPipelineDefinition& definition) const final override;
     
     virtual std::string generateLightProcessingFunctionSignature(const MaterialPipelineDefinition& definition) const final override;
     
@@ -58,7 +75,7 @@ protected:
     
     virtual std::string generateLightProcessingFunctionCall(const MaterialPipelineDefinition& definition) const final override;
     
-    virtual ShaderGenerationResult compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const fs::path& savePath, const fs::path& fileName, ShaderStageFlagBits shaderStage) const final override;
+    virtual ShaderCompilationResult compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const fs::path& savePath, const fs::path& fileName, ShaderStageFlagBits shaderStage) const final override;
     
     shaderc::Compiler compiler;
     shaderc::CompileOptions compilerOptions;

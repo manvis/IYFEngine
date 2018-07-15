@@ -629,7 +629,7 @@ std::optional<fs::path> AssetManager::checkForHashCollision(hash32_t nameHash, c
         throw std::logic_error("This method can only be used when the engine is running in editor mode.");
     }
     
-    std::unique_lock<std::mutex>(manifestMutex);
+    std::unique_lock<std::mutex> lock(manifestMutex);
     
     auto result = manifest.find(nameHash);
     if (result != manifest.end()) {

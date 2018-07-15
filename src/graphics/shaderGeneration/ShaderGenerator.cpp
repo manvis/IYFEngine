@@ -26,7 +26,7 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "graphics/shading/ShaderGenerator.hpp"
+#include "graphics/shaderGeneration/ShaderGenerator.hpp"
 #include "graphics/Renderer.hpp"
 #include "core/Engine.hpp"
 #include "core/Logger.hpp"

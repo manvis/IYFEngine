@@ -26,7 +26,7 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "graphics/shading/VulkanGLSLShaderGenerator.hpp"
+#include "graphics/shaderGeneration/VulkanGLSLShaderGenerator.hpp"
 #include "graphics/Renderer.hpp"
 #include "core/Engine.hpp"
 #include "core/filesystem/FileSystem.hpp"
@@ -41,6 +41,34 @@ const std::string VulkanGLSLHeader =
     "#version 450\n\n"
     "#extension GL_ARB_separate_shader_objects : enable\n"
     "#extension GL_ARB_shading_language_420pack : enable\n\n";
+
+shaderc_shader_kind ShaderStageToKind(ShaderStageFlagBits shaderStage) {
+    shaderc_shader_kind shaderKind;
+    switch (shaderStage) {
+        case ShaderStageFlagBits::Vertex:
+            shaderKind = shaderc_vertex_shader;
+            break;
+        case ShaderStageFlagBits::TessControl:
+            shaderKind = shaderc_tess_control_shader;
+            break;
+        case ShaderStageFlagBits::TessEvaluation:
+            shaderKind = shaderc_tess_evaluation_shader;
+            break;
+        case ShaderStageFlagBits::Geometry:
+            shaderKind = shaderc_geometry_shader;
+            break;
+        case ShaderStageFlagBits::Fragment:
+            shaderKind = shaderc_fragment_shader;
+            break;
+        case ShaderStageFlagBits::Compute:
+            shaderKind = shaderc_vertex_shader;
+            break;
+        default:
+            throw std::invalid_argument("An unknown shader stage has been specified.");
+    }
+    
+    return shaderKind;
+}
 
 std::string MakeVulkanGLSLVectorDataType(ShaderDataFormat format, int count) {
     if (count < 2 || count > 4) {
@@ -167,6 +195,155 @@ std::string VulkanGLSLShaderGenerator::getVertexShaderExtension() const {
 
 std::string VulkanGLSLShaderGenerator::getFragmentShaderExtension() const {
     return ".frag";
+}
+
+ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader2(const MaterialPipelineDefinition& definition) const {
+    ShaderGenerationResult validationResult = validateVertexShader(definition);
+    if (validationResult.getStatus() != ShaderGenerationResult::Status::Success) {
+        return validationResult;
+    }
+    
+    std::size_t codeID = 0;
+    for (std::size_t i = 0; i < definition.languages.size(); ++i) {
+        if (definition.languages[i] == getShaderLanguage()) {
+            codeID = i;
+            break;
+        }
+    }
+    
+    std::stringstream ss;
+    ss << VulkanGLSLHeader;
+    ss << "// IYFEngine. Automatically generated vertex shader.\n";
+    ss << "// WARNING: DO NOT MODIFY BY HAND. Update the material definition and regenerate it instead.";
+    ss << "\n\n";
+    
+    ss << generatePerFrameData(definition.vertexShaderDataSets, definition);
+    
+    ss << "\n";
+    
+    std::size_t compatibleVertexLayoutCount = 0;
+    for (std::size_t i = 0; i < static_cast<std::size_t>(VertexDataLayout::COUNT); ++i) {
+        const VertexDataLayoutDefinition& layout = con::VertexDataLayoutDefinitions[i];
+        
+        validationResult = checkVertexDataLayoutCompatibility(definition, static_cast<VertexDataLayout>(i));
+        if (validationResult.getStatus() != ShaderGenerationResult::Status::Success) {
+            continue;
+        }
+        
+        ss << "#if " << GetShaderMacroName(ShaderMacro::VertexType) << " == " << i << " // " << layout.getName() << "\n";
+        const auto& attributes = layout.getAttributes();
+        for (std::size_t i = 0; i < attributes.size(); ++i) {
+            const auto& attribute = attributes[i];
+            std::string type = MakeVulkanGLSLDataType(attribute.format);
+            ss << "layout(location = " << i << ") in " << type << " " << con::VertexShaderAttributeNames[static_cast<std::size_t>(attribute.type)] << ";\n";
+        }
+//         // DO NOT DEFINE HERE. This needs to be set via a macro when compiling because it has to be available in all shader stages.
+//         bool regularNormalMapping = layout.hasAttribute(VertexAttributeType::Tangent);
+//         bool bitangentRecoveringNormalMapping = layout.hasAttribute(VertexAttributeType::TangentAndBias);
+//         ss << "#define " << GetShaderMacroName(ShaderMacro::NormalMappingMode);
+//         if (regularNormalMapping) {
+//             ss << " 1 \n";
+//         } else if (bitangentRecoveringNormalMapping) {
+//             ss << " 2 \n";
+//         } else {
+//             ss << " 0 \n";
+//         }
+        
+        ss << "#endif\n\n";
+    
+        compatibleVertexLayoutCount++;
+    }
+    
+    LOG_V("Number of compatible vertex layouts " << compatibleVertexLayoutCount);
+    
+    ss << "\n// We need to redeclare outputs because of GL_ARB_separate_shader_objects\n";
+    ss << "out gl_PerVertex {\n";
+    ss << "    vec4 gl_Position;\n";
+    ss << "};\n\n";
+    
+    ss << "// Per vertex output to other shaders in the pipeline\n";
+    ss << "layout (location = 0) out VertexOutput {\n";
+    
+    if (definition.supportsMultipleLights) {
+        ss << "    vec3 positionWS;\n";
+    }
+    
+    if (definition.vertexColorDataRequired || definition.vertexColorDataRequiredGS) {
+        ss << "    vec4 vertColor;\n";
+    }
+    
+    if (definition.textureCoordinatesRequired) {
+        ss << "    vec2 UV;\n";
+    }
+    
+    ss << "#if (" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0) && defined("<< GetShaderMacroName(ShaderMacro::NormalMapTextureAvailable) << ")\n";
+    ss << "    mat3 TBN;\n";
+    if (definition.normalDataRequired) {
+        ss << "#else // If normal data is required, but we don't do normal mapping, it is passed separately\n";
+        ss << "    vec3 normalWS;\n";
+    }
+    ss << "#endif\n";
+    
+    ss << "    uint instanceID;\n";
+    
+    if (definition.requiresAdditionalVertexProcessing) {
+        for (const auto& o : definition.additionalVertexOutputs) {
+            ss << "    " << MakeVulkanGLSLDataType(o.format, o.type) << " " << o.name << ";\n";
+        }
+    }
+    
+    ss << "} vertexOutput;\n\n";
+    
+    ss << "#include \"vertex_helpers.glsl\"\n\n";// TODO use include names from enum
+    
+    ss << "void main() {\n";
+    // TODO HANDLE BONE DATA
+    ss << "    gl_Position = MVP() * vec4(" << con::VertexShaderAttributeNames[static_cast<std::size_t>(VertexAttributeType::Position3D)] << ", 1.0f);\n\n";
+    ss << "    // Needed for the retrieval of material data\n";
+    ss << "    vertexOutput.instanceID = gl_InstanceIndex;\n\n";
+    
+    if (definition.supportsMultipleLights) {
+        ss << "    // Used when computing world space lighting\n";
+        ss << "    vertexOutput.positionWS = (M() * vec4(" << con::VertexShaderAttributeNames[static_cast<std::size_t>(VertexAttributeType::Position3D)] << ", 1.0f)).xyz;\n\n";
+    }
+    
+    ss << "#if (" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0) && defined("<< GetShaderMacroName(ShaderMacro::NormalMapTextureAvailable) << ")\n";
+    ss << "    vertexOutput.TBN = TBN();\n";
+    if (definition.normalDataRequired) {
+        ss << "#else\n";
+        ss << "    vertexOutput.normalWS = normalize(mat3(M()) * " << con::VertexShaderAttributeNames[static_cast<std::size_t>(VertexAttributeType::Normal)] << ".xyz);\n";
+    }
+    ss << "#endif\n\n";
+    
+    if (definition.textureCoordinatesRequired) {
+        ss << "    // Output of UV coordinates for texture mapping\n";
+        ss << "    vertexOutput.UV = " << con::VertexShaderAttributeNames[static_cast<std::size_t>(VertexAttributeType::UV)] << ";\n\n";
+    }
+    
+    if (definition.vertexColorDataRequired || definition.vertexColorDataRequiredGS) {
+        ss << "    // Output of vertex color data\n";
+        ss << "    vertexOutput.vertColor = " << con::VertexShaderAttributeNames[static_cast<std::size_t>(VertexAttributeType::Color)] << ";\n\n";
+    }
+    
+    // TODO this should probably happen earlier
+    if (definition.requiresAdditionalVertexProcessing) {
+        ss << "    // Additional vertex processing. This part uses code (if any) written by the author of the material pipeline definition\n";
+        if (!definition.additionalVertexProcessingCode[codeID].empty()) {
+            ss << definition.additionalVertexProcessingCode[codeID];
+        } else {
+            ss << "    // NO ADDITIONAL CODE in this pipeline";
+        }
+        ss << "\n";
+    }
+    
+// Not used
+//     ss << "    // Material specific code (if any) that gets pulled in when compiling the vertex shader\n";
+//     ss << "    #include \"vertex.inl\"\n";
+    
+    ss << "}";
+    
+//     LOG_V("\n" << ss.str());
+    return ShaderGenerationResult(ShaderGenerationResult::Status::Success, ss.str());
 }
 
 ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShaderImpl(const VertexShaderGenerationSettings& settings) const {
@@ -300,8 +477,12 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShaderImpl(const
     }
     
     if (definition.requiresAdditionalVertexProcessing) {
-        ss << "    //Additional vertex processing. This part uses code written by the author of the material\n";
-        ss << definition.additionalVertexProcessingCode[codeID];
+        ss << "    // Additional vertex processing. This part uses code (if any) written by the author of the material pipeline definition\n";
+        if (!definition.additionalVertexProcessingCode[codeID].empty()) {
+            ss << definition.additionalVertexProcessingCode[codeID];
+        } else {
+            ss << "    // NO ADDITIONAL CODE in this pipeline";
+        }
         ss << "\n";
     }
     
@@ -317,7 +498,10 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShaderImpl(const
     }
     
     if (settings.compileShader) {
-        return compileShader(definition, fileName, shaderSource, settings.compiledShaderPath, fileName + ".spv", ShaderStageFlagBits::Vertex);
+        ShaderCompilationResult result = compileShader(definition, fileName, shaderSource, settings.compiledShaderPath, fileName + ".spv", ShaderStageFlagBits::Vertex);
+        if (result.getStatus() != ShaderCompilationResult::Status::Success) {
+            return {ShaderGenerationResult::Status::CompilationFailed, result.getErrorsAndWarnings()};
+        }
     }
     
     return {ShaderGenerationResult::Status::Success, ""};
@@ -551,7 +735,10 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShaderImpl(con
     }
     
     if (settings.compileShader) {
-        return compileShader(definition, fileName, shaderSource, settings.compiledShaderPath, fileName + ".spv", ShaderStageFlagBits::Fragment);
+        ShaderCompilationResult result = compileShader(definition, fileName, shaderSource, settings.compiledShaderPath, fileName + ".spv", ShaderStageFlagBits::Fragment);
+        if (result.getStatus() != ShaderCompilationResult::Status::Success) {
+            return {ShaderGenerationResult::Status::CompilationFailed, result.getErrorsAndWarnings()};
+        }
     }
     
     return {ShaderGenerationResult::Status::Success, ""};
@@ -752,30 +939,57 @@ std::string VulkanGLSLShaderGenerator::generateMaterialDataUnpacker(const Compon
     return ss.str();
 }
 
-ShaderGenerationResult VulkanGLSLShaderGenerator::compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const fs::path& savePath, const fs::path& fileName, ShaderStageFlagBits shaderStage) const {
-    shaderc_shader_kind shaderKind;
-    switch (shaderStage) {
-        case ShaderStageFlagBits::Vertex:
-            shaderKind = shaderc_vertex_shader;
+ShaderCompilationResult VulkanGLSLShaderGenerator::compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) {
+    const shaderc_shader_kind shaderKind = ShaderStageToKind(stage);
+    
+    shaderc::CompileOptions compileOptions;
+    
+    shaderc_optimization_level optimizationLevel;
+    switch (settings.optimizationLevel) {
+        case ShaderOptimizationLevel::NoOptimization:
+            optimizationLevel = shaderc_optimization_level_zero;
             break;
-        case ShaderStageFlagBits::TessControl:
-            shaderKind = shaderc_tess_control_shader;
+        case ShaderOptimizationLevel::Size:
+            optimizationLevel = shaderc_optimization_level_size;
             break;
-        case ShaderStageFlagBits::TessEvaluation:
-            shaderKind = shaderc_tess_evaluation_shader;
-            break;
-        case ShaderStageFlagBits::Geometry:
-            shaderKind = shaderc_geometry_shader;
-            break;
-        case ShaderStageFlagBits::Fragment:
-            shaderKind = shaderc_fragment_shader;
-            break;
-        case ShaderStageFlagBits::Compute:
-            shaderKind = shaderc_vertex_shader;
+        case ShaderOptimizationLevel::Performance:
+            optimizationLevel = shaderc_optimization_level_performance;
             break;
         default:
-            throw std::invalid_argument("An unknown shader stage has been specified.");
+            throw std::runtime_error("Unknown optimization level");
     }
+    
+    compileOptions.SetOptimizationLevel(optimizationLevel);
+    
+    if (settings.logAssembly) {
+        shaderc::AssemblyCompilationResult result = compiler.CompileGlslToSpvAssembly(source, shaderKind, name.c_str(), compileOptions);
+        
+        if (result.GetCompilationStatus() == shaderc_compilation_status_success) {
+            LOG_V("Assembly for shader " << name << "\n\n" << std::string(result.begin(), result.end()));
+        }
+    }
+    
+    shaderc::SpvCompilationResult result = compiler.CompileGlslToSpv(source, shaderKind, name.c_str(), compilerOptions);
+    if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
+        return ShaderCompilationResult(ShaderCompilationResult::Status::CompilationFailed,
+                                       fmt::format("Shader \"{}\" compilation failed with error(s):\n {}", name, result.GetErrorMessage()),
+                                       {});
+    } else {
+        std::vector<std::uint32_t> content(result.begin(), result.end());
+        const std::size_t sizeInBytes = content.size() * sizeof(std::uint32_t);
+        
+        std::vector<std::uint8_t> byteResult(sizeInBytes, 0);
+        assert(byteResult.size() == sizeInBytes);
+        
+        // Convert to bytes
+        std::memcpy(byteResult.data(), content.data(), sizeInBytes);
+        
+        return ShaderCompilationResult(ShaderCompilationResult::Status::Success, (result.GetNumWarnings() != 0) ? result.GetErrorMessage() : "", byteResult);
+    }
+}
+
+ShaderCompilationResult VulkanGLSLShaderGenerator::compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const fs::path& savePath, const fs::path& fileName, ShaderStageFlagBits shaderStage) const {
+    const shaderc_shader_kind shaderKind = ShaderStageToKind(shaderStage);
     
     if (definition.logAssembly) {
         shaderc::AssemblyCompilationResult result = compiler.CompileGlslToSpvAssembly(shaderSource, shaderKind, shaderName.c_str(), compilerOptions);
@@ -787,7 +1001,9 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::compileShader(const MaterialPi
     
     shaderc::SpvCompilationResult result = compiler.CompileGlslToSpv(shaderSource, shaderKind, shaderName.c_str(), compilerOptions);
     if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
-        return generateAndReportError(ShaderGenerationResult::Status::CompilationFailed, fmt::format("Shader \"{}\" compilation failed with error {}", shaderName, result.GetErrorMessage()));
+        return ShaderCompilationResult(ShaderCompilationResult::Status::CompilationFailed,
+                                       fmt::format("Shader \"{}\" compilation failed with error {}", shaderName, result.GetErrorMessage()),
+                                       {});
     } else {
         LOG_V("Successfully compiled a shader called \"" << shaderName << "\"\n\tWarnings: " << result.GetNumWarnings());
         // TODO output warnings if any
@@ -798,10 +1014,39 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::compileShader(const MaterialPi
             fileSystem->createDirectory(savePath);
         }
         
-        File fw(savePath / fileName, File::OpenMode::Write);
-        fw.writeBytes(content.data(), content.size() * sizeof(std::uint32_t));
+        const std::size_t sizeInBytes = content.size() * sizeof(std::uint32_t);
         
-        return {ShaderGenerationResult::Status::Success, ""};
+        File fw(savePath / fileName, File::OpenMode::Write);
+        fw.writeBytes(content.data(), sizeInBytes);
+        
+        std::vector<std::uint8_t> byteResult(sizeInBytes, 0);
+        assert(byteResult.size() == sizeInBytes);
+        
+        std::memcpy(byteResult.data(), content.data(), sizeInBytes);
+        
+        return ShaderCompilationResult(ShaderCompilationResult::Status::Success, "", byteResult);
     }
 }
+
+const std::string VulkanGLSLIncluder::EmptyString = "";
+const std::string VulkanGLSLIncluder::UnknownNameError = "Unknown include. You must use one of ShaderInclude enum values.";
+
+shaderc_include_result* VulkanGLSLIncluder::GetInclude(const char* requested_source, shaderc_include_type type, const char* requesting_source, size_t include_depth) {
+    shaderc_include_result* includeResult = new shaderc_include_result;
+    
+    LOG_V("REQUESTED_SRC: " << requested_source << "; TYPE: " << type << "; REQUESTING_SRC:" << requesting_source << "; DEPTH: " << include_depth);
+    
+    includeResult->source_name = EmptyString.data();
+    includeResult->source_name_length = EmptyString.size();
+    includeResult->content = UnknownNameError.data();
+    includeResult->content_length = UnknownNameError.size();
+    includeResult->user_data = nullptr;
+    
+    throw std::runtime_error("NOT YET IMPLEMENTED");
+}
+
+void VulkanGLSLIncluder::ReleaseInclude(shaderc_include_result* data) {
+    delete data;
+}
+
 }

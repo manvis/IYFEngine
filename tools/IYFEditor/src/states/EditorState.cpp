@@ -59,7 +59,7 @@
 #include "glm/gtx/string_cast.hpp"
 
 // TODO move the test to tests
-#include "graphics/shading/VulkanGLSLShaderGenerator.hpp"
+#include "graphics/shaderGeneration/VulkanGLSLShaderGenerator.hpp"
 
 //#define IYF_EDITOR_LOG_RECEIVED_FILE_EVENT_LIST
 
@@ -230,6 +230,8 @@ void EditorState::initialize() {
         
         vsSettings.materialDefinition = &empty;
         vkGen.generateVertexShader(vsSettings);
+        
+        LOG_V("COMPILED VERTEX SHADER:\n" << vkGen.generateVertexShader2(def).getContents());
     }
     
     for (std::size_t i = 0; i < static_cast<std::size_t>(MaterialRenderMode::COUNT); ++i) {

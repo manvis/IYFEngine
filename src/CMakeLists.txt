@@ -98,6 +98,7 @@ graphics/MaterialDefinition.cpp
 graphics/MaterialPipelineDefinition.cpp
 graphics/Renderer.cpp
 graphics/ShaderConstants.cpp
+graphics/ShaderMacros.cpp
 graphics/Skybox.cpp
 graphics/VertexDataLayouts.cpp
 #--------------------- clustered rendering renderer
@@ -114,8 +115,8 @@ graphics/imgui/imgui_demo.cpp
 graphics/imgui/imgui_draw.cpp
 graphics/imgui/imguiCustom.cpp
 #--------------------- shader generation
-graphics/shading/ShaderGenerator.cpp
-graphics/shading/VulkanGLSLShaderGenerator.cpp
+graphics/shaderGeneration/ShaderGenerator.cpp
+graphics/shaderGeneration/VulkanGLSLShaderGenerator.cpp
 #--------------------- Vulkan graphics backend
 graphics/vulkan/VulkanAPI.cpp
 graphics/vulkan/VulkanDebug.cpp

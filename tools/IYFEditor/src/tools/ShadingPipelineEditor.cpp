@@ -30,7 +30,7 @@
 #include "imgui.h"
 #include "graphics/GraphicsAPIConstants.hpp"
 #include "graphics/Renderer.hpp"
-#include "graphics/shading/VulkanGLSLShaderGenerator.hpp"
+#include "graphics/shaderGeneration/VulkanGLSLShaderGenerator.hpp"
 #include "core/Engine.hpp"
 #include "core/filesystem/File.hpp"
 #include "core/filesystem/FileSystem.hpp"
