@@ -900,9 +900,6 @@ public:
     
     virtual glm::uvec2 getSwapchainImageSize() const = 0;
     
-    virtual ImageViewHnd getDefaultDepthBufferViewHnd() const = 0;
-    virtual Image getDefaultDepthBufferImage() const = 0;
-    
     SDL_Window* getWindow() {
         return window;
     }

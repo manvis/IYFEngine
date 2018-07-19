@@ -689,10 +689,6 @@ void VulkanAPI::dispose() {
     vkDestroySwapchain(logicalDevice.handle, swapchain.handle, nullptr);
     vkDestroyFence(logicalDevice.handle, swapchain.frameCompleteFence, nullptr);
     
-    vkDestroyImageView(logicalDevice.handle, depthStencilView, nullptr);
-    vkDestroyImage(logicalDevice.handle, depthStencilImage, nullptr);
-    vkFreeMemory(logicalDevice.handle, depthStencilMemory, nullptr);
-
     vkDestroySurfaceKHR(instance, surface, nullptr);
     
     vkDestroyPipelineCache(logicalDevice.handle, pipelineCache, nullptr);

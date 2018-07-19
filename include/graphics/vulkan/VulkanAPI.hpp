@@ -231,14 +231,6 @@ public:
         return SemaphoreHnd(presentationComplete);
     }
     
-    virtual ImageViewHnd getDefaultDepthBufferViewHnd() const override {
-        return ImageViewHnd(depthStencilView);
-    }
-    
-    virtual Image getDefaultDepthBufferImage() const override {
-        return depthStencil;
-    }
-    
     virtual glm::uvec2 getSwapchainImageSize() const final override {
         return glm::uvec2(swapchain.imageExtent.width, swapchain.imageExtent.height);
     }
@@ -360,11 +352,6 @@ protected:
     
     VkSemaphore presentationComplete;
     VkSemaphore renderingComplete;
-    
-    VkImage depthStencilImage;
-    VkDeviceMemory depthStencilMemory;
-    VkImageView depthStencilView;
-    Image depthStencil;
         
     // Surface functions
     PFN_vkGetPhysicalDeviceSurfaceSupportKHR getPhysicalDeviceSurfaceSupport;
