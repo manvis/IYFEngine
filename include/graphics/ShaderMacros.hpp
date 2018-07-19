@@ -47,9 +47,14 @@ enum class ShaderMacro : std::uint16_t {
     VertexType                = 0, /// < Must be an integer that corresponds to a VertexDataLayout used in the graphics pipeline.
     NormalMapTextureAvailable = 1, /// < If defined, a normal map texture will be available in the fragment shader.
     NormalMappingMode         = 2, /// < Integer. 0 - normal mapping disabled, 1 - all TBN components present, 2 - bitangent needs recovering. Depends on the VertexDataLayout
+    TextureInputCount         = 3, /// < Integer. Number of texture inputs (including the normal texture, if any). Any number between 0 and con::MaxMaterialTextures
     Custom, /// < Special value, can be anything the user wants. Don't use in GetShaderMacroName().
     COUNT = Custom
 };
+
+/// Returns a macro name that's used in the shader.
+///
+/// \warning Make sure to update shader helper includes if you change the names returned by this function
 std::string GetShaderMacroName(ShaderMacro macro);
 
 using ShaderMacroValue = std::variant<std::monostate, double, std::int64_t, std::string>;

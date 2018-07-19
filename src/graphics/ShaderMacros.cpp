@@ -28,6 +28,7 @@
 
 #include "graphics/ShaderMacros.hpp"
 
+#include "core/Constants.hpp"
 #include "graphics/VertexDataLayouts.hpp"
 
 #include <stdexcept>
@@ -45,6 +46,8 @@ std::string GetShaderMacroName(ShaderMacro macro) {
             return "NORMAL_MAP_TEXTURE_AVAILABLE";
         case ShaderMacro::NormalMappingMode:
             return "NORMAL_MAPPING_MODE";
+        case ShaderMacro::TextureInputCount:
+            return "TEXTURE_INPUT_COUNT";
         case ShaderMacro::Custom:
             throw std::logic_error("Custom or COUNT must not be used in GetShaderMacroName()");
     }
@@ -85,6 +88,12 @@ bool ValidateShaderMacroValue(ShaderMacro macro, const ShaderMacroValue& value) 
             return ValidateValueImpl<std::monostate>(value, EmptyValidator);
         case ShaderMacro::NormalMappingMode: // Must be equal to 0, 1 or 2.
             return ValidateValueImpl<std::int64_t>(value, MakeIntervalValidator(0, 2));
+        case ShaderMacro::TextureInputCount: {
+            const std::int64_t min = 0;
+            const std::int64_t max = static_cast<std::int64_t>(con::MaxMaterialTextures);
+            
+            return ValidateValueImpl<std::int64_t>(value, MakeIntervalValidator(min, max));
+        }
         case ShaderMacro::Custom:
             throw std::logic_error("Custom or COUNT must not be used in GetShaderMacroName()");
     }

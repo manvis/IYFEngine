@@ -98,7 +98,7 @@ bool Project::CreateProjectFile(const fs::path& path, const std::string& project
         return false;
     }
     
-    if (!std::regex_match(baseLocale, regex::LocaleValidationRegex)) {
+    if (!std::regex_match(baseLocale, SystemRegexes().LocaleValidationRegex)) {
         LOG_E("Couldn't create a new project file. The base locale did not match the regex.");
         return false;
     }

@@ -114,7 +114,7 @@ EditorWelcomeState::UserDataValidationResult EditorWelcomeState::UserData::isVal
         return UserDataValidationResult::MissingEmail;
     }
     
-    if (!std::regex_match(email.data(), iyf::regex::EmailValidationRegex)) {
+    if (!std::regex_match(email.data(), iyf::SystemRegexes().EmailValidationRegex)) {
         return UserDataValidationResult::InvalidEmail;
     }
     

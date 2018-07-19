@@ -194,44 +194,20 @@ void EditorState::initialize() {
             empty.deserialize(input);
         }
         
-        LOG_D(def.name << " " << empty.name);
-        LOG_D(def.languages.size() << " " << empty.languages.size());
-        LOG_D("Code matches? " << (def.lightProcessingCode[0] == empty.lightProcessingCode[0]) << "\n" << empty.lightProcessingCode[0]);
+        LOG_D(def.getName() << " " << empty.getName());
+        LOG_D(def.getSupportedLanguages().size() << " " << empty.getSupportedLanguages().size());
+        LOG_D("Code matches? " << (def.getLightProcessingCode()[0] == empty.getLightProcessingCode()[0]) << "\n" << empty.getLightProcessingCode()[0]);
         
-        empty.name.append("1");
+        const std::string newName = empty.getName() + "1";
+        empty.setName(newName);
         
         iyf::VulkanGLSLShaderGenerator vkGen(engine);
         
-        FragmentShaderGenerationSettings fsSettings;
-        fsSettings.platform = con::GetCurrentPlatform();
-        fsSettings.compileShader = true;
-        fsSettings.writeSource = true;
-        fsSettings.compiledShaderPath = "spv";
-        fsSettings.shaderSourcePath = "";
-        fsSettings.normalMapped = true;
+        LOG_V("VERTEX SHADER for " << def.getName() << ":\n" << vkGen.generateShader(ShaderStageFlagBits::Vertex, def).getContents());
+        LOG_V("VERTEX SHADER for " << empty.getName() << ":\n" << vkGen.generateShader(ShaderStageFlagBits::Vertex, empty).getContents());
         
-        fsSettings.materialDefinition = &def;
-        vkGen.generateFragmentShader(fsSettings);
-        
-        fsSettings.materialDefinition = &empty;
-        vkGen.generateFragmentShader(fsSettings);
-        
-        VertexShaderGenerationSettings vsSettings;
-        vsSettings.platform = con::GetCurrentPlatform();
-        vsSettings.compileShader = true;
-        vsSettings.writeSource = true;
-        vsSettings.compiledShaderPath = "spv";
-        vsSettings.shaderSourcePath = "";
-        vsSettings.normalMapped = true;
-        vsSettings.vertexDataLayout = VertexDataLayout::MeshVertexColored;
-        
-        vsSettings.materialDefinition = &def;
-        vkGen.generateVertexShader(vsSettings);
-        
-        vsSettings.materialDefinition = &empty;
-        vkGen.generateVertexShader(vsSettings);
-        
-        LOG_V("COMPILED VERTEX SHADER:\n" << vkGen.generateVertexShader2(def).getContents());
+        LOG_V("FRAGMENT SHADER for " << def.getName() << ":\n" << vkGen.generateShader(ShaderStageFlagBits::Fragment, def).getContents());
+        LOG_V("FRAGMENT SHADER for " << empty.getName() << ":\n" << vkGen.generateShader(ShaderStageFlagBits::Fragment, empty).getContents());
     }
     
     for (std::size_t i = 0; i < static_cast<std::size_t>(MaterialRenderMode::COUNT); ++i) {

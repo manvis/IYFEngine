@@ -82,7 +82,7 @@ std::unique_ptr<ConverterState> ConverterManager::initializeConverter(const fs::
 }
 
 fs::path ConverterManager::makeLocaleStringPath(const fs::path& sourcePath, const fs::path& directory, PlatformIdentifier platformID) const {
-    if (!std::regex_match(sourcePath.filename().string(), regex::LocalizationFileNameValidationRegex)) {
+    if (!std::regex_match(sourcePath.filename().string(), SystemRegexes().LocalizationFileNameValidationRegex)) {
         LOG_E("String files need to match a specific pattern filename.{LOCALE}.csv, where {LOCALE} is en_US, lt_LT, etc.");
         throw std::runtime_error("Invalid source path format (check log)");
     }

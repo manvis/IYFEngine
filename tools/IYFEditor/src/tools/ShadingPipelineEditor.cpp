@@ -45,7 +45,7 @@ static bool validateNewName(const char* name, std::string& currentErrorText) {
         return false;
     }
     
-    if (!std::regex_match(name, regex::FunctionAndFileNameRegex)) {
+    if (!std::regex_match(name, SystemRegexes().FunctionAndFileNameRegex)) {
         currentErrorText = "You must use a name that can serve both as a function name and a file name.\n\nThis name failed to match the required regex \"[a-zA-Z][a-zA-Z0-9]*\"";
         return false;
     }
@@ -98,7 +98,7 @@ void ShadingPipelineEditor::show(bool* open) {
                     return false;
                 }
 
-                *out_text = (*defArray)[idx].name.c_str();
+                *out_text = (*defArray)[idx].getName().c_str();
                 return true;
             }, reinterpret_cast<void*>(const_cast<DefaultMaterialPipelineDefinitionArray*>(&DefaultMaterialPipelineDefinitions)), DefaultMaterialPipelineDefinitions.size());
         

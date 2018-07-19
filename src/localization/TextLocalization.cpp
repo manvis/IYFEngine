@@ -84,11 +84,11 @@ TextLocalizer::StringCheckResult TextLocalizer::checkForMissingStrings(const Fil
         return StringCheckResult::SameLocale;
     }
     
-    if (!std::regex_match(localeA, regex::LocaleValidationRegex)) {
+    if (!std::regex_match(localeA, SystemRegexes().LocaleValidationRegex)) {
         return StringCheckResult::AIsNotALocale;
     }
     
-    if (!std::regex_match(localeB, regex::LocaleValidationRegex)) {
+    if (!std::regex_match(localeB, SystemRegexes().LocaleValidationRegex)) {
         return StringCheckResult::AIsNotALocale;
     }
     

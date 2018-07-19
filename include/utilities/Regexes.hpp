@@ -31,19 +31,27 @@
 
 #include <regex>
 
-namespace iyf::regex {
+namespace iyf {
 
-/// A regex used to validate all file and/or function names provided by the user
-extern const std::regex FunctionAndFileNameRegex;
-/// A regex used to validate e-mails. Yoinked from https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
-/// \warning in case whatwg release an update, don't copy the provided regex blindly. You need to remove the first and the
-/// last forward slashes AND escape all the backslashes
-extern const std::regex EmailValidationRegex;
-/// Validates locales in POSIX format (e.g., lt_LT, en_US)
-extern const std::regex LocaleValidationRegex;
-/// Validates localization file names. They must start with a name (any symbols), followed by a period, followed by a locale,
-/// followed by the .csv extension, e.g.: name.en_US.csv or šito_daikto_pavadinimas.lt_LT.csv
-extern const std::regex LocalizationFileNameValidationRegex;
+/// Regex objects can be expensive to construct. Please use the regex() function and don't instantiate this class directly.
+struct SystemRegexContainer {
+    SystemRegexContainer();
+    
+    /// A regex used to validate all file and/or function names provided by the user
+    const std::regex FunctionAndFileNameRegex;
+    /// A regex used to validate e-mails. Yoinked from https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
+    /// \warning in case whatwg release an update, don't copy the provided regex blindly. You need to remove the first and the
+    /// last forward slashes AND escape all the backslashes
+    const std::regex EmailValidationRegex;
+    /// Validates locales in POSIX format (e.g., lt_LT, en_US)
+    const std::regex LocaleValidationRegex;
+    /// Validates localization file names. They must start with a name (any symbols), followed by a period, followed by a locale,
+    /// followed by the .csv extension, e.g.: name.en_US.csv or šito_daikto_pavadinimas.lt_LT.csv
+    const std::regex LocalizationFileNameValidationRegex;
+};
+
+const SystemRegexContainer& SystemRegexes();
+
 }
 
 #endif // IYF_REGEXES_HPP

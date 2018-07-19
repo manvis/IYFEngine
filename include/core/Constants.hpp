@@ -329,6 +329,9 @@ const std::size_t MaxMaterialComponents = 16;
 
 static_assert(MaxMaterialComponents % 4 == 0, "The number of components must be a multiple of 4");
 
+/// The maximum number of texture inputs a material can have
+const std::size_t MaxMaterialTextures = 8;
+
 /// A 64bit bitset is used to track which floats are loaded from texture and which ones are loaded from the
 /// material data buffers.
 static_assert(MaxMaterialComponents <= 64, "Can't use more than 64 material components.");

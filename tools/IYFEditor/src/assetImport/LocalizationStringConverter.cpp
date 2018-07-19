@@ -49,7 +49,7 @@ public:
 std::unique_ptr<ConverterState> LocalizationStringConverter::initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const {
     std::unique_ptr<LocalizationConverterInternalState> internalState = std::make_unique<LocalizationConverterInternalState>(this);
     
-    if (!std::regex_match(inPath.filename().string(), regex::LocalizationFileNameValidationRegex)) {
+    if (!std::regex_match(inPath.filename().string(), SystemRegexes().LocalizationFileNameValidationRegex)) {
         LOG_E("The name of the string file did not match the expected format. You need something like \"filename.en_US.csv\"");
         return nullptr;
     }
