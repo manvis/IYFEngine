@@ -96,6 +96,7 @@ protected:
     virtual void drawIDBuffer(const GraphicsSystem* graphicsSystem) final override;
     
     void initializePickingPipeline();
+    void destroyPickingPipeline();
     
     void initializeTonemappingAndAdjustmentPipeline();
     void initializeMainRenderpassComponents();

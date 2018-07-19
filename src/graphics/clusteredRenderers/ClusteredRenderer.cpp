@@ -592,6 +592,24 @@ void ClusteredRenderer::disposeFramebuffers() {
     
     api->destroyImage(depthImage);
     api->destroyImage(hdrAttachmentImage);
+    
+    if (!isPickingEnabled()) {
+        return;
+    }
+    
+    api->destroyImage(idImage);
+}
+
+void ClusteredRenderer::destroyPickingPipeline() {
+    if (!isPickingEnabled()) {
+        throw std::logic_error("This function can only be used when picking is enabled.");
+    }
+    
+    api->destroyBuffers({pickResultBuffer});
+    api->destroyPipelineLayout(pickingPipelineLayout);
+    api->destroyPipeline(pickingPipeline);
+    api->destroyShader(idVS);
+    api->destroyShader(idFS);
 }
 
 void ClusteredRenderer::dispose() {
@@ -614,6 +632,7 @@ void ClusteredRenderer::dispose() {
     api->destroyShader(fullScreenQuadVS);
     api->destroyShader(tonemapFS);
     
+    destroyPickingPipeline();
     disposeFramebuffers();
     disposeRenderPasses();
     
