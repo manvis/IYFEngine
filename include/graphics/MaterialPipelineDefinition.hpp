@@ -152,7 +152,7 @@ private:
     ShaderVariable variable;
 };
 
-/// A structure that defines all properties and code of a specific material pipeline family.
+/// A structure that defines all properties and code of a specific material family.
 ///
 /// Uniquely identified by the name property
 class MaterialPipelineDefinition : public Serializable {

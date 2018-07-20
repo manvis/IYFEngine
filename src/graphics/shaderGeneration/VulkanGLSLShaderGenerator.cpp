@@ -54,6 +54,8 @@ inline std::string GetShaderStageName(ShaderStageFlagBits stage) {
         case ShaderStageFlagBits::COUNT:
             throw std::runtime_error("COUNT is not a valid shader stage.");
     }
+    
+    throw std::logic_error("Invalid ShaderStageFlagBit");
 }
 
 const std::string VulkanGLSLInitialization = 
@@ -219,12 +221,25 @@ VulkanGLSLShaderGenerator::VulkanGLSLShaderGenerator(const Engine* engine) : Sha
     fileSystem = engine->getFileSystem();
 }
 
-std::string VulkanGLSLShaderGenerator::getVertexShaderExtension() const {
-    return ".vert";
-}
-
-std::string VulkanGLSLShaderGenerator::getFragmentShaderExtension() const {
-    return ".frag";
+fs::path VulkanGLSLShaderGenerator::getShaderStageFileExtension(ShaderStageFlagBits stage) const {
+    switch (stage) {
+        case ShaderStageFlagBits::Vertex:
+            return ".vert.glsl";
+        case ShaderStageFlagBits::Geometry:
+            return ".geom.glsl";
+        case ShaderStageFlagBits::TessControl:
+            return ".tesc.glsl";
+        case ShaderStageFlagBits::TessEvaluation:
+            return ".tese.glsl";
+        case ShaderStageFlagBits::Fragment:
+            return ".frag.glsl";
+        case ShaderStageFlagBits::Compute:
+            return ".comp.glsl";
+        case ShaderStageFlagBits::COUNT:
+            throw std::invalid_argument("COUNT is not a valid shader stage.");
+    }
+    
+    throw std::logic_error("Invalid ShaderStageFlagBit");
 }
 
 ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(const MaterialPipelineDefinition& definition) const {
@@ -881,38 +896,6 @@ ShaderCompilationResult VulkanGLSLShaderGenerator::compileShader(ShaderStageFlag
         std::memcpy(byteResult.data(), content.data(), sizeInBytes);
         
         return ShaderCompilationResult(ShaderCompilationResult::Status::Success, (result.GetNumWarnings() != 0) ? result.GetErrorMessage() : "", byteResult);
-    }
-}
-
-ShaderCompilationResult VulkanGLSLShaderGenerator::compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const fs::path& savePath, const fs::path& fileName, ShaderStageFlagBits shaderStage) const {
-    const shaderc_shader_kind shaderKind = ShaderStageToKind(shaderStage);
-    
-    shaderc::SpvCompilationResult result = compiler.CompileGlslToSpv(shaderSource, shaderKind, shaderName.c_str(), compilerOptions);
-    if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
-        return ShaderCompilationResult(ShaderCompilationResult::Status::CompilationFailed,
-                                       fmt::format("Shader \"{}\" compilation failed with error {}", shaderName, result.GetErrorMessage()),
-                                       {});
-    } else {
-        LOG_V("Successfully compiled a shader called \"" << shaderName << "\"\n\tWarnings: " << result.GetNumWarnings());
-        // TODO output warnings if any
-        
-        std::vector<std::uint32_t> content(result.begin(), result.end());
-        
-        if (!fileSystem->exists(savePath)) {
-            fileSystem->createDirectory(savePath);
-        }
-        
-        const std::size_t sizeInBytes = content.size() * sizeof(std::uint32_t);
-        
-        File fw(savePath / fileName, File::OpenMode::Write);
-        fw.writeBytes(content.data(), sizeInBytes);
-        
-        std::vector<std::uint8_t> byteResult(sizeInBytes, 0);
-        assert(byteResult.size() == sizeInBytes);
-        
-        std::memcpy(byteResult.data(), content.data(), sizeInBytes);
-        
-        return ShaderCompilationResult(ShaderCompilationResult::Status::Success, "", byteResult);
     }
 }
 

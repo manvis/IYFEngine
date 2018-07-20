@@ -109,12 +109,4 @@ ShaderGenerationResult ShaderGenerator::checkVertexDataLayoutCompatibility(const
     return {ShaderGenerationResult::Status::Success, ""};
 }
 
-std::string ShaderGenerator::makeVertexShaderName(const std::string& pipelineName, const std::string& vertexLayoutName, const std::string& extension, bool normalMapped) const {
-    return fmt::format("{}_{}_{}{}{}", pipelineName, renderer->getName(), vertexLayoutName, normalMapped ? "_normalMapped" : "", extension);
-}
-
-std::string ShaderGenerator::makeFragmentShaderName(const std::string& pipelineName, const ComponentsReadFromTexture& readFromTexture, const std::string& extension, bool normalMapped) const {
-    return fmt::format("{}_{}_{}{}{}", pipelineName, renderer->getName(), readFromTexture.to_ullong(), normalMapped ? "_normalMapped" : "", extension);
-}
-
 }

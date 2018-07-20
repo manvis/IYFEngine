@@ -61,20 +61,14 @@ public:
     
     virtual std::string generateLightProcessingFunctionSignature(const MaterialPipelineDefinition& definition) const final override;
     
-    virtual std::string getVertexShaderExtension() const final override;
-    virtual std::string getFragmentShaderExtension() const final override;
+    virtual fs::path getShaderStageFileExtension(ShaderStageFlagBits stage) const final override;
 protected:
     virtual ShaderGenerationResult generateVertexShader(const MaterialPipelineDefinition& definition) const final override;
     virtual ShaderGenerationResult generateFragmentShader(const MaterialPipelineDefinition& definition) const final override;
     
     virtual std::string generatePerFrameData(const ShaderDataSets& requiredDataSets) const final override;
     
-//     std::string gatherMaterial
-//     std::string generateMaterialDataUnpacker(const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition) const;
-    
     virtual std::string generateLightProcessingFunctionCall(const MaterialPipelineDefinition& definition) const final override;
-    
-    virtual ShaderCompilationResult compileShader(const MaterialPipelineDefinition& definition, const std::string& shaderName, const std::string& shaderSource, const fs::path& savePath, const fs::path& fileName, ShaderStageFlagBits shaderStage) const final override;
     
     shaderc::Compiler compiler;
     shaderc::CompileOptions compilerOptions;
