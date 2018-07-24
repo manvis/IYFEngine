@@ -35,18 +35,28 @@
 namespace iyf {
 class FileSystem;
 
-/// \remark This isn't used at the moment
 class VulkanGLSLIncluder : public shaderc::CompileOptions::IncluderInterface {
 public:
+    inline VulkanGLSLIncluder(bool debugIncludes = false) : debugIncludes(debugIncludes) {}
+    
     virtual shaderc_include_result* GetInclude(const char* requested_source,
                                                shaderc_include_type type,
                                                const char* requesting_source,
                                                size_t include_depth) final override;
 
     virtual void ReleaseInclude(shaderc_include_result* data) final override;
+    
+    static std::uint32_t GetHelperFunctionVersion() {
+        return 1;
+    }
 private:
+    bool debugIncludes;
+    
     static const std::string EmptyString;
     static const std::string UnknownNameError;
+    static const std::string CommonHelperFunctions;
+    static const std::string VertexShaderHelperFunctions;
+    static const std::string FragmentShaderHelperFunctions;
 };
 
 class VulkanGLSLShaderGenerator : public ShaderGenerator {
@@ -55,6 +65,10 @@ public:
     
     virtual ShaderLanguage getShaderLanguage() const final override {
         return ShaderLanguage::GLSLVulkan;
+    }
+    
+    std::uint32_t GetHelperFunctionVersion() const final override {
+        return VulkanGLSLIncluder::GetHelperFunctionVersion();
     }
     
     virtual ShaderCompilationResult compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) final override;
@@ -71,7 +85,6 @@ protected:
     virtual std::string generateLightProcessingFunctionCall(const MaterialPipelineDefinition& definition) const final override;
     
     shaderc::Compiler compiler;
-    shaderc::CompileOptions compilerOptions;
     FileSystem* fileSystem;
 };
 }

@@ -50,7 +50,7 @@ void DebugRenderer::initialize() {
     
     GraphicsAPI* api = renderer->getGraphicsAPI();
     
-    const VertexDataLayoutDefinition& vertexLayout = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(VertexDataLayout::ColoredDebugVertex)];
+    const VertexDataLayoutDefinition& vertexLayout = con::GetVertexDataLayoutDefinition(VertexDataLayout::ColoredDebugVertex);
     
     std::vector<Buffer> vbos;
     
@@ -118,7 +118,7 @@ void DebugRenderer::draw(CommandBuffer* commandBuffer, const Camera* camera) con
         return;
     }
     
-    const VertexDataLayoutDefinition& vertexLayout = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(VertexDataLayout::ColoredDebugVertex)];
+    const VertexDataLayoutDefinition& vertexLayout = con::GetVertexDataLayoutDefinition(VertexDataLayout::ColoredDebugVertex);
     
     // TODO This causes horrible performance in large scenes when wireframe is enabled. Unfortunately, partial updates aren't
     // easy when you're given data line by line. Is there anything that can be done?

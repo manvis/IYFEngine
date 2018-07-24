@@ -102,7 +102,7 @@ void MeshTypeManager::performLoad(hash32_t nameHash, const fs::path& path, const
     //LOG_D(requirements.boneCount << " " << requirements.vertexBoneDataSize)
     assert(requirements.boneCount == 0);
     // Required to store multiple vertex types in a single VBO
-    Bytes vertexAlignment(con::VertexDataLayoutDefinitions[static_cast<std::size_t>(requirements.vertexDataLayout)].getSize());
+    Bytes vertexAlignment(con::GetVertexDataLayoutDefinition(requirements.vertexDataLayout).getSize());
     Bytes indexAlignment(requirements.indices32Bit ? 4 : 2);
     
     // TODO make this buffer reuse code generic and move it somewhere else
@@ -237,7 +237,7 @@ void MeshTypeManager::performFree(Mesh& assetData) {
         throw std::runtime_error("IMPLEMENT ME");
     } else {
         const PrimitiveData& data = assetData.getMeshPrimitiveData();
-        std::size_t vertexAlignment = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(assetData.vertexDataLayout)].getSize();
+        std::size_t vertexAlignment = con::GetVertexDataLayoutDefinition(assetData.vertexDataLayout).getSize();
         std::size_t indexAlignment = assetData.indices32Bit ? 4 : 2;
 
         BufferRange vboRange(Bytes(data.vertexOffset * vertexAlignment), Bytes(data.vertexCount * vertexAlignment));
@@ -252,7 +252,7 @@ std::pair<GraphicsToPhysicsDataMapping, GraphicsToPhysicsDataMapping> MeshTypeMa
     const char* vboData = reinterpret_cast<const char*>(vertexDataBuffers[assetData.vboID].data);
     const char* iboData = reinterpret_cast<const char*>(indexDataBuffers[assetData.iboID].data);
     
-    std::uint32_t vboStride = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(assetData.vertexDataLayout)].getSize();
+    std::uint32_t vboStride = con::GetVertexDataLayoutDefinition(assetData.vertexDataLayout).getSize();
     std::uint32_t iboStride = assetData.indices32Bit ? 4 : 2;
     
     if (assetData.submeshCount > 1) {

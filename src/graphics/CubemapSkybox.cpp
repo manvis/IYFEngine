@@ -87,7 +87,7 @@ void CubemapSkybox::initialize() {
     pci.renderPass = passInfo.first;
     pci.subpass = passInfo.second;
     pci.layout = skyPipelineLayout;
-    pci.vertexInputState = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(VertexDataLayout::MeshVertex)].createVertexInputStateCreateInfo(0);
+    pci.vertexInputState = con::GetVertexDataLayoutDefinition(VertexDataLayout::MeshVertex).createVertexInputStateCreateInfo(0);
     
     skyPipeline = api->createPipeline(pci);
     

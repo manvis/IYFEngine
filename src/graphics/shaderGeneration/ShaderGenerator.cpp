@@ -89,7 +89,7 @@ ShaderGenerationResult ShaderGenerator::validatePipelineDefinition(const Materia
 }
 
 ShaderGenerationResult ShaderGenerator::checkVertexDataLayoutCompatibility(const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout) const {
-    const VertexDataLayoutDefinition& layout = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(vertexDataLayout)];
+    const VertexDataLayoutDefinition& layout = con::GetVertexDataLayoutDefinition(vertexDataLayout);
     
     bool hasNormals = layout.hasAttribute(VertexAttributeType::Normal);
     if (definition.isNormalDataRequired() && !hasNormals) {

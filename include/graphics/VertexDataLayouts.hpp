@@ -70,6 +70,12 @@ enum class VertexDataLayout : std::uint8_t {
     COUNT
 };
 
+enum class NormalMappingMode {
+    NotSupported        = 0, /// < Impossible to do normal mapping with this VertexDataLayout
+    Regular             = 1, /// < This VertexDataLayout has Normal, Tangent and Bitangent data and can be used for normal mapping
+    BitangentRecovering = 2  /// < This VertexDataLayout has Normal and TangentAndBias data
+};
+
 /// These are used when creating new shaders and pipelines. Each attribute type must also have a corresponding
 /// entry in VertexAttributeNames and in VertexShaderAttributeNames
 enum class VertexAttributeType {
@@ -92,13 +98,12 @@ enum class VertexAttributeType {
 
 namespace con {
 /// Translation strings for vertex attribute names
-extern const std::array<hash32_t, static_cast<std::size_t>(VertexAttributeType::COUNT)> VertexAttributeNames;
+hash32_t GetVertexAttributeNameHash(VertexAttributeType type);
 
-/// Vertex input variable names that the shader generator will use in the vertex shader.
+/// Obtain vertex input variable names. The shader generator uses these when creating the vertex shader.
 ///
 /// \warning feel free to add new ones that correspond to your attributes, but DO NOT edit existing names
-extern const std::array<std::string, static_cast<std::size_t>(VertexAttributeType::COUNT)> VertexShaderAttributeNames;
-
+const std::string& GetVertexAttributeName(VertexAttributeType type);
 }
 
 struct VertexAttribute {
@@ -129,6 +134,23 @@ public:
         return name;
     }
     
+    inline NormalMappingMode getSupportedNormalMappingMode() const {
+        if (!hasAttribute(VertexAttributeType::Normal)) {
+            return NormalMappingMode::NotSupported;
+        }
+        
+        if (hasAttribute(VertexAttributeType::Tangent) && hasAttribute(VertexAttributeType::Bitangent)) {
+            return NormalMappingMode::Regular;
+        }
+        
+        if (hasAttribute(VertexAttributeType::TangentAndBias)) {
+            return NormalMappingMode::BitangentRecovering;
+        }
+        
+        
+        return NormalMappingMode::NotSupported;
+    }
+    
     VertexInputStateCreateInfo createVertexInputStateCreateInfo(std::uint32_t binding) const {
         VertexInputStateCreateInfo vertexInputState;
         vertexInputState.vertexBindingDescriptions = 
@@ -150,7 +172,7 @@ private:
 };
 
 namespace con {
-extern const std::array<VertexDataLayoutDefinition, static_cast<std::uint32_t>(VertexDataLayout::COUNT)> VertexDataLayoutDefinitions;
+const VertexDataLayoutDefinition& GetVertexDataLayoutDefinition(VertexDataLayout layout);
 }
 
 }

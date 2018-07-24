@@ -100,92 +100,107 @@ VertexDataLayoutDefinition::VertexDataLayoutDefinition(std::string name, std::ui
     }
 }
 
-const std::array<hash32_t, static_cast<std::size_t>(VertexAttributeType::COUNT)> con::VertexAttributeNames = {
-    hash32_t(HS("position")),
-    hash32_t(HS("normal")),
-    hash32_t(HS("tangent")),
-    hash32_t(HS("bitangent")),
-    hash32_t(HS("uv")),
-    hash32_t(HS("bone_id")),
-    hash32_t(HS("bone_weight")),
-    hash32_t(HS("tangent_and_bias")),
-    hash32_t(HS("color")),// TODO add translations
-};
+namespace con {
 
-const std::array<std::string, static_cast<std::size_t>(VertexAttributeType::COUNT)> con::VertexShaderAttributeNames = {
-    "position",
-    "normal",
-    "tangent",
-    "bitangent",
-    "uv",
-    "boneId",
-    "boneWeight",
-    "tangentAndBias",
-    "color"
-};
+hash32_t GetVertexAttributeNameHash(VertexAttributeType type) {
+    static const std::array<hash32_t, static_cast<std::size_t>(VertexAttributeType::COUNT)> VertexAttributeNameHashes = {
+        hash32_t(HS("position")),
+        hash32_t(HS("normal")),
+        hash32_t(HS("tangent")),
+        hash32_t(HS("bitangent")),
+        hash32_t(HS("uv")),
+        hash32_t(HS("bone_id")),
+        hash32_t(HS("bone_weight")),
+        hash32_t(HS("tangent_and_bias")),
+        hash32_t(HS("color")),// TODO add translations
+    };
+    
+    return VertexAttributeNameHashes[static_cast<std::size_t>(type)];
+}
 
-const std::array<VertexDataLayoutDefinition, static_cast<std::uint32_t>(VertexDataLayout::COUNT)> con::VertexDataLayoutDefinitions = {
-    // 0 - MeshVertex
-    VertexDataLayoutDefinition("MeshVertex", sizeof(MeshVertex),
-     {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(MeshVertex, position)},
-      {VertexAttributeType::Normal,     Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertex, normal)},
-      {VertexAttributeType::Tangent,    Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertex, tangent)},
-      {VertexAttributeType::Bitangent,  Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertex, bitangent)},
-      {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(MeshVertex, uv)}}
-    ),
-    // 1 - MeshVertexWithBones
-    VertexDataLayoutDefinition("MeshVertexWithBones", sizeof(MeshVertexWithBones),
-     {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(MeshVertexWithBones, position)},
-      {VertexAttributeType::Normal,     Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexWithBones, normal)},
-      {VertexAttributeType::Tangent,    Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexWithBones, tangent)},
-      {VertexAttributeType::Bitangent,  Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexWithBones, bitangent)},
-      {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(MeshVertexWithBones, uv)},
-      {VertexAttributeType::BoneID,     Format::R8_G8_B8_A8_uInt,            offsetof(MeshVertexWithBones, boneIDs)},
-      {VertexAttributeType::BoneWeight, Format::R8_G8_B8_A8_uNorm,           offsetof(MeshVertexWithBones, boneWeights)}}
-    ),
-    // 2 - SimpleMeshVertex
-    VertexDataLayoutDefinition("SimpleMeshVertex", sizeof(SimpleMeshVertex),
-     {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(SimpleMeshVertex, position)},
-      {VertexAttributeType::Normal,     Format::A2_B10_G10_R10_sNorm_pack32, offsetof(SimpleMeshVertex, normal)},
-      {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(SimpleMeshVertex, uv)}}
-    ),
-    // 3 - MinimalMeshVertex
-    VertexDataLayoutDefinition("MinimalMeshVertex", sizeof(MinimalMeshVertex),
-     {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(MinimalMeshVertex, position)},
-      {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(MinimalMeshVertex, uv)}}
-    ),
-    // 4 - ColoredDebugVertex
-    VertexDataLayoutDefinition("ColoredDebugVertex", sizeof(ColoredDebugVertex),
-     {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(ColoredDebugVertex, position)},
-      {VertexAttributeType::Color,      Format::R8_G8_B8_A8_uNorm,           offsetof(ColoredDebugVertex, color)}}
-    ),
-    /// 5 - MeshVertexColored
-    VertexDataLayoutDefinition("MeshVertexColored", sizeof(MeshVertexColored),
-     {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(MeshVertexColored, position)},
-      {VertexAttributeType::Normal,     Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexColored, normal)},
-      {VertexAttributeType::Tangent,    Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexColored, tangent)},
-      {VertexAttributeType::Bitangent,  Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexColored, bitangent)},
-      {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(MeshVertexColored, uv)},
-      {VertexAttributeType::Color,      Format::R8_G8_B8_A8_uNorm,           offsetof(MeshVertexColored, color)}}
-    ),
-    /// 6 - MeshVertexColoredWithBones
-    VertexDataLayoutDefinition("MeshVertexColoredWithBones", sizeof(MeshVertexColoredWithBones),
-     {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(MeshVertexColoredWithBones, position)},
-      {VertexAttributeType::Normal,     Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexColoredWithBones, normal)},
-      {VertexAttributeType::Tangent,    Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexColoredWithBones, tangent)},
-      {VertexAttributeType::Bitangent,  Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexColoredWithBones, bitangent)},
-      {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(MeshVertexColoredWithBones, uv)},
-      {VertexAttributeType::BoneID,     Format::R8_G8_B8_A8_uInt,            offsetof(MeshVertexColoredWithBones, boneIDs)},
-      {VertexAttributeType::BoneWeight, Format::R8_G8_B8_A8_uNorm,           offsetof(MeshVertexColoredWithBones, boneWeights)},
-      {VertexAttributeType::Color,      Format::R8_G8_B8_A8_uNorm,           offsetof(MeshVertexColoredWithBones, color)}}
-    ),
-    /// 7 - SimpleMeshVertexColored
-    VertexDataLayoutDefinition("SimpleMeshVertexColored", sizeof(SimpleMeshVertexColored),
-     {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(SimpleMeshVertexColored, position)},
-      {VertexAttributeType::Normal,     Format::A2_B10_G10_R10_sNorm_pack32, offsetof(SimpleMeshVertexColored, normal)},
-      {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(SimpleMeshVertexColored, uv)},
-      {VertexAttributeType::Color,      Format::R8_G8_B8_A8_uNorm,           offsetof(SimpleMeshVertexColored, color)}}
-    ),
-};
+const std::string& GetVertexAttributeName(VertexAttributeType type) {
+    static const std::array<std::string, static_cast<std::size_t>(VertexAttributeType::COUNT)> VertexAttributeNames = {
+        "position",
+        "normal",
+        "tangent",
+        "bitangent",
+        "uv",
+        "boneId",
+        "boneWeight",
+        "tangentAndBias",
+        "color"
+    };
+    
+    return VertexAttributeNames[static_cast<std::size_t>(type)];
+}
 
+const VertexDataLayoutDefinition& GetVertexDataLayoutDefinition(VertexDataLayout layout) {
+    static const std::array<VertexDataLayoutDefinition, static_cast<std::uint32_t>(VertexDataLayout::COUNT)> VertexDataLayoutDefinitions = {
+        // 0 - MeshVertex
+        VertexDataLayoutDefinition("MeshVertex", sizeof(MeshVertex),
+        {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(MeshVertex, position)},
+        {VertexAttributeType::Normal,     Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertex, normal)},
+        {VertexAttributeType::Tangent,    Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertex, tangent)},
+        {VertexAttributeType::Bitangent,  Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertex, bitangent)},
+        {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(MeshVertex, uv)}}
+        ),
+        // 1 - MeshVertexWithBones
+        VertexDataLayoutDefinition("MeshVertexWithBones", sizeof(MeshVertexWithBones),
+        {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(MeshVertexWithBones, position)},
+        {VertexAttributeType::Normal,     Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexWithBones, normal)},
+        {VertexAttributeType::Tangent,    Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexWithBones, tangent)},
+        {VertexAttributeType::Bitangent,  Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexWithBones, bitangent)},
+        {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(MeshVertexWithBones, uv)},
+        {VertexAttributeType::BoneID,     Format::R8_G8_B8_A8_uInt,            offsetof(MeshVertexWithBones, boneIDs)},
+        {VertexAttributeType::BoneWeight, Format::R8_G8_B8_A8_uNorm,           offsetof(MeshVertexWithBones, boneWeights)}}
+        ),
+        // 2 - SimpleMeshVertex
+        VertexDataLayoutDefinition("SimpleMeshVertex", sizeof(SimpleMeshVertex),
+        {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(SimpleMeshVertex, position)},
+        {VertexAttributeType::Normal,     Format::A2_B10_G10_R10_sNorm_pack32, offsetof(SimpleMeshVertex, normal)},
+        {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(SimpleMeshVertex, uv)}}
+        ),
+        // 3 - MinimalMeshVertex
+        VertexDataLayoutDefinition("MinimalMeshVertex", sizeof(MinimalMeshVertex),
+        {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(MinimalMeshVertex, position)},
+        {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(MinimalMeshVertex, uv)}}
+        ),
+        // 4 - ColoredDebugVertex
+        VertexDataLayoutDefinition("ColoredDebugVertex", sizeof(ColoredDebugVertex),
+        {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(ColoredDebugVertex, position)},
+        {VertexAttributeType::Color,      Format::R8_G8_B8_A8_uNorm,           offsetof(ColoredDebugVertex, color)}}
+        ),
+        /// 5 - MeshVertexColored
+        VertexDataLayoutDefinition("MeshVertexColored", sizeof(MeshVertexColored),
+        {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(MeshVertexColored, position)},
+        {VertexAttributeType::Normal,     Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexColored, normal)},
+        {VertexAttributeType::Tangent,    Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexColored, tangent)},
+        {VertexAttributeType::Bitangent,  Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexColored, bitangent)},
+        {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(MeshVertexColored, uv)},
+        {VertexAttributeType::Color,      Format::R8_G8_B8_A8_uNorm,           offsetof(MeshVertexColored, color)}}
+        ),
+        /// 6 - MeshVertexColoredWithBones
+        VertexDataLayoutDefinition("MeshVertexColoredWithBones", sizeof(MeshVertexColoredWithBones),
+        {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(MeshVertexColoredWithBones, position)},
+        {VertexAttributeType::Normal,     Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexColoredWithBones, normal)},
+        {VertexAttributeType::Tangent,    Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexColoredWithBones, tangent)},
+        {VertexAttributeType::Bitangent,  Format::A2_B10_G10_R10_sNorm_pack32, offsetof(MeshVertexColoredWithBones, bitangent)},
+        {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(MeshVertexColoredWithBones, uv)},
+        {VertexAttributeType::BoneID,     Format::R8_G8_B8_A8_uInt,            offsetof(MeshVertexColoredWithBones, boneIDs)},
+        {VertexAttributeType::BoneWeight, Format::R8_G8_B8_A8_uNorm,           offsetof(MeshVertexColoredWithBones, boneWeights)},
+        {VertexAttributeType::Color,      Format::R8_G8_B8_A8_uNorm,           offsetof(MeshVertexColoredWithBones, color)}}
+        ),
+        /// 7 - SimpleMeshVertexColored
+        VertexDataLayoutDefinition("SimpleMeshVertexColored", sizeof(SimpleMeshVertexColored),
+        {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(SimpleMeshVertexColored, position)},
+        {VertexAttributeType::Normal,     Format::A2_B10_G10_R10_sNorm_pack32, offsetof(SimpleMeshVertexColored, normal)},
+        {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(SimpleMeshVertexColored, uv)},
+        {VertexAttributeType::Color,      Format::R8_G8_B8_A8_uNorm,           offsetof(SimpleMeshVertexColored, color)}}
+        ),
+    };
+    
+    return VertexDataLayoutDefinitions[static_cast<std::size_t>(layout)];
+}
+
+}
 }

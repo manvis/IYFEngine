@@ -235,15 +235,15 @@ bool MeshLoader::loadMeshV1(File& fr, LoadedMeshData& meshData, void* vertexBuff
     std::size_t vertexStructSize = 0;
     if (numBones == 0) {
         if (numVertexColors == 0) {
-            vertexStructSize = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(VertexDataLayout::MeshVertex)].getSize();
+            vertexStructSize = con::GetVertexDataLayoutDefinition(VertexDataLayout::MeshVertex).getSize();
         } else {
-            vertexStructSize = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(VertexDataLayout::MeshVertexColored)].getSize();
+            vertexStructSize = con::GetVertexDataLayoutDefinition(VertexDataLayout::MeshVertexColored).getSize();
         }
     } else {
         if (numVertexColors == 0) {
-            vertexStructSize = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(VertexDataLayout::MeshVertexWithBones)].getSize();
+            vertexStructSize = con::GetVertexDataLayoutDefinition(VertexDataLayout::MeshVertexWithBones).getSize();
         } else {
-            vertexStructSize = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(VertexDataLayout::MeshVertexColoredWithBones)].getSize();
+            vertexStructSize = con::GetVertexDataLayoutDefinition(VertexDataLayout::MeshVertexColoredWithBones).getSize();
         }
     }
     

@@ -61,6 +61,7 @@ inline std::string GetShaderStageName(ShaderStageFlagBits stage) {
 const std::string VulkanGLSLInitialization = 
     "#version 450\n\n"
     "#extension GL_ARB_separate_shader_objects : enable\n"
+//     "#extension GL_GOOGLE_include_directive : enable\n"
     "#extension GL_ARB_shading_language_420pack : enable\n\n";
 
 inline std::string MakeVulkanGLSLHeader(ShaderStageFlagBits stage) {
@@ -72,6 +73,30 @@ inline std::string MakeVulkanGLSLHeader(ShaderStageFlagBits stage) {
     ss << "// WARNING: DO NOT MODIFY BY HAND. Update the material definition and regenerate it instead.\n\n";
     
     return ss.str();
+}
+
+inline std::string WriteMacroDefinitions(const MaterialPipelineDefinition& definition) {
+    bool anyDefinitions = false;
+    
+    std::stringstream ss;
+    if (definition.isWorldSpacePositionRequired()) {
+        ss << "#define " << GetShaderMacroName(ShaderMacro::WorldSpacePositionAvailable) << "\n";
+        
+        anyDefinitions = true;
+    }
+    
+    if (definition.isNormalDataRequired()) {
+        ss << "#define " << GetShaderMacroName(ShaderMacro::NormalAvailable) << "\n";
+        
+        anyDefinitions = true;
+    }
+    
+    if (anyDefinitions) {
+        ss << "\n";
+        return "// Macros that depend on the MaterialPipelineDefinition go here\n" + ss.str();
+    } else {
+        return "";
+    }
 }
 
 shaderc_shader_kind ShaderStageToKind(ShaderStageFlagBits shaderStage) {
@@ -215,9 +240,6 @@ std::string MakeVulkanGLSLDataType(Format format) {
 }
 
 VulkanGLSLShaderGenerator::VulkanGLSLShaderGenerator(const Engine* engine) : ShaderGenerator(engine) {
-    // TODO fill the compilerOptions, create an includer and fill it with reusable code, etc.
-    compilerOptions.SetOptimizationLevel(shaderc_optimization_level_size);
-    
     fileSystem = engine->getFileSystem();
 }
 
@@ -253,39 +275,32 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(const Mat
     
     std::stringstream ss;
     ss << MakeVulkanGLSLHeader(ShaderStageFlagBits::Vertex);
+    ss << WriteMacroDefinitions(definition);
     
     ss << generatePerFrameData(definition.getVertexShaderDataSets());
     
     ss << "\n";
     
     std::size_t compatibleVertexLayoutCount = 0;
+    
     for (std::size_t i = 0; i < static_cast<std::size_t>(VertexDataLayout::COUNT); ++i) {
-        const VertexDataLayoutDefinition& layout = con::VertexDataLayoutDefinitions[i];
+        const VertexDataLayoutDefinition& layout = con::GetVertexDataLayoutDefinition(static_cast<VertexDataLayout>(i));
         
         ShaderGenerationResult validationResult = checkVertexDataLayoutCompatibility(definition, static_cast<VertexDataLayout>(i));
+        
+        ss << "#if " << GetShaderMacroName(ShaderMacro::VertexDataLayout) << " == " << i << " // " << layout.getName() << "\n";
         if (validationResult.getStatus() != ShaderGenerationResult::Status::Success) {
-            continue;
+            ss << "#error \"This shader is incompatible with this VertexDataLayout\"\n";
+        } else {
+            const auto& attributes = layout.getAttributes();
+            for (std::size_t j = 0; j < attributes.size(); ++j) {
+                const auto& attribute = attributes[j];
+                std::string type = MakeVulkanGLSLDataType(attribute.format);
+                ss << "layout(location = " << j << ") in " << type << " " << con::GetVertexAttributeName(attribute.type) << ";\n";
+            }
+            // DO NOT DEFINE ShaderMacro::NormalMappingMode HERE. It may seem like a good idea, but it's not.
+            // It HAS to be set via a macro when compiling because it HAS to be available in all shader stages.
         }
-        
-        ss << "#if " << GetShaderMacroName(ShaderMacro::VertexType) << " == " << i << " // " << layout.getName() << "\n";
-        const auto& attributes = layout.getAttributes();
-        for (std::size_t i = 0; i < attributes.size(); ++i) {
-            const auto& attribute = attributes[i];
-            std::string type = MakeVulkanGLSLDataType(attribute.format);
-            ss << "layout(location = " << i << ") in " << type << " " << con::VertexShaderAttributeNames[static_cast<std::size_t>(attribute.type)] << ";\n";
-        }
-//         // DO NOT DEFINE HERE. This needs to be set via a macro when compiling because it has to be available in all shader stages.
-//         bool regularNormalMapping = layout.hasAttribute(VertexAttributeType::Tangent);
-//         bool bitangentRecoveringNormalMapping = layout.hasAttribute(VertexAttributeType::TangentAndBias);
-//         ss << "#define " << GetShaderMacroName(ShaderMacro::NormalMappingMode);
-//         if (regularNormalMapping) {
-//             ss << " 1 \n";
-//         } else if (bitangentRecoveringNormalMapping) {
-//             ss << " 2 \n";
-//         } else {
-//             ss << " 0 \n";
-//         }
-        
         ss << "#endif\n\n";
     
         compatibleVertexLayoutCount++;
@@ -331,35 +346,35 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(const Mat
     
     ss << "} vertexOutput;\n\n";
     
-    ss << "#include \"vertex_helpers.glsl\"\n\n";// TODO use include names from enum
+    ss << "#include \"" << GetShaderIncludeName(ShaderInclude::VertexShaderHelpers) << "\"\n\n";
     
     ss << "void main() {\n";
     // TODO HANDLE BONE DATA
-    ss << "    gl_Position = MVP() * vec4(" << con::VertexShaderAttributeNames[static_cast<std::size_t>(VertexAttributeType::Position3D)] << ", 1.0f);\n\n";
+    ss << "    gl_Position = MVP() * vec4(" << con::GetVertexAttributeName(VertexAttributeType::Position3D) << ", 1.0f);\n\n";
     ss << "    // Needed for the retrieval of material data\n";
     ss << "    vertexOutput.instanceID = gl_InstanceIndex;\n\n";
     
     if (definition.isWorldSpacePositionRequired()) {
         ss << "    // Used when computing world space lighting\n";
-        ss << "    vertexOutput.positionWS = (M() * vec4(" << con::VertexShaderAttributeNames[static_cast<std::size_t>(VertexAttributeType::Position3D)] << ", 1.0f)).xyz;\n\n";
+        ss << "    vertexOutput.positionWS = (M() * vec4(" << con::GetVertexAttributeName(VertexAttributeType::Position3D) << ", 1.0f)).xyz;\n\n";
     }
     
     if (definition.isNormalDataRequired()) {
         ss << "#if (" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0) && defined("<< GetShaderMacroName(ShaderMacro::NormalMapTextureAvailable) << ")\n";
         ss << "    vertexOutput.TBN = TBN();\n";
         ss << "#else\n";
-        ss << "    vertexOutput.normalWS = normalize(mat3(M()) * " << con::VertexShaderAttributeNames[static_cast<std::size_t>(VertexAttributeType::Normal)] << ".xyz);\n";
+        ss << "    vertexOutput.normalWS = normalize(mat3(M()) * " << con::GetVertexAttributeName(VertexAttributeType::Normal) << ".xyz);\n";
         ss << "#endif\n\n";
     }
     
     if (definition.areTextureCoordinatesRequired()) {
         ss << "    // Output of UV coordinates for texture mapping\n";
-        ss << "    vertexOutput.UV = " << con::VertexShaderAttributeNames[static_cast<std::size_t>(VertexAttributeType::UV)] << ";\n\n";
+        ss << "    vertexOutput.UV = " << con::GetVertexAttributeName(VertexAttributeType::UV) << ";\n\n";
     }
     
     if (definition.isVertexColorDataRequired()) {
         ss << "    // Output of vertex color data\n";
-        ss << "    vertexOutput.vertColor = " << con::VertexShaderAttributeNames[static_cast<std::size_t>(VertexAttributeType::Color)] << ";\n\n";
+        ss << "    vertexOutput.vertColor = " << con::GetVertexAttributeName(VertexAttributeType::Color) << ";\n\n";
     }
     
     // TODO this should probably happen earlier
@@ -416,6 +431,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(const M
     
     std::stringstream ss;
     ss << MakeVulkanGLSLHeader(ShaderStageFlagBits::Fragment);
+    ss << WriteMacroDefinitions(definition);
     
     ss << "// Data from the previous shader stages\n";
     ss << "layout (location = 0) in FragmentInput {\n";
@@ -459,6 +475,8 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(const M
     ss << definition.getLightProcessingCode()[codeID] << "\n";
     
     ss << "}\n\n";
+    
+    ss << "#include \"" << GetShaderIncludeName(ShaderInclude::FragmentShaderHelpers) << "\"\n\n";
     
     ss << "void main() {\n";
     
@@ -872,6 +890,16 @@ ShaderCompilationResult VulkanGLSLShaderGenerator::compileShader(ShaderStageFlag
     
     compileOptions.SetOptimizationLevel(optimizationLevel);
     
+    for (const ShaderMacroWithValue& m : settings.macros) {
+        if (m.getValue().empty()) {
+            compileOptions.AddMacroDefinition(m.getName());
+        } else {
+            compileOptions.AddMacroDefinition(m.getName(), m.getValue());
+        }
+    }
+    
+    compileOptions.SetIncluder(std::make_unique<VulkanGLSLIncluder>());
+    
     if (settings.logAssembly) {
         shaderc::AssemblyCompilationResult result = compiler.CompileGlslToSpvAssembly(source, shaderKind, name.c_str(), compileOptions);
         
@@ -880,7 +908,7 @@ ShaderCompilationResult VulkanGLSLShaderGenerator::compileShader(ShaderStageFlag
         }
     }
     
-    shaderc::SpvCompilationResult result = compiler.CompileGlslToSpv(source, shaderKind, name.c_str(), compilerOptions);
+    shaderc::SpvCompilationResult result = compiler.CompileGlslToSpv(source, shaderKind, name.c_str(), compileOptions);
     if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
         return ShaderCompilationResult(ShaderCompilationResult::Status::CompilationFailed,
                                        fmt::format("Shader \"{}\" compilation failed with error(s):\n {}", name, result.GetErrorMessage()),
@@ -900,24 +928,121 @@ ShaderCompilationResult VulkanGLSLShaderGenerator::compileShader(ShaderStageFlag
 }
 
 const std::string VulkanGLSLIncluder::EmptyString = "";
-const std::string VulkanGLSLIncluder::UnknownNameError = "Unknown include. You must use one of ShaderInclude enum values.";
+const std::string VulkanGLSLIncluder::UnknownNameError = "Unknown include";
 
 shaderc_include_result* VulkanGLSLIncluder::GetInclude(const char* requested_source, shaderc_include_type type, const char* requesting_source, size_t include_depth) {
     shaderc_include_result* includeResult = new shaderc_include_result;
     
-    LOG_V("REQUESTED_SRC: " << requested_source << "; TYPE: " << type << "; REQUESTING_SRC:" << requesting_source << "; DEPTH: " << include_depth);
+    if (debugIncludes) {
+        LOG_V("REQUESTED_SRC: " << requested_source << "; TYPE: " << type << "; REQUESTING_SRC:" << requesting_source << "; DEPTH: " << include_depth);
+    }
     
-    includeResult->source_name = EmptyString.data();
-    includeResult->source_name_length = EmptyString.size();
-    includeResult->content = UnknownNameError.data();
-    includeResult->content_length = UnknownNameError.size();
+//     LOG_V(VertexShaderHelperFunctions);
+//     LOG_V(FragmentShaderHelperFunctions);
+    
+    // TODO start using an unordered_map if the number of includes grows even more
+    if (requested_source == GetShaderIncludeName(ShaderInclude::CommonHelpers)) {
+        const char* name = "CommonHelpers";
+        const std::size_t nameLength = strlen(name);
+        
+        includeResult->source_name = name;
+        includeResult->source_name_length = nameLength;
+        
+        includeResult->content = CommonHelperFunctions.data();
+        includeResult->content_length = CommonHelperFunctions.size();
+    } else if (requested_source == GetShaderIncludeName(ShaderInclude::VertexShaderHelpers)) {
+        const char* name = "VertexShaderHelpers";
+        const std::size_t nameLength = strlen(name);
+        
+        includeResult->source_name = name;
+        includeResult->source_name_length = nameLength;
+        
+        includeResult->content = VertexShaderHelperFunctions.data();
+        includeResult->content_length = VertexShaderHelperFunctions.size();
+    } else if (requested_source == GetShaderIncludeName(ShaderInclude::FragmentShaderHelpers)) {
+        const char* name = "FragmentShaderHelpers";
+        const std::size_t nameLength = strlen(name);
+        
+        includeResult->source_name = name;
+        includeResult->source_name_length = nameLength;
+        
+        includeResult->content = FragmentShaderHelperFunctions.data();
+        includeResult->content_length = FragmentShaderHelperFunctions.size();
+    } else {
+        includeResult->source_name = EmptyString.data();
+        includeResult->source_name_length = EmptyString.size();
+        includeResult->content = UnknownNameError.data();
+        includeResult->content_length = UnknownNameError.size();
+    }
     includeResult->user_data = nullptr;
     
-    throw std::runtime_error("NOT YET IMPLEMENTED");
+    return includeResult;
 }
 
 void VulkanGLSLIncluder::ReleaseInclude(shaderc_include_result* data) {
     delete data;
 }
+
+inline std::string MakeVertexShaderHelperFunctionInclude() {
+    std::stringstream ss;
+    ss << "#include \"" << GetShaderIncludeName(ShaderInclude::CommonHelpers) << "\"\n";
+    
+    ss << "// Returns an MVP matrix that should be used for this instance\n"
+          "mat4 MVP() {\n"
+          "    return transformations.MVP[ID.transformation + gl_InstanceIndex];\n"
+          "}\n\n";
+    
+    ss << "// Returns the M matrix that should be used for this instance\n"
+          "mat4 M() {\n"
+          "    return transformations.M[ID.transformation + gl_InstanceIndex];\n"
+          "}\n\n";
+
+    ss << "// Create the TBN matrix from vertex attributes\n";
+    ss << "#if " << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " == 1\n";
+    ss << "mat3 TBN() {\n";
+    ss << "    mat3 M3x3 = mat3(M());\n\n";
+    ss << "    vec3 normalWS    = normalize(M3x3 * " << con::GetVertexAttributeName(VertexAttributeType::Normal) << ".xyz);\n";
+    ss << "    vec3 tangentWS   = normalize(M3x3 * " << con::GetVertexAttributeName(VertexAttributeType::Tangent) << ".xyz);\n";
+    ss << "    vec3 bitangentWS = normalize(M3x3 * " << con::GetVertexAttributeName(VertexAttributeType::Bitangent) << ".xyz);\n\n";
+    ss << "    return mat3(tangentWS, bitangentWS, normalWS);\n";
+    ss << "}\n";
+    ss << "#elif " << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " == 2\n";
+    ss << "mat3 TBN() {\n";
+    ss << "    #error \"Not yet implemented\"\n";
+    ss << "}\n";
+    ss << "#endif\n";
+
+    return ss.str();
+}
+
+inline std::string MakeFragmentShaderHelperFunctionInclude() {
+    std::stringstream ss;
+    ss << "#include \"" << GetShaderIncludeName(ShaderInclude::CommonHelpers) << "\"\n";
+    ss << "#if (" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0) && defined(" << GetShaderMacroName(ShaderMacro::NormalMapTextureAvailable) <<  ")\n"; 
+    ss << "vec3 N() {\n";
+    ss << "    vec2 normalXY = texture(NormalTexture, fragmentInput.UV).xy;\n";
+    ss << "    normalXY = 2.0f * normalXY - vec2(1.0f, 1.0f);\n\n";
+    ss << "    float normalZ = sqrt(1 - (normalXY.x * normalXY.x) - (normalXY.y * normalXY.y));\n\n";
+    ss << "    vec3 finalNormal = normalize(vec3(normalXY, normalZ));\n";
+    ss << "    return normalize(fragmentInput.TBN * finalNormal);\n";
+    ss << "}\n";
+    ss << "#elif defined(" << GetShaderMacroName(ShaderMacro::NormalAvailable) << ")\n";
+    ss << "vec3 N() {\n";
+    ss << "    return fragmentInput.normalWS;\n";
+    ss << "}\n";
+    ss << "#endif\n";
+    
+    return ss.str();
+}
+
+const std::string VulkanGLSLIncluder::VertexShaderHelperFunctions = MakeVertexShaderHelperFunctionInclude();
+
+const std::string VulkanGLSLIncluder::FragmentShaderHelperFunctions = MakeFragmentShaderHelperFunctionInclude();
+
+const std::string VulkanGLSLIncluder::CommonHelperFunctions = R"glsl(// First of all, make sure all defines are present
+#ifndef NORMAL_MAPPING_MODE
+#error "NORMAL_MAPPING_MODE was not defined"
+#endif
+)glsl";
 
 }

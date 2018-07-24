@@ -311,6 +311,8 @@ public:
     /// Set which data sets need to be included in the vertex shader.
     ///
     /// \remark For performance reasons, it's better to only include the ones you need.
+    ///
+    /// \warning Don't disable the data sets that are enabled by default
     inline void setVertexShaderDataSet(PerFrameDataSet dataSet, bool enabled) {
         vertexShaderDataSets[static_cast<std::size_t>(dataSet)] = enabled;
     }
@@ -328,6 +330,8 @@ public:
     /// Set which data sets need to be included in the fragment shader.
     ///
     /// \remark For performance reasons, it's better to only include the ones you need.
+    ///
+    /// \warning Don't disable the data sets that are enabled by default
     inline void setFragmentShaderDataSet(PerFrameDataSet dataSet, bool enabled) {
         fragmentShaderDataSets[static_cast<std::size_t>(dataSet)] = enabled;
     }

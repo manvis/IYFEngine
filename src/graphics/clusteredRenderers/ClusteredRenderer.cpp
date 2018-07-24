@@ -466,7 +466,7 @@ void ClusteredRenderer::initializePickingPipeline() {
     pci.depthStencilState.depthTestEnable = true;
     pci.depthStencilState.depthWriteEnable = false;
     pci.depthStencilState.depthCompareOp = CompareOp::GreaterEqual;
-    pci.vertexInputState = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(VertexDataLayout::MeshVertex)].createVertexInputStateCreateInfo(0);
+    pci.vertexInputState = con::GetVertexDataLayoutDefinition(VertexDataLayout::MeshVertex).createVertexInputStateCreateInfo(0);
     pci.inputAssemblyState.topology = iyf::PrimitiveTopology::TriangleList;
     pci.renderPass = mainRenderPass;
     pci.subpass = 2;
@@ -511,7 +511,7 @@ void ClusteredRenderer::initializeTonemappingAndAdjustmentPipeline() {
     pciTonemap.inputAssemblyState.topology = iyf::PrimitiveTopology::TriangleList;
     pciTonemap.rasterizationState.cullMode = iyf::CullModeFlagBits::None;
     pciTonemap.subpass = 1;
-    pciTonemap.vertexInputState = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(VertexDataLayout::MeshVertex)].createVertexInputStateCreateInfo(0);
+    pciTonemap.vertexInputState = con::GetVertexDataLayoutDefinition(VertexDataLayout::MeshVertex).createVertexInputStateCreateInfo(0);
     tonemapPipeline = api->createPipeline(pciTonemap);
 }
 
@@ -566,7 +566,7 @@ void ClusteredRenderer::initialize() {
     pci.inputAssemblyState.topology = iyf::PrimitiveTopology::LineList;
     pci.renderPass = mainRenderPass;
     
-    pci.vertexInputState = con::VertexDataLayoutDefinitions[static_cast<std::size_t>(VertexDataLayout::MeshVertex)].createVertexInputStateCreateInfo(0);
+    pci.vertexInputState = con::GetVertexDataLayoutDefinition(VertexDataLayout::MeshVertex).createVertexInputStateCreateInfo(0);
     
     pci.inputAssemblyState.topology = iyf::PrimitiveTopology::TriangleList;//iyf::PrimitiveTopology::PointList;
     //pci.rasterizationState.cullMode = iyf::CullModeFlagBits::None;

@@ -34,7 +34,7 @@
 #include <cstdint>
 
 namespace iyf {
-/// All shader macros used by the engine.
+/// Identifiers for all shader macros used by the engine.
 ///
 /// \remark While you may add custom macro definitions during compilation (they'll have ShaderMacroWithValue::getMacro() set to ShaderMacro::Custom).
 /// it's preferable to delare them here and implement their validation in ValidateShaderMacroValue().
@@ -44,10 +44,12 @@ namespace iyf {
 /// 
 /// \warning Do not change the underlying type
 enum class ShaderMacro : std::uint16_t {
-    VertexType                = 0, /// < Must be an integer that corresponds to a VertexDataLayout used in the graphics pipeline.
-    NormalMapTextureAvailable = 1, /// < If defined, a normal map texture will be available in the fragment shader.
-    NormalMappingMode         = 2, /// < Integer. 0 - normal mapping disabled, 1 - all TBN components present, 2 - bitangent needs recovering. Depends on the VertexDataLayout
-    TextureInputCount         = 3, /// < Integer. Number of texture inputs (including the normal texture, if any). Any number between 0 and con::MaxMaterialTextures
+    VertexDataLayout            = 0, /// < Must be an integer that corresponds to a VertexDataLayout used in the graphics pipeline.
+    NormalMapTextureAvailable   = 1, /// < If defined, a normal map texture will be available in the fragment shader.
+    NormalMappingMode           = 2, /// < Integer. 0 - normal mapping disabled, 1 - all TBN components present, 2 - bitangent needs recovering. Depends on the VertexDataLayout
+    TextureInputCount           = 3, /// < Integer. Number of texture inputs (including the normal texture, if any). Any number between 0 and con::MaxMaterialTextures
+    WorldSpacePositionAvailable = 4, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined, the vertex shader will compute a world space position and pass it to later stages.
+    NormalAvailable             = 5, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined, the vertex shader will pass the normal (or a TBN if NormalMapTextureAvailable is defined) to later stages.
     Custom, /// < Special value, can be anything the user wants. Don't use in GetShaderMacroName().
     COUNT = Custom
 };
@@ -56,6 +58,14 @@ enum class ShaderMacro : std::uint16_t {
 ///
 /// \warning Make sure to update shader helper includes if you change the names returned by this function
 std::string GetShaderMacroName(ShaderMacro macro);
+
+enum class ShaderInclude : std::uint16_t {
+    CommonHelpers         = 0, /// < Common helper functions that get included by other helpers
+    VertexShaderHelpers   = 1, /// < Helper functions that get included in the vertex shader
+    FragmentShaderHelpers = 2, /// < Helper functions that get included in the fragment shader
+};
+
+std::string GetShaderIncludeName(ShaderInclude include);
 
 using ShaderMacroValue = std::variant<std::monostate, double, std::int64_t, std::string>;
 bool ValidateShaderMacroValue(ShaderMacro macro, const ShaderMacroValue& value);
@@ -66,10 +76,22 @@ public:
     ///
     /// \throws std::logic_error if macro == ShaderMacro::Custom because it's impossible to know what custom values should contain.
     /// \throws std::invalid_argument if the value fails validation
-    ShaderMacroWithValue(ShaderMacro macro, ShaderMacroValue value);
+    ShaderMacroWithValue(ShaderMacro macro, ShaderMacroValue value = std::monostate());
     
     /// Create a custom ShaderMacroWithValue.
-    ShaderMacroWithValue(std::string name, ShaderMacroValue value);
+    ShaderMacroWithValue(std::string name, ShaderMacroValue value = std::monostate());
+    
+    inline ShaderMacro getMacroIdentifier() const {
+        return macro;
+    }
+    
+    inline const std::string& getName() const {
+        return name;
+    }
+    
+    inline const std::string getValue() const {
+        return value;
+    }
 private:
     ShaderMacro macro;
     std::string name;

@@ -40,19 +40,36 @@ std::string GetShaderMacroName(ShaderMacro macro) {
     switch (macro) {
 //         case ShaderMacro:::
 //             return;
-        case ShaderMacro::VertexType:
-            return "VERTEX_TYPE";
+        case ShaderMacro::VertexDataLayout:
+            return "VERTEX_DATA_LAYOUT";
         case ShaderMacro::NormalMapTextureAvailable:
             return "NORMAL_MAP_TEXTURE_AVAILABLE";
         case ShaderMacro::NormalMappingMode:
             return "NORMAL_MAPPING_MODE";
         case ShaderMacro::TextureInputCount:
             return "TEXTURE_INPUT_COUNT";
+        case ShaderMacro::WorldSpacePositionAvailable:
+            return "WORLD_SPACE_POSITION_AVAILABLE";
+        case ShaderMacro::NormalAvailable:
+            return "NORMAL_AVAILABLE";
         case ShaderMacro::Custom:
             throw std::logic_error("Custom or COUNT must not be used in GetShaderMacroName()");
     }
     
     throw std::logic_error("Invalid macro ID");
+}
+
+std::string GetShaderIncludeName(ShaderInclude include) {
+    switch (include) {
+        case ShaderInclude::CommonHelpers:
+            return "common_helpers.incl";
+        case ShaderInclude::VertexShaderHelpers:
+            return "vertex_helpers.incl";
+        case ShaderInclude::FragmentShaderHelpers:
+            return "fragment_helpers.incl";
+    }
+    
+    throw std::logic_error("Invalid shader include ID");
 }
 
 template <typename T>
@@ -77,11 +94,14 @@ std::function<bool(const std::int64_t&)> MakeIntervalValidator(T min, T max, boo
     };
 }
 
-const std::function<bool(const std::monostate&)> EmptyValidator = [](const std::monostate&){return true;};
-
 bool ValidateShaderMacroValue(ShaderMacro macro, const ShaderMacroValue& value) {
+    static const std::function<bool(const std::monostate&)> EmptyValidator = [](const std::monostate&){return true;};
+
+    /// Always returns false. Used for macros that must be defined by the ShaderGenerator
+    static const std::function<bool(const std::monostate&)> FailValidator = [](const std::monostate&){return false;};
+
     switch (macro) {
-        case ShaderMacro::VertexType: // Need a valid vertex data layout here
+        case ShaderMacro::VertexDataLayout: // Need a valid vertex data layout here
             static_assert(static_cast<std::size_t>(VertexDataLayout::MeshVertex) == 0);
             return ValidateValueImpl<std::int64_t>(value, MakeIntervalValidator(VertexDataLayout::MeshVertex, VertexDataLayout::COUNT, false));
         case ShaderMacro::NormalMapTextureAvailable: // Must be defined or not.
@@ -94,6 +114,10 @@ bool ValidateShaderMacroValue(ShaderMacro macro, const ShaderMacroValue& value) 
             
             return ValidateValueImpl<std::int64_t>(value, MakeIntervalValidator(min, max));
         }
+        case ShaderMacro::WorldSpacePositionAvailable:
+            return ValidateValueImpl<std::monostate>(value, FailValidator);
+        case ShaderMacro::NormalAvailable:
+            return ValidateValueImpl<std::monostate>(value, FailValidator);
         case ShaderMacro::Custom:
             throw std::logic_error("Custom or COUNT must not be used in GetShaderMacroName()");
     }
