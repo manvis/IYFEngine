@@ -53,6 +53,25 @@ inline MaterialNodeConnectorType ShaderDataTypeToMaterialConnectorType(ShaderDat
     }
 }
 
+class PerFrameDataNode : public MaterialNode {
+public:
+    PerFrameDataNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNode(key, position, zIndex) {
+        outputs.emplace_back(LH("uv", MaterialNodeLocalizationNamespace), 0, false, true, MaterialNodeConnectorType::Vec2);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::PerFrameData;
+    }
+    
+    virtual LocalizationHandle getLocalizationHandle() const final override {
+        return LH("per_frame_data_node", MaterialNodeLocalizationNamespace);
+    }
+    
+    virtual LocalizationHandle getDocumentationLocalizationHandle() const final override {
+        return LH("per_frame_data_node_doc", MaterialNodeLocalizationNamespace);
+    }
+};
+
 class MaterialOutputNode : public MaterialNode {
 public:
     /// The MaterialOutputNode must always have a key equal to 0. Moreover, exactly 1 
@@ -98,8 +117,8 @@ private:
 class TextureInputNode : public MaterialNode {
 public:
     TextureInputNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNode(key, position, zIndex, 2) {
-        inputs.emplace_back(LH("uv", MaterialNodeLocalizationNamespace), 0, true, true, MaterialNodeConnectorType::Vec2);
-        outputs.emplace_back(LH("vec3", MaterialNodeLocalizationNamespace), 0, true, true, MaterialNodeConnectorType::Vec3);
+        inputs.emplace_back(LH("uv", MaterialNodeLocalizationNamespace), 0, false, true, MaterialNodeConnectorType::Vec2);
+        outputs.emplace_back(LH("vec3", MaterialNodeLocalizationNamespace), 0, false, true, MaterialNodeConnectorType::Vec3);
     }
     
     virtual MaterialNodeType getType() const final override {
@@ -135,19 +154,24 @@ public:
         }
         
         outputs[0].setType(static_cast<MaterialNodeConnectorType>(requestedModeID));
+//         inputs[0].setType(static_cast<MaterialNodeConnectorType>(requestedModeID));
         
         switch (requestedModeID) {
             case 0:
                 outputs[0].setLocalizationHandle(LH("float", MaterialNodeLocalizationNamespace));
+//                 inputs[0].setLocalizationHandle(LH("float", MaterialNodeLocalizationNamespace));
                 break;
             case 1:
                 outputs[0].setLocalizationHandle(LH("vec2", MaterialNodeLocalizationNamespace));
+//                 inputs[0].setLocalizationHandle(LH("vec2", MaterialNodeLocalizationNamespace));
                 break;
             case 2:
                 outputs[0].setLocalizationHandle(LH("vec3", MaterialNodeLocalizationNamespace));
+//                 inputs[0].setLocalizationHandle(LH("vec3", MaterialNodeLocalizationNamespace));
                 break;
             case 3:
                 outputs[0].setLocalizationHandle(LH("vec4", MaterialNodeLocalizationNamespace));
+//                 inputs[0].setLocalizationHandle(LH("vec4", MaterialNodeLocalizationNamespace));
                 break;
         }
         
@@ -160,8 +184,8 @@ public:
 class NormalMapInputNode : public MaterialNode {
 public:
     NormalMapInputNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNode(key, position, zIndex) {
-        inputs.emplace_back(LH("uv", MaterialNodeLocalizationNamespace), 0, true, true, MaterialNodeConnectorType::Vec2);
-        outputs.emplace_back(LH("vec3", MaterialNodeLocalizationNamespace), 0, true, true, MaterialNodeConnectorType::Vec3);
+        inputs.emplace_back(LH("uv", MaterialNodeLocalizationNamespace), 0, false, true, MaterialNodeConnectorType::Vec2);
+        outputs.emplace_back(LH("vec3", MaterialNodeLocalizationNamespace), 0, false, true, MaterialNodeConnectorType::Vec3);
     }
     
     virtual MaterialNodeType getType() const final override {
@@ -201,6 +225,9 @@ MaterialNode* MaterialLogicGraph::makeNode(MaterialNodeType type, const Vec2& po
             break;
         case MaterialNodeType::NormalMapInput:
             node = newNode<NormalMapInputNode>(position, type);
+            break;
+        case MaterialNodeType::PerFrameData:
+            node = newNode<PerFrameDataNode>(position, type);
             break;
     }
     
@@ -255,6 +282,8 @@ MaterialEditor::MaterialEditor(NodeEditorSettings settings) : LogicGraphEditor(s
     assert(nn3 != nullptr);
     TextureInputNode* nn4 = dynamic_cast<TextureInputNode*>(graph->makeNode(MaterialNodeType::TextureInput, Vec2(200.0f, 350.0f)));
     assert(nn4 != nullptr);
+    
+    graph->makeNode(MaterialNodeType::PerFrameData, Vec2(0.0f, 150.0f));
 //     LOG_V("LOCALIZED: " << nn->getLocalizationHandle().getHashValue());
 }
 

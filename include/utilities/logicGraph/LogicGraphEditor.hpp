@@ -543,7 +543,7 @@ void LogicGraphEditor<T>::drawNodeProperties() {
                         throw std::logic_error("Failed to change the mode");
                     }
                     
-                    graph->revalidateNodeConnections(node.getKey());
+                    graph->revalidateNodeConnections(&node);
                 }
                 
                 if (ImGui::IsItemHovered()) {
@@ -760,6 +760,7 @@ void LogicGraphEditor<T>::drawNodes() {
 template <typename T>
 void LogicGraphEditor<T>::drawConnections() {
     const auto& nodes = graph->getNodeConnections();
+    const ImU32 color = ImColor(ImGui::GetStyle().Colors[ImGuiCol_PlotLines]);
     
     for (const auto& node : nodes) {
         for (const auto& connection : node.second) {
@@ -769,7 +770,7 @@ void LogicGraphEditor<T>::drawConnections() {
             assert(source != connectorDataCache.end());
             assert(destination != connectorDataCache.end());
             
-            drawConnectionCurve(source->second.first, destination->second.first, ImColor(1.0f, 1.0f, 0.0f));
+            drawConnectionCurve(source->second.first, destination->second.first, color);
         }
     }
 }

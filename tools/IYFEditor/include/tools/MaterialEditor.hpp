@@ -48,6 +48,7 @@ enum class MaterialNodeType : std::uint32_t {
     Output         = 0,
     TextureInput   = 1,
     NormalMapInput = 2,
+    PerFrameData   = 3,
 };
 
 using MaterialNodeKey = std::uint32_t;

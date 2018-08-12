@@ -37,6 +37,7 @@
 #include <type_traits>
 
 #include "localization/LocalizationHandle.hpp"
+#include "core/Logger.hpp"
 #include "threading/ThreadProfiler.hpp"
 
 namespace iyf {
@@ -536,8 +537,6 @@ public:
         return true;
     }
     
-    virtual void revalidateNodeConnections(NodeKey k) {}
-    
     inline bool selectNode(NodeKey k) {
         if (!hasNode(k)) {
             return false;
@@ -636,6 +635,55 @@ public:
         return NodeConnectionResult::Success;
     }
     
+    virtual void revalidateNodeConnections(const NodeType* node) {
+        if (node == nullptr) {
+            return;
+        }
+        
+        auto sourceNodeInMap = nodes.find(node->getKey());
+        if (sourceNodeInMap == nodes.end() || (*sourceNodeInMap).second != node) {
+            return;
+        }
+        
+        const auto& inputs = node->getInputs();
+        for (std::size_t i = 0; i < inputs.size(); ++i) {
+            const KeyConnectorPair destinationKeyConnection(node->getKey(), i);
+            
+            auto input = busyInputs.find(destinationKeyConnection);
+            if (input != busyInputs.end()) {
+                NodeType* source = getNode(input->second.getNodeKey());
+                assert(source != nullptr);
+                
+                auto connectorID = input->second.getConnectorID();
+                
+                NodeConnectionResult validationResult = validateConnection(source, connectorID, node, i);
+                if (validationResult != NodeConnectionResult::Success && validationResult != NodeConnectionResult::OccupiedDestination) {
+                    const bool removed = removeConnection(source, connectorID, node, i, true);
+                    assert(removed);
+                }
+            }
+        }
+        
+        DestinationMultiMap& destinations = connections[node->getKey()];
+        for (auto destination = destinations.begin(); destination != destinations.end();) {
+            auto outputConnectorID = destination->second.first;
+            auto inputConnectorID = destination->second.second;
+            NodeType* destinationNode = getNode(destination->first);
+            
+            assert(destinationNode != nullptr);
+            
+            // We may have to erase this element and that would invalidate the iterator, therefore, we need to advance it before use
+            ++destination;
+            
+            NodeConnectionResult validationResult = validateConnection(node, outputConnectorID, destinationNode, inputConnectorID);
+            if (validationResult != NodeConnectionResult::Success && validationResult != NodeConnectionResult::OccupiedDestination) {
+                //LOG_D("Disconnecting input node. Key: " << node << "; Connector: " << i);
+                const bool removed = removeConnection(node, outputConnectorID, destinationNode, inputConnectorID, true);
+                assert(removed);
+            };
+        }
+    }
+    
     NodeConnectionResult addConnection(const NodeType* source, LogicGraphConnectorID outputID, const NodeType* destination, LogicGraphConnectorID inputID) {
         NodeConnectionResult result = validateConnection(source, outputID, destination, inputID);
         
@@ -661,6 +709,42 @@ public:
         busyInputs[destinationKeyConnection] = sourceKeyConnection;
         
         return NodeConnectionResult::Success;
+    }
+    
+    bool removeConnection(const NodeType* source, LogicGraphConnectorID outputID, const NodeType* destination, LogicGraphConnectorID inputID, bool skipValidation = false) {
+        if (!skipValidation) {
+            NodeConnectionResult result = validateConnection(source, outputID, destination, inputID);
+            
+            if (result != NodeConnectionResult::OccupiedDestination) {
+                return false;
+            }
+        }
+        
+        DestinationMultiMap& destinations = connections[source->getKey()];
+        
+        const ConnectorIDPair idPair(outputID, inputID);
+        const KeyConnectorPair sourceKeyConnection(source->getKey(), outputID);
+        const KeyConnectorPair destinationKeyConnection(destination->getKey(), inputID);
+        
+        auto destIterator = destinations.equal_range(destination->getKey());
+        assert(destIterator.first != destinations.end());
+        
+        bool foundConnection = false;
+        for (auto it = destIterator.first; it != destIterator.second; ++it) {
+            if (it->second == idPair) {
+                destinations.erase(it);
+                foundConnection = true;
+                break;
+            }
+        }
+        assert(foundConnection);
+        
+        auto busyInput = busyInputs.find(destinationKeyConnection);
+        assert(busyInput != busyInputs.end());
+        
+        busyInputs.erase(destinationKeyConnection);
+        
+        return true;
     }
     
     std::string print() const {
