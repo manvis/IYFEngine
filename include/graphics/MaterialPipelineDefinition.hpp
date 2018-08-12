@@ -433,8 +433,9 @@ enum class DefaultMaterialPipeline {
     COUNT
 };
 
-using DefaultMaterialPipelineDefinitionArray = std::array<MaterialPipelineDefinition, static_cast<std::size_t>(DefaultMaterialPipeline::COUNT)>;
-extern const DefaultMaterialPipelineDefinitionArray DefaultMaterialPipelineDefinitions;
+namespace con {
+    const MaterialPipelineDefinition& GetDefaultMaterialPipelineDefinition(DefaultMaterialPipeline pipeline);
+}
 }
 
 #endif // IYF_MATERIAL_PIPELINE_DEFINITION_HPP

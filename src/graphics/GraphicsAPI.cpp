@@ -416,6 +416,7 @@ SamplerHnd GraphicsAPI::createPresetSampler(SamplerPreset preset, float maxLod) 
     switch (preset) {
     case SamplerPreset::ImguiTexture:
         sci.minFilter = Filter::Linear;
+        sci.magFilter = Filter::Linear;
         break;
     case SamplerPreset::Default3DModel:
         sci.minFilter = Filter::Linear;

@@ -78,6 +78,7 @@ enum class ProfilerTag : std::uint32_t {
     AssetConversion,
     Editor,
     Sleep,
+    LogicGraph,
     // ---- CUSTOM TAG END
     
     COUNT       ///< The total number of tags.
@@ -128,6 +129,8 @@ const char* GetTagName(ProfilerTag tag) {
         return "Editor";
     case ProfilerTag::Sleep:
         return "Sleep";
+    case ProfilerTag::LogicGraph:
+        return "LogicGraph";
     }
     
     return "ERROR-INVALID-VALUE";
@@ -162,6 +165,8 @@ ScopeColor GetTagColor(ProfilerTag tag) {
         return ScopeColor(122, 65, 26, 255);
     case ProfilerTag::Sleep:
         return ScopeColor(128, 128, 128, 255);
+    case ProfilerTag::LogicGraph:
+        return ScopeColor(256, 128, 0, 255);
     }
     
     return ScopeColor(0, 0, 0, 255);

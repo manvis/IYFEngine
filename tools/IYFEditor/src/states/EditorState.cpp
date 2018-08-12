@@ -46,6 +46,7 @@
 #include "assets/AssetManager.hpp"
 #include "assets/loaders/MeshLoader.hpp"
 #include "localization/TextLocalization.hpp"
+#include "tools/MaterialEditor.hpp"
 
 #include "imgui.h"
 #include "tinyfiledialogs.h"
@@ -113,7 +114,7 @@ static void SquareConstraint(ImGuiSizeCallbackData* data) {
 
 EditorState::EditorState(iyf::Engine* engine) : GameState(engine),
         newLevelDialogRequested(false), levelName("test_level_name"), levelDescription("test_level_desc"), isPickPlaceMode(false), 
-        pickOrPlaceModeId(0), worldType(0), entityName("a"), cameraMode(CameraMode::Stationary), pipelineEditorOpen(true), 
+        pickOrPlaceModeId(0), worldType(0), entityName("a"), cameraMode(CameraMode::Stationary), pipelineEditorOpen(true), materialEditorOpen(true),
         currentlyPickedAssetType(0), maxClipboardElements(5), logWindow(engine) {
     
     filesToProcess.reserve(40);
@@ -174,6 +175,7 @@ void EditorState::initialize() {
     world->addCamera(false);
     
     pipelineEditor = std::make_unique<ShadingPipelineEditor>(engine, engine->getRenderer(), this);
+    materialEditor = std::make_unique<MaterialEditor>();
     
     FileSystem* filesystem = engine->getFileSystem();
     
@@ -182,7 +184,7 @@ void EditorState::initialize() {
     
     // TODO move this to tests
     {
-        MaterialPipelineDefinition def = DefaultMaterialPipelineDefinitions[static_cast<std::size_t>(DefaultMaterialPipeline::Toon)];
+        MaterialPipelineDefinition def = con::GetDefaultMaterialPipelineDefinition(DefaultMaterialPipeline::Toon);
         {
             VirtualFileSystemSerializer output("toon.iyfpl", File::OpenMode::Write);
             def.serialize(output);
@@ -557,6 +559,10 @@ void EditorState::frame(float delta) {
     
     if (pipelineEditorOpen) {
         //pipelineEditor->show(&pipelineEditorOpen);
+    }
+    
+    if (materialEditorOpen) {
+        materialEditor->show(&materialEditorOpen);
     }
     
     showAssetWindow();

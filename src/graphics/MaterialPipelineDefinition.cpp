@@ -454,8 +454,17 @@ R"glsl(    float toonStep = step(1.0f - vertColor.x, dot(normal, lightDirection)
     return definition;
 }
 
-const DefaultMaterialPipelineDefinitionArray DefaultMaterialPipelineDefinitions = {
-    MaterialPipelineDefinition(),
-    createToonPipelineDefinition(),
-};
+namespace con {
+
+const MaterialPipelineDefinition& GetDefaultMaterialPipelineDefinition(DefaultMaterialPipeline pipeline) {
+    using DefaultMaterialPipelineDefinitionArray = std::array<MaterialPipelineDefinition, static_cast<std::size_t>(DefaultMaterialPipeline::COUNT)>;
+    static const DefaultMaterialPipelineDefinitionArray DefaultMaterialPipelineDefinitions = {
+        MaterialPipelineDefinition(),
+        createToonPipelineDefinition(),
+    };
+    
+    return DefaultMaterialPipelineDefinitions[static_cast<std::size_t>(pipeline)];
+}
+
+}
 }

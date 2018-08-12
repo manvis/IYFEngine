@@ -29,3 +29,25 @@ string,,String
 custom,,Custom
 material,,Material
 any,,Any
+material_editor,material_nodes,Material Editor
+float,material_nodes,Float
+vec2,material_nodes,Vec2
+vec3,material_nodes,Vec3
+vec4,material_nodes,Vec4
+material_output_node,material_nodes,Material Output
+material_output_node_doc,material_nodes,The final destination of all inputs. Values from this node are sent to the light processing function.
+texture_input_node,material_nodes,Texture Input
+texture_input_node_doc,material_nodes,A texture used in the material.
+normal_map_input_node,material_nodes,Normal Map Input
+normal_map_input_node_doc,material_nodes,A normal map texture used in the material.
+uv,material_nodes,UV
+channel_count,material_nodes,Channel count
+channel_count_doc,material_nodes,"Texture inputs may have 1, 2, 3 or 4 channels."
+float_texture_doc,material_nodes,Single channel texture 
+vec2_texture_doc,material_nodes,Two channel texture
+vec3_texture_doc,material_nodes,Three channel texture
+vec4_texture_doc,material_nodes,Four channel texture
+float_texture,material_nodes,R
+vec2_texture,material_nodes,RG
+vec3_texture,material_nodes,RGB
+vec4_texture,material_nodes,RGBA

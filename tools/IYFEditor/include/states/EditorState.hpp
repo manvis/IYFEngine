@@ -50,18 +50,19 @@
 #include "core/filesystem/cppFilesystem.hpp"
 
 namespace iyf {
-    class Engine;
-    class Renderer;
-    class FileSystem;
-    class Project;
+class Engine;
+class Renderer;
+class FileSystem;
+class Project;
 }
 
 namespace iyft {
-    class ProfilerResults;
+class ProfilerResults;
 }
 
 namespace iyf::editor {
 class EditorUI;
+class MaterialEditor;
     
 class ImGuiLog {
 public:
@@ -217,9 +218,12 @@ protected:
     bool profilerOpen;
     
     void showProfilerWindow();
-// PIPELINE EDITING ------------------------------------------------------------
+// PIPELINE AND SHADER EDITING -------------------------------------------------
     std::unique_ptr<ShadingPipelineEditor> pipelineEditor;
     bool pipelineEditorOpen;
+    
+    std::unique_ptr<MaterialEditor> materialEditor;
+    bool materialEditorOpen;
 // FILE MANAGEMENT -------------------------------------------------------------
     void showAssetWindow();
     void updateProjectFiles();

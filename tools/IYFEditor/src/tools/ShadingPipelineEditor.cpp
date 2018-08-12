@@ -90,17 +90,15 @@ void ShadingPipelineEditor::show(bool* open) {
         ImGui::Text("Create a new pipeline");
         
         ImGui::InputText("Name", newPipelineNameBuf, sizeof(newPipelineNameBuf));
-        ImGui::Combo("Template", &chosenTemplate, [](void* in, int idx, const char** out_text){
-                DefaultMaterialPipelineDefinitionArray* defArray = static_cast<DefaultMaterialPipelineDefinitionArray*>(in);
-
-                // Checking if we're in bounds + silencing the comparison between signed and unsigned warning
-                if (idx < 0 || idx >= static_cast<int>(defArray->size())) {
+        ImGui::Combo("Template", &chosenTemplate, [](void*, int idx, const char** out_text){
+                // Checking if we're in bounds
+                if (idx < 0 || idx >= static_cast<int>(DefaultMaterialPipeline::COUNT)) {
                     return false;
                 }
 
-                *out_text = (*defArray)[idx].getName().c_str();
+                *out_text = con::GetDefaultMaterialPipelineDefinition(static_cast<DefaultMaterialPipeline>(idx)).getName().c_str();
                 return true;
-            }, reinterpret_cast<void*>(const_cast<DefaultMaterialPipelineDefinitionArray*>(&DefaultMaterialPipelineDefinitions)), DefaultMaterialPipelineDefinitions.size());
+            }, nullptr, static_cast<int>(DefaultMaterialPipeline::COUNT));
         
         if (ImGui::Button("Generate Pipeline")) {
             if (validateNewName(newPipelineNameBuf, currentErrorText)) {

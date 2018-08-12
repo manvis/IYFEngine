@@ -91,6 +91,14 @@ bool ImGuiImplementation::requestRenderThisFrame() {
         io.MousePos = ImVec2(-1.0f, -1.0f);
     }
 
+    if (is->getMouseWheelDeltaX() > 0) {
+        io.MouseWheelH =  1.0f;
+    } else if (is->getMouseWheelDeltaX() < 0) {
+        io.MouseWheelH = -1.0f;
+    } else {
+        io.MouseWheelH =  0.0f;
+    }
+    
     if (is->getMouseWheelDeltaY() > 0) {
         io.MouseWheel =  1.0f;
     } else if (is->getMouseWheelDeltaY() < 0) {
@@ -211,8 +219,17 @@ void ImGuiImplementation::initializeAssets() {
     void* fontData = std::malloc(fontAsset->size);
     std::memcpy(fontData, fontAsset->data, fontAsset->size);
     
+    ImFontConfig fontCfg;
+    
+    // Oversampling helps us reduce the amount of blur that appears when zooming fonts (e.g., in the material
+    // node editor).
+    //
+    // TODO Signed distance fields would be better (stb_true type can generate them, I think).
+    fontCfg.OversampleH = 8;
+    fontCfg.OversampleV = 8;
+    
     // This transfers the ownership to ImGui
-    io.Fonts->AddFontFromMemoryTTF(fontData, fontAsset->size, con::ImGuiFontSize, nullptr, ranges);
+    io.Fonts->AddFontFromMemoryTTF(fontData, fontAsset->size, con::ImGuiFontSize, &fontCfg, ranges);
     int fontAtlasWidth, fontAtlasHeight;
     unsigned char* pixelData;
     
