@@ -44,6 +44,7 @@ namespace iyf {
 
 /// Integer type used for connector IDs 
 using LogicGraphConnectorID = std::uint8_t;
+using ZIndex = std::uint32_t;
 
 /// A small Vec2 helper. Not using a glm::vec2 or ImVec2 here because I may need to reuse this header elsewhere.
 struct Vec2 {
@@ -190,13 +191,11 @@ public:
     using Key = NodeKey;
     using Connector = NodeConnector;
     
-    LogicGraphNode(Key key, Vec2 position, std::uint32_t zIndex, std::size_t selectedMode = 0) : key(key), position(std::move(position)), zIndex(zIndex), selectedMode(selectedMode) {}
+    LogicGraphNode(Key key, Vec2 position, ZIndex zIndex, std::size_t selectedMode = 0) : key(key), position(std::move(position)), zIndex(zIndex), selectedMode(selectedMode) {}
     
     virtual ~LogicGraphNode() {}
     
     virtual TypeEnum getType() const = 0;
-    virtual LocalizationHandle getLocalizationHandle() const = 0;
-    virtual LocalizationHandle getDocumentationLocalizationHandle() const = 0;
     
     /// \warning When overriding this, make sure to override getSupportedModes() as well.
     virtual bool supportsMultipleModes() const {
@@ -279,11 +278,11 @@ public:
         return !name.empty();
     }
     
-    inline std::uint32_t getZIndex() const {
+    inline ZIndex getZIndex() const {
         return zIndex;
     }
     
-    inline void setZIndex(std::uint32_t zIndex) {
+    inline void setZIndex(ZIndex zIndex) {
         this->zIndex = zIndex;
     }
     
@@ -312,7 +311,7 @@ private:
     
     Key key;
     Vec2 position;
-    std::uint32_t zIndex;
+    ZIndex zIndex;
     std::string name;
     std::size_t selectedMode;
 };
@@ -402,92 +401,6 @@ public:
         }
     };
     
-    /*class Connection {
-    public:
-        Connection(KeyConnectorPair source, KeyConnectorPair destination, const NodeType* sourcePtr, const NodeType* destinationPtr) 
-            : sourceKey(sourceKey), destinationKey(destinationKey), source(source), destination(destination), sourceConnectorID(sourceConnectorID), destinationConnectorID(destinationConnectorID) {}
-        
-        inline friend bool operator==(const Connection& a, const Connection& b) {
-            const bool keysEqual = (a.sourceKey == b.sourceKey) && (a.destinationKey == b.destinationKey);
-            const bool connectorIDsEqual = (a.sourceConnectorID == b.sourceConnectorID) && (a.destinationConnectorID == b.destinationConnectorID);
-            
-            return keysEqual && connectorIDsEqual;
-        }
-        
-        inline friend bool operator<(const Connection& a, const Connection& b) {
-            // check sourceKeys
-            if (a.sourceKey < b.sourceKey) {
-                return true;
-            }
-            
-            if (b.sourceKey < a.sourceKey) {
-                return false;
-            }
-            
-            // sourceKeys are equal, check sourceConnectorIDs
-            if (a.sourceConnectorID < b.sourceConnectorID) {
-                return true;
-            }
-            
-            if (b.sourceConnectorID < a.sourceConnectorID) {
-                return false;
-            }
-            
-            // sourceConnectorIDs are equal, check destinationKeys
-            if (a.destinationKey < b.destinationKey) {
-                return true;
-            }
-            
-            if (b.destinationKey < a.destinationKey) {
-                return false;
-            }
-            
-            // destinationKeys are equal, check destinationConnectorIDs
-            if (a.destinationConnectorID < b.destinationConnectorID) {
-                return true;
-            }
-            
-            if (b.destinationConnectorID < a.destinationConnectorID) {
-                return false;
-            }
-            
-            return false;
-        }
-        
-        inline NodeKey getSourceKey() const {
-            return sourceKey;
-        }
-        
-        inline NodeKey getDestinationKey() const {
-            return destinationKey;
-        }
-        
-        inline const NodeType* getSourceNode() const {
-            return source;
-        }
-        
-        inline const NodeType* getDestinationNode() const {
-            return destination;
-        }
-        
-        inline LogicGraphConnectorID isSourceConnectorID() const {
-            return sourceConnectorID;
-        }
-        
-        inline LogicGraphConnectorID isDestinationConnectorID() const {
-            return destinationConnectorID;
-        }
-    private:
-        NodeKey sourceKey;
-        NodeKey destinationKey;
-        
-        const NodeType* source;
-        const NodeType* destination;
-        
-        LogicGraphConnectorID sourceConnectorID;
-        LogicGraphConnectorID destinationConnectorID;
-    };*/
-    
     inline LogicGraph() : nextKey(0), selectedNode(0), nextZIndex(0) {}
     
     virtual ~LogicGraph() {
@@ -532,12 +445,47 @@ public:
     /// valid keys and zindexes. Once a node is created, you must call insertNode() to insert it into the graph.
     virtual NodeType* makeNode(NodeTypeEnum type, const Vec2& position) = 0;
     
-    virtual bool removeNode(NodeKey k) {
-        if (!hasNode(k)) {
+    virtual LocalizationHandle getNodeNameLocalizationHandle(NodeTypeEnum type) const = 0;
+    virtual LocalizationHandle getNodeDocumentationLocalizationHandle(NodeTypeEnum type) const = 0;
+    
+    virtual bool removeNode(NodeKey key) {
+        NodeType* node = getNode(key);
+        
+        if (node == nullptr || !node->isDeletable()) {
             return false;
         }
         
-        // TODO deselect and actually remove together with all connections
+        // At least one node (the destination) must remain
+        assert(nodes.size() > 1);
+        assert(key != 0);
+        
+        removeNodeInputs(node, false);
+        removeNodeOutputs(node, false);
+        
+        auto destinations = connections.find(key);
+        assert(destinations != connections.end());
+        assert(destinations->second.empty());
+        
+        connections.erase(destinations);
+        
+        nodes.erase(key);
+        
+        // Replace the selection with next highest node
+        if (selectedNode == key) {
+            NodeKey maxKey = 0;
+            ZIndex index = 0;
+            
+            for (const auto& n : nodes) {
+                const ZIndex currentIndex = n.second->getZIndex();
+                if (currentIndex >= index) {
+                    maxKey = n.first;
+                    index = currentIndex;
+                }
+            }
+            
+            selectedNode = maxKey;
+        }
+        
         return true;
     }
     
@@ -639,7 +587,7 @@ public:
         return NodeConnectionResult::Success;
     }
     
-    virtual void revalidateNodeConnections(const NodeType* node) {
+    void revalidateNodeConnections(const NodeType* node) {
         if (node == nullptr) {
             return;
         }
@@ -649,43 +597,8 @@ public:
             return;
         }
         
-        const auto& inputs = node->getInputs();
-        for (std::size_t i = 0; i < inputs.size(); ++i) {
-            const KeyConnectorPair destinationKeyConnection(node->getKey(), i);
-            
-            auto input = busyInputs.find(destinationKeyConnection);
-            if (input != busyInputs.end()) {
-                NodeType* source = getNode(input->second.getNodeKey());
-                assert(source != nullptr);
-                
-                auto connectorID = input->second.getConnectorID();
-                
-                NodeConnectionResult validationResult = validateConnection(source, connectorID, node, i);
-                if (validationResult != NodeConnectionResult::Success && validationResult != NodeConnectionResult::OccupiedDestination) {
-                    const bool removed = removeConnection(source, connectorID, node, i, true);
-                    assert(removed);
-                }
-            }
-        }
-        
-        DestinationMultiMap& destinations = connections[node->getKey()];
-        for (auto destination = destinations.begin(); destination != destinations.end();) {
-            auto outputConnectorID = destination->second.first;
-            auto inputConnectorID = destination->second.second;
-            NodeType* destinationNode = getNode(destination->first);
-            
-            assert(destinationNode != nullptr);
-            
-            // We may have to erase this element and that would invalidate the iterator, therefore, we need to advance it before use
-            ++destination;
-            
-            NodeConnectionResult validationResult = validateConnection(node, outputConnectorID, destinationNode, inputConnectorID);
-            if (validationResult != NodeConnectionResult::Success && validationResult != NodeConnectionResult::OccupiedDestination) {
-                //LOG_D("Disconnecting input node. Key: " << node << "; Connector: " << i);
-                const bool removed = removeConnection(node, outputConnectorID, destinationNode, inputConnectorID, true);
-                assert(removed);
-            };
-        }
+        removeNodeInputs(node, true);
+        removeNodeOutputs(node, true);
     }
     
     NodeConnectionResult addConnection(const NodeType* source, LogicGraphConnectorID outputID, const NodeType* destination, LogicGraphConnectorID inputID) {
@@ -764,6 +677,58 @@ public:
         return "";
     }
 protected:
+    void removeNodeInputs(const NodeType* node, bool onlyInvalid) {
+        const auto& inputs = node->getInputs();
+        for (std::size_t i = 0; i < inputs.size(); ++i) {
+            const KeyConnectorPair destinationKeyConnection(node->getKey(), i);
+            
+            auto input = busyInputs.find(destinationKeyConnection);
+            if (input != busyInputs.end()) {
+                NodeType* source = getNode(input->second.getNodeKey());
+                assert(source != nullptr);
+                
+                auto connectorID = input->second.getConnectorID();
+                
+                if (onlyInvalid) {
+                    NodeConnectionResult validationResult = validateConnection(source, connectorID, node, i);
+                    if (validationResult != NodeConnectionResult::Success && validationResult != NodeConnectionResult::OccupiedDestination) {
+                        const bool removed = removeConnection(source, connectorID, node, i, true);
+                        assert(removed);
+                    }
+                } else {
+                    const bool removed = removeConnection(source, connectorID, node, i, true);
+                    assert(removed);
+                }
+            }
+        }
+    }
+    
+    void removeNodeOutputs(const NodeType* node, bool onlyInvalid) {
+        DestinationMultiMap& destinations = connections[node->getKey()];
+        for (auto destination = destinations.begin(); destination != destinations.end();) {
+            auto outputConnectorID = destination->second.first;
+            auto inputConnectorID = destination->second.second;
+            NodeType* destinationNode = getNode(destination->first);
+            
+            assert(destinationNode != nullptr);
+            
+            // We may have to erase this element and that would invalidate the iterator, therefore, we need to advance it before use
+            ++destination;
+            
+            if (onlyInvalid) {
+                NodeConnectionResult validationResult = validateConnection(node, outputConnectorID, destinationNode, inputConnectorID);
+                if (validationResult != NodeConnectionResult::Success && validationResult != NodeConnectionResult::OccupiedDestination) {
+                    
+                    const bool removed = removeConnection(node, outputConnectorID, destinationNode, inputConnectorID, true);
+                    assert(removed);
+                }
+            } else {
+                const bool removed = removeConnection(node, outputConnectorID, destinationNode, inputConnectorID, true);
+                assert(removed);
+            }
+        }
+    }
+    
     /// This function inserts the node into the graph and increments the key.
     ///
     /// This function is supposed to be used inside makeNode().
@@ -809,7 +774,7 @@ protected:
 private:
     NodeKey nextKey;
     NodeKey selectedNode;
-    std::uint32_t nextZIndex;
+    ZIndex nextZIndex;
     
     std::unordered_map<NodeKey, NodeType*> nodes;
     

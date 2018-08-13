@@ -61,6 +61,9 @@ public:
     virtual ~MaterialLogicGraph();
     
     virtual MaterialNode* makeNode(MaterialNodeType type, const Vec2& position) final override;
+    virtual LocalizationHandle getNodeNameLocalizationHandle(NodeTypeEnum type) const final override;
+    virtual LocalizationHandle getNodeDocumentationLocalizationHandle(NodeTypeEnum type) const final override;
+    
     virtual std::string getConnectorTypeName(MaterialNodeConnectorType type) const final override;
     virtual std::uint32_t getConnectorTypeColor(ConnectorType type) const final override;
     

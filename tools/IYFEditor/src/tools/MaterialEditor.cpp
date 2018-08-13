@@ -62,14 +62,6 @@ public:
     virtual MaterialNodeType getType() const final override {
         return MaterialNodeType::PerFrameData;
     }
-    
-    virtual LocalizationHandle getLocalizationHandle() const final override {
-        return LH("per_frame_data_node", MaterialNodeLocalizationNamespace);
-    }
-    
-    virtual LocalizationHandle getDocumentationLocalizationHandle() const final override {
-        return LH("per_frame_data_node_doc", MaterialNodeLocalizationNamespace);
-    }
 };
 
 class MaterialOutputNode : public MaterialNode {
@@ -99,14 +91,6 @@ public:
         return MaterialNodeType::Output;
     }
     
-    virtual LocalizationHandle getLocalizationHandle() const final override {
-        return LH("material_output_node", MaterialNodeLocalizationNamespace);
-    }
-    
-    virtual LocalizationHandle getDocumentationLocalizationHandle() const final override {
-        return LH("material_output_node_doc", MaterialNodeLocalizationNamespace);
-    }
-    
     /// MaterialOutputNode must never be deleted
     virtual bool isDeletable() const final override {
         return false;
@@ -123,14 +107,6 @@ public:
     
     virtual MaterialNodeType getType() const final override {
         return MaterialNodeType::TextureInput;
-    }
-    
-    virtual LocalizationHandle getLocalizationHandle() const final override {
-        return LH("texture_input_node", MaterialNodeLocalizationNamespace);
-    }
-    
-    virtual LocalizationHandle getDocumentationLocalizationHandle() const final override {
-        return LH("texture_input_node_doc", MaterialNodeLocalizationNamespace);
     }
     
     virtual bool supportsMultipleModes() const final override {
@@ -191,14 +167,6 @@ public:
     virtual MaterialNodeType getType() const final override {
         return MaterialNodeType::NormalMapInput;
     }
-    
-    virtual LocalizationHandle getLocalizationHandle() const final override {
-        return LH("normal_map_input_node", MaterialNodeLocalizationNamespace);
-    }
-    
-    virtual LocalizationHandle getDocumentationLocalizationHandle() const final override {
-        return LH("normal_map_input_node_doc", MaterialNodeLocalizationNamespace);
-    }
 };
 
 // class VectorSplitter : public MaterialNode {
@@ -238,6 +206,36 @@ MaterialNode* MaterialLogicGraph::makeNode(MaterialNodeType type, const Vec2& po
     }
     
     return node;
+}
+
+LocalizationHandle MaterialLogicGraph::getNodeNameLocalizationHandle(NodeTypeEnum type) const {
+    switch (type) {
+        case MaterialNodeType::Output:
+            return LH("material_output_node", MaterialNodeLocalizationNamespace);
+        case MaterialNodeType::TextureInput:
+            return LH("texture_input_node", MaterialNodeLocalizationNamespace);
+        case MaterialNodeType::NormalMapInput:
+            return LH("normal_map_input_node", MaterialNodeLocalizationNamespace);
+        case MaterialNodeType::PerFrameData:
+            return LH("per_frame_data_node", MaterialNodeLocalizationNamespace);
+    }
+    
+    throw std::runtime_error("Unknown NodeTypeEnum");
+}
+
+LocalizationHandle MaterialLogicGraph::getNodeDocumentationLocalizationHandle(NodeTypeEnum type) const {
+    switch (type) {
+        case MaterialNodeType::Output:
+            return LH("material_output_node_doc", MaterialNodeLocalizationNamespace);
+        case MaterialNodeType::TextureInput:
+            return LH("texture_input_node_doc", MaterialNodeLocalizationNamespace);
+        case MaterialNodeType::NormalMapInput:
+            return LH("normal_map_input_node_doc", MaterialNodeLocalizationNamespace);
+        case MaterialNodeType::PerFrameData:
+            return LH("per_frame_data_node_doc", MaterialNodeLocalizationNamespace);
+    }
+    
+    throw std::runtime_error("Unknown NodeTypeEnum");
 }
 
 std::string MaterialLogicGraph::getConnectorTypeName(MaterialNodeConnectorType type) const {
