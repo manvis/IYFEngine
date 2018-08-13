@@ -352,7 +352,7 @@ public:
     
     class KeyConnectorPair {
     public:
-        KeyConnectorPair() : key(0), connector(0) {}
+        KeyConnectorPair() : key(InvalidKey), connector(NodeType::Connector::InvalidID) {}
         KeyConnectorPair(NodeKey key, LogicGraphConnectorID connector) : key(key), connector(connector) {}
         
         inline NodeKey getNodeKey() const {
@@ -385,6 +385,10 @@ public:
         
         inline friend bool operator==(const KeyConnectorPair& a, const KeyConnectorPair& b) {
             return (a.key == b.key) && (a.connector == b.connector);
+        }
+        
+        inline bool isValid() const {
+            return (key != InvalidKey) && (connector != NodeType::Connector::InvalidID); 
         }
     private:
         NodeKey key;
@@ -745,6 +749,15 @@ public:
         busyInputs.erase(destinationKeyConnection);
         
         return true;
+    }
+    
+    inline KeyConnectorPair getSource(KeyConnectorPair input) const {
+        auto source = busyInputs.find(input);
+        if (source != busyInputs.end()) {
+            return source->second;
+        }
+        
+        return KeyConnectorPair();
     }
     
     std::string print() const {

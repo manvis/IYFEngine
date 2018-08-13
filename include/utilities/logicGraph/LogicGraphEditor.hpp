@@ -239,6 +239,7 @@ bool LogicGraphEditor<T>::validateConnection(bool connectIfValidated) {
     }
     
     bool success = false;
+    bool replace = false;
     switch (result) {
         case NodeConnectionResult::Success:
             success = true;
@@ -279,6 +280,7 @@ bool LogicGraphEditor<T>::validateConnection(bool connectIfValidated) {
             break;
         case NodeConnectionResult::OccupiedDestination:
             showConnectionErrorTooltip("A connection will be replaced");
+            replace = true;
             break;
         case NodeConnectionResult::InsertionFailed:
             showConnectionErrorTooltip("Failed to connect");
@@ -288,12 +290,28 @@ bool LogicGraphEditor<T>::validateConnection(bool connectIfValidated) {
             break;
     }
     
-    if (success && connectIfValidated) {
+    if ((success || replace) && connectIfValidated) {
         NodeConnectionResult connectionResult;
         if (!newConnectionStart.isInput) {
+            using KeyConnectorPair = typename T::KeyConnectorPair;
+            
+            if (replace) {
+                KeyConnectorPair source = graph->getSource(KeyConnectorPair(connectionEndNode->getKey(), hoveredConnector.connectorID));
+                bool removed = graph->removeConnection(graph->getNode(source.getNodeKey()), source.getConnectorID(),
+                                                       connectionEndNode, hoveredConnector.connectorID);
+                
+                assert(removed);
+            }
+            
             connectionResult = graph->addConnection(connectionStartNode, newConnectionStart.connectorID,
                                                     connectionEndNode, hoveredConnector.connectorID);
         } else {
+            // When you start dragging from a connected input, it gets disconnected and this cannot happen,
+            // unless someone messed up the disconnection logic
+            if (replace) {
+                assert(false);
+            }
+            
             connectionResult = graph->addConnection(connectionEndNode, hoveredConnector.connectorID,
                                                     connectionStartNode, newConnectionStart.connectorID);
         }
@@ -301,7 +319,7 @@ bool LogicGraphEditor<T>::validateConnection(bool connectIfValidated) {
         assert(connectionResult == NodeConnectionResult::Success);
     }
     
-    return success;
+    return success || (connectIfValidated && replace);
 }
 
 template <typename T>
@@ -377,6 +395,7 @@ void LogicGraphEditor<T>::handleTransformations() {
     const bool canDrag = hovered && !ctrl && !shift && !collapsed;
     if (canDrag && ImGui::IsMouseDragging(0, 1.0f)) {
         if (dragMode == DragMode::Connector) {
+            
             const auto startResult = connectorDataCache.find(newConnectionStart);
             assert(startResult != connectorDataCache.end());
             
@@ -387,9 +406,9 @@ void LogicGraphEditor<T>::handleTransformations() {
             
             drawConnectionCurve(start, end, color);
             
-            const float connectorSlotRadius = computeConnectorSlotRadius();
+//             const float connectorSlotRadius = computeConnectorSlotRadius();
             
-            dl->AddCircleFilled(start, connectorSlotRadius, color);
+//             dl->AddCircleFilled(start, connectorSlotRadius, color);
             
             if (isConnectorHovered()) {
                 const auto result = connectorDataCache.find(hoveredConnector);
@@ -397,7 +416,7 @@ void LogicGraphEditor<T>::handleTransformations() {
                 
                 validateConnection();
                 
-                dl->AddCircleFilled(result->second.first, connectorSlotRadius, result->second.second);
+//                 dl->AddCircleFilled(result->second.first, connectorSlotRadius, result->second.second);
             }
         } else if (dragMode == DragMode::Node) {
             const ImVec2 delta = ImGui::GetMouseDragDelta(0);
@@ -406,7 +425,24 @@ void LogicGraphEditor<T>::handleTransformations() {
         } else {
             if (isConnectorHovered()) {
                 dragMode = DragMode::Connector;
-                newConnectionStart = hoveredConnector;
+                
+                if (hoveredConnector.isInput) {
+                    using KeyConnectorPair = typename T::KeyConnectorPair;
+                    
+                    KeyConnectorPair source = graph->getSource(KeyConnectorPair(hoveredConnector.nodeKey, hoveredConnector.connectorID));
+                    
+                    // This unplugs an existing connection, similarly to how Blender does it
+                    if (source.isValid()) {
+                        bool removed = graph->removeConnection(graph->getNode(source.getNodeKey()), source.getConnectorID(),
+                                                               graph->getNode(hoveredConnector.nodeKey), hoveredConnector.connectorID);
+                        assert(removed);
+                        newConnectionStart = ConnectorKey(source.getNodeKey(), source.getConnectorID(), false);
+                    } else {
+                        newConnectionStart = hoveredConnector;
+                    }
+                } else {
+                    newConnectionStart = hoveredConnector;
+                }
             } else if (anyNodeHovered) {
                 dragMode = DragMode::Node;
             }
