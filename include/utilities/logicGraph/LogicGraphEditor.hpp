@@ -64,8 +64,8 @@ template <typename T>
 class LogicGraphEditor {
 public:
     LogicGraphEditor(NodeEditorSettings settings = NodeEditorSettings()) 
-        : scale(1.0f), nodeInfoWidth(200.0f), canvasPosition(0.0f, 0.0f), settings(std::move(settings)), hoveredNodeKey(T::InvalidKey),
-          contextMenuNodeKey(T::InvalidKey), dragMode(DragMode::NoDrag) {
+        : scale(1.0f), nodeInfoWidth(200.0f), canvasPosition(0.0f, 0.0f), nodeCreationMenuLocation(0.0f, 0.0f), settings(std::move(settings)), hoveredNodeKey(T::InvalidKey),
+          contextMenuNodeKey(T::InvalidKey), dragMode(DragMode::NoDrag), wasMouse1DraggingLastFrame(false) {
         name.resize(128, '\0');
     }
     virtual ~LogicGraphEditor() {}
@@ -87,6 +87,7 @@ protected:
     
     float computeConnectorSlotRadius();
     void drawConnectionCurve(const ImVec2& start, const ImVec2& end, ImU32 color);
+    ImVec2 mousePosToCanvasPos();
     
     inline bool isConnectorHovered() const {
         return hoveredConnector.isValid();
@@ -136,6 +137,7 @@ protected:
     float scale;
     float nodeInfoWidth;
     ImVec2 canvasPosition;
+    ImVec2 nodeCreationMenuLocation;
     ImVec2 canvasSize;
     ImVec2 lastScrollMax;
     const NodeEditorSettings settings;
@@ -174,6 +176,7 @@ protected:
     ConnectorKey hoveredConnector;
     ConnectorKey newConnectionStart;
     DragMode dragMode;
+    bool wasMouse1DraggingLastFrame;
 };
 
 template <typename T>
@@ -333,6 +336,18 @@ void LogicGraphEditor<T>::showConnectionErrorTooltip(const char* text) const {
 }
 
 template <typename T>
+ImVec2 LogicGraphEditor<T>::mousePosToCanvasPos() {
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    
+    const ImVec2 clipMin = dl->GetClipRectMin();
+    const ImVec2 mousePos = ImGui::GetMousePos();
+    const ImVec2 mouseRelativePos(mousePos.x - clipMin.x, mousePos.y - clipMin.y);
+    
+    return ImVec2(canvasPosition.x + (mouseRelativePos.x / scale),
+                  canvasPosition.y + (mouseRelativePos.y / scale));
+}
+
+template <typename T>
 void LogicGraphEditor<T>::handleTransformations() {
     IYFT_PROFILE(handleTransformations, iyft::ProfilerTag::LogicGraph);
     
@@ -347,23 +362,13 @@ void LogicGraphEditor<T>::handleTransformations() {
     const bool anyClicks = ImGui::IsAnyMouseDown();
     const bool anyNodeHovered = (hoveredNodeKey != T::InvalidKey);
     
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    
     if (hovered && !ctrl && !shift && !anyClicks && hasWheelMovedV && !collapsed) {
-        const float previousScale = scale;
-        
-        const ImVec2 clipMin = dl->GetClipRectMin();
-        const ImVec2 mousePos = ImGui::GetMousePos();
-        const ImVec2 mouseRelativePos(mousePos.x - clipMin.x, mousePos.y - clipMin.y);
-        
-        const ImVec2 offsetPreMod(canvasPosition.x + (mouseRelativePos.x / previousScale),
-                                  canvasPosition.y + (mouseRelativePos.y / previousScale));
+        const ImVec2 offsetPreMod = mousePosToCanvasPos();
         
         scale += io.MouseWheel * settings.zoomMultiplier;
         scale = std::clamp(scale, 0.7f, 3.0f);
         
-        const ImVec2 offsetPostMod(canvasPosition.x + (mouseRelativePos.x / scale),
-                                   canvasPosition.y + (mouseRelativePos.y / scale));
+        const ImVec2 offsetPostMod = mousePosToCanvasPos();
         
         const ImVec2 canvasPre(canvasPosition);
         
@@ -384,13 +389,15 @@ void LogicGraphEditor<T>::handleTransformations() {
     }
     
     const bool canSelect = hovered && !ctrl && !shift && !collapsed;
-    if (canSelect && (ImGui::IsMouseClicked(0) || ImGui::IsMouseClicked(1)) && !ImGui::IsMouseDragging(0) && !ImGui::IsMouseDragging(1)) {
+    if (canSelect && ImGui::IsMouseClicked(0) && !ImGui::IsMouseDragging(0)) {
         if (anyNodeHovered && (hoveredNodeKey != graph->getSelectedNodeKey())) {
             // Since nodes are sorted, this will automatically be the node with the highest zIndex
             const bool selectionSucceeded = graph->selectNode(hoveredNodeKey);
             assert(selectionSucceeded);
             
             graph->nodeToTop(hoveredNodeKey);
+        } else if (!anyNodeHovered) {
+            graph->deselectNode();
         }
     }
     
@@ -453,20 +460,59 @@ void LogicGraphEditor<T>::handleTransformations() {
         dragMode = DragMode::NoDrag;
     }
     
-    if (canSelect && anyNodeHovered && ImGui::IsMouseReleased(1) && !ImGui::IsMouseDragging(1)) {
+    const ImGuiWindowFlags contextMenuFlags = ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoSavedSettings;
+    if (canSelect && anyNodeHovered && !wasMouse1DraggingLastFrame && ImGui::IsMouseReleased(1) && !ImGui::IsMouseDragging(1)) {
         ImGui::OpenPopup("Node Context Menu");
         contextMenuNodeKey = hoveredNodeKey;
     }
     
-    if (ImGui::BeginPopup("Node Context Menu", ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoSavedSettings)) {
+    if (ImGui::BeginPopup("Node Context Menu", contextMenuFlags)) {
         auto node = graph->getNode(contextMenuNodeKey);
-        if (ImGui::MenuItem("Delete", nullptr, false, node->isDeletable())) {
+        ImGui::TextDisabled("Type: %s; Key: %d", LOC_SYS(graph->getNodeTypeInfo(node->getType()).name).c_str(), node->getKey());
+        ImGui::Separator();
+        
+        if (ImGui::MenuItem("Delete", nullptr, false, graph->getNodeTypeInfo(node->getType()).deletable)) {
             const bool result = graph->removeNode(contextMenuNodeKey);
             assert(result);
             hoveredNodeKey = T::InvalidKey;
         }
         
         ImGui::EndPopup();
+    }
+    
+    if (canSelect && !anyNodeHovered && !wasMouse1DraggingLastFrame && ImGui::IsMouseReleased(1) && !ImGui::IsMouseDragging(1)) {
+        ImGui::OpenPopup("Node Creation Menu");
+        
+        nodeCreationMenuLocation = mousePosToCanvasPos();
+    }
+    
+    if (ImGui::BeginPopup("Node Creation Menu", contextMenuFlags)) {
+        ImGui::TextDisabled("Create a new node");
+        ImGui::Separator();
+        
+        using NodeTypeInt = std::underlying_type_t<typename T::NodeTypeEnum>;
+        for (NodeTypeInt i = 0; i < graph->getNodeTypeCount(); ++i) {
+            auto enumValue = static_cast<typename T::NodeTypeEnum>(i);
+            
+            if (!graph->getNodeTypeInfo(enumValue).instantiable) {
+                continue;
+            }
+            
+            const std::string nodeTypeName = LOC_SYS(graph->getNodeTypeInfo(enumValue).name);
+            assert(!nodeTypeName.empty());
+            
+            if (ImGui::MenuItem(nodeTypeName.c_str())) {
+                graph->addNode(enumValue, Vec2(nodeCreationMenuLocation.x, nodeCreationMenuLocation.y));
+            }
+        }
+        
+        ImGui::EndPopup();
+    }
+    
+    if (ImGui::IsMouseDragging(1)) {
+        wasMouse1DraggingLastFrame = true;
+    } else {
+        wasMouse1DraggingLastFrame = false;
     }
 }
 
@@ -489,15 +535,20 @@ void LogicGraphEditor<T>::drawNodeEditor() {
         ImGui::SetNextTreeNodeOpen(true, ImGuiCond_Once);
         if (ImGui::TreeNode("Editor Debug")) {
             ImGui::Text("Selected node");
-            ImGui::Text("\tID: %u", graph->getSelectedNodeKey());
-            ImGui::Text("\tZ-index: %u", graph->getSelectedNode()->getZIndex());
             
-            const Vec2 pos = graph->getSelectedNode()->getPosition();
-            ImGui::Text("\tPosition: %.2f %.2f", pos.x, pos.y);
+            if (graph->hasSelectedNode()) {
+                ImGui::Text("\tKey: %u", graph->getSelectedNodeKey());
+                ImGui::Text("\tZ-index: %u", graph->getSelectedNode()->getZIndex());
+                
+                const Vec2 pos = graph->getSelectedNode()->getPosition();
+                ImGui::Text("\tPosition: %.2f %.2f", pos.x, pos.y);
+            } else {
+                ImGui::Text("\tNone");
+            }
             
             ImGui::Text("Hovered node");
             if (hoveredNodeKey != T::InvalidKey) {
-                ImGui::Text("\tID: %u", hoveredNodeKey);
+                ImGui::Text("\tKey: %u", hoveredNodeKey);
                 ImGui::Text("\tZ-index: %u", graph->getNode(hoveredNodeKey)->getZIndex());
                 ImGui::Text("\tHovered connector");
                 if (isConnectorHovered()) {
@@ -561,14 +612,38 @@ void LogicGraphEditor<T>::drawNodeEditor() {
 
 template <typename T>
 void LogicGraphEditor<T>::drawNodeProperties() {
-    ImGui::Text("Node Properties");
+    if (!graph->hasSelectedNode()) {
+        return;
+    }
+    
+    ImGui::Text("Selected Node Properties");
+    
+    auto& node = *graph->getSelectedNode();
+    ImGui::Text("Type: %s", LOC_SYS(graph->getNodeTypeInfo(node.getType()).name).c_str());
+    
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered()) {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        
+        const std::string localizedDoc = LOC_SYS(graph->getNodeTypeInfo(node.getType()).documentation);
+        
+        if (localizedDoc.empty()) {
+            ImGui::Text("No documentation found");
+        } else {
+            ImGui::TextUnformatted(localizedDoc.c_str(), localizedDoc.c_str() + localizedDoc.length());
+        }
+        
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
     
     // Zero out the name
     if (graph->getSelectedNodeKey() != lastSelectedNode) {
         std::memset(name.data(), 0, name.size() * sizeof(char));
     }
     
-    auto& node = *graph->getSelectedNode();
     if (node.hasName()) {
         std::memcpy(name.data(), node.getName().c_str(), node.getName().length() + 1);
     }
@@ -610,8 +685,6 @@ void LogicGraphEditor<T>::drawNodeProperties() {
             ImGui::EndCombo();
         }
     }
-    
-    ImGui::Text("%s", LOC_SYS(graph->getNodeDocumentationLocalizationHandle(node.getType())).c_str());
 }
 
 template <typename T>
@@ -673,10 +746,10 @@ void LogicGraphEditor<T>::drawNodes() {
         const ImVec2 nodeEnd(nodeStart.x + nodeWidth, nodeStart.y + nodeHeight);
         
         // TODO figure out a way to skip invisible nodes, while maintaining the connector position cache
-        
         if (ImGui::IsMouseHoveringRect(nodeStart, nodeEnd)) {
             hoveredNodeKey = node.getKey();
             
+            // Clear out hovered connector data from any nodes that are below this one
             if (isConnectorHovered()) {
                 hoveredConnector = ConnectorKey();
             }
@@ -717,7 +790,7 @@ void LogicGraphEditor<T>::drawNodes() {
             const char* str = node.getName().c_str();
             dl->AddText(namePos, fontColor, str, str + node.getName().length());
         } else {
-            const std::string string = LOC_SYS(graph->getNodeNameLocalizationHandle(node.getType()));
+            const std::string string = LOC_SYS(graph->getNodeTypeInfo(node.getType()).name);
             const char* str = string.c_str();
             
             dl->AddText(namePos, fontColor, str, str + string.length());
@@ -738,6 +811,7 @@ void LogicGraphEditor<T>::drawNodes() {
             
             if (ImGui::IsMouseHoveringRect(ImVec2(connectorPos.x - connectorRadius, connectorPos.y - connectorRadius),
                                            ImVec2(connectorPos.x + connectorRadius, connectorPos.y + connectorRadius))) {
+                hoveredNodeKey = node.getKey();
                 hoveredConnector = ConnectorKey(node.getKey(), o.getID(), false);
                 
                 isHovered = true;
@@ -780,6 +854,7 @@ void LogicGraphEditor<T>::drawNodes() {
             
             if (ImGui::IsMouseHoveringRect(ImVec2(connectorPos.x - connectorRadius, connectorPos.y - connectorRadius),
                                            ImVec2(connectorPos.x + connectorRadius, connectorPos.y + connectorRadius))) {
+                hoveredNodeKey = node.getKey();
                 hoveredConnector = ConnectorKey(node.getKey(), i.getID(), true);
                 
                 isHovered = true;

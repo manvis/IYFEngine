@@ -231,11 +231,6 @@ public:
         return changeAccepted;
     }
     
-    /// \brief Some important nodes may need to always be present in the graph. If this is true, this node will ignore any deletion requests.
-    virtual bool isDeletable() const {
-        return true;
-    }
-    
     inline Key getKey() const {
         return key;
     }
@@ -314,6 +309,23 @@ private:
     ZIndex zIndex;
     std::string name;
     std::size_t selectedMode;
+};
+
+struct LogicGraphNodeTypeInfo {
+    LogicGraphNodeTypeInfo(LocalizationHandle name, LocalizationHandle documentation, bool instantiable, bool deletable)
+     : name(name), documentation(documentation), instantiable(instantiable), deletable(deletable) {}
+    
+    /// A LocalizationHandle that can be used to retrieve a localized name for this node type.
+    LocalizationHandle name;
+    
+    /// A LocalizationHandle that can be used to retrieve a localized documentation string for this node type.
+    LocalizationHandle documentation;
+    
+    /// If true, nodes of this type may be instantiated by calling the LogicGraph::makeNode() function.
+    bool instantiable;
+    
+    /// If true, nodes of this type may be deleted by calling the LogicGraph::removeNode() function.
+    bool deletable;
 };
 
 /*class NodeConnectionResult {
@@ -401,7 +413,7 @@ public:
         }
     };
     
-    inline LogicGraph() : nextKey(0), selectedNode(0), nextZIndex(0) {}
+    inline LogicGraph() : nextKey(0), selectedNode(InvalidKey), nextZIndex(0) {}
     
     virtual ~LogicGraph() {
         for (auto& n : nodes) {
@@ -443,21 +455,24 @@ public:
     /// \remark When implementing, make sure to use newNode() or base your node creation logic implementation on it.
     /// newNode() contains asserts that will help you catch certain common node implementation errors and assing
     /// valid keys and zindexes. Once a node is created, you must call insertNode() to insert it into the graph.
-    virtual NodeType* makeNode(NodeTypeEnum type, const Vec2& position) = 0;
+    virtual NodeType* addNode(NodeTypeEnum type, const Vec2& position) = 0;
     
-    virtual LocalizationHandle getNodeNameLocalizationHandle(NodeTypeEnum type) const = 0;
-    virtual LocalizationHandle getNodeDocumentationLocalizationHandle(NodeTypeEnum type) const = 0;
+    inline const LogicGraphNodeTypeInfo& getNodeTypeInfo(NodeTypeEnum type) const {
+        assert(nodeTypeInfo.size() == getNodeTypeCount());
+        
+        return nodeTypeInfo[static_cast<std::size_t>(type)];
+    }
+    
+    virtual std::underlying_type_t<NodeTypeEnum> getNodeTypeCount() const {
+        return static_cast<std::underlying_type_t<NodeTypeEnum>>(NodeTypeEnum::COUNT);
+    }
     
     virtual bool removeNode(NodeKey key) {
         NodeType* node = getNode(key);
         
-        if (node == nullptr || !node->isDeletable()) {
+        if (node == nullptr || !getNodeTypeInfo(node->getType()).deletable) {
             return false;
         }
-        
-        // At least one node (the destination) must remain
-        assert(nodes.size() > 1);
-        assert(key != 0);
         
         removeNodeInputs(node, false);
         removeNodeOutputs(node, false);
@@ -468,25 +483,34 @@ public:
         
         connections.erase(destinations);
         
-        nodes.erase(key);
+        auto nodeResult = nodes.find(key);
+        assert(nodeResult != nodes.end());
         
-        // Replace the selection with next highest node
+        delete nodeResult->second;
+        nodes.erase(nodeResult);
+        
         if (selectedNode == key) {
-            NodeKey maxKey = 0;
-            ZIndex index = 0;
-            
-            for (const auto& n : nodes) {
-                const ZIndex currentIndex = n.second->getZIndex();
-                if (currentIndex >= index) {
-                    maxKey = n.first;
-                    index = currentIndex;
-                }
-            }
-            
-            selectedNode = maxKey;
+            deselectNode();
+//             // Replaces the selection with next highest node
+//             NodeKey maxKey = 0;
+//             ZIndex index = 0;
+//             
+//             for (const auto& n : nodes) {
+//                 const ZIndex currentIndex = n.second->getZIndex();
+//                 if (currentIndex >= index) {
+//                     maxKey = n.first;
+//                     index = currentIndex;
+//                 }
+//             }
+//             
+//             selectedNode = maxKey;
         }
         
         return true;
+    }
+    
+    inline void deselectNode() {
+        selectedNode = InvalidKey;
     }
     
     inline bool selectNode(NodeKey k) {
@@ -498,12 +522,19 @@ public:
         return true;
     }
     
+    inline bool hasSelectedNode() const {
+        return selectedNode != InvalidKey;
+    }
+    
     inline NodeKey getSelectedNodeKey() const {
-        // TODO no node selected case
         return selectedNode;
     }
     
     inline NodeType* getSelectedNode() const {
+        if (!hasSelectedNode()) {
+            return nullptr;
+        }
+        
         return getNode(selectedNode);
     }
     
@@ -533,6 +564,9 @@ public:
         return true;
     }
     
+    /// \brief Checks if two nodes can be connected.
+    ///
+    /// \return An enum value that informs the user if a connection can be established and the reason why if it cannot.
     NodeConnectionResult validateConnection(const NodeType* source, LogicGraphConnectorID outputID, const NodeType* destination, LogicGraphConnectorID inputID) const {
         // Catch null pointers
         if (source == nullptr) {
@@ -587,6 +621,7 @@ public:
         return NodeConnectionResult::Success;
     }
     
+    /// Validates all node connections and removes those that are no longer possible. This may happen after the mode of the node changes.
     void revalidateNodeConnections(const NodeType* node) {
         if (node == nullptr) {
             return;
@@ -771,6 +806,8 @@ protected:
         
         return node;
     }
+
+    std::vector<LogicGraphNodeTypeInfo> nodeTypeInfo;
 private:
     NodeKey nextKey;
     NodeKey selectedNode;
@@ -785,7 +822,6 @@ private:
     
     /// All connections that exist inside the graph
     std::unordered_map<NodeKey, DestinationMultiMap> connections;
-    //std::set<Connection> connections;
 };
 
 }

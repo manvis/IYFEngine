@@ -90,11 +90,6 @@ public:
     virtual MaterialNodeType getType() const final override {
         return MaterialNodeType::Output;
     }
-    
-    /// MaterialOutputNode must never be deleted
-    virtual bool isDeletable() const final override {
-        return false;
-    }
 private:
 };
 
@@ -174,6 +169,30 @@ public:
 // };
 
 MaterialLogicGraph::MaterialLogicGraph(const MaterialPipelineDefinition& definition) {
+    nodeTypeInfo.reserve(static_cast<std::uint32_t>(MaterialNodeType::COUNT));
+    
+    // MaterialNodeType::Output
+    nodeTypeInfo.emplace_back(LH("material_output_node", MaterialNodeLocalizationNamespace),
+                              LH("material_output_node_doc", MaterialNodeLocalizationNamespace),
+                              false, false);
+    
+    // MaterialNodeType::TextureInput
+    nodeTypeInfo.emplace_back(LH("texture_input_node", MaterialNodeLocalizationNamespace),
+                              LH("texture_input_node_doc", MaterialNodeLocalizationNamespace),
+                              true, true);
+    
+    // MaterialNodeType::NormalMapInput
+    nodeTypeInfo.emplace_back(LH("normal_map_input_node", MaterialNodeLocalizationNamespace),
+                              LH("normal_map_input_node_doc", MaterialNodeLocalizationNamespace),
+                              true, true);
+    
+    //MaterialNodeType::PerFrameData
+    nodeTypeInfo.emplace_back(LH("per_frame_data_node", MaterialNodeLocalizationNamespace),
+                              LH("per_frame_data_node_doc", MaterialNodeLocalizationNamespace),
+                              true, true);
+    
+    
+    assert(nodeTypeInfo.size() == static_cast<std::uint32_t>(MaterialNodeType::COUNT));
     assert(getNextKey() == 0);
     
     MaterialOutputNode* outputNode = new MaterialOutputNode(definition, Vec2(0.0f, 0.0f), getNextZIndex());
@@ -182,7 +201,7 @@ MaterialLogicGraph::MaterialLogicGraph(const MaterialPipelineDefinition& definit
 
 MaterialLogicGraph::~MaterialLogicGraph() {}
 
-MaterialNode* MaterialLogicGraph::makeNode(MaterialNodeType type, const Vec2& position) {
+MaterialNode* MaterialLogicGraph::addNode(MaterialNodeType type, const Vec2& position) {
     MaterialNode* node = nullptr;
     
     switch (type) {
@@ -197,6 +216,8 @@ MaterialNode* MaterialLogicGraph::makeNode(MaterialNodeType type, const Vec2& po
         case MaterialNodeType::PerFrameData:
             node = newNode<PerFrameDataNode>(position, type);
             break;
+        case MaterialNodeType::COUNT:
+            throw std::logic_error("COUNT is not a valid NodeType");
     }
     
     assert(node != nullptr);
@@ -206,36 +227,6 @@ MaterialNode* MaterialLogicGraph::makeNode(MaterialNodeType type, const Vec2& po
     }
     
     return node;
-}
-
-LocalizationHandle MaterialLogicGraph::getNodeNameLocalizationHandle(NodeTypeEnum type) const {
-    switch (type) {
-        case MaterialNodeType::Output:
-            return LH("material_output_node", MaterialNodeLocalizationNamespace);
-        case MaterialNodeType::TextureInput:
-            return LH("texture_input_node", MaterialNodeLocalizationNamespace);
-        case MaterialNodeType::NormalMapInput:
-            return LH("normal_map_input_node", MaterialNodeLocalizationNamespace);
-        case MaterialNodeType::PerFrameData:
-            return LH("per_frame_data_node", MaterialNodeLocalizationNamespace);
-    }
-    
-    throw std::runtime_error("Unknown NodeTypeEnum");
-}
-
-LocalizationHandle MaterialLogicGraph::getNodeDocumentationLocalizationHandle(NodeTypeEnum type) const {
-    switch (type) {
-        case MaterialNodeType::Output:
-            return LH("material_output_node_doc", MaterialNodeLocalizationNamespace);
-        case MaterialNodeType::TextureInput:
-            return LH("texture_input_node_doc", MaterialNodeLocalizationNamespace);
-        case MaterialNodeType::NormalMapInput:
-            return LH("normal_map_input_node_doc", MaterialNodeLocalizationNamespace);
-        case MaterialNodeType::PerFrameData:
-            return LH("per_frame_data_node_doc", MaterialNodeLocalizationNamespace);
-    }
-    
-    throw std::runtime_error("Unknown NodeTypeEnum");
 }
 
 std::string MaterialLogicGraph::getConnectorTypeName(MaterialNodeConnectorType type) const {
@@ -272,16 +263,16 @@ std::uint32_t MaterialLogicGraph::getConnectorTypeColor(ConnectorType type) cons
 MaterialEditor::MaterialEditor(NodeEditorSettings settings) : LogicGraphEditor(settings) {
     // TODO - dev only. REMOVE ONCE DONE
     graph = std::make_unique<MaterialLogicGraph>(con::GetDefaultMaterialPipelineDefinition(DefaultMaterialPipeline::Toon));
-    TextureInputNode* nn = dynamic_cast<TextureInputNode*>(graph->makeNode(MaterialNodeType::TextureInput, Vec2(200.0f, 50.0f)));
+    TextureInputNode* nn = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 50.0f)));
     assert(nn != nullptr);
-    TextureInputNode* nn2 = dynamic_cast<TextureInputNode*>(graph->makeNode(MaterialNodeType::TextureInput, Vec2(200.0f, 150.0f)));
+    TextureInputNode* nn2 = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 150.0f)));
     assert(nn2 != nullptr);
-    TextureInputNode* nn3 = dynamic_cast<TextureInputNode*>(graph->makeNode(MaterialNodeType::TextureInput, Vec2(200.0f, 250.0f)));
+    TextureInputNode* nn3 = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 250.0f)));
     assert(nn3 != nullptr);
-    TextureInputNode* nn4 = dynamic_cast<TextureInputNode*>(graph->makeNode(MaterialNodeType::TextureInput, Vec2(200.0f, 350.0f)));
+    TextureInputNode* nn4 = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 350.0f)));
     assert(nn4 != nullptr);
     
-    graph->makeNode(MaterialNodeType::PerFrameData, Vec2(0.0f, 150.0f));
+    graph->addNode(MaterialNodeType::PerFrameData, Vec2(0.0f, 150.0f));
 //     LOG_V("LOCALIZED: " << nn->getLocalizationHandle().getHashValue());
 }
 

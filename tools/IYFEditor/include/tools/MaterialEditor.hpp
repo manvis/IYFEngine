@@ -49,6 +49,7 @@ enum class MaterialNodeType : std::uint32_t {
     TextureInput   = 1,
     NormalMapInput = 2,
     PerFrameData   = 3,
+    COUNT
 };
 
 using MaterialNodeKey = std::uint32_t;
@@ -60,9 +61,7 @@ public:
     MaterialLogicGraph(const MaterialPipelineDefinition& definition);
     virtual ~MaterialLogicGraph();
     
-    virtual MaterialNode* makeNode(MaterialNodeType type, const Vec2& position) final override;
-    virtual LocalizationHandle getNodeNameLocalizationHandle(NodeTypeEnum type) const final override;
-    virtual LocalizationHandle getNodeDocumentationLocalizationHandle(NodeTypeEnum type) const final override;
+    virtual MaterialNode* addNode(MaterialNodeType type, const Vec2& position) final override;
     
     virtual std::string getConnectorTypeName(MaterialNodeConnectorType type) const final override;
     virtual std::uint32_t getConnectorTypeColor(ConnectorType type) const final override;
