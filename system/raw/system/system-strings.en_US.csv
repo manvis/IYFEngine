@@ -53,3 +53,25 @@ vec3_texture,material_nodes,RGB
 vec4_texture,material_nodes,RGBA
 per_frame_data_node,material_nodes,Per-Frame Data
 per_frame_data_node_doc,material_nodes,Contains commonly used data that changes once per frame
+float_mode_doc,material_nodes,The node will accept Float inputs and provide Float outputs.
+vec2_mode_doc,material_nodes,The node will accept Vec2 inputs and provide Vec2 outputs.
+vec3_mode_doc,material_nodes,The node will accept Vec3 inputs and provide Vec3 outputs.
+vec4_mode_doc,material_nodes,The node will accept Vec4 inputs and provide Vec4 outputs.
+radians_node,material_nodes,Degrees to Radians
+radians_node_doc,material_nodes,"Converts radians to degrees. If a vector mode is used, all components are converted separately."
+degrees_node,material_nodes,Radians to Degrees
+degrees_node_doc,material_nodes,"Converts radians to degrees. If a vector mode is used, all components are converted separately."
+sine_node,material_nodes,Sine
+sine_node_doc,material_nodes,"Computes the sine of an angle in radians. If a vector mode is used, all components are processed separately."
+cosine_node,material_nodes,Cosine
+cosine_node_doc,material_nodes,"Computes the cosine of an angle in radians. If a vector mode is used, all components are processed separately."
+tangent_node,material_nodes,Tangent
+tangent_node_doc,material_nodes,"Computes the tangent of an angle in radians. If a vector mode is used, all components are processed separately."
+arcsine_node,material_nodes,Arcsine
+arcsine_node_doc,material_nodes,"Computes the angle in radians whose sine is the provided value. If a vector mode is used, all components are processed separately."
+arccosine_node,material_nodes,Arccosine
+arccosine_node_doc,material_nodes,"Computes the angle in radians whose cosine is the provided value. If a vector mode is used, all components are processed separately."
+arctangent_node,material_nodes,Arctangent
+arctangent_node_doc,material_nodes,"Computes the angle in radians whose arctangent is the provided value. If a vector mode is used, all components are processed separately."
+arctangent2_node,material_nodes,Arctangent2
+arctangent2_node_doc,material_nodes,"Computes the angle in radians whose arctangent is the first argument divided by the second argument. The signs of the arguments are used to determine the quadrant that the angle lies in. If a vector mode is used, all components are processed separately."

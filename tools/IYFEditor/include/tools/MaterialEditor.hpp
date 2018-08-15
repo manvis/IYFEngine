@@ -42,6 +42,7 @@ enum class MaterialNodeConnectorType : std::uint8_t {
     Vec2  = 1, /// < 2 component floating point vector
     Vec3  = 2, /// < 3 component floating point vector
     Vec4  = 3, /// < 4 component floating point vector
+    COUNT
 };
 
 enum class MaterialNodeType : std::uint32_t {
@@ -49,6 +50,15 @@ enum class MaterialNodeType : std::uint32_t {
     TextureInput   = 1,
     NormalMapInput = 2,
     PerFrameData   = 3,
+    Radians        = 4,
+    Degrees        = 5,
+    Sine           = 6,
+    Cosine         = 7,
+    Tangent        = 8,
+    Arcsine        = 9,
+    Arccosine      = 10,
+    Arctangent     = 11,
+    Arctangent2    = 12,
     COUNT
 };
 

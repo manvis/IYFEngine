@@ -190,6 +190,7 @@ public:
     using TypeEnum = NodeTypeEnum;
     using Key = NodeKey;
     using Connector = NodeConnector;
+    using NodeConnectorType = typename Connector::ConnectorType;
     
     LogicGraphNode(Key key, Vec2 position, ZIndex zIndex, std::size_t selectedMode = 0) : key(key), position(std::move(position)), zIndex(zIndex), selectedMode(selectedMode) {}
     
@@ -299,8 +300,39 @@ protected:
         return true;
     }
     
-    std::vector<Connector> inputs;
-    std::vector<Connector> outputs;
+    template <typename ConnectorIdentifier>
+    inline void addInput(ConnectorIdentifier identifier, NodeConnectorType type, bool enabled = true, bool required = false) {
+        addConnector(true, identifier, required, enabled, type);
+    }
+    
+    template <typename ConnectorIdentifier>
+    inline void addOutput(ConnectorIdentifier identifier, NodeConnectorType type, bool enabled = true, bool required = false) {
+        addConnector(false, identifier, required, enabled, type);
+    }
+    
+    template <typename ConnectorIdentifier>
+    inline void addConnector(bool isInput, ConnectorIdentifier identifier, bool required, bool enabled, NodeConnectorType type) {
+        std::vector<Connector>& destination = isInput ? inputs : outputs;
+        std::size_t nextID = destination.size();
+        
+        if (nextID >= Connector::InvalidID) {
+            throw std::logic_error("The number of inputs and outputs must be less than Connector::InvalidID.");
+        }
+        
+        if (type >= NodeConnectorType::COUNT) {
+            throw std::logic_error("The type of the connector must be less than NodeConnectorType::COUNT.");
+        }
+        
+        destination.emplace_back(identifier, nextID, required, enabled, type);
+    }
+    
+    inline Connector& getInput(std::size_t id) {
+        return inputs[id];
+    }
+    
+    inline Connector& getOutput(std::size_t id) {
+        return outputs[id];
+    }
 private:
     static constexpr const char* MultipleModesNotSupportedError = "This node doesn't support multiple modes.";
     
@@ -309,6 +341,8 @@ private:
     ZIndex zIndex;
     std::string name;
     std::size_t selectedMode;
+    std::vector<Connector> inputs;
+    std::vector<Connector> outputs;
 };
 
 struct LogicGraphNodeTypeInfo {
