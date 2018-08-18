@@ -32,13 +32,14 @@
 #include "LogicGraph.hpp"
 #include "core/Logger.hpp"
 #include "utilities/hashing/HashCombine.hpp"
+#include "localization/TextLocalization.hpp"
 
 #include <memory>
 #include "imgui.h"
 
 namespace iyf {
 struct NodeEditorSettings {
-    NodeEditorSettings() : canvasSize(2000.0f, 1500.0f), lineDensity(50.0f, 50.0f), zoomMultiplier(0.1f), nodeWidth(200.0f), scrollMultipliers(25.0f, 25.0f), lineThickness(2.0f) {}
+    NodeEditorSettings() : canvasSize(2000.0f, 1500.0f), lineDensity(50.0f, 50.0f), zoomMultiplier(0.1f), nodeWidth(150.0f), scrollMultipliers(25.0f, 25.0f), lineThickness(2.0f) {}
     
     ImVec2 canvasSize;
     ImVec2 lineDensity;
@@ -63,6 +64,8 @@ enum class DragMode : std::uint8_t {
 template <typename T>
 class LogicGraphEditor {
 public:
+    static constexpr const char* LocalizationNamespace = "logic_graph_editor";
+    
     LogicGraphEditor(NodeEditorSettings settings = NodeEditorSettings()) 
         : scale(1.0f), nodeInfoWidth(200.0f), canvasPosition(0.0f, 0.0f), nodeCreationMenuLocation(0.0f, 0.0f), settings(std::move(settings)), hoveredNodeKey(T::InvalidKey),
           contextMenuNodeKey(T::InvalidKey), dragMode(DragMode::NoDrag), wasMouse1DraggingLastFrame(false) {
@@ -84,6 +87,7 @@ protected:
     void drawNodeProperties();
     void showConnectionErrorTooltip(const char* text) const;
     bool validateConnection(bool connectIfValidated = false);
+    void showLocalizedDocumentation(LocalizationHandle handle);
     
     float computeConnectorSlotRadius();
     void drawConnectionCurve(const ImVec2& start, const ImVec2& end, ImU32 color);
@@ -142,35 +146,6 @@ protected:
     ImVec2 lastScrollMax;
     const NodeEditorSettings settings;
     
-//     class NewConnectionStart {
-//     public:
-//         NewConnectionStart() : center(0.0f, 0.0f), key(0), connectorID(0), connectorIsInput(false) {}
-//         
-//         inline NewConnectionStart(ImVec2 center, typename T::NodeKey key, std::uint8_t connectorID, bool connectorIsInput)
-//             : center(std::move(center)), key(key), connectorID(connectorID), connectorIsInput(connectorIsInput) {}
-//         
-//         inline const ImVec2& getCenter() const {
-//             return center;
-//         }
-//         
-//         inline typename T::NodeKey getKey() const {
-//             return key;
-//         }
-//         
-//         inline std::uint8_t getConnectorID() const {
-//             return connectorID;
-//         }
-//         
-//         inline bool isConnectorAnInput() const {
-//             return connectorIsInput;
-//         }
-//     private:
-//         ImVec2 center;
-//         typename T::NodeKey key;
-//         std::uint8_t connectorID;
-//         bool connectorIsInput;
-//     };
-    
     typename T::NodeKey hoveredNodeKey;
     typename T::NodeKey contextMenuNodeKey;
     ConnectorKey hoveredConnector;
@@ -180,10 +155,30 @@ protected:
 };
 
 template <typename T>
+void LogicGraphEditor<T>::showLocalizedDocumentation(LocalizationHandle handle) {
+    if (ImGui::IsItemHovered()) {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        
+        const std::string localizedDoc = LOC_SYS(handle);
+        
+        if (localizedDoc.empty()) {
+            ImGui::TextColored(ImColor(255, 0, 0, 255), "No documentation found");
+        } else {
+            ImGui::TextUnformatted(localizedDoc.c_str(), localizedDoc.c_str() + localizedDoc.length());
+        }
+        
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
+
+template <typename T>
 void LogicGraphEditor<T>::show(bool* open) {
     IYFT_PROFILE(showGraphEditor, iyft::ProfilerTag::LogicGraph);
     
-    if (ImGui::Begin(getWindowName().c_str(), open)) {
+    const std::string windowName = getWindowName();
+    if (ImGui::Begin(windowName.c_str(), open)) {
         if (ImGui::Button("New")) {
             graph = makeNewGraph(NewGraphSettings());
         }
@@ -280,6 +275,12 @@ bool LogicGraphEditor<T>::validateConnection(bool connectIfValidated) {
         case NodeConnectionResult::InvalidDestinationInput:
             showConnectionErrorTooltip("Invalid input ID");
             break;
+        case NodeConnectionResult::DestinationIsDisabled:
+            showConnectionErrorTooltip("Destination is disabled");
+            break;
+        case NodeConnectionResult::SourceIsDisabled:
+            showConnectionErrorTooltip("Source is disabled");
+            break;
         case NodeConnectionResult::NullDestination:
             showConnectionErrorTooltip("Destination was null");
             break;
@@ -366,7 +367,7 @@ void LogicGraphEditor<T>::handleTransformations() {
         const ImVec2 offsetPreMod = mousePosToCanvasPos();
         
         scale += io.MouseWheel * settings.zoomMultiplier;
-        scale = std::clamp(scale, 0.7f, 3.0f);
+        scale = std::clamp(scale, 0.5f, 3.0f);
         
         const ImVec2 offsetPostMod = mousePosToCanvasPos();
         
@@ -468,13 +469,58 @@ void LogicGraphEditor<T>::handleTransformations() {
     
     if (ImGui::BeginPopup("Node Context Menu", contextMenuFlags)) {
         auto node = graph->getNode(contextMenuNodeKey);
-        ImGui::TextDisabled("Type: %s; Key: %d", LOC_SYS(graph->getNodeTypeInfo(node->getType()).name).c_str(), node->getKey());
+        const auto& nodeTypeInfo = graph->getNodeTypeInfo(node->getType());
+        
+        const std::string typeName = LOC_SYS(nodeTypeInfo.name);
+        ImGui::TextDisabled("Type: %s; Key: %d", typeName.c_str(), node->getKey());
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        showLocalizedDocumentation(nodeTypeInfo.documentation);
+        
         ImGui::Separator();
         
-        if (ImGui::MenuItem("Delete", nullptr, false, graph->getNodeTypeInfo(node->getType()).deletable)) {
+        const bool deletable = nodeTypeInfo.deletable;
+        if (ImGui::MenuItem("Delete", nullptr, false, deletable)) {
             const bool result = graph->removeNode(contextMenuNodeKey);
             assert(result);
             hoveredNodeKey = T::InvalidKey;
+        }
+        
+        if (!deletable && ImGui::IsItemHovered()) {
+            ImGui::BeginTooltip();
+            
+            const std::string cannotDelete = LOC_SYS(LH("cannot_delete", LocalizationNamespace));
+            ImGui::TextUnformatted(cannotDelete.c_str(), cannotDelete.c_str() + cannotDelete.length());
+            
+            ImGui::EndTooltip();
+        }
+        
+        const bool hasModes = node->supportsMultipleModes();
+        if (ImGui::BeginMenu("Mode", hasModes)) {
+            const auto& modes = node->getSupportedModes();
+            
+            for (std::size_t i = 0; i < modes.size(); ++i) {
+                const std::string modeName = LOC_SYS(modes[i].name);
+                if (ImGui::MenuItem(modeName.c_str())) {
+                    const bool changed = node->setSelectedModeID(i);
+                    
+                    if (!changed) {
+                        throw std::logic_error("Failed to change the mode");
+                    }
+                    
+                    graph->revalidateNodeConnections(node);
+                }
+                
+                if (ImGui::IsItemHovered()) {
+                    ImGui::BeginTooltip();
+                    
+                    const std::string docString = LOC_SYS(modes[i].documentation);
+                    ImGui::Text("%s", docString.c_str());
+                    ImGui::EndTooltip();
+                }
+            }
+            
+            ImGui::EndMenu();
         }
         
         ImGui::EndPopup();
@@ -490,19 +536,43 @@ void LogicGraphEditor<T>::handleTransformations() {
         ImGui::TextDisabled("Create a new node");
         ImGui::Separator();
         
-        using NodeTypeInt = std::underlying_type_t<typename T::NodeTypeEnum>;
-        for (NodeTypeInt i = 0; i < graph->getNodeTypeCount(); ++i) {
-            auto enumValue = static_cast<typename T::NodeTypeEnum>(i);
+        using NodeGroupInt = std::underlying_type_t<typename T::NodeTypeInfoEnum>;
+        for (NodeGroupInt i = 0; i < graph->getNodeGroupCount(); ++i) {
+            auto infoEnumValue = static_cast<typename T::NodeTypeInfoEnum>(i);
+            const auto& typeInfoVec = graph->getNodeGroupTypeInfos(infoEnumValue);
             
-            if (!graph->getNodeTypeInfo(enumValue).instantiable) {
+            bool hasInstantiableTypes = false;
+            
+            for (const auto& typeInfo : typeInfoVec) {
+                if (typeInfo.instantiable) {
+                    hasInstantiableTypes = true;
+                    break;
+                }
+            }
+            
+            if (typeInfoVec.empty() || !hasInstantiableTypes) {
                 continue;
             }
             
-            const std::string nodeTypeName = LOC_SYS(graph->getNodeTypeInfo(enumValue).name);
-            assert(!nodeTypeName.empty());
-            
-            if (ImGui::MenuItem(nodeTypeName.c_str())) {
-                graph->addNode(enumValue, Vec2(nodeCreationMenuLocation.x, nodeCreationMenuLocation.y));
+            const std::string groupName = LOC_SYS(graph->getNodeGroupNameHandle(infoEnumValue));
+            assert(!groupName.empty());
+            if (ImGui::BeginMenu(groupName.c_str())) {
+                for (const auto& typeInfo : typeInfoVec) {
+                    if (!typeInfo.instantiable) {
+                        continue;
+                    }
+                    
+                    const std::string nodeTypeName = LOC_SYS(typeInfo.name);
+                    assert(!nodeTypeName.empty());
+                    
+                    if (ImGui::MenuItem(nodeTypeName.c_str())) {
+                        graph->addNode(typeInfo.type, Vec2(nodeCreationMenuLocation.x, nodeCreationMenuLocation.y));
+                    }
+                    
+                    showLocalizedDocumentation(typeInfo.documentation);
+                }
+                
+                ImGui::EndMenu();
             }
         }
         
@@ -532,7 +602,7 @@ void LogicGraphEditor<T>::drawNodeEditor() {
         
         drawNodeProperties();
         ImGui::Separator();
-        ImGui::SetNextTreeNodeOpen(true, ImGuiCond_Once);
+        ImGui::SetNextTreeNodeOpen(false, ImGuiCond_Once);
         if (ImGui::TreeNode("Editor Debug")) {
             ImGui::Text("Selected node");
             
@@ -619,25 +689,14 @@ void LogicGraphEditor<T>::drawNodeProperties() {
     ImGui::Text("Selected Node Properties");
     
     auto& node = *graph->getSelectedNode();
-    ImGui::Text("Type: %s", LOC_SYS(graph->getNodeTypeInfo(node.getType()).name).c_str());
+    
+    const std::string nodeTypeName = LOC_SYS(graph->getNodeTypeInfo(node.getType()).name);
+    ImGui::Text("Type: %s", nodeTypeName.c_str());
     
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
-    if (ImGui::IsItemHovered()) {
-        ImGui::BeginTooltip();
-        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-        
-        const std::string localizedDoc = LOC_SYS(graph->getNodeTypeInfo(node.getType()).documentation);
-        
-        if (localizedDoc.empty()) {
-            ImGui::Text("No documentation found");
-        } else {
-            ImGui::TextUnformatted(localizedDoc.c_str(), localizedDoc.c_str() + localizedDoc.length());
-        }
-        
-        ImGui::PopTextWrapPos();
-        ImGui::EndTooltip();
-    }
+    
+    showLocalizedDocumentation(graph->getNodeTypeInfo(node.getType()).documentation);
     
     // Zero out the name
     if (graph->getSelectedNodeKey() != lastSelectedNode) {
@@ -661,7 +720,8 @@ void LogicGraphEditor<T>::drawNodeProperties() {
             for (std::size_t i = 0; i < modes.size(); ++i) {
                 const bool selected = (i == modeID);
                 
-                if (ImGui::Selectable(LOC_SYS(modes[i].name).c_str(), selected)) {
+                const std::string modeName = LOC_SYS(modes[i].name);
+                if (ImGui::Selectable(modeName.c_str(), selected)) {
                     const bool changed = node.setSelectedModeID(i);
                     
                     if (!changed) {
@@ -673,7 +733,9 @@ void LogicGraphEditor<T>::drawNodeProperties() {
                 
                 if (ImGui::IsItemHovered()) {
                     ImGui::BeginTooltip();
-                    ImGui::Text("%s", LOC_SYS(modes[i].documentation).c_str());
+                    
+                    const std::string docString = LOC_SYS(modes[i].documentation);
+                    ImGui::Text("%s", docString.c_str());
                     ImGui::EndTooltip();
                 }
                 
@@ -771,13 +833,6 @@ void LogicGraphEditor<T>::drawNodes() {
         const ImVec2 headerEnd(nodeEnd.x, nodeStart.y + headerSectionHeight);
         const ImVec2 contentStart(nodeStart.x, headerEnd.y);
         
-//         // Draw the documentation tooltip
-//         if (ImGui::IsMouseHoveringRect(nodeStart, headerEnd)) {
-//             ImGui::BeginTooltip();
-//             ImGui::Text("%s", LOC_SYS(graph->getLocalizedNodeDocumentation(node.getType())).c_str());
-//             ImGui::EndTooltip();
-//         }
-        
         dl->AddRectFilled(nodeStart, headerEnd, headerColor, ImGui::GetStyle().WindowRounding, ImDrawCornerFlags_Top);
         dl->AddRectFilled(contentStart, nodeEnd, nodeColor, ImGui::GetStyle().WindowRounding, ImDrawCornerFlags_Bot);
         dl->AddRect(nodeStart, nodeEnd, nodeBorderColor, ImGui::GetStyle().WindowRounding, ImDrawCornerFlags_All);
@@ -812,14 +867,17 @@ void LogicGraphEditor<T>::drawNodes() {
             if (ImGui::IsMouseHoveringRect(ImVec2(connectorPos.x - connectorRadius, connectorPos.y - connectorRadius),
                                            ImVec2(connectorPos.x + connectorRadius, connectorPos.y + connectorRadius))) {
                 hoveredNodeKey = node.getKey();
-                hoveredConnector = ConnectorKey(node.getKey(), o.getID(), false);
+            
+                if (o.isEnabled()) {
+                    hoveredConnector = ConnectorKey(node.getKey(), o.getID(), false);
+                }
                 
                 isHovered = true;
             }
             
-            ImU32 color = graph->getConnectorTypeColor(o.getType());
+            ImU32 color = graph->getConnectorTypeColor(o.getType(), o.isEnabled());
             dl->AddCircleFilled(connectorPos, connectorRadius, color, 16);
-            dl->AddCircle(connectorPos, connectorRadius, (isHovered ? hoveredConnectorColor : connectorColor), 16, 2.0f * scale);
+            dl->AddCircle(connectorPos, connectorRadius, ((isHovered && o.isEnabled()) ? hoveredConnectorColor : connectorColor), 16, 2.0f * scale);
             
             if (o.hasName()) {
                 const char* str = o.getName().c_str();
@@ -855,14 +913,17 @@ void LogicGraphEditor<T>::drawNodes() {
             if (ImGui::IsMouseHoveringRect(ImVec2(connectorPos.x - connectorRadius, connectorPos.y - connectorRadius),
                                            ImVec2(connectorPos.x + connectorRadius, connectorPos.y + connectorRadius))) {
                 hoveredNodeKey = node.getKey();
-                hoveredConnector = ConnectorKey(node.getKey(), i.getID(), true);
+            
+                if (i.isEnabled()) {
+                    hoveredConnector = ConnectorKey(node.getKey(), i.getID(), true);
+                }
                 
                 isHovered = true;
             }
             
-            ImU32 color = graph->getConnectorTypeColor(i.getType());
+            ImU32 color = graph->getConnectorTypeColor(i.getType(), i.isEnabled());
             dl->AddCircleFilled(connectorPos, connectorRadius, color, 16);
-            dl->AddCircle(connectorPos, connectorRadius, (isHovered ? hoveredConnectorColor : connectorColor), 16, 1.0f * scale);
+            dl->AddCircle(connectorPos, connectorRadius, ((isHovered && i.isEnabled()) ? hoveredConnectorColor : connectorColor), 16, 2.0f * scale);
             
             const ImVec2 connectorNamePos(inputConnectorNameHorizontalOffset, cursor.y);
             if (i.hasName()) {

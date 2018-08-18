@@ -29,6 +29,7 @@ string,,String
 custom,,Custom
 material,,Material
 any,,Any
+cannot_delete,logic_graph_editor,You cannot delete this node.
 material_editor,material_nodes,Material Editor
 float,material_nodes,Float
 vec2,material_nodes,Vec2
@@ -47,10 +48,10 @@ float_texture_doc,material_nodes,Single channel texture
 vec2_texture_doc,material_nodes,Two channel texture
 vec3_texture_doc,material_nodes,Three channel texture
 vec4_texture_doc,material_nodes,Four channel texture
-float_texture,material_nodes,R
-vec2_texture,material_nodes,RG
-vec3_texture,material_nodes,RGB
-vec4_texture,material_nodes,RGBA
+r,material_nodes,R
+rg,material_nodes,RG
+rgb,material_nodes,RGB
+rgba,material_nodes,RGBA
 per_frame_data_node,material_nodes,Per-Frame Data
 per_frame_data_node_doc,material_nodes,Contains commonly used data that changes once per frame
 float_mode_doc,material_nodes,The node will accept Float inputs and provide Float outputs.
@@ -58,20 +59,202 @@ vec2_mode_doc,material_nodes,The node will accept Vec2 inputs and provide Vec2 o
 vec3_mode_doc,material_nodes,The node will accept Vec3 inputs and provide Vec3 outputs.
 vec4_mode_doc,material_nodes,The node will accept Vec4 inputs and provide Vec4 outputs.
 radians_node,material_nodes,Degrees to Radians
-radians_node_doc,material_nodes,"Converts radians to degrees. If a vector mode is used, all components are converted separately."
+radians_node_doc,material_nodes,"Converts degrees to radians.
+
+If a vector mode is used, all components are converted separately."
 degrees_node,material_nodes,Radians to Degrees
-degrees_node_doc,material_nodes,"Converts radians to degrees. If a vector mode is used, all components are converted separately."
-sine_node,material_nodes,Sine
-sine_node_doc,material_nodes,"Computes the sine of an angle in radians. If a vector mode is used, all components are processed separately."
-cosine_node,material_nodes,Cosine
-cosine_node_doc,material_nodes,"Computes the cosine of an angle in radians. If a vector mode is used, all components are processed separately."
-tangent_node,material_nodes,Tangent
-tangent_node_doc,material_nodes,"Computes the tangent of an angle in radians. If a vector mode is used, all components are processed separately."
-arcsine_node,material_nodes,Arcsine
-arcsine_node_doc,material_nodes,"Computes the angle in radians whose sine is the provided value. If a vector mode is used, all components are processed separately."
-arccosine_node,material_nodes,Arccosine
-arccosine_node_doc,material_nodes,"Computes the angle in radians whose cosine is the provided value. If a vector mode is used, all components are processed separately."
-arctangent_node,material_nodes,Arctangent
-arctangent_node_doc,material_nodes,"Computes the angle in radians whose arctangent is the provided value. If a vector mode is used, all components are processed separately."
-arctangent2_node,material_nodes,Arctangent2
-arctangent2_node_doc,material_nodes,"Computes the angle in radians whose arctangent is the first argument divided by the second argument. The signs of the arguments are used to determine the quadrant that the angle lies in. If a vector mode is used, all components are processed separately."
+degrees_node_doc,material_nodes,"Converts radians to degrees.
+
+If a vector mode is used, all components are converted separately."
+sin_node,material_nodes,Sin
+sin_node_doc,material_nodes,"Computes the sine of an angle in radians.
+
+If a vector mode is used, all components are processed separately."
+cos_node,material_nodes,Cos
+cos_node_doc,material_nodes,"Computes the cosine of an angle in radians.
+
+If a vector mode is used, all components are processed separately."
+tan_node,material_nodes,Tan
+tan_node_doc,material_nodes,"Computes the tangent of an angle in radians.
+
+If a vector mode is used, all components are processed separately."
+asin_node,material_nodes,Asin
+asin_node_doc,material_nodes,"Computes the angle in radians whose sine is X
+
+If a vector mode is used, all components are processed separately."
+acos_node,material_nodes,Acos
+acos_node_doc,material_nodes,"Computes the angle in radians whose cosine is X.
+
+If a vector mode is used, all components are processed separately."
+atan_node,material_nodes,Atan
+atan_node_doc,material_nodes,"Computes the angle in radians whose tangent is X
+
+If a vector mode is used, all components are processed separately."
+atan2_node,material_nodes,Atan2
+atan2_node_doc,material_nodes,"Computes the angle in radians whose tangent is X/Y. The signs of the arguments are used to determine the quadrant that the angle lies in.
+
+If a vector mode is used, all components are processed separately."
+sinh_node,material_nodes,Sinh
+sinh_node_doc,material_nodes,"Computes the hyperbolic sine of a hyperbolic angle.
+
+If a vector mode is used, all components are processed separately."
+cosh_node,material_nodes,Cosh
+cosh_node_doc,material_nodes,"Computes the hyperbolic cosine of a hyperbolic angle.
+
+If a vector mode is used, all components are processed separately."
+tanh_node,material_nodes,Tanh
+tanh_node_doc,material_nodes,"Computes the hyperbolic tangent of a hyperbolic angle.
+
+If a vector mode is used, all components are processed separately."
+asinh_node,material_nodes,Asinh
+asinh_node_doc,material_nodes,"Computes the hyperbolic angle whose hyperbolic sine is X.
+
+If a vector mode is used, all components are processed separately."
+acosh_node,material_nodes,Acosh
+acosh_node_doc,material_nodes,"Computes the hyperbolic angle whose hyperbolic cosine is X.
+
+If a vector mode is used, all components are processed separately."
+atanh_node,material_nodes,Atanh
+atanh_node_doc,material_nodes,"Computes the hyperbolic angle whose hyperbolic tangent is X.
+
+If a vector mode is used, all components are processed separately."
+pow_node,material_nodes,Pow
+pow_node_doc,material_nodes,"Returns X raised to the Y power.
+
+If a vector mode is used, all components are processed separately."
+exp_node,material_nodes,Exp
+exp_node_doc,material_nodes,"Returns the natural exponentiation of X.
+
+If a vector mode is used, all components are processed separately."
+log_node,material_nodes,Log
+log_node_doc,material_nodes,"Returns the natural logarithm of X.
+
+If a vector mode is used, all components are processed separately."
+exp2_node,material_nodes,Exp2
+exp2_node_doc,material_nodes,"Returns 2 raised to the X power.
+
+If a vector mode is used, all components are processed separately."
+log2_node,material_nodes,Log2
+log2_node_doc,material_nodes,"Returns the base 2 logarithm of X.
+
+If a vector mode is used, all components are processed separately."
+sqrt_node,material_nodes,Sqrt
+sqrt_node_doc,material_nodes,"Returns the square root of X.
+
+If a vector mode is used, all components are processed separately."
+inverse_sqrt_node,material_nodes,InverseSqrt
+inverse_sqrt_node_doc,material_nodes,"Returns the inverse square root of X
+
+If a vector mode is used, all components are processed separately."
+abs_node,material_nodes,Abs
+abs_node_doc,material_nodes,"Returns the absolute value of X.
+
+If a vector mode is used, all components are processed separately."
+sign_node,material_nodes,Sign
+sign_node_doc,material_nodes,"Returns:
+1.0f if X > 0.0f,
+0.0f if X == 0.0f,
+-1.0f if X < 0.0f.
+
+If a vector mode is used, all components are processed separately."
+floor_node,material_nodes,Floor
+floor_node_doc,material_nodes,"Returns a value equal to the nearest integer that is less than or equal to X.
+
+If a vector mode is used, all components are processed separately."
+trunc_node,material_nodes,Trunc
+trunc_node_doc,material_nodes,"Returns a value equal to the nearest integer whose absolute value is not larger than the absolute value of X.
+
+If a vector mode is used, all components are processed separately."
+round_node,material_nodes,Round
+round_node_doc,material_nodes,"Returns a value equal to an integer that is nearest to X.
+
+If a vector mode is used, all components are processed separately."
+round_even_node,material_nodes,RoundEven
+round_even_node_doc,material_nodes,"Returns a value equal to an integer that is nearest to X. Values that end with .5 will be rounded towards the nearest even integer. For example, both 5.5f and 6.5f will round towards 6.0f.
+
+If a vector mode is used, all components are processed separately."
+ceil_node,material_nodes,Ceil
+ceil_node_doc,material_nodes,"Returns a value equal to the nearest integer that is greater than or equal to X
+
+If a vector mode is used, all components are processed separately."
+fract_node,material_nodes,Fract
+fract_node_doc,material_nodes,"Returns X - floor(X).
+
+If a vector mode is used, all components are processed separately."
+mod_node,material_nodes,Mod
+mod_float_node,material_nodes,Mod (float)
+mod_node_doc,material_nodes,Returns X - Y * floor(X/Y)
+modf_node,material_nodes,ModF
+modf_node_doc,material_nodes,Returns the fractional (F) and integral (I) parts of X. Both returned values will retain the sign of X.
+min_node,material_nodes,Min
+min_float_node,material_nodes,Min (float)
+min_node_doc,material_nodes,Returns Y if Y < X and X otherwise.
+max_node,material_nodes,Max
+max_float_node,material_nodes,Max (float)
+max_node_doc,material_nodes,Returns Y if X < Y and X otherwise.
+clamp_node,material_nodes,Clamp
+clamp_float_node,material_nodes,Clamp (float)
+clamp_node_doc,material_nodes,"Returns min(max(X, minValue), maxValue)."
+mix_node,material_nodes,Mix
+mix_float_node,material_nodes,Mix (float)
+mix_node_doc,material_nodes,Returns the linear blend of X and Y using A as the weight.
+step_node,material_nodes,Step
+step_node_doc,material_nodes,Returns 0.0f if X < Edge and 1.0f otherwise.
+step_float_node,material_nodes,Step (float)
+smooth_step_node,material_nodes,SmoothStep
+smooth_step_float_node,material_nodes,SmoothStep (float)
+smooth_step_node_doc,material_nodes,"Returns
+0.0f if X <= Edge
+A smooth interpolation between 0.0f and 1.0f if Edge < X < Edge2
+1.0f if X >= Edge2"
+length_node,material_nodes,Length
+length_node_doc,material_nodes,Returns the length of the vector X.
+distance_node,material_nodes,Distance
+distance_node_doc,material_nodes,Returns the distance between X and Y.
+dot_node,material_nodes,Dot
+dot_node_doc,material_nodes,Returns the dot product of X and Y.
+cross_node,material_nodes,Cross
+cross_node_doc,material_nodes,Returns the cross product of X and Y.
+normalize_node,material_nodes,Normalize
+normalize_node_doc,material_nodes,"Returns a vector in the same direction as X, but with a length of 1.0f."
+face_forward_node,material_nodes,FaceForward
+face_forward_node_doc,material_nodes,"Returns
+N if the dot(NRef, I) < 0
+-N if dot(NRef, I) >= 0"
+reflect_node,material_nodes,Reflect
+reflect_node_doc,material_nodes,Computes a reflection vector. I is the incident vector and N is the surface normal.
+refract_node,material_nodes,Refract
+refract_node_doc,material_nodes,"Computes the refraction vector. I is the incident vector, N is the surface normal and X is the ratio of indices of refraction."
+dfdx_node,material_nodes,DfDx
+dfdx_node_doc,material_nodes,Returns a partial derivative of the provided argument with respect to the x coordinate of the window.
+dfdy_node,material_nodes,DfDy
+dfdy_node_doc,material_nodes,Returns a partial derivative of the provided argument with respect to the y coordinate of the window.
+x,material_nodes,X
+y,material_nodes,Y
+z,material_nodes,Z
+w,material_nodes,W
+I,material_nodes,I
+degrees,material_nodes,Degrees
+vector,material_nodes,Vector
+radians,material_nodes,Radians
+a,material_nodes,A
+p,material_nodes,P
+edge,material_nodes,Edge
+edge2,material_nodes,Edge2
+N,material_nodes,N
+Nref,material_nodes,Nref
+F,material_nodes,F
+min_value,material_nodes,Min Value
+max_value,material_nodes,Max Value
+input,material_nodes,Input
+vector_components,material_nodes,Vector Components
+trigonometry,material_nodes,Trigonometry
+exponential,material_nodes,Exponential
+common_math,material_nodes,Common
+geometry,material_nodes,Geometry
+derivatives,material_nodes,Derivatives
+output,material_nodes,Output
+splitter_node,material_nodes,Splitter
+splitter_node_doc,material_nodes,Splits a vector into components.
+joiner_node,material_nodes,Joiner
+joiner_node_doc,material_nodes,Creates a vector from provided components.

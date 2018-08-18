@@ -345,9 +345,15 @@ private:
     std::vector<Connector> outputs;
 };
 
+template <typename LogicGraphNode, typename GraphNodeGroup>
 struct LogicGraphNodeTypeInfo {
-    LogicGraphNodeTypeInfo(LocalizationHandle name, LocalizationHandle documentation, bool instantiable, bool deletable)
-     : name(name), documentation(documentation), instantiable(instantiable), deletable(deletable) {}
+    using NodeType = typename LogicGraphNode::TypeEnum;
+    using NodeGroup = GraphNodeGroup;
+    
+    LogicGraphNodeTypeInfo() : name(hash32_t()), documentation(hash32_t()), instantiable(false), deletable(false), valid(false) {}
+    
+    LogicGraphNodeTypeInfo(NodeType type, LocalizationHandle name, LocalizationHandle documentation, NodeGroup group, bool instantiable, bool deletable)
+     : name(name), documentation(documentation), type(type), group(group), instantiable(instantiable), deletable(deletable), valid(true) {}
     
     /// A LocalizationHandle that can be used to retrieve a localized name for this node type.
     LocalizationHandle name;
@@ -355,11 +361,16 @@ struct LogicGraphNodeTypeInfo {
     /// A LocalizationHandle that can be used to retrieve a localized documentation string for this node type.
     LocalizationHandle documentation;
     
+    NodeType type;
+    NodeGroup group;
+    
     /// If true, nodes of this type may be instantiated by calling the LogicGraph::makeNode() function.
     bool instantiable;
     
     /// If true, nodes of this type may be deleted by calling the LogicGraph::removeNode() function.
     bool deletable;
+    
+    bool valid;
 };
 
 /*class NodeConnectionResult {
@@ -376,18 +387,22 @@ enum class NodeConnectionResult {
     NullSource,
     InvalidDestination,
     InvalidDestinationInput,
+    DestinationIsDisabled,
+    SourceIsDisabled,
     NullDestination,
     OccupiedDestination,
     InsertionFailed,
     UnableToConnectToSelf,
 };
 
-template <typename GraphNodeType>
+template <typename GraphNodeType, typename GraphNodeTypeInfo>
 class LogicGraph {
 public:
     using NodeType = GraphNodeType;
     using NodeTypeEnum = typename NodeType::TypeEnum;
     using NodeKey = typename NodeType::Key;
+    using NodeTypeInfo = GraphNodeTypeInfo;
+    using NodeTypeInfoEnum = typename NodeTypeInfo::NodeGroup;
     using ConnectorType = typename NodeType::Connector::ConnectorType;
     
     using ConnectorIDPair = std::pair<LogicGraphConnectorID, LogicGraphConnectorID>;
@@ -447,7 +462,10 @@ public:
         }
     };
     
-    inline LogicGraph() : nextKey(0), selectedNode(InvalidKey), nextZIndex(0) {}
+    inline LogicGraph() : nextKey(0), selectedNode(InvalidKey), nextZIndex(0), nodeTypeInfoSetupComplete(false), nodeGroupSetupComplete(false) {
+        nodeTypeInfo.resize(static_cast<std::size_t>(NodeTypeEnum::COUNT));
+        nodeGroupNames.resize(static_cast<std::size_t>(NodeTypeInfoEnum::COUNT), LocalizationHandle(hash32_t(0)));
+    }
     
     virtual ~LogicGraph() {
         for (auto& n : nodes) {
@@ -482,7 +500,7 @@ public:
     }
     
     virtual std::string getConnectorTypeName(ConnectorType type) const = 0;
-    virtual std::uint32_t getConnectorTypeColor(ConnectorType type) const = 0;
+    virtual std::uint32_t getConnectorTypeColor(ConnectorType type, bool enabled) const = 0;
     
     /// This function creates a new node and inserts into the node graph.
     ///
@@ -491,14 +509,30 @@ public:
     /// valid keys and zindexes. Once a node is created, you must call insertNode() to insert it into the graph.
     virtual NodeType* addNode(NodeTypeEnum type, const Vec2& position) = 0;
     
-    inline const LogicGraphNodeTypeInfo& getNodeTypeInfo(NodeTypeEnum type) const {
-        assert(nodeTypeInfo.size() == getNodeTypeCount());
+    inline const NodeTypeInfo& getNodeTypeInfo(NodeTypeEnum type) const {
+        assert(nodeTypeInfoSetupComplete && nodeGroupSetupComplete);
         
         return nodeTypeInfo[static_cast<std::size_t>(type)];
     }
     
-    virtual std::underlying_type_t<NodeTypeEnum> getNodeTypeCount() const {
+    LocalizationHandle getNodeGroupNameHandle(NodeTypeInfoEnum group) const {
+        assert(nodeTypeInfoSetupComplete && nodeGroupSetupComplete);
+        
+        return nodeGroupNames[static_cast<std::size_t>(group)];
+    }
+    
+    inline const std::vector<NodeTypeInfo>& getNodeGroupTypeInfos(NodeTypeInfoEnum group) const {
+        assert(nodeTypeInfoSetupComplete && nodeGroupSetupComplete);
+        
+        return groupedNodeTypeInfo[static_cast<std::size_t>(group)];
+    }
+    
+    inline std::underlying_type_t<NodeTypeEnum> getNodeTypeCount() const {
         return static_cast<std::underlying_type_t<NodeTypeEnum>>(NodeTypeEnum::COUNT);
+    }
+    
+    inline std::underlying_type_t<NodeTypeInfoEnum> getNodeGroupCount() const {
+        return static_cast<std::underlying_type_t<NodeTypeInfoEnum>>(NodeTypeInfoEnum::COUNT);
     }
     
     virtual bool removeNode(NodeKey key) {
@@ -641,6 +675,15 @@ public:
         // Check if connector types match
         if (outputs[outputID].getType() != inputs[inputID].getType()) {
             return NodeConnectionResult::TypeMismatch;
+        }
+        
+        // Check if connectors are enabled
+        if (!inputs[inputID].isEnabled()) {
+            return NodeConnectionResult::DestinationIsDisabled;
+        }
+        
+        if (!outputs[outputID].isEnabled()) {
+            return NodeConnectionResult::SourceIsDisabled;
         }
         
         // Check if the destination is already in use
@@ -840,8 +883,48 @@ protected:
         
         return node;
     }
-
-    std::vector<LogicGraphNodeTypeInfo> nodeTypeInfo;
+    
+    void setNodeGroupName(NodeTypeInfoEnum group, LocalizationHandle lh) {
+        nodeGroupNames[static_cast<std::size_t>(group)] = lh;
+    }
+    
+    void addNodeTypeInfo(NodeTypeEnum type, const char* locNameKey, const char* locDocKey, const char* locNamespace, NodeTypeInfoEnum group, bool instantiable = true, bool deletable = true) {
+        nodeTypeInfo[static_cast<std::size_t>(type)] = NodeTypeInfo(type, LH(locNameKey, locNamespace), LH(locDocKey, locNamespace), group, instantiable, deletable);
+    }
+    
+    void validateNodeTypeInfo() {
+        if (nodeTypeInfoSetupComplete || nodeGroupSetupComplete) {
+            throw std::logic_error("This function must only run once");
+        }
+        
+        groupedNodeTypeInfo.resize(static_cast<std::size_t>(NodeTypeInfoEnum::COUNT));
+        for (std::size_t i = 0; i < nodeTypeInfo.size(); ++i) {
+            const auto& ti = nodeTypeInfo[i];
+            if (!ti.valid || (ti.type != static_cast<NodeTypeEnum>(i))) {
+                std::string error = "NodeTypeInfo for ";
+                error.append(std::to_string(i));
+                error.append(" is invalid.");
+                
+                throw std::runtime_error(error);
+            } else {
+                groupedNodeTypeInfo[static_cast<std::size_t>(ti.group)].emplace_back(ti);
+            }
+        }
+        
+        for (std::size_t i = 0; i < nodeGroupNames.size(); ++i) {
+            if (nodeGroupNames[i].getHashValue() == 0) {
+                // This will fail horribly if it hashes to 0
+                std::string error = "LocalizationHandle for node group ";
+                error.append(std::to_string(i));
+                error.append(" has not been set.");
+                
+                throw std::runtime_error(error);
+            }
+        }
+        
+        nodeTypeInfoSetupComplete = true;
+        nodeGroupSetupComplete = true;
+    }
 private:
     NodeKey nextKey;
     NodeKey selectedNode;
@@ -856,6 +939,12 @@ private:
     
     /// All connections that exist inside the graph
     std::unordered_map<NodeKey, DestinationMultiMap> connections;
+    
+    std::vector<NodeTypeInfo> nodeTypeInfo;
+    std::vector<std::vector<NodeTypeInfo>> groupedNodeTypeInfo;
+    std::vector<LocalizationHandle> nodeGroupNames;
+    bool nodeTypeInfoSetupComplete;
+    bool nodeGroupSetupComplete;
 };
 
 }

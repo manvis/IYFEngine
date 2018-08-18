@@ -61,16 +61,22 @@ public:
 
 class GenTypeMaterialNode : public MaterialNodeBase {
 public:
-    GenTypeMaterialNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex, std::size_t inputsToChange, std::size_t outputsToChange, std::size_t selectedMode = 2)
+    GenTypeMaterialNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex, std::size_t inputsToChange, std::size_t floatInputs,
+                        std::size_t outputsToChange, const std::vector<const char*>& ioNames, std::size_t selectedMode = 2)
         : MaterialNodeBase(key, position, zIndex, selectedMode), inputsToChange(inputsToChange), outputsToChange(outputsToChange) {
-        const auto connectorType = static_cast<MaterialNodeConnectorType>(selectedMode);
         
+        std::size_t counter = 0;
+        const auto connectorType = static_cast<MaterialNodeConnectorType>(selectedMode);
         for (std::size_t i = 0; i < inputsToChange; ++i) {
-            addInput(getLocalizationHandle(connectorType), connectorType);
+            addInput(getNextLocalizationHandle(ioNames, counter), connectorType);
+        }
+        
+        for (std::size_t i = 0; i < floatInputs; ++i) {
+            addInput(getNextLocalizationHandle(ioNames, counter), MaterialNodeConnectorType::Float);
         }
         
         for (std::size_t i = 0; i < outputsToChange; ++i) {
-            addOutput(getLocalizationHandle(connectorType), connectorType);
+            addOutput(getNextLocalizationHandle(ioNames, counter), connectorType);
         }
     }
     
@@ -111,118 +117,18 @@ public:
 protected:
     inline void changeConnector(Connector& connector, MaterialNodeConnectorType newType) {
         connector.setType(newType);
-        connector.setLocalizationHandle(getLocalizationHandle(newType));
     }
     
-    inline LocalizationHandle getLocalizationHandle(MaterialNodeConnectorType type) {
-        switch (type) {
-            case MaterialNodeConnectorType::Float:
-                return LH("float", MaterialNodeLocalizationNamespace);
-            case MaterialNodeConnectorType::Vec2:
-                return LH("vec2", MaterialNodeLocalizationNamespace);
-            case MaterialNodeConnectorType::Vec3:
-                return LH("vec3", MaterialNodeLocalizationNamespace);
-            case MaterialNodeConnectorType::Vec4:
-                return LH("vec4", MaterialNodeLocalizationNamespace);
-            case MaterialNodeConnectorType::COUNT:
-                throw std::logic_error("COUNT is not a valid ConnectorType");
+    inline LocalizationHandle getNextLocalizationHandle(const std::vector<const char*>& ioNames, std::size_t& id) {
+        if (id >= ioNames.size()) {
+            throw std::logic_error("Not enough ioNames to name all inputs and outputs");
         }
         
-        throw std::runtime_error("Unhandled node connector type");
+        return LH(ioNames[id++], MaterialNodeLocalizationNamespace);
     }
 private:
     std::size_t inputsToChange;
     std::size_t outputsToChange;
-};
-
-class RadiansNode : public GenTypeMaterialNode {
-public:
-    RadiansNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
-        : GenTypeMaterialNode(key, position, zIndex, 1, 1) {}
-    
-    virtual MaterialNodeType getType() const final override {
-        return MaterialNodeType::Radians;
-    }
-};
-
-class DegreesNode : public GenTypeMaterialNode {
-public:
-    DegreesNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
-        : GenTypeMaterialNode(key, position, zIndex, 1, 1) {}
-    
-    virtual MaterialNodeType getType() const final override {
-        return MaterialNodeType::Degrees;
-    }
-};
-
-class SineNode : public GenTypeMaterialNode {
-public:
-    SineNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
-        : GenTypeMaterialNode(key, position, zIndex, 1, 1) {}
-    
-    virtual MaterialNodeType getType() const final override {
-        return MaterialNodeType::Sine;
-    }
-};
-
-class CosineNode : public GenTypeMaterialNode {
-public:
-    CosineNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
-        : GenTypeMaterialNode(key, position, zIndex, 1, 1) {}
-    
-    virtual MaterialNodeType getType() const final override {
-        return MaterialNodeType::Cosine;
-    }
-};
-
-class TangentNode : public GenTypeMaterialNode {
-public:
-    TangentNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
-        : GenTypeMaterialNode(key, position, zIndex, 1, 1) {}
-    
-    virtual MaterialNodeType getType() const final override {
-        return MaterialNodeType::Tangent;
-    }
-};
-
-class ArcsineNode : public GenTypeMaterialNode {
-public:
-    ArcsineNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
-        : GenTypeMaterialNode(key, position, zIndex, 1, 1) {}
-    
-    virtual MaterialNodeType getType() const final override {
-        return MaterialNodeType::Arcsine;
-    }
-};
-
-class ArccosineNode : public GenTypeMaterialNode {
-public:
-    ArccosineNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
-        : GenTypeMaterialNode(key, position, zIndex, 1, 1) {}
-    
-    virtual MaterialNodeType getType() const final override {
-        return MaterialNodeType::Arccosine;
-    }
-};
-
-class ArctangentNode : public GenTypeMaterialNode {
-public:
-    ArctangentNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
-        : GenTypeMaterialNode(key, position, zIndex, 1, 1) {}
-    
-    virtual MaterialNodeType getType() const final override {
-        return MaterialNodeType::Arctangent;
-    }
-};
-
-class Arctangent2Node : public GenTypeMaterialNode {
-public:
-    Arctangent2Node(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
-        : GenTypeMaterialNode(key, position, zIndex, 2, 1) {}
-    
-    virtual MaterialNodeType getType() const final override {
-        return MaterialNodeType::Arctangent2;
-    }
 };
 
 class PerFrameDataNode : public MaterialNodeBase {
@@ -267,7 +173,7 @@ class TextureInputNode : public MaterialNodeBase {
 public:
     TextureInputNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex, 2) {
         addInput(LH("uv", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2);
-        addOutput(LH("vec3", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
+        addOutput(LH("rgb", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
     }
     
     virtual MaterialNodeType getType() const final override {
@@ -280,10 +186,10 @@ public:
     
     virtual std::vector<ModeInfo>& getSupportedModes() const final override {
         static std::vector<ModeInfo> modes = {
-            ModeInfo(LH("float_texture", MaterialNodeLocalizationNamespace), LH("float_texture_doc", MaterialNodeLocalizationNamespace)),
-            ModeInfo(LH("vec2_texture",  MaterialNodeLocalizationNamespace), LH("vec2_texture_doc",  MaterialNodeLocalizationNamespace)),
-            ModeInfo(LH("vec3_texture",  MaterialNodeLocalizationNamespace), LH("vec3_texture_doc",  MaterialNodeLocalizationNamespace)),
-            ModeInfo(LH("vec4_texture",  MaterialNodeLocalizationNamespace), LH("vec4_texture_doc",  MaterialNodeLocalizationNamespace)),
+            ModeInfo(LH("r", MaterialNodeLocalizationNamespace), LH("float_texture_doc", MaterialNodeLocalizationNamespace)),
+            ModeInfo(LH("rg",  MaterialNodeLocalizationNamespace), LH("vec2_texture_doc",  MaterialNodeLocalizationNamespace)),
+            ModeInfo(LH("rgb",  MaterialNodeLocalizationNamespace), LH("vec3_texture_doc",  MaterialNodeLocalizationNamespace)),
+            ModeInfo(LH("rgba",  MaterialNodeLocalizationNamespace), LH("vec4_texture_doc",  MaterialNodeLocalizationNamespace)),
         };
         
         return modes;
@@ -296,24 +202,19 @@ public:
         
         auto& output = getOutput(0);
         output.setType(static_cast<MaterialNodeConnectorType>(requestedModeID));
-//         inputs[0].setType(static_cast<MaterialNodeConnectorType>(requestedModeID));
         
         switch (requestedModeID) {
             case 0:
-                output.setLocalizationHandle(LH("float", MaterialNodeLocalizationNamespace));
-//                 inputs[0].setLocalizationHandle(LH("float", MaterialNodeLocalizationNamespace));
+                output.setLocalizationHandle(LH("r", MaterialNodeLocalizationNamespace));
                 break;
             case 1:
-                output.setLocalizationHandle(LH("vec2", MaterialNodeLocalizationNamespace));
-//                 inputs[0].setLocalizationHandle(LH("vec2", MaterialNodeLocalizationNamespace));
+                output.setLocalizationHandle(LH("rg", MaterialNodeLocalizationNamespace));
                 break;
             case 2:
-                output.setLocalizationHandle(LH("vec3", MaterialNodeLocalizationNamespace));
-//                 inputs[0].setLocalizationHandle(LH("vec3", MaterialNodeLocalizationNamespace));
+                output.setLocalizationHandle(LH("rgb", MaterialNodeLocalizationNamespace));
                 break;
             case 3:
-                output.setLocalizationHandle(LH("vec4", MaterialNodeLocalizationNamespace));
-//                 inputs[0].setLocalizationHandle(LH("vec4", MaterialNodeLocalizationNamespace));
+                output.setLocalizationHandle(LH("rgba", MaterialNodeLocalizationNamespace));
                 break;
         }
         
@@ -335,79 +236,352 @@ public:
     }
 };
 
-// class VectorSplitter : public MaterialNode {
-//     
-// };
+class CrossNode : public MaterialNodeBase {
+public:
+    CrossNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
+        addInput(LH("x", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
+        addInput(LH("y", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
+        addOutput(LH("vec3", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::Cross;
+    }
+};
+
+class LengthNode : public GenTypeMaterialNode {
+public:
+    LengthNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex)
+        : GenTypeMaterialNode(key, position, zIndex, 1, 0, 0, {"x"}) {
+        addOutput(LH("length_node", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::Length;
+    }
+};
+
+class DistanceNode : public GenTypeMaterialNode {
+public:
+    DistanceNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex)
+        : GenTypeMaterialNode(key, position, zIndex, 2, 0, 0, {"x", "y"}) {
+        addOutput(LH("length_node", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::Distance;
+    }
+};
+
+class DotNode : public GenTypeMaterialNode {
+public:
+    DotNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex)
+        : GenTypeMaterialNode(key, position, zIndex, 2, 0, 0, {"x", "y"}) {
+        addOutput(LH("length_node", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::Dot;
+    }
+};
+
+class SplitterJoinerBase : public MaterialNodeBase {
+public:
+    SplitterJoinerBase(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex, std::size_t selectedMode = 2) 
+        : MaterialNodeBase(key, position, zIndex, selectedMode) {}
+    
+    virtual bool supportsMultipleModes() const final override {
+        return true;
+    }
+    
+    virtual std::vector<ModeInfo>& getSupportedModes() const final override {
+        static std::vector<ModeInfo> modes = {
+            ModeInfo(LH("vec2",  MaterialNodeLocalizationNamespace), LH("vec2_mode_doc",  MaterialNodeLocalizationNamespace)),
+            ModeInfo(LH("vec3",  MaterialNodeLocalizationNamespace), LH("vec3_mode_doc",  MaterialNodeLocalizationNamespace)),
+            ModeInfo(LH("vec4",  MaterialNodeLocalizationNamespace), LH("vec4_mode_doc",  MaterialNodeLocalizationNamespace)),
+        };
+        
+        return modes;
+    }
+};
+
+class SplitterNode : public SplitterJoinerBase {
+public:
+    SplitterNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : SplitterJoinerBase(key, position, zIndex, 0) {
+        addInput(LH("vector", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2);
+        addOutput(LH("x", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+        addOutput(LH("y", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+        addOutput(LH("z", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+        addOutput(LH("w", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+        
+        setSelectedModeID(1);
+        onModeChange(0, 1);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::Splitter;
+    }
+    
+    virtual bool onModeChange(std::size_t, std::size_t requestedModeID) final override {
+        if (requestedModeID >= getSupportedModes().size()) {
+            return false;
+        }
+        
+        auto& output = getInput(0);
+        output.setType(static_cast<MaterialNodeConnectorType>(requestedModeID + 1));
+        
+        switch (requestedModeID) {
+            case 0:
+                getOutput(0).setEnabled(true);
+                getOutput(1).setEnabled(true);
+                getOutput(2).setEnabled(false);
+                getOutput(3).setEnabled(false);
+                break;
+            case 1:
+                getOutput(0).setEnabled(true);
+                getOutput(1).setEnabled(true);
+                getOutput(2).setEnabled(true);
+                getOutput(3).setEnabled(false);
+                break;
+            case 2:
+                getOutput(0).setEnabled(true);
+                getOutput(1).setEnabled(true);
+                getOutput(2).setEnabled(true);
+                getOutput(3).setEnabled(true);
+                break;
+        }
+        
+        return true;
+    }
+};
+
+class JoinerNode : public SplitterJoinerBase {
+public:
+    JoinerNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : SplitterJoinerBase(key, position, zIndex, 0) {
+        addInput(LH("x", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+        addInput(LH("y", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+        addInput(LH("z", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+        addInput(LH("w", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+        addOutput(LH("vector", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2);
+        
+        setSelectedModeID(1);
+        onModeChange(0, 1);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::Joiner;
+    }
+    
+    virtual bool onModeChange(std::size_t, std::size_t requestedModeID) final override {
+        if (requestedModeID >= getSupportedModes().size()) {
+            return false;
+        }
+        
+        auto& output = getOutput(0);
+        output.setType(static_cast<MaterialNodeConnectorType>(requestedModeID + 1));
+        
+        switch (requestedModeID) {
+            case 0:
+                getInput(0).setEnabled(true);
+                getInput(1).setEnabled(true);
+                getInput(2).setEnabled(false);
+                getInput(3).setEnabled(false);
+                break;
+            case 1:
+                getInput(0).setEnabled(true);
+                getInput(1).setEnabled(true);
+                getInput(2).setEnabled(true);
+                getInput(3).setEnabled(false);
+                break;
+            case 2:
+                getInput(0).setEnabled(true);
+                getInput(1).setEnabled(true);
+                getInput(2).setEnabled(true);
+                getInput(3).setEnabled(true);
+                break;
+        }
+        
+        return true;
+    }
+};
+
+#define IYF_MAKE_GEN_TYPE_NODE(name, inputs, outputs, ...) \
+class name##Node : public GenTypeMaterialNode { \
+public: \
+    name##Node(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) \
+        : GenTypeMaterialNode(key, position, zIndex, inputs, 0, outputs, __VA_ARGS__) {} \
+    \
+    virtual MaterialNodeType getType() const final override { \
+        return MaterialNodeType::name; \
+    } \
+}
+
+#define IYF_MAKE_GEN_TYPE_FLOAT_NODE(name, inputs, floatInputs, outputs, ...) \
+class name##Node : public GenTypeMaterialNode { \
+public: \
+    name##Node(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) \
+        : GenTypeMaterialNode(key, position, zIndex, inputs, floatInputs, outputs, __VA_ARGS__) {} \
+    \
+    virtual MaterialNodeType getType() const final override { \
+        return MaterialNodeType::name; \
+    } \
+}
+
+#define IYF_MAKE_GEN_TYPE_FLOAT_OUT_NODE(name, inputs, outputs, ...) \
+class name##Node : public GenTypeMaterialNode { \
+public: \
+    name##Node(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) \
+        : GenTypeMaterialNode(key, position, zIndex, inputs, 0, outputs, __VA_ARGS__) { \
+            addOutput(LH(name##"_node", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float); \
+        } \
+    \
+    virtual MaterialNodeType getType() const final override { \
+        return MaterialNodeType::name; \
+    } \
+}
+
+IYF_MAKE_GEN_TYPE_NODE(Radians, 1, 1, {"degrees", "radians"});
+IYF_MAKE_GEN_TYPE_NODE(Degrees, 1, 1, {"radians", "degrees"});
+IYF_MAKE_GEN_TYPE_NODE(Sin, 1, 1, {"x", "sin_node"});
+IYF_MAKE_GEN_TYPE_NODE(Cos, 1, 1, {"x", "cos_node"});
+IYF_MAKE_GEN_TYPE_NODE(Tan, 1, 1, {"x", "tan_node"});
+IYF_MAKE_GEN_TYPE_NODE(Asin, 1, 1, {"x", "asin_node"});
+IYF_MAKE_GEN_TYPE_NODE(Acos, 1, 1, {"x", "acos_node"});
+IYF_MAKE_GEN_TYPE_NODE(Atan, 1, 1, {"x", "atan_node"});
+IYF_MAKE_GEN_TYPE_NODE(Atan2, 2, 1, {"x", "y", "atan2_node"});
+IYF_MAKE_GEN_TYPE_NODE(Sinh, 1, 1, {"x", "sinh_node"});
+IYF_MAKE_GEN_TYPE_NODE(Cosh, 1, 1, {"x", "cosh_node"});
+IYF_MAKE_GEN_TYPE_NODE(Tanh, 1, 1, {"x", "tanh_node"});
+IYF_MAKE_GEN_TYPE_NODE(Asinh, 1, 1, {"x", "asinh_node"});
+IYF_MAKE_GEN_TYPE_NODE(Acosh, 1, 1, {"x", "acosh_node"});
+IYF_MAKE_GEN_TYPE_NODE(Atanh, 1, 1, {"x", "atanh_node"});
+IYF_MAKE_GEN_TYPE_NODE(Pow, 2, 1, {"x", "y", "pow_node"});
+IYF_MAKE_GEN_TYPE_NODE(Exp, 1, 1, {"x", "exp_node"});
+IYF_MAKE_GEN_TYPE_NODE(Log, 1, 1, {"x", "log_node"});
+IYF_MAKE_GEN_TYPE_NODE(Exp2, 1, 1, {"x", "exp2_node"});
+IYF_MAKE_GEN_TYPE_NODE(Log2, 1, 1, {"x", "log2_node"});
+IYF_MAKE_GEN_TYPE_NODE(Sqrt, 1, 1, {"x", "sqrt_node"});
+IYF_MAKE_GEN_TYPE_NODE(InverseSqrt, 1, 1, {"x", "inverse_sqrt_node"});
+IYF_MAKE_GEN_TYPE_NODE(Abs, 1, 1, {"x", "abs_node"});
+IYF_MAKE_GEN_TYPE_NODE(Sign, 1, 1, {"x", "sign_node"});
+IYF_MAKE_GEN_TYPE_NODE(Floor, 1, 1, {"x", "floor_node"});
+IYF_MAKE_GEN_TYPE_NODE(Trunc, 1, 1, {"x", "trunc_node"});
+IYF_MAKE_GEN_TYPE_NODE(Round, 1, 1, {"x", "round_node"});
+IYF_MAKE_GEN_TYPE_NODE(RoundEven, 1, 1, {"x", "round_even_node"});
+IYF_MAKE_GEN_TYPE_NODE(Ceil, 1, 1, {"x", "ceil_node"});
+IYF_MAKE_GEN_TYPE_NODE(Fract, 1, 1, {"x", "fract_node"});
+IYF_MAKE_GEN_TYPE_NODE(Mod, 2, 1, {"x", "y", "mod_node"});
+IYF_MAKE_GEN_TYPE_FLOAT_NODE(ModFloat, 1, 1, 1, {"x", "y", "mod_node"});
+IYF_MAKE_GEN_TYPE_NODE(ModF, 1, 2, {"x", "F", "I"});
+IYF_MAKE_GEN_TYPE_NODE(Min, 2, 1, {"x", "y", "min_node"});
+IYF_MAKE_GEN_TYPE_FLOAT_NODE(MinFloat, 1, 1, 1, {"x", "y", "min_node"});
+IYF_MAKE_GEN_TYPE_NODE(Max, 2, 1, {"x", "y", "max_node"});
+IYF_MAKE_GEN_TYPE_FLOAT_NODE(MaxFloat, 1, 1, 1, {"x", "y", "max_node"});
+IYF_MAKE_GEN_TYPE_NODE(Clamp, 3, 1, {"x", "min_value", "max_value", "clamp_node"});
+IYF_MAKE_GEN_TYPE_FLOAT_NODE(ClampFloat, 1, 2, 1, {"x", "min_value", "max_value", "clamp_node"});
+IYF_MAKE_GEN_TYPE_NODE(Mix, 3, 1, {"x", "y", "a", "mix_node"});
+IYF_MAKE_GEN_TYPE_FLOAT_NODE(MixFloat, 2, 1, 1, {"x", "y", "a", "mix_node"});
+IYF_MAKE_GEN_TYPE_NODE(Step, 2, 1, {"x", "edge", "step_node"});
+IYF_MAKE_GEN_TYPE_FLOAT_NODE(StepFloat, 1, 1, 1, {"x", "edge", "step_node"});
+IYF_MAKE_GEN_TYPE_NODE(SmoothStep, 3, 1, {"x", "edge", "edge2", "smooth_step_node"});
+IYF_MAKE_GEN_TYPE_FLOAT_NODE(SmoothstepFloat, 1, 2, 1, {"x", "edge", "edge2", "smooth_step_node"});
+IYF_MAKE_GEN_TYPE_NODE(Normalize, 1, 1, {"x", "normalize_node"});
+IYF_MAKE_GEN_TYPE_NODE(FaceForward, 3, 1, {"N", "I", "Nref" "face_forward_node"});
+IYF_MAKE_GEN_TYPE_NODE(Reflect, 2, 1, {"I", "N", "reflect_node"});
+IYF_MAKE_GEN_TYPE_FLOAT_NODE(Refract, 2, 1, 1, {"I", "N", "x", "refract_node"});
+IYF_MAKE_GEN_TYPE_NODE(DfDx, 1, 1, {"p", "dfdx_node"});
+IYF_MAKE_GEN_TYPE_NODE(DfDy, 1, 1, {"p", "dfdy_node"});
 
 MaterialLogicGraph::MaterialLogicGraph(const MaterialPipelineDefinition& definition) {
-    nodeTypeInfo.reserve(static_cast<std::uint32_t>(MaterialNodeType::COUNT));
+    const char* ns = MaterialNodeLocalizationNamespace;
     
-    // MaterialNodeType::Output
-    nodeTypeInfo.emplace_back(LH("material_output_node", MaterialNodeLocalizationNamespace),
-                              LH("material_output_node_doc", MaterialNodeLocalizationNamespace),
-                              false, false);
+    addNodeTypeInfo(MaterialNodeType::Output, "material_output_node", "material_output_node_doc", ns, MaterialNodeGroup::Output, false, false);
     
-    // MaterialNodeType::TextureInput
-    nodeTypeInfo.emplace_back(LH("texture_input_node", MaterialNodeLocalizationNamespace),
-                              LH("texture_input_node_doc", MaterialNodeLocalizationNamespace),
-                              true, true);
+    const MaterialNodeGroup input = MaterialNodeGroup::Input;
+    addNodeTypeInfo(MaterialNodeType::TextureInput, "texture_input_node", "texture_input_node_doc", ns, input);
+    addNodeTypeInfo(MaterialNodeType::NormalMapInput, "normal_map_input_node", "normal_map_input_node_doc", ns, input);
+    addNodeTypeInfo(MaterialNodeType::PerFrameData, "per_frame_data_node", "per_frame_data_node_doc", ns, input);
     
-    // MaterialNodeType::NormalMapInput
-    nodeTypeInfo.emplace_back(LH("normal_map_input_node", MaterialNodeLocalizationNamespace),
-                              LH("normal_map_input_node_doc", MaterialNodeLocalizationNamespace),
-                              true, true);
+    const MaterialNodeGroup vecs = MaterialNodeGroup::VectorComponents;
+    addNodeTypeInfo(MaterialNodeType::Splitter, "splitter_node", "splitter_node_doc", ns, vecs);
+    addNodeTypeInfo(MaterialNodeType::Joiner, "joiner_node", "joiner_node_doc", ns, vecs);
     
-    //MaterialNodeType::PerFrameData
-    nodeTypeInfo.emplace_back(LH("per_frame_data_node", MaterialNodeLocalizationNamespace),
-                              LH("per_frame_data_node_doc", MaterialNodeLocalizationNamespace),
-                              true, true);
+    const MaterialNodeGroup trig = MaterialNodeGroup::Trigonometry;
+    addNodeTypeInfo(MaterialNodeType::Radians, "radians_node", "radians_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Degrees, "degrees_node", "degrees_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Sin, "sin_node", "sin_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Cos, "cos_node", "cos_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Tan, "tan_node", "tan_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Asin, "asin_node", "asin_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Acos, "acos_node", "acos_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Atan, "atan_node", "atan_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Atan2, "atan2_node", "atan2_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Sinh, "sinh_node", "sinh_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Cosh, "cosh_node", "cosh_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Tanh, "tanh_node", "tanh_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Asinh, "asinh_node", "asinh_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Acosh, "acosh_node", "acosh_node_doc", ns, trig);
+    addNodeTypeInfo(MaterialNodeType::Atanh, "atanh_node", "atanh_node_doc", ns, trig);
     
-    //MaterialNodeType::Radians
-    nodeTypeInfo.emplace_back(LH("radians_node", MaterialNodeLocalizationNamespace),
-                              LH("radians_node_doc", MaterialNodeLocalizationNamespace),
-                              true, true);
+    const MaterialNodeGroup exp = MaterialNodeGroup::Exponential;
+    addNodeTypeInfo(MaterialNodeType::Pow, "pow_node", "pow_node_doc", ns, exp);
+    addNodeTypeInfo(MaterialNodeType::Exp, "exp_node", "exp_node_doc", ns, exp);
+    addNodeTypeInfo(MaterialNodeType::Log, "log_node", "log_node_doc", ns, exp);
+    addNodeTypeInfo(MaterialNodeType::Exp2, "exp2_node", "exp2_node_doc", ns, exp);
+    addNodeTypeInfo(MaterialNodeType::Log2, "log2_node", "log2_node_doc", ns, exp);
+    addNodeTypeInfo(MaterialNodeType::Sqrt, "sqrt_node", "sqrt_node_doc", ns, exp);
+    addNodeTypeInfo(MaterialNodeType::InverseSqrt, "inverse_sqrt_node", "inverse_sqrt_node_doc", ns, exp);
+
+    const MaterialNodeGroup com = MaterialNodeGroup::CommonMath;
+    addNodeTypeInfo(MaterialNodeType::Abs, "abs_node", "abs_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::Sign, "sign_node", "sign_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::Floor, "floor_node", "floor_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::Trunc, "trunc_node", "trunc_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::Round, "round_node", "round_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::RoundEven, "round_even_node", "round_even_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::Ceil, "ceil_node", "ceil_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::Fract, "fract_node", "fract_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::Mod, "mod_node", "mod_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::ModFloat, "mod_float_node", "mod_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::ModF, "modf_node", "modf_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::Min, "min_node", "min_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::MinFloat, "min_float_node", "min_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::Max, "max_node", "max_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::MaxFloat, "max_float_node", "max_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::Clamp, "clamp_node", "clamp_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::ClampFloat, "clamp_float_node", "clamp_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::Mix, "mix_node", "mix_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::MixFloat, "mix_float_node", "mix_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::Step, "step_node", "step_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::StepFloat, "step_float_node", "step_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::SmoothStep, "smooth_step_node", "smooth_step_node_doc", ns, com);
+    addNodeTypeInfo(MaterialNodeType::SmoothstepFloat, "smooth_step_float_node", "smooth_step_node_doc", ns, com);
     
-    //MaterialNodeType::Degrees
-    nodeTypeInfo.emplace_back(LH("degrees_node", MaterialNodeLocalizationNamespace),
-                              LH("degrees_node_doc", MaterialNodeLocalizationNamespace),
-                              true, true);
+    const MaterialNodeGroup geo = MaterialNodeGroup::Geometry;
+    addNodeTypeInfo(MaterialNodeType::Length, "length_node", "length_node_doc", ns, geo);
+    addNodeTypeInfo(MaterialNodeType::Distance, "distance_node", "distance_node_doc", ns, geo);
+    addNodeTypeInfo(MaterialNodeType::Dot, "dot_node", "dot_node_doc", ns, geo);
+    addNodeTypeInfo(MaterialNodeType::Cross, "cross_node", "cross_node_doc", ns, geo);
+    addNodeTypeInfo(MaterialNodeType::Normalize, "normalize_node", "normalize_node_doc", ns, geo);
+    addNodeTypeInfo(MaterialNodeType::FaceForward, "face_forward_node", "face_forward_node_doc", ns, geo);
+    addNodeTypeInfo(MaterialNodeType::Reflect, "reflect_node", "reflect_node_doc", ns, geo);
+    addNodeTypeInfo(MaterialNodeType::Refract, "refract_node", "refract_node_doc", ns, geo);
     
-    //MaterialNodeType::Sine
-    nodeTypeInfo.emplace_back(LH("sine_node", MaterialNodeLocalizationNamespace),
-                              LH("sine_node_doc", MaterialNodeLocalizationNamespace),
-                              true, true);
     
-    //MaterialNodeType::Cosine
-    nodeTypeInfo.emplace_back(LH("cosine_node", MaterialNodeLocalizationNamespace),
-                              LH("cosine_node_doc", MaterialNodeLocalizationNamespace),
-                              true, true);
+    const MaterialNodeGroup der = MaterialNodeGroup::Derivatives;
+    addNodeTypeInfo(MaterialNodeType::DfDx, "dfdx_node", "dfdx_node_doc", ns, der);
+    addNodeTypeInfo(MaterialNodeType::DfDy, "dfdy_node", "dfdy_node_doc", ns, der);
     
-    //MaterialNodeType::Tangent
-    nodeTypeInfo.emplace_back(LH("tangent_node", MaterialNodeLocalizationNamespace),
-                              LH("tangent_node_doc", MaterialNodeLocalizationNamespace),
-                              true, true);
+    setNodeGroupName(MaterialNodeGroup::Input, LH("input", ns));
+    setNodeGroupName(MaterialNodeGroup::VectorComponents, LH("vector_components", ns));
+    setNodeGroupName(MaterialNodeGroup::Trigonometry, LH("trigonometry", ns));
+    setNodeGroupName(MaterialNodeGroup::Exponential, LH("exponential", ns));
+    setNodeGroupName(MaterialNodeGroup::CommonMath, LH("common_math", ns));
+    setNodeGroupName(MaterialNodeGroup::Geometry, LH("geometry", ns));
+    setNodeGroupName(MaterialNodeGroup::Derivatives, LH("derivatives", ns));
+    setNodeGroupName(MaterialNodeGroup::Output, LH("output", ns));
     
-    //MaterialNodeType::Arcsine
-    nodeTypeInfo.emplace_back(LH("arcsine_node", MaterialNodeLocalizationNamespace),
-                              LH("arcsine_node_doc", MaterialNodeLocalizationNamespace),
-                              true, true);
-    
-    //MaterialNodeType::Arccosine
-    nodeTypeInfo.emplace_back(LH("arccosine_node", MaterialNodeLocalizationNamespace),
-                              LH("arccosine_node_doc", MaterialNodeLocalizationNamespace),
-                              true, true);
-    
-    //MaterialNodeType::Arctangent
-    nodeTypeInfo.emplace_back(LH("arctangent_node", MaterialNodeLocalizationNamespace),
-                              LH("arctangent_node_doc", MaterialNodeLocalizationNamespace),
-                              true, true);
-    
-    //MaterialNodeType::Arctangent2
-    nodeTypeInfo.emplace_back(LH("arctangent2_node", MaterialNodeLocalizationNamespace),
-                              LH("arctangent2_node_doc", MaterialNodeLocalizationNamespace),
-                              true, true);
-    
-    assert(nodeTypeInfo.size() == static_cast<std::uint32_t>(MaterialNodeType::COUNT));
+    validateNodeTypeInfo();
     assert(getNextKey() == 0);
     
     MaterialOutputNode* outputNode = new MaterialOutputNode(definition, Vec2(0.0f, 0.0f), getNextZIndex());
@@ -416,48 +590,77 @@ MaterialLogicGraph::MaterialLogicGraph(const MaterialPipelineDefinition& definit
 
 MaterialLogicGraph::~MaterialLogicGraph() {}
 
+#define IYF_CREATE_NODE_CASE(name) \
+        case MaterialNodeType::name:\
+            node = newNode<name##Node>(position, type);\
+            break
+
 MaterialNode* MaterialLogicGraph::addNode(MaterialNodeType type, const Vec2& position) {
     MaterialNode* node = nullptr;
     
     switch (type) {
         case MaterialNodeType::Output:
             throw std::logic_error("An Output node can only be created automatically by the LogicGraph during its initialization");
-        case MaterialNodeType::TextureInput:
-            node = newNode<TextureInputNode>(position, type);
-            break;
-        case MaterialNodeType::NormalMapInput:
-            node = newNode<NormalMapInputNode>(position, type);
-            break;
-        case MaterialNodeType::PerFrameData:
-            node = newNode<PerFrameDataNode>(position, type);
-            break;
-        case MaterialNodeType::Radians:
-            node = newNode<RadiansNode>(position, type);
-            break;
-        case MaterialNodeType::Degrees:
-            node = newNode<DegreesNode>(position, type);
-            break;
-        case MaterialNodeType::Sine:
-            node = newNode<SineNode>(position, type);
-            break;
-        case MaterialNodeType::Cosine:
-            node = newNode<CosineNode>(position, type);
-            break;
-        case MaterialNodeType::Tangent:
-            node = newNode<TangentNode>(position, type);
-            break;
-        case MaterialNodeType::Arcsine:
-            node = newNode<ArcsineNode>(position, type);
-            break;
-        case MaterialNodeType::Arccosine:
-            node = newNode<ArccosineNode>(position, type);
-            break;
-        case MaterialNodeType::Arctangent:
-            node = newNode<ArctangentNode>(position, type);
-            break;
-        case MaterialNodeType::Arctangent2:
-            node = newNode<Arctangent2Node>(position, type);
-            break;
+        IYF_CREATE_NODE_CASE(TextureInput);
+        IYF_CREATE_NODE_CASE(NormalMapInput);
+        IYF_CREATE_NODE_CASE(PerFrameData);
+        IYF_CREATE_NODE_CASE(Radians);
+        IYF_CREATE_NODE_CASE(Degrees);
+        IYF_CREATE_NODE_CASE(Sin);
+        IYF_CREATE_NODE_CASE(Cos);
+        IYF_CREATE_NODE_CASE(Tan);
+        IYF_CREATE_NODE_CASE(Asin);
+        IYF_CREATE_NODE_CASE(Acos);
+        IYF_CREATE_NODE_CASE(Atan);
+        IYF_CREATE_NODE_CASE(Atan2);
+        IYF_CREATE_NODE_CASE(Sinh);
+        IYF_CREATE_NODE_CASE(Cosh);
+        IYF_CREATE_NODE_CASE(Tanh);
+        IYF_CREATE_NODE_CASE(Asinh);
+        IYF_CREATE_NODE_CASE(Acosh);
+        IYF_CREATE_NODE_CASE(Atanh);
+        IYF_CREATE_NODE_CASE(Pow);
+        IYF_CREATE_NODE_CASE(Exp);
+        IYF_CREATE_NODE_CASE(Log);
+        IYF_CREATE_NODE_CASE(Exp2);
+        IYF_CREATE_NODE_CASE(Log2);
+        IYF_CREATE_NODE_CASE(Sqrt);
+        IYF_CREATE_NODE_CASE(InverseSqrt);
+        IYF_CREATE_NODE_CASE(Abs);
+        IYF_CREATE_NODE_CASE(Sign);
+        IYF_CREATE_NODE_CASE(Floor);
+        IYF_CREATE_NODE_CASE(Trunc);
+        IYF_CREATE_NODE_CASE(Round);
+        IYF_CREATE_NODE_CASE(RoundEven);
+        IYF_CREATE_NODE_CASE(Ceil);
+        IYF_CREATE_NODE_CASE(Fract);
+        IYF_CREATE_NODE_CASE(Mod);
+        IYF_CREATE_NODE_CASE(ModFloat);
+        IYF_CREATE_NODE_CASE(ModF);
+        IYF_CREATE_NODE_CASE(Min);
+        IYF_CREATE_NODE_CASE(MinFloat);
+        IYF_CREATE_NODE_CASE(Max);
+        IYF_CREATE_NODE_CASE(MaxFloat);
+        IYF_CREATE_NODE_CASE(Clamp);
+        IYF_CREATE_NODE_CASE(ClampFloat);
+        IYF_CREATE_NODE_CASE(Mix);
+        IYF_CREATE_NODE_CASE(MixFloat);
+        IYF_CREATE_NODE_CASE(Step);
+        IYF_CREATE_NODE_CASE(StepFloat);
+        IYF_CREATE_NODE_CASE(SmoothStep);
+        IYF_CREATE_NODE_CASE(SmoothstepFloat);
+        IYF_CREATE_NODE_CASE(Length);
+        IYF_CREATE_NODE_CASE(Distance);
+        IYF_CREATE_NODE_CASE(Dot);
+        IYF_CREATE_NODE_CASE(Cross);
+        IYF_CREATE_NODE_CASE(Normalize);
+        IYF_CREATE_NODE_CASE(FaceForward);
+        IYF_CREATE_NODE_CASE(Reflect);
+        IYF_CREATE_NODE_CASE(Refract);
+        IYF_CREATE_NODE_CASE(DfDx);
+        IYF_CREATE_NODE_CASE(DfDy);
+        IYF_CREATE_NODE_CASE(Splitter);
+        IYF_CREATE_NODE_CASE(Joiner);
         case MaterialNodeType::COUNT:
             throw std::logic_error("COUNT is not a valid NodeType");
     }
@@ -488,8 +691,12 @@ std::string MaterialLogicGraph::getConnectorTypeName(MaterialNodeConnectorType t
     throw std::runtime_error("Unhandled node connector type");
 }
 
-std::uint32_t MaterialLogicGraph::getConnectorTypeColor(ConnectorType type) const {
+std::uint32_t MaterialLogicGraph::getConnectorTypeColor(ConnectorType type, bool enabled) const {
     // TODO something more friendly towards colorblind individuals
+    if (!enabled) {
+        return IM_COL32(64, 64, 64, 255);
+    }
+    
     switch (type) {
         case MaterialNodeConnectorType::Float:
             return IM_COL32(200, 64, 64, 255);
