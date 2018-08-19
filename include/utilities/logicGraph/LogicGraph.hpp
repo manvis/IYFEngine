@@ -462,7 +462,7 @@ public:
         }
     };
     
-    inline LogicGraph() : nextKey(0), selectedNode(InvalidKey), nextZIndex(0), nodeTypeInfoSetupComplete(false), nodeGroupSetupComplete(false) {
+    inline LogicGraph() : nextKey(0), nextZIndex(0), nodeTypeInfoSetupComplete(false), nodeGroupSetupComplete(false) {
         nodeTypeInfo.resize(static_cast<std::size_t>(NodeTypeEnum::COUNT));
         nodeGroupNames.resize(static_cast<std::size_t>(NodeTypeInfoEnum::COUNT), LocalizationHandle(hash32_t(0)));
     }
@@ -557,53 +557,7 @@ public:
         delete nodeResult->second;
         nodes.erase(nodeResult);
         
-        if (selectedNode == key) {
-            deselectNode();
-//             // Replaces the selection with next highest node
-//             NodeKey maxKey = 0;
-//             ZIndex index = 0;
-//             
-//             for (const auto& n : nodes) {
-//                 const ZIndex currentIndex = n.second->getZIndex();
-//                 if (currentIndex >= index) {
-//                     maxKey = n.first;
-//                     index = currentIndex;
-//                 }
-//             }
-//             
-//             selectedNode = maxKey;
-        }
-        
         return true;
-    }
-    
-    inline void deselectNode() {
-        selectedNode = InvalidKey;
-    }
-    
-    inline bool selectNode(NodeKey k) {
-        if (!hasNode(k)) {
-            return false;
-        }
-        
-        selectedNode = k;
-        return true;
-    }
-    
-    inline bool hasSelectedNode() const {
-        return selectedNode != InvalidKey;
-    }
-    
-    inline NodeKey getSelectedNodeKey() const {
-        return selectedNode;
-    }
-    
-    inline NodeType* getSelectedNode() const {
-        if (!hasSelectedNode()) {
-            return nullptr;
-        }
-        
-        return getNode(selectedNode);
     }
     
     inline NodeType* getNode(NodeKey key) const {
@@ -927,7 +881,6 @@ protected:
     }
 private:
     NodeKey nextKey;
-    NodeKey selectedNode;
     ZIndex nextZIndex;
     
     std::unordered_map<NodeKey, NodeType*> nodes;

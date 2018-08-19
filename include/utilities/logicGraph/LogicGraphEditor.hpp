@@ -35,6 +35,7 @@
 #include "localization/TextLocalization.hpp"
 
 #include <memory>
+#include <unordered_set>
 #include "imgui.h"
 
 namespace iyf {
@@ -64,6 +65,8 @@ enum class DragMode : std::uint8_t {
 template <typename T>
 class LogicGraphEditor {
 public:
+    using NodeKey = typename T::NodeKey;
+    
     static constexpr const char* LocalizationNamespace = "logic_graph_editor";
     
     LogicGraphEditor(NodeEditorSettings settings = NodeEditorSettings()) 
@@ -88,10 +91,12 @@ protected:
     void showConnectionErrorTooltip(const char* text) const;
     bool validateConnection(bool connectIfValidated = false);
     void showLocalizedDocumentation(LocalizationHandle handle);
+    void showNodeContextMenu();
     
     float computeConnectorSlotRadius();
     void drawConnectionCurve(const ImVec2& start, const ImVec2& end, ImU32 color);
     ImVec2 mousePosToCanvasPos();
+    bool selectionContainsKey(NodeKey key) const;
     
     inline bool isConnectorHovered() const {
         return hoveredConnector.isValid();
@@ -105,14 +110,14 @@ protected:
     
     struct ConnectorKey {
         inline ConnectorKey() : nodeKey(T::InvalidKey), connectorID(T::NodeType::Connector::InvalidID), isInput(false) {}
-        inline ConnectorKey(typename T::NodeKey nodeKey, std::uint8_t connectorID, bool isInput)
+        inline ConnectorKey(NodeKey nodeKey, std::uint8_t connectorID, bool isInput)
             : nodeKey(nodeKey), connectorID(connectorID), isInput(isInput) {}
         
         inline bool isValid() const {
             return (nodeKey != T::InvalidKey) && (connectorID != T::NodeType::Connector::InvalidID);
         }
         
-        typename T::NodeKey nodeKey;
+        NodeKey nodeKey;
         std::uint8_t connectorID;
         bool isInput;
         
@@ -125,7 +130,7 @@ protected:
         inline std::size_t operator()(const ConnectorKey& k) const {
             std::size_t seed = 0;
             
-            util::HashCombine(seed, std::hash<typename T::NodeKey>()(k.nodeKey));
+            util::HashCombine(seed, std::hash<NodeKey>()(k.nodeKey));
             util::HashCombine(seed, std::hash<std::uint8_t>()(k.connectorID));
             util::HashCombine(seed, std::hash<bool>()(k.isInput));
             
@@ -134,7 +139,8 @@ protected:
     };
     
     std::unique_ptr<T> graph;
-    typename T::NodeKey lastSelectedNode;
+    std::unordered_set<NodeKey> selectedNodes;
+    NodeKey lastSelectedNode;
     std::vector<char> name;
     std::set<typename T::NodeType*, ZSortComparator> zSortedNodes;
     std::unordered_map<ConnectorKey, std::pair<ImVec2, ImU32>, ConnectorKeyHasher> connectorDataCache;
@@ -146,13 +152,18 @@ protected:
     ImVec2 lastScrollMax;
     const NodeEditorSettings settings;
     
-    typename T::NodeKey hoveredNodeKey;
-    typename T::NodeKey contextMenuNodeKey;
+    NodeKey hoveredNodeKey;
+    NodeKey contextMenuNodeKey;
     ConnectorKey hoveredConnector;
     ConnectorKey newConnectionStart;
     DragMode dragMode;
     bool wasMouse1DraggingLastFrame;
 };
+
+template <typename T>
+bool LogicGraphEditor<T>::selectionContainsKey(NodeKey key) const {
+    return (selectedNodes.find(key) != selectedNodes.end());
+}
 
 template <typename T>
 void LogicGraphEditor<T>::showLocalizedDocumentation(LocalizationHandle handle) {
@@ -349,6 +360,73 @@ ImVec2 LogicGraphEditor<T>::mousePosToCanvasPos() {
 }
 
 template <typename T>
+void LogicGraphEditor<T>::showNodeContextMenu() {
+    auto node = graph->getNode(contextMenuNodeKey);
+    const auto& nodeTypeInfo = graph->getNodeTypeInfo(node->getType());
+    
+    const std::string typeName = LOC_SYS(nodeTypeInfo.name);
+    ImGui::TextDisabled("Type: %s; Key: %d", typeName.c_str(), node->getKey());
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    showLocalizedDocumentation(nodeTypeInfo.documentation);
+    
+    ImGui::Separator();
+    
+    bool deleted = false;
+    const bool deletable = nodeTypeInfo.deletable;
+    if (ImGui::MenuItem("Delete", nullptr, false, deletable)) {
+        selectedNodes.erase(contextMenuNodeKey);
+        
+        const bool result = graph->removeNode(contextMenuNodeKey);
+        assert(result);
+        
+        hoveredNodeKey = T::InvalidKey;
+        deleted = true;
+    }
+    
+    if (deleted) {
+        return;
+    }
+    
+    if (!deletable && ImGui::IsItemHovered()) {
+        ImGui::BeginTooltip();
+        
+        const std::string cannotDelete = LOC_SYS(LH("cannot_delete", LocalizationNamespace));
+        ImGui::TextUnformatted(cannotDelete.c_str(), cannotDelete.c_str() + cannotDelete.length());
+        
+        ImGui::EndTooltip();
+    }
+    
+    const bool hasModes = node->supportsMultipleModes();
+    if (ImGui::BeginMenu("Mode", hasModes)) {
+        const auto& modes = node->getSupportedModes();
+        
+        for (std::size_t i = 0; i < modes.size(); ++i) {
+            const std::string modeName = LOC_SYS(modes[i].name);
+            if (ImGui::MenuItem(modeName.c_str())) {
+                const bool changed = node->setSelectedModeID(i);
+                
+                if (!changed) {
+                    throw std::logic_error("Failed to change the mode");
+                }
+                
+                graph->revalidateNodeConnections(node);
+            }
+            
+            if (ImGui::IsItemHovered()) {
+                ImGui::BeginTooltip();
+                
+                const std::string docString = LOC_SYS(modes[i].documentation);
+                ImGui::Text("%s", docString.c_str());
+                ImGui::EndTooltip();
+            }
+        }
+        
+        ImGui::EndMenu();
+    }
+}
+
+template <typename T>
 void LogicGraphEditor<T>::handleTransformations() {
     IYFT_PROFILE(handleTransformations, iyft::ProfilerTag::LogicGraph);
     
@@ -389,16 +467,22 @@ void LogicGraphEditor<T>::handleTransformations() {
         ImGui::ResetMouseDragDelta(1);
     }
     
-    const bool canSelect = hovered && !ctrl && !shift && !collapsed;
+    const bool canSelect = hovered && !shift && !collapsed;
     if (canSelect && ImGui::IsMouseClicked(0) && !ImGui::IsMouseDragging(0)) {
-        if (anyNodeHovered && (hoveredNodeKey != graph->getSelectedNodeKey())) {
-            // Since nodes are sorted, this will automatically be the node with the highest zIndex
-            const bool selectionSucceeded = graph->selectNode(hoveredNodeKey);
-            assert(selectionSucceeded);
+        if (anyNodeHovered && !ctrl && !selectionContainsKey(hoveredNodeKey)) {
+            selectedNodes.clear();
+            
+            auto insertionResult = selectedNodes.insert(hoveredNodeKey);
+            assert(insertionResult.second);
+            
+            graph->nodeToTop(hoveredNodeKey);
+        } else if (anyNodeHovered && ctrl && !selectionContainsKey(hoveredNodeKey)) {
+            auto insertionResult = selectedNodes.insert(hoveredNodeKey);
+            assert(insertionResult.second);
             
             graph->nodeToTop(hoveredNodeKey);
         } else if (!anyNodeHovered) {
-            graph->deselectNode();
+            selectedNodes.clear();
         }
     }
     
@@ -424,7 +508,12 @@ void LogicGraphEditor<T>::handleTransformations() {
             }
         } else if (dragMode == DragMode::Node) {
             const ImVec2 delta = ImGui::GetMouseDragDelta(0);
-            graph->getSelectedNode()->translate(Vec2(delta.x / scale, delta.y / scale));
+            const Vec2 translation(delta.x / scale, delta.y / scale);
+            
+            for (const NodeKey k : selectedNodes) {
+                graph->getNode(k)->translate(translation);
+            }
+            
             ImGui::ResetMouseDragDelta();
         } else if (dragMode == DragMode::NoDrag) {
             if (isConnectorHovered()) {
@@ -468,60 +557,7 @@ void LogicGraphEditor<T>::handleTransformations() {
     }
     
     if (ImGui::BeginPopup("Node Context Menu", contextMenuFlags)) {
-        auto node = graph->getNode(contextMenuNodeKey);
-        const auto& nodeTypeInfo = graph->getNodeTypeInfo(node->getType());
-        
-        const std::string typeName = LOC_SYS(nodeTypeInfo.name);
-        ImGui::TextDisabled("Type: %s; Key: %d", typeName.c_str(), node->getKey());
-        ImGui::SameLine();
-        ImGui::TextDisabled("(?)");
-        showLocalizedDocumentation(nodeTypeInfo.documentation);
-        
-        ImGui::Separator();
-        
-        const bool deletable = nodeTypeInfo.deletable;
-        if (ImGui::MenuItem("Delete", nullptr, false, deletable)) {
-            const bool result = graph->removeNode(contextMenuNodeKey);
-            assert(result);
-            hoveredNodeKey = T::InvalidKey;
-        }
-        
-        if (!deletable && ImGui::IsItemHovered()) {
-            ImGui::BeginTooltip();
-            
-            const std::string cannotDelete = LOC_SYS(LH("cannot_delete", LocalizationNamespace));
-            ImGui::TextUnformatted(cannotDelete.c_str(), cannotDelete.c_str() + cannotDelete.length());
-            
-            ImGui::EndTooltip();
-        }
-        
-        const bool hasModes = node->supportsMultipleModes();
-        if (ImGui::BeginMenu("Mode", hasModes)) {
-            const auto& modes = node->getSupportedModes();
-            
-            for (std::size_t i = 0; i < modes.size(); ++i) {
-                const std::string modeName = LOC_SYS(modes[i].name);
-                if (ImGui::MenuItem(modeName.c_str())) {
-                    const bool changed = node->setSelectedModeID(i);
-                    
-                    if (!changed) {
-                        throw std::logic_error("Failed to change the mode");
-                    }
-                    
-                    graph->revalidateNodeConnections(node);
-                }
-                
-                if (ImGui::IsItemHovered()) {
-                    ImGui::BeginTooltip();
-                    
-                    const std::string docString = LOC_SYS(modes[i].documentation);
-                    ImGui::Text("%s", docString.c_str());
-                    ImGui::EndTooltip();
-                }
-            }
-            
-            ImGui::EndMenu();
-        }
+        showNodeContextMenu();
         
         ImGui::EndPopup();
     }
@@ -606,12 +642,17 @@ void LogicGraphEditor<T>::drawNodeEditor() {
         if (ImGui::TreeNode("Editor Debug")) {
             ImGui::Text("Selected node");
             
-            if (graph->hasSelectedNode()) {
-                ImGui::Text("\tKey: %u", graph->getSelectedNodeKey());
-                ImGui::Text("\tZ-index: %u", graph->getSelectedNode()->getZIndex());
+            if (selectedNodes.size() == 1) {
+                const NodeKey selectionKey = *(selectedNodes.begin());
+                const auto& selectedNode = *(graph->getNode(selectionKey));
                 
-                const Vec2 pos = graph->getSelectedNode()->getPosition();
+                ImGui::Text("\tKey: %u", selectionKey);
+                ImGui::Text("\tZ-index: %u", selectedNode.getZIndex());
+                
+                const Vec2 pos = selectedNode.getPosition();
                 ImGui::Text("\tPosition: %.2f %.2f", pos.x, pos.y);
+            } else if (selectedNodes.size() > 1) {
+                ImGui::Text("\tMultiple nodes selected");
             } else {
                 ImGui::Text("\tNone");
             }
@@ -682,13 +723,18 @@ void LogicGraphEditor<T>::drawNodeEditor() {
 
 template <typename T>
 void LogicGraphEditor<T>::drawNodeProperties() {
-    if (!graph->hasSelectedNode()) {
+    if (selectedNodes.empty()) {
+        ImGui::Text("No nodes selected.");
+        return;
+    } else if (selectedNodes.size() > 1) {
+        ImGui::Text("%zu nodes selected.", selectedNodes.size());
         return;
     }
     
     ImGui::Text("Selected Node Properties");
     
-    auto& node = *graph->getSelectedNode();
+    const NodeKey selectedNodeKey = *(selectedNodes.begin());
+    auto& node = *(graph->getNode(selectedNodeKey));
     
     const std::string nodeTypeName = LOC_SYS(graph->getNodeTypeInfo(node.getType()).name);
     ImGui::Text("Type: %s", nodeTypeName.c_str());
@@ -699,7 +745,7 @@ void LogicGraphEditor<T>::drawNodeProperties() {
     showLocalizedDocumentation(graph->getNodeTypeInfo(node.getType()).documentation);
     
     // Zero out the name
-    if (graph->getSelectedNodeKey() != lastSelectedNode) {
+    if (selectedNodeKey != lastSelectedNode) {
         std::memset(name.data(), 0, name.size() * sizeof(char));
     }
     
@@ -821,7 +867,7 @@ void LogicGraphEditor<T>::drawNodes() {
         ImGui::PushID(node.getKey());
         ImGui::SetCursorScreenPos(nodeStart);
 
-        const bool selected = (node.getKey() == graph->getSelectedNodeKey());
+        const bool selected = selectionContainsKey(node.getKey());
         const ImU32 headerColor = (selected ? 
                                    ImColor(style.Colors[ImGuiCol_TitleBgActive]) :
                                    ImColor(style.Colors[ImGuiCol_TitleBg]));
