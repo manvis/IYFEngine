@@ -32,7 +32,7 @@
 #include <vector>
 #include <algorithm>
 #include <unordered_map>
-#include <set>
+#include <unordered_set>
 #include <cassert>
 #include <type_traits>
 
@@ -395,6 +395,12 @@ enum class NodeConnectionResult {
     UnableToConnectToSelf,
 };
 
+enum class LogicGraphValidationResult {
+    Success,
+    CycleFound,
+    Empty,
+};
+
 template <typename GraphNodeType, typename GraphNodeTypeInfo>
 class LogicGraph {
 public:
@@ -479,6 +485,10 @@ public:
     
     inline const std::unordered_map<NodeKey, DestinationMultiMap>& getNodeConnections() const {
         return connections;
+    }
+    
+    inline std::size_t getNodeCount() const {
+        return nodes.size();
     }
     
     virtual void serializeJSON() {
@@ -584,6 +594,56 @@ public:
         nextZIndex++;
         
         return true;
+    }
+    
+    /// \remark This vector is built like a stack. That is, you probably want to use a reverse iterator to access
+    /// the contents or reverse it before use.
+    ///
+    /// \remark Based on https://www.geeksforgeeks.org/topological-sorting/
+    ///
+    /// \returns A vector that contains topologically sorted nodes.
+    std::vector<NodeKey> getTopologicalSort() const {
+        std::vector<NodeKey> sortedNodes;
+        if (validate() != LogicGraphValidationResult::Success) {
+            return sortedNodes;
+        }
+        
+        sortedNodes.reserve(nodes.size());
+        
+        std::unordered_set<NodeKey> visitedNodes;
+        for (const auto& node : nodes) {
+            if (!contains(visitedNodes, node.first)) {
+                recursiveTopologicalSort(node.first, visitedNodes, sortedNodes);
+            }
+        }
+        
+        return sortedNodes;
+    }
+    
+    /// \remark Based on https://www.geeksforgeeks.org/detect-cycle-in-a-graph/
+    bool hasCycles() const {
+        std::unordered_set<NodeKey> visitedNodes;
+        std::unordered_set<NodeKey> currentNodes;
+        
+        for (const auto& node : nodes) {
+            if (recursiveCycleFinder(node.first, visitedNodes, currentNodes)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    inline LogicGraphValidationResult validate() const {
+        if (nodes.empty()) {
+            return LogicGraphValidationResult::Empty;
+        }
+        
+        if (hasCycles()) {
+            return LogicGraphValidationResult::CycleFound;
+        }
+        
+        return LogicGraphValidationResult::Success;
     }
     
     /// \brief Checks if two nodes can be connected.
@@ -880,6 +940,67 @@ protected:
         nodeGroupSetupComplete = true;
     }
 private:
+    inline static bool contains(std::unordered_set<NodeKey>& set, NodeKey key) {
+        return set.count(key) == 1;
+    }
+    
+    inline std::unordered_set<NodeKey> multimapToSet(const DestinationMultiMap& destinationMap) const {
+        // In our case, a node may connect to an another node multiple times because nodes may have multiple inputs
+        // this set is used to ensure all destinations only get processed once.
+        std::unordered_set<NodeKey> destinationSet;
+        destinationSet.reserve(destinationMap.size());
+        
+        for (const auto& destination : destinationMap) {
+            destinationSet.insert(destination.first);
+        }
+        
+        return destinationSet;
+    }
+    
+    void recursiveTopologicalSort(NodeKey key, std::unordered_set<NodeKey>& visitedNodes, std::vector<NodeKey>& sortedNodes) const {
+        visitedNodes.insert(key);
+        
+        auto destinationIter = connections.find(key);
+        if (destinationIter != connections.end()) {
+            const DestinationMultiMap& destinationMap = destinationIter->second;
+        
+            const auto destinationSet = multimapToSet(destinationMap);
+            
+            for (const auto& destination : destinationSet) {
+                if (!contains(visitedNodes, destination)) {
+                    recursiveTopologicalSort(destination, visitedNodes, sortedNodes);
+                }
+            }
+        }
+        
+        sortedNodes.push_back(key);
+    }
+    
+    bool recursiveCycleFinder(NodeKey key, std::unordered_set<NodeKey>& visitedNodes, std::unordered_set<NodeKey>& currentNodes) const {
+        if (!contains(visitedNodes, key)) {
+            visitedNodes.insert(key);
+            currentNodes.insert(key);
+            
+            auto destinationIter = connections.find(key);
+            if (destinationIter != connections.end()) {
+                const DestinationMultiMap& destinationMap = destinationIter->second;
+            
+                const auto destinationSet = multimapToSet(destinationMap);
+                
+                for (const auto& destination : destinationSet) {
+                    if (!contains(visitedNodes, destination) && recursiveCycleFinder(destination, visitedNodes, currentNodes)) {
+                        return true;
+                    } else if (contains(currentNodes, destination)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        currentNodes.erase(key);
+        return false;
+    }
+    
     NodeKey nextKey;
     ZIndex nextZIndex;
     

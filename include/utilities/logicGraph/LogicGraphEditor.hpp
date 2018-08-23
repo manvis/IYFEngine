@@ -34,8 +34,8 @@
 #include "utilities/hashing/HashCombine.hpp"
 #include "localization/TextLocalization.hpp"
 
+#include <set>
 #include <memory>
-#include <unordered_set>
 #include "imgui.h"
 
 namespace iyf {
@@ -71,7 +71,7 @@ public:
     
     LogicGraphEditor(NodeEditorSettings settings = NodeEditorSettings()) 
         : scale(1.0f), nodeInfoWidth(200.0f), canvasPosition(0.0f, 0.0f), nodeCreationMenuLocation(0.0f, 0.0f), settings(std::move(settings)), hoveredNodeKey(T::InvalidKey),
-          contextMenuNodeKey(T::InvalidKey), dragMode(DragMode::NoDrag), wasMouse1DraggingLastFrame(false) {
+          contextMenuNodeKey(T::InvalidKey), dragMode(DragMode::NoDrag), wasMouse1DraggingLastFrame(false), lastValidationResult(LogicGraphValidationResult::Success) {
         name.resize(128, '\0');
     }
     virtual ~LogicGraphEditor() {}
@@ -87,6 +87,7 @@ protected:
     void handleTransformations();
     void drawNodes();
     void drawConnections();
+    void drawCanvasInfo();
     void drawNodeProperties();
     void showConnectionErrorTooltip(const char* text) const;
     bool validateConnection(bool connectIfValidated = false);
@@ -158,6 +159,9 @@ protected:
     ConnectorKey newConnectionStart;
     DragMode dragMode;
     bool wasMouse1DraggingLastFrame;
+    LogicGraphValidationResult lastValidationResult;
+    
+    std::string lastSort;
 };
 
 template <typename T>
@@ -196,18 +200,80 @@ void LogicGraphEditor<T>::show(bool* open) {
         
         ImGui::SameLine();
         
-        ImGui::Text("X: %.0f; Y: %.0f; S: %.2f", canvasPosition.x, canvasPosition.y, scale);
-        
-        ImGui::SameLine();
-        
-        if (ImGui::Button("Reset")) {
-            canvasPosition = ImVec2(0.0f, 0.0f);
-            scale = 1.0f;
+        if (ImGui::Button("Load")) {
+            //
         }
         
         if (graph == nullptr) {
             ImGui::Text("No loaded graph");
         } else {
+            ImGui::SameLine();
+        
+            if (ImGui::Button("Save")) {
+                //
+            }
+            
+            ImGui::SameLine();
+            ImGui::Text("|");
+            ImGui::SameLine();
+            
+            if (ImGui::Button("Validate")) {
+                ImGui::OpenPopup("Validation Result");
+                lastValidationResult = graph->validate();
+            }
+            
+            if (ImGui::BeginPopupModal("Validation Result")) {
+                switch (lastValidationResult) {
+                    case LogicGraphValidationResult::Success:
+                        ImGui::Text("The node graph was validated successfully.");
+                        break;
+                    case LogicGraphValidationResult::CycleFound:
+                        ImGui::Text("The node graph has one or more cycles.");
+                        break;
+                    case LogicGraphValidationResult::Empty:
+                        ImGui::Text("The node graph is empty.");
+                        break;
+                }
+                
+                if (ImGui::Button("OK")) {
+                    ImGui::CloseCurrentPopup();
+                }
+                
+                ImGui::EndPopup();
+            }
+            
+            ImGui::SameLine();
+            
+            if (ImGui::Button("Sort")) {
+                auto results = graph->getTopologicalSort();
+                
+                if (graph->getNodeCount() == 0) {
+                    assert(results.empty());
+                    lastSort = "no nodes in graph sort.";
+                } else if (results.empty()) {
+                    lastSort = "an error occured when trying to perform the topological sort.";
+                } else {
+                    std::stringstream ss;
+                    for (auto i = results.rbegin(); i != results.rend(); ++i) {
+                        const NodeKey key = *i;
+                        
+                        const auto& node = *(graph->getNode(key));
+                        if (node.hasName()) {
+                            const char* str = node.getName().c_str();
+                            
+                            ss << "ID:" << key << "; " << str << "\n";
+                        } else {
+                            const std::string string = LOC_SYS(graph->getNodeTypeInfo(node.getType()).name);
+                            const char* str = string.c_str();
+                            
+                            ss << "ID:" << key << "; " << str << "\n";
+                        }
+                    }
+                    
+                    lastSort = ss.str();
+                }
+            }
+            
             drawNodeEditor();
         }
     }
@@ -392,7 +458,7 @@ void LogicGraphEditor<T>::showNodeContextMenu() {
         ImGui::BeginTooltip();
         
         const std::string cannotDelete = LOC_SYS(LH("cannot_delete", LocalizationNamespace));
-        ImGui::TextUnformatted(cannotDelete.c_str(), cannotDelete.c_str() + cannotDelete.length());
+        ImGui::Text("%s", cannotDelete.c_str());
         
         ImGui::EndTooltip();
     }
@@ -440,6 +506,8 @@ void LogicGraphEditor<T>::handleTransformations() {
     const bool hasWheelMovedH = io.MouseWheelH != 0.0f;
     const bool anyClicks = ImGui::IsAnyMouseDown();
     const bool anyNodeHovered = (hoveredNodeKey != T::InvalidKey);
+    const bool lmbDragging = ImGui::IsMouseDragging(0, 1.0f);
+    const bool rmbDragging = ImGui::IsMouseDragging(1);
     
     if (hovered && !ctrl && !shift && !anyClicks && hasWheelMovedV && !collapsed) {
         const ImVec2 offsetPreMod = mousePosToCanvasPos();
@@ -456,7 +524,7 @@ void LogicGraphEditor<T>::handleTransformations() {
         canvasPosition.y += posDelta.y;
     }
     
-    if (hovered && !ctrl && !shift && !hasWheelMovedV && !hasWheelMovedH && ImGui::IsMouseDragging(1) && !collapsed) {
+    if (hovered && !ctrl && !shift && !hasWheelMovedV && !hasWheelMovedH && rmbDragging && !collapsed) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
         
         const ImVec2 delta = ImGui::GetMouseDragDelta(1);
@@ -468,7 +536,7 @@ void LogicGraphEditor<T>::handleTransformations() {
     }
     
     const bool canSelect = hovered && !shift && !collapsed;
-    if (canSelect && ImGui::IsMouseClicked(0) && !ImGui::IsMouseDragging(0)) {
+    if (canSelect && ImGui::IsMouseClicked(0) && !lmbDragging) {
         if (anyNodeHovered && !ctrl && !selectionContainsKey(hoveredNodeKey)) {
             selectedNodes.clear();
             
@@ -487,7 +555,7 @@ void LogicGraphEditor<T>::handleTransformations() {
     }
     
     const bool canDrag = hovered && !ctrl && !shift && !collapsed;
-    if (canDrag && ImGui::IsMouseDragging(0, 1.0f)) {
+    if (canDrag && lmbDragging) {
         if (dragMode == DragMode::Connector) {
             
             const auto startResult = connectorDataCache.find(newConnectionStart);
@@ -551,7 +619,7 @@ void LogicGraphEditor<T>::handleTransformations() {
     }
     
     const ImGuiWindowFlags contextMenuFlags = ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoSavedSettings;
-    if (canSelect && anyNodeHovered && !wasMouse1DraggingLastFrame && ImGui::IsMouseReleased(1) && !ImGui::IsMouseDragging(1)) {
+    if (canSelect && anyNodeHovered && !wasMouse1DraggingLastFrame && ImGui::IsMouseReleased(1) && !rmbDragging) {
         ImGui::OpenPopup("Node Context Menu");
         contextMenuNodeKey = hoveredNodeKey;
     }
@@ -562,7 +630,7 @@ void LogicGraphEditor<T>::handleTransformations() {
         ImGui::EndPopup();
     }
     
-    if (canSelect && !anyNodeHovered && !wasMouse1DraggingLastFrame && ImGui::IsMouseReleased(1) && !ImGui::IsMouseDragging(1)) {
+    if (canSelect && !anyNodeHovered && !wasMouse1DraggingLastFrame && ImGui::IsMouseReleased(1) && !rmbDragging) {
         ImGui::OpenPopup("Node Creation Menu");
         
         nodeCreationMenuLocation = mousePosToCanvasPos();
@@ -615,10 +683,23 @@ void LogicGraphEditor<T>::handleTransformations() {
         ImGui::EndPopup();
     }
     
-    if (ImGui::IsMouseDragging(1)) {
+    if (rmbDragging) {
         wasMouse1DraggingLastFrame = true;
     } else {
         wasMouse1DraggingLastFrame = false;
+    }
+}
+
+template <typename T>
+void LogicGraphEditor<T>::drawCanvasInfo() {
+    ImGui::Text("Canvas State");
+    
+    ImGui::AlignTextToFramePadding();
+    ImGui::Text("X: %.0f; Y: %.0f; S: %.2f", canvasPosition.x, canvasPosition.y, scale);
+    ImGui::SameLine();
+    if (ImGui::Button("Reset")) {
+        canvasPosition = ImVec2(0.0f, 0.0f);
+        scale = 1.0f;
     }
 }
 
@@ -636,8 +717,17 @@ void LogicGraphEditor<T>::drawNodeEditor() {
         ImGui::PopStyleVar();
         nodeInfoPopped = true;
         
+        drawCanvasInfo();
+        ImGui::Separator();
         drawNodeProperties();
         ImGui::Separator();
+        
+        if (!lastSort.empty()) {
+            ImGui::Text("Last Node Sort Result");
+            ImGui::TextUnformatted(lastSort.c_str(), lastSort.c_str() + lastSort.length());
+            ImGui::Separator();
+        }
+        
         ImGui::SetNextTreeNodeOpen(false, ImGuiCond_Once);
         if (ImGui::TreeNode("Editor Debug")) {
             ImGui::Text("Selected node");
