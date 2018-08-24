@@ -29,7 +29,6 @@
 #include "tools/MaterialEditor.hpp"
 
 #include "core/Logger.hpp"
-#include "graphics/MaterialPipelineDefinition.hpp"
 #include "localization/TextLocalization.hpp"
 #include "utilities/logicGraph/LogicGraph.hpp"
 
@@ -405,6 +404,20 @@ public:
     }
 };
 
+class MaterialDataNode : public MaterialNodeBase {
+public:
+    MaterialDataNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
+        : MaterialNodeBase(key, position, zIndex) {
+        for (std::size_t i = 0; i < (con::MaxMaterialComponents / 4); ++i) {
+            addOutput(LH("vec4", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec4);
+        }
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::MaterialData;
+    }
+};
+
 #define IYF_MAKE_GEN_TYPE_NODE(name, inputs, outputs, ...) \
 class name##Node : public GenTypeMaterialNode { \
 public: \
@@ -492,7 +505,7 @@ IYF_MAKE_GEN_TYPE_FLOAT_NODE(Refract, 2, 1, 1, {"I", "N", "x", "refract_node"});
 IYF_MAKE_GEN_TYPE_NODE(DfDx, 1, 1, {"p", "dfdx_node"});
 IYF_MAKE_GEN_TYPE_NODE(DfDy, 1, 1, {"p", "dfdy_node"});
 
-MaterialLogicGraph::MaterialLogicGraph(const MaterialPipelineDefinition& definition) {
+MaterialLogicGraph::MaterialLogicGraph(MaterialPipelineDefinition definition) : definition(std::move(definition)) {
     const char* ns = MaterialNodeLocalizationNamespace;
     
     addNodeTypeInfo(MaterialNodeType::Output, "material_output_node", "material_output_node_doc", ns, MaterialNodeGroup::Output, false, false);
@@ -501,6 +514,7 @@ MaterialLogicGraph::MaterialLogicGraph(const MaterialPipelineDefinition& definit
     addNodeTypeInfo(MaterialNodeType::TextureInput, "texture_input_node", "texture_input_node_doc", ns, input);
     addNodeTypeInfo(MaterialNodeType::NormalMapInput, "normal_map_input_node", "normal_map_input_node_doc", ns, input);
     addNodeTypeInfo(MaterialNodeType::PerFrameData, "per_frame_data_node", "per_frame_data_node_doc", ns, input);
+    addNodeTypeInfo(MaterialNodeType::MaterialData, "material_data_node", "material_data_node_doc", ns, input);
     
     const MaterialNodeGroup vecs = MaterialNodeGroup::VectorComponents;
     addNodeTypeInfo(MaterialNodeType::Splitter, "splitter_node", "splitter_node_doc", ns, vecs);
@@ -584,7 +598,7 @@ MaterialLogicGraph::MaterialLogicGraph(const MaterialPipelineDefinition& definit
     validateNodeTypeInfo();
     assert(getNextKey() == 0);
     
-    MaterialOutputNode* outputNode = new MaterialOutputNode(definition, Vec2(0.0f, 0.0f), getNextZIndex());
+    MaterialOutputNode* outputNode = new MaterialOutputNode(this->definition, Vec2(0.0f, 0.0f), getNextZIndex());
     insertNode(outputNode);
 }
 
@@ -661,6 +675,7 @@ MaterialNode* MaterialLogicGraph::addNode(MaterialNodeType type, const Vec2& pos
         IYF_CREATE_NODE_CASE(DfDy);
         IYF_CREATE_NODE_CASE(Splitter);
         IYF_CREATE_NODE_CASE(Joiner);
+        IYF_CREATE_NODE_CASE(MaterialData);
         case MaterialNodeType::COUNT:
             throw std::logic_error("COUNT is not a valid NodeType");
     }

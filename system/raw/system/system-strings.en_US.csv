@@ -258,3 +258,5 @@ splitter_node,material_nodes,Splitter
 splitter_node_doc,material_nodes,Splits a vector into components.
 joiner_node,material_nodes,Joiner
 joiner_node_doc,material_nodes,Creates a vector from provided components.
+material_data_node,material_nodes,Material Data
+material_data_node_doc,material_nodes,Every single material may receive up to 16 floating point values (by default) every frame. They can be used for material instance specific or animated properties. This node allows you to access that data.

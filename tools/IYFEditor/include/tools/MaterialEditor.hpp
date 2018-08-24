@@ -29,6 +29,8 @@
 #ifndef IYF_MATERIAL_EDITOR_HPP
 #define IYF_MATERIAL_EDITOR_HPP
 
+#include "graphics/MaterialPipelineDefinition.hpp"
+
 #include "utilities/logicGraph/LogicGraph.hpp"
 #include "utilities/logicGraph/LogicGraphEditor.hpp"
 
@@ -107,6 +109,7 @@ enum class MaterialNodeType : std::uint32_t {
     DfDy            = 58,
     Splitter        = 59,
     Joiner          = 60,
+    MaterialData    = 61,
     COUNT
 };
 
@@ -129,7 +132,7 @@ using MaterialGraphNodeTypeInfo = LogicGraphNodeTypeInfo<MaterialNode, MaterialN
 
 class MaterialLogicGraph : public LogicGraph<MaterialNode, MaterialGraphNodeTypeInfo> {
 public:
-    MaterialLogicGraph(const MaterialPipelineDefinition& definition);
+    MaterialLogicGraph(MaterialPipelineDefinition definition);
     virtual ~MaterialLogicGraph();
     
     virtual MaterialNode* addNode(MaterialNodeType type, const Vec2& position) final override;
@@ -140,6 +143,8 @@ public:
     /*virtual NodeConnectionResult addConnection(MaterialNode* source, GraphNodeConnectorID outputID, MaterialNode* destination, GraphNodeConnectorID inputID) final override {
         return NodeConnectionResult::Success;
     }*/
+private:
+    MaterialPipelineDefinition definition;
 };
 
 class MaterialEditor : public LogicGraphEditor<MaterialLogicGraph> {
