@@ -93,6 +93,7 @@ protected:
     bool validateConnection(bool connectIfValidated = false);
     void showLocalizedDocumentation(LocalizationHandle handle);
     void showNodeContextMenu();
+    void clear();
     
     float computeConnectorSlotRadius();
     void drawConnectionCurve(const ImVec2& start, const ImVec2& end, ImU32 color);
@@ -141,7 +142,6 @@ protected:
     
     std::unique_ptr<T> graph;
     std::unordered_set<NodeKey> selectedNodes;
-    NodeKey lastSelectedNode;
     std::vector<char> name;
     std::set<typename T::NodeType*, ZSortComparator> zSortedNodes;
     std::unordered_map<ConnectorKey, std::pair<ImVec2, ImU32>, ConnectorKeyHasher> connectorDataCache;
@@ -162,6 +162,7 @@ protected:
     LogicGraphValidationResult lastValidationResult;
     
     std::string lastSort;
+    std::string serializedData;
 };
 
 template <typename T>
@@ -189,6 +190,11 @@ void LogicGraphEditor<T>::showLocalizedDocumentation(LocalizationHandle handle) 
 }
 
 template <typename T>
+void LogicGraphEditor<T>::clear() {
+    selectedNodes.clear();
+}
+
+template <typename T>
 void LogicGraphEditor<T>::show(bool* open) {
     IYFT_PROFILE(showGraphEditor, iyft::ProfilerTag::LogicGraph);
     
@@ -196,12 +202,18 @@ void LogicGraphEditor<T>::show(bool* open) {
     if (ImGui::Begin(windowName.c_str(), open)) {
         if (ImGui::Button("New")) {
             graph = makeNewGraph(NewGraphSettings());
+            clear();
         }
         
         ImGui::SameLine();
         
         if (ImGui::Button("Load")) {
-            //
+            graph = makeNewGraph(NewGraphSettings());
+            clear();
+            
+            rj::Document document;
+            document.Parse(serializedData);
+            graph->deserializeJSON(document);
         }
         
         if (graph == nullptr) {
@@ -210,7 +222,8 @@ void LogicGraphEditor<T>::show(bool* open) {
             ImGui::SameLine();
         
             if (ImGui::Button("Save")) {
-                //
+                serializedData = graph->getJSONString();
+                LOG_V(serializedData);
             }
             
             ImGui::SameLine();
@@ -834,13 +847,10 @@ void LogicGraphEditor<T>::drawNodeProperties() {
     
     showLocalizedDocumentation(graph->getNodeTypeInfo(node.getType()).documentation);
     
-    // Zero out the name
-    if (selectedNodeKey != lastSelectedNode) {
-        std::memset(name.data(), 0, name.size() * sizeof(char));
-    }
-    
     if (node.hasName()) {
         std::memcpy(name.data(), node.getName().c_str(), node.getName().length() + 1);
+    } else {
+        std::memset(name.data(), 0, 1);
     }
     
     if (ImGui::InputText("Name", name.data(), name.size())) {

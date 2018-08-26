@@ -39,6 +39,7 @@
 #include "localization/LocalizationHandle.hpp"
 #include "core/Logger.hpp"
 #include "threading/ThreadProfiler.hpp"
+#include "core/interfaces/TextSerializable.hpp"
 
 namespace iyf {
 
@@ -182,10 +183,11 @@ struct ModeInfo {
 
 /// A node of the LogicGraph.
 template <typename NodeTypeEnum, typename NodeConnector, typename NodeKey = std::uint32_t>
-class LogicGraphNode {
+class LogicGraphNode : public TextSerializable {
 public:
     static_assert(std::is_enum_v<NodeTypeEnum>, "NodeTypeEnum must be an enumerator");
     static_assert(std::is_integral_v<NodeKey>, "NodeKey must be an integral type");
+    static_assert(std::is_unsigned_v<NodeKey>, "NodeKey must be an unsigned type");
     
     using TypeEnum = NodeTypeEnum;
     using Key = NodeKey;
@@ -219,12 +221,12 @@ public:
         return selectedMode;
     }
     
-    inline bool setSelectedModeID(std::size_t selectedMode) {
+    inline bool setSelectedModeID(std::size_t selectedMode, bool isDeserializing = false) {
         if (!supportsMultipleModes()) {
             throw std::logic_error(MultipleModesNotSupportedError);
         }
         
-        const bool changeAccepted = onModeChange(this->selectedMode, selectedMode);
+        const bool changeAccepted = onModeChange(this->selectedMode, selectedMode, isDeserializing);
         if (changeAccepted) {
             this->selectedMode = selectedMode;
         }
@@ -285,10 +287,80 @@ public:
     inline std::uint32_t incrementZIndex() {
         return ++zIndex;
     }
+    
+    /// The version number used to determine appropriate serialization logic. It should be increased every time the 
+    /// internal logic of the node changes (e.g., new modes are added or removed).
+    ///
+    /// \warning If you override this, it's very likely you'll need to override serializeJSON() and deserializeJSON() to
+    /// handle the changed logic.
+    ///
+    /// \returns The version of the node.
+    virtual std::uint32_t getVersion() const {
+        return 1;
+    }
+    
+    virtual void serializeJSON(PrettyStringWriter& pw) const override {
+        pw.String(VERSION_FIELD_NAME);
+        pw.Uint(getVersion());
+        
+        pw.String(NODE_KEY_FIELD_NAME);
+        pw.Uint64(key);
+        
+        pw.String(NODE_TYPE_FIELD_NAME);
+        pw.Uint64(static_cast<std::uint64_t>(getType()));
+        
+        pw.String(POSITION_FIELD_NAME);
+        pw.StartObject();
+        
+        pw.String(POSITION_X_FIELD_NAME);
+        pw.Double(position.x);
+        
+        pw.String(POSITION_Y_FIELD_NAME);
+        pw.Double(position.y);
+        
+        pw.EndObject();
+        
+        if (hasName()) {
+            pw.String(NAME_FIELD_NAME);
+            pw.String(name);
+        }
+        
+        if (supportsMultipleModes()) {
+            pw.String(MODE_FIELD_NAME);
+            pw.Uint64(selectedMode);
+        }
+    }
+    
+    virtual void deserializeJSON(JSONObject& jo) override {
+        key = jo[NODE_KEY_FIELD_NAME].GetUint64();
+        position = Vec2(jo[POSITION_FIELD_NAME][POSITION_X_FIELD_NAME].GetDouble(),
+                        jo[POSITION_FIELD_NAME][POSITION_Y_FIELD_NAME].GetDouble());
+        
+        assert(jo[NODE_TYPE_FIELD_NAME].GetUint64() == static_cast<std::uint64_t>(getType()));
+        
+        if (jo.HasMember(NAME_FIELD_NAME)) {
+            name = jo[NAME_FIELD_NAME].GetString();
+        }
+        
+        if (jo.HasMember(MODE_FIELD_NAME)) {
+            setSelectedModeID(jo[MODE_FIELD_NAME].GetUint64(), true);
+        }
+    }
+    
+    static constexpr const char* NODE_TYPE_FIELD_NAME = "type";
+    static constexpr const char* NODE_KEY_FIELD_NAME = "key";
+    static constexpr const char* NODE_CONNECTOR_FIELD_NAME = "connector";
 protected:
+    static constexpr const char* VERSION_FIELD_NAME = "version";
+    static constexpr const char* NAME_FIELD_NAME = "name";
+    static constexpr const char* MODE_FIELD_NAME = "mode";
+    static constexpr const char* POSITION_FIELD_NAME = "position";
+    static constexpr const char* POSITION_X_FIELD_NAME = "x";
+    static constexpr const char* POSITION_Y_FIELD_NAME = "y";
+    
     /// Called by setSelectedModeID(). You should override this function and implement all mode change logic in it. For example,
-    /// you should use this function to check if the requestedModeID is valid. If changing the mode changes the type of inputs or
-    /// outputs, enables or disables them, all such changes need to be performed in this function, using the appropriate setters.
+    /// you should use this function to check if the requestedModeID is valid. If changing the mode changes the type of inputs (or
+    /// outputs), enables or disables them, all such changes need to be performed in this function, using the appropriate setters.
     ///
     /// \remark setSelectedModeID() returns the result of this function. If it's true, all connections will be automatically revalidated
     /// and connections that are no longer valid will be removed.
@@ -296,7 +368,7 @@ protected:
     /// \warning NEVER add or remove inputs - only enable or disable them.
     /// 
     /// \return true if change was applied, false otherwise.
-    virtual bool onModeChange([[maybe_unused]] std::size_t currentModeID, [[maybe_unused]] std::size_t requestedModeID) {
+    virtual bool onModeChange([[maybe_unused]] std::size_t currentModeID, [[maybe_unused]] std::size_t requestedModeID, [[maybe_unused]] bool isDeserializing) {
         return true;
     }
     
@@ -364,7 +436,7 @@ struct LogicGraphNodeTypeInfo {
     NodeType type;
     NodeGroup group;
     
-    /// If true, nodes of this type may be instantiated by calling the LogicGraph::makeNode() function.
+    /// If true, nodes of this type may be instantiated by calling the LogicGraph::addNode() function.
     bool instantiable;
     
     /// If true, nodes of this type may be deleted by calling the LogicGraph::removeNode() function.
@@ -402,7 +474,7 @@ enum class LogicGraphValidationResult {
 };
 
 template <typename GraphNodeType, typename GraphNodeTypeInfo>
-class LogicGraph {
+class LogicGraph : public TextSerializable {
 public:
     using NodeType = GraphNodeType;
     using NodeTypeEnum = typename NodeType::TypeEnum;
@@ -415,6 +487,7 @@ public:
     using DestinationMultiMap = std::unordered_multimap<NodeKey, ConnectorIDPair>;
     
     static constexpr NodeKey InvalidKey = std::numeric_limits<NodeKey>::max();
+    static constexpr std::uint32_t DataVersion = 1;
     
     class KeyConnectorPair {
     public:
@@ -474,9 +547,7 @@ public:
     }
     
     virtual ~LogicGraph() {
-        for (auto& n : nodes) {
-            delete n.second;
-        }
+        clear();
     }
     
     inline const std::unordered_map<NodeKey, NodeType*>& getNodes() const {
@@ -491,33 +562,13 @@ public:
         return nodes.size();
     }
     
-    virtual void serializeJSON() {
-        // write nextKey
-        
-        // Sort nodes. This matters for version control
-        std::vector<NodeKey> nodeKeys;
-        nodeKeys.reserve(nodes.size());
-        
-        for (const auto& n : nodes) {
-            nodeKeys.push_back(n.first);
-        }
-        
-        std::sort(nodeKeys.begin(), nodeKeys.end());
-        
-        for (const NodeKey& k : nodeKeys) {
-            //std::cout << k << "\n";
-        }
-    }
-    
     virtual std::string getConnectorTypeName(ConnectorType type) const = 0;
     virtual std::uint32_t getConnectorTypeColor(ConnectorType type, bool enabled) const = 0;
     
     /// This function creates a new node and inserts into the node graph.
-    ///
-    /// \remark When implementing, make sure to use newNode() or base your node creation logic implementation on it.
-    /// newNode() contains asserts that will help you catch certain common node implementation errors and assing
-    /// valid keys and zindexes. Once a node is created, you must call insertNode() to insert it into the graph.
-    virtual NodeType* addNode(NodeTypeEnum type, const Vec2& position) = 0;
+    NodeType* addNode(NodeTypeEnum type, const Vec2& position) {
+        return addNodeImpl(getNextKey(), type, position, false);
+    }
     
     inline const NodeTypeInfo& getNodeTypeInfo(NodeTypeEnum type) const {
         assert(nodeTypeInfoSetupComplete && nodeGroupSetupComplete);
@@ -799,10 +850,119 @@ public:
         return KeyConnectorPair();
     }
     
-    std::string print() const {
-        return "";
+    void clear() {
+        nextKey = 0;
+        nextZIndex = 0;
+        
+        for (auto& n : nodes) {
+            delete n.second;
+        }
+        nodes.clear();
+        busyInputs.clear();
+        connections.clear();
+    }
+    
+    virtual void serializeJSON(PrettyStringWriter& pw) const override {
+        pw.String(VERSION_FIELD_NAME);
+        pw.Uint(1);
+        
+        pw.String(NEXT_KEY_FIELD_NAME);
+        pw.Uint64(nextKey);
+        
+        // Sort nodes. A consistent order is important for version control
+        std::vector<NodeKey> sortedNodes;
+        sortedNodes.reserve(nodes.size());
+        for (const auto& n : nodes) {
+            sortedNodes.emplace_back(n.first);
+        }
+        
+        std::sort(sortedNodes.begin(), sortedNodes.end());
+        
+        pw.String(NODE_ARRAY_FIELD_NAME);
+        pw.StartArray();
+        for (const NodeKey k : sortedNodes) {
+            const NodeType* n = getNode(k);
+            assert(n != nullptr);
+            
+            pw.StartObject();
+            n->serializeJSON(pw);
+            pw.EndObject();
+        }
+        pw.EndArray();
+        
+        // Sort connections
+        std::vector<KeyConnectorPair> sortedInputs;
+        sortedInputs.reserve(busyInputs.size());
+        for (const auto& c : busyInputs) {
+            sortedInputs.emplace_back(c.first);
+        }
+        
+        std::sort(sortedInputs.begin(), sortedInputs.end());
+        
+        pw.String(CONNECTION_ARRAY_FIELD_NAME);
+        pw.StartArray();
+        for (const KeyConnectorPair& i : sortedInputs) {
+            const auto src = busyInputs.find(i);
+            
+            pw.StartObject();
+            pw.String(SOURCE_FIELD_NAME);
+            serializeKeyConnectorPair(pw, src->second);
+            
+            pw.String(DESTINATION_FIELD_NAME);
+            serializeKeyConnectorPair(pw, i);
+            pw.EndObject();
+        }
+        pw.EndArray();
+    }
+    
+    virtual void deserializeJSON(JSONObject& jo) override {
+        clear();
+        
+        nextKey = static_cast<NodeKey>(jo[NEXT_KEY_FIELD_NAME].GetUint64());
+        
+        for (auto& n : jo[NODE_ARRAY_FIELD_NAME].GetArray()) {
+            NodeTypeEnum type = static_cast<NodeTypeEnum>(n[NodeType::NODE_TYPE_FIELD_NAME].GetUint64());
+            NodeType* node = addNodeImpl(static_cast<NodeKey>(n[NodeType::NODE_KEY_FIELD_NAME].GetUint64()), type, Vec2(0.0f, 0.0f), true);
+            
+            node->deserializeJSON(n);
+        }
+        
+        for (auto& c : jo[CONNECTION_ARRAY_FIELD_NAME].GetArray()) {
+            const KeyConnectorPair source = deserializeKeyConnectorPair(c[SOURCE_FIELD_NAME]);
+            const KeyConnectorPair destination = deserializeKeyConnectorPair(c[DESTINATION_FIELD_NAME]);
+            
+            const NodeType* sourceNode = getNode(source.getNodeKey());
+            const NodeType* destinationNode = getNode(destination.getNodeKey());
+            
+            const NodeConnectionResult result = addConnection(sourceNode, source.getConnectorID(), destinationNode, destination.getConnectorID());
+            assert(result == NodeConnectionResult::Success);
+        }
+        
+        assert(nextKey == static_cast<NodeKey>(jo[NEXT_KEY_FIELD_NAME].GetUint64()));
     }
 protected:
+    static constexpr const char* VERSION_FIELD_NAME = "version";
+    static constexpr const char* NEXT_KEY_FIELD_NAME = "nextKey";
+    static constexpr const char* NODE_ARRAY_FIELD_NAME = "nodes";
+    static constexpr const char* CONNECTION_ARRAY_FIELD_NAME = "connections";
+    static constexpr const char* SOURCE_FIELD_NAME = "source";
+    static constexpr const char* DESTINATION_FIELD_NAME = "destination";
+    
+    inline void serializeKeyConnectorPair(PrettyStringWriter& pw, const KeyConnectorPair& c) const {
+        pw.StartObject();
+        pw.String(NodeType::NODE_KEY_FIELD_NAME);
+        pw.Uint64(c.getNodeKey());
+        
+        pw.String(NodeType::NODE_CONNECTOR_FIELD_NAME);
+        pw.Uint64(c.getConnectorID());
+        pw.EndObject();
+    }
+    
+    inline KeyConnectorPair deserializeKeyConnectorPair(JSONObject& jo) const {
+        return KeyConnectorPair(static_cast<NodeKey>(jo[NodeType::NODE_KEY_FIELD_NAME].GetUint64()),
+                                static_cast<LogicGraphConnectorID>(jo[NodeType::NODE_CONNECTOR_FIELD_NAME].GetUint64()));
+    }
+
     void removeNodeInputs(const NodeType* node, bool onlyInvalid) {
         const auto& inputs = node->getInputs();
         for (std::size_t i = 0; i < inputs.size(); ++i) {
@@ -855,22 +1015,50 @@ protected:
         }
     }
     
-    /// This function inserts the node into the graph and increments the key.
+    /// This function is called by addNode() and should perform actual node creation.
     ///
-    /// This function is supposed to be used inside makeNode().
-    inline bool insertNode(NodeType* node) {
-        auto insertionResult = nodes.insert({nextKey, node});
-        nextKey++;
+    /// \remark When implementing, make sure to use newNode() or base your node creation logic implementation on it.
+    /// newNode() contains asserts that will help you catch certain common node implementation errors and assing
+    /// valid keys and zindexes. Once a node is created, you must call insertNode() to insert it into the graph.
+    ///
+    /// \warning if isDeserializing is true, you must still create the node, even if its LogicGraphNodeTypeInfo says
+    /// that it's not instantiable.
+    virtual NodeType* addNodeImpl(NodeKey key, NodeTypeEnum type, const Vec2& position, bool isDeserializing) = 0;
+    
+    /// This function inserts the node into the graph and increments the nextKey (unless you're deserializing).
+    ///
+    /// This function is supposed to be used inside addNode().
+    inline bool insertNode(NodeType* node, NodeKey key, bool isDeserializing) {
+        NodeKey finalKey;
+        if (isDeserializing) {
+            finalKey = key;
+        } else {
+            finalKey = getNextKey(true);
+            assert(finalKey == key);
+        }
+        
+        auto insertionResult = nodes.insert({finalKey, node});
         nextZIndex++;
         
         return insertionResult.second;
     }
     
-    /// Get the next key value. This function does not increment it.
+    /// Get the next node key without incrementing it.
     /// 
-    /// This function is supposed to be used inside makeNode() or newNode().
+    /// This function is supposed to be used inside addNode() or newNode().
     inline NodeKey getNextKey() const {
         return nextKey;
+    }
+    
+    /// Get the next node key, optionally incrementing it.
+    /// 
+    /// This function is supposed to be used inside addNode() or newNode().
+    inline NodeKey getNextKey(bool increment) {
+        if (increment) {
+            return nextKey++;
+        } else {
+            return nextKey;
+        }
     }
     
     inline std::uint32_t getNextZIndex() const {
@@ -879,8 +1067,8 @@ protected:
     
     /// A helper method used to catch wrong type errors.
     template <typename T>
-    inline NodeType* newNode(const Vec2& position, NodeTypeEnum type) {
-        NodeType* node = new T(getNextKey(), position, getNextZIndex());
+    inline NodeType* newNode(NodeKey key, const Vec2& position, NodeTypeEnum type, [[maybe_unused]] bool isDeserializing) {
+        NodeType* node = new T(key, position, getNextZIndex());
         
 #ifndef NDEBUG
         assert(node->getType() == type);

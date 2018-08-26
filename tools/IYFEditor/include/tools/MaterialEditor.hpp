@@ -135,14 +135,14 @@ public:
     MaterialLogicGraph(MaterialPipelineDefinition definition);
     virtual ~MaterialLogicGraph();
     
-    virtual MaterialNode* addNode(MaterialNodeType type, const Vec2& position) final override;
-    
     virtual std::string getConnectorTypeName(MaterialNodeConnectorType type) const final override;
     virtual std::uint32_t getConnectorTypeColor(ConnectorType type, bool enabled) const final override;
     
     /*virtual NodeConnectionResult addConnection(MaterialNode* source, GraphNodeConnectorID outputID, MaterialNode* destination, GraphNodeConnectorID inputID) final override {
         return NodeConnectionResult::Success;
     }*/
+protected:
+    virtual MaterialNode* addNodeImpl(NodeKey key, MaterialNodeType type, const Vec2& position, bool isDeserializing) final override;
 private:
     MaterialPipelineDefinition definition;
 };

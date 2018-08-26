@@ -94,7 +94,7 @@ public:
         return modes;
     }
     
-    virtual bool onModeChange(std::size_t, std::size_t requestedModeID) final override {
+    virtual bool onModeChange(std::size_t, std::size_t requestedModeID, bool) final override {
         if (requestedModeID >= getSupportedModes().size()) {
             return false;
         }
@@ -194,7 +194,7 @@ public:
         return modes;
     }
     
-    virtual bool onModeChange(std::size_t, std::size_t requestedModeID) final override {
+    virtual bool onModeChange(std::size_t, std::size_t requestedModeID, bool) final override {
         if (requestedModeID >= getSupportedModes().size()) {
             return false;
         }
@@ -314,14 +314,14 @@ public:
         addOutput(LH("w", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
         
         setSelectedModeID(1);
-        onModeChange(0, 1);
+        onModeChange(0, 1, false);
     }
     
     virtual MaterialNodeType getType() const final override {
         return MaterialNodeType::Splitter;
     }
     
-    virtual bool onModeChange(std::size_t, std::size_t requestedModeID) final override {
+    virtual bool onModeChange(std::size_t, std::size_t requestedModeID, bool) final override {
         if (requestedModeID >= getSupportedModes().size()) {
             return false;
         }
@@ -364,14 +364,14 @@ public:
         addOutput(LH("vector", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2);
         
         setSelectedModeID(1);
-        onModeChange(0, 1);
+        onModeChange(0, 1, false);
     }
     
     virtual MaterialNodeType getType() const final override {
         return MaterialNodeType::Joiner;
     }
     
-    virtual bool onModeChange(std::size_t, std::size_t requestedModeID) final override {
+    virtual bool onModeChange(std::size_t, std::size_t requestedModeID, bool) final override {
         if (requestedModeID >= getSupportedModes().size()) {
             return false;
         }
@@ -599,22 +599,28 @@ MaterialLogicGraph::MaterialLogicGraph(MaterialPipelineDefinition definition) : 
     assert(getNextKey() == 0);
     
     MaterialOutputNode* outputNode = new MaterialOutputNode(this->definition, Vec2(0.0f, 0.0f), getNextZIndex());
-    insertNode(outputNode);
+    insertNode(outputNode, getNextKey(), false);
 }
 
 MaterialLogicGraph::~MaterialLogicGraph() {}
 
 #define IYF_CREATE_NODE_CASE(name) \
         case MaterialNodeType::name:\
-            node = newNode<name##Node>(position, type);\
+            node = newNode<name##Node>(key, position, type, isDeserializing);\
             break
 
-MaterialNode* MaterialLogicGraph::addNode(MaterialNodeType type, const Vec2& position) {
+MaterialNode* MaterialLogicGraph::addNodeImpl(NodeKey key, MaterialNodeType type, const Vec2& position, bool isDeserializing) {
     MaterialNode* node = nullptr;
     
     switch (type) {
         case MaterialNodeType::Output:
-            throw std::logic_error("An Output node can only be created automatically by the LogicGraph during its initialization");
+            if (!isDeserializing) {
+                throw std::logic_error("An Output node can only be created automatically by the LogicGraph during its initialization");
+            } else {
+                node = new MaterialOutputNode(this->definition, position, getNextZIndex());
+            }
+            
+            break;
         IYF_CREATE_NODE_CASE(TextureInput);
         IYF_CREATE_NODE_CASE(NormalMapInput);
         IYF_CREATE_NODE_CASE(PerFrameData);
@@ -682,7 +688,7 @@ MaterialNode* MaterialLogicGraph::addNode(MaterialNodeType type, const Vec2& pos
     
     assert(node != nullptr);
     
-    if (!insertNode(node)) {
+    if (!insertNode(node, key, isDeserializing)) {
         throw std::runtime_error("Failed to insert a material node.");
     }
     
