@@ -30,7 +30,7 @@ custom,,Custom
 material,,Material
 any,,Any
 cannot_delete,logic_graph_editor,You cannot delete this node.
-material_editor,material_nodes,Material Editor
+material_editor,material_nodes,Material Instance Definition Editor
 float,material_nodes,Float
 vec2,material_nodes,Vec2
 vec3,material_nodes,Vec3
@@ -260,3 +260,11 @@ joiner_node,material_nodes,Joiner
 joiner_node_doc,material_nodes,Creates a vector from provided components.
 material_data_node,material_nodes,Material Data
 material_data_node_doc,material_nodes,Every single material may receive up to 16 floating point values (by default) every frame. They can be used for material instance specific or animated properties. This node allows you to access that data.
+load_material_editor,material_nodes,Load Material Instance Definition
+save_material_editor,material_nodes,Save Material Instance Definition
+load,material_nodes,Load
+save,material_nodes,Save
+cancel,material_nodes,Cancel
+name,material_nodes,Name
+hash,material_nodes,Hash
+pipeline,material_nodes,Material Pipeline

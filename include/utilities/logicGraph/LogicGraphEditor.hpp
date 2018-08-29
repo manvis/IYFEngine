@@ -40,7 +40,9 @@
 
 namespace iyf {
 struct NodeEditorSettings {
-    NodeEditorSettings() : canvasSize(2000.0f, 1500.0f), lineDensity(50.0f, 50.0f), zoomMultiplier(0.1f), nodeWidth(150.0f), scrollMultipliers(25.0f, 25.0f), lineThickness(2.0f) {}
+    NodeEditorSettings() 
+        : canvasSize(2000.0f, 1500.0f), lineDensity(50.0f, 50.0f), zoomMultiplier(0.1f), nodeWidth(150.0f), scrollMultipliers(25.0f, 25.0f),
+        lineThickness(2.0f), showDebugOptions(false) {}
     
     ImVec2 canvasSize;
     ImVec2 lineDensity;
@@ -48,6 +50,7 @@ struct NodeEditorSettings {
     float nodeWidth;
     ImVec2 scrollMultipliers;
     float lineThickness;
+    bool showDebugOptions;
 };
 
 class NewGraphSettings {
@@ -60,6 +63,11 @@ enum class DragMode : std::uint8_t {
     Node,
     Connector,
     Background
+};
+
+enum class LogicGraphEditorButton {
+    Load,
+    Save
 };
 
 template <typename T>
@@ -79,8 +87,32 @@ public:
     void show(bool* open);
     
     virtual std::string getWindowName() const = 0;
+    
+    /// Serializes the currently active graph to a JSON string. Should be used when handling the save button.
+    std::string serializeJSON() const {
+        if (graph == nullptr) {
+            return "";
+        } else {
+            return graph->getJSONString();
+        }
+    }
+    
+    /// Destroys the current graph and deserializes a new one from a JSON string. Should be used when handling the load button.
+    void deserializeJSON(const std::string& json) {
+        graph = makeNewGraph(NewGraphSettings());
+        clear();
+        
+        rj::Document document;
+        document.Parse(json);
+        graph->deserializeJSON(document);
+    }
 protected:
     virtual std::unique_ptr<T> makeNewGraph(const NewGraphSettings& settings) = 0;
+    /// Called when a button from the button row is clicked. This method is usually used to open a modal dialog that is drawn
+    /// and handled in onDrawButtonRow() 
+    virtual void onButtonClick([[maybe_unused]] LogicGraphEditorButton button) {}
+    
+    virtual void onDrawButtonRow() {}
     
     void drawNodeEditor();
     void drawBackgroundLines();
@@ -162,7 +194,6 @@ protected:
     LogicGraphValidationResult lastValidationResult;
     
     std::string lastSort;
-    std::string serializedData;
 };
 
 template <typename T>
@@ -208,84 +239,83 @@ void LogicGraphEditor<T>::show(bool* open) {
         ImGui::SameLine();
         
         if (ImGui::Button("Load")) {
-            graph = makeNewGraph(NewGraphSettings());
-            clear();
-            
-            rj::Document document;
-            document.Parse(serializedData);
-            graph->deserializeJSON(document);
+            onButtonClick(LogicGraphEditorButton::Load);
         }
         
         if (graph == nullptr) {
+            onDrawButtonRow();
             ImGui::Text("No loaded graph");
         } else {
             ImGui::SameLine();
         
             if (ImGui::Button("Save")) {
-                serializedData = graph->getJSONString();
-                LOG_V(serializedData);
+                onButtonClick(LogicGraphEditorButton::Save);
             }
             
-            ImGui::SameLine();
-            ImGui::Text("|");
-            ImGui::SameLine();
-            
-            if (ImGui::Button("Validate")) {
-                ImGui::OpenPopup("Validation Result");
-                lastValidationResult = graph->validate();
-            }
-            
-            if (ImGui::BeginPopupModal("Validation Result")) {
-                switch (lastValidationResult) {
-                    case LogicGraphValidationResult::Success:
-                        ImGui::Text("The node graph was validated successfully.");
-                        break;
-                    case LogicGraphValidationResult::CycleFound:
-                        ImGui::Text("The node graph has one or more cycles.");
-                        break;
-                    case LogicGraphValidationResult::Empty:
-                        ImGui::Text("The node graph is empty.");
-                        break;
+            if (settings.showDebugOptions) {
+                ImGui::SameLine();
+                ImGui::Text("|");
+                ImGui::SameLine();
+                
+                if (ImGui::Button("Validate")) {
+                    ImGui::OpenPopup("Validation Result");
+                    lastValidationResult = graph->validate();
                 }
                 
-                if (ImGui::Button("OK")) {
-                    ImGui::CloseCurrentPopup();
-                }
-                
-                ImGui::EndPopup();
-            }
-            
-            ImGui::SameLine();
-            
-            if (ImGui::Button("Sort")) {
-                auto results = graph->getTopologicalSort();
-                
-                if (graph->getNodeCount() == 0) {
-                    assert(results.empty());
-                    lastSort = "no nodes in graph sort.";
-                } else if (results.empty()) {
-                    lastSort = "an error occured when trying to perform the topological sort.";
-                } else {
-                    std::stringstream ss;
-                    for (auto i = results.rbegin(); i != results.rend(); ++i) {
-                        const NodeKey key = *i;
-                        
-                        const auto& node = *(graph->getNode(key));
-                        if (node.hasName()) {
-                            const char* str = node.getName().c_str();
-                            
-                            ss << "ID:" << key << "; " << str << "\n";
-                        } else {
-                            const std::string string = LOC_SYS(graph->getNodeTypeInfo(node.getType()).name);
-                            const char* str = string.c_str();
-                            
-                            ss << "ID:" << key << "; " << str << "\n";
-                        }
+                if (ImGui::BeginPopupModal("Validation Result")) {
+                    switch (lastValidationResult) {
+                        case LogicGraphValidationResult::Success:
+                            ImGui::Text("The node graph was validated successfully.");
+                            break;
+                        case LogicGraphValidationResult::CycleFound:
+                            ImGui::Text("The node graph has one or more cycles.");
+                            break;
+                        case LogicGraphValidationResult::Empty:
+                            ImGui::Text("The node graph is empty.");
+                            break;
                     }
                     
-                    lastSort = ss.str();
+                    if (ImGui::Button("OK")) {
+                        ImGui::CloseCurrentPopup();
+                    }
+                    
+                    ImGui::EndPopup();
+                }
+                
+                ImGui::SameLine();
+                
+                if (ImGui::Button("Sort")) {
+                    auto results = graph->getTopologicalSort();
+                    
+                    if (graph->getNodeCount() == 0) {
+                        assert(results.empty());
+                        lastSort = "no nodes in graph sort.";
+                    } else if (results.empty()) {
+                        lastSort = "an error occured when trying to perform the topological sort.";
+                    } else {
+                        std::stringstream ss;
+                        for (auto i = results.rbegin(); i != results.rend(); ++i) {
+                            const NodeKey key = *i;
+                            
+                            const auto& node = *(graph->getNode(key));
+                            if (node.hasName()) {
+                                const char* str = node.getName().c_str();
+                                
+                                ss << "ID:" << key << "; " << str << "\n";
+                            } else {
+                                const std::string string = LOC_SYS(graph->getNodeTypeInfo(node.getType()).name);
+                                const char* str = string.c_str();
+                                
+                                ss << "ID:" << key << "; " << str << "\n";
+                            }
+                        }
+                        
+                        lastSort = ss.str();
+                    }
                 }
             }
+            
+            onDrawButtonRow();
             
             drawNodeEditor();
         }
@@ -741,40 +771,42 @@ void LogicGraphEditor<T>::drawNodeEditor() {
             ImGui::Separator();
         }
         
-        ImGui::SetNextTreeNodeOpen(false, ImGuiCond_Once);
-        if (ImGui::TreeNode("Editor Debug")) {
-            ImGui::Text("Selected node");
-            
-            if (selectedNodes.size() == 1) {
-                const NodeKey selectionKey = *(selectedNodes.begin());
-                const auto& selectedNode = *(graph->getNode(selectionKey));
+        if (settings.showDebugOptions) {
+            ImGui::SetNextTreeNodeOpen(false, ImGuiCond_Once);
+            if (ImGui::TreeNode("Editor Debug")) {
+                ImGui::Text("Selected node");
                 
-                ImGui::Text("\tKey: %u", selectionKey);
-                ImGui::Text("\tZ-index: %u", selectedNode.getZIndex());
-                
-                const Vec2 pos = selectedNode.getPosition();
-                ImGui::Text("\tPosition: %.2f %.2f", pos.x, pos.y);
-            } else if (selectedNodes.size() > 1) {
-                ImGui::Text("\tMultiple nodes selected");
-            } else {
-                ImGui::Text("\tNone");
-            }
-            
-            ImGui::Text("Hovered node");
-            if (hoveredNodeKey != T::InvalidKey) {
-                ImGui::Text("\tKey: %u", hoveredNodeKey);
-                ImGui::Text("\tZ-index: %u", graph->getNode(hoveredNodeKey)->getZIndex());
-                ImGui::Text("\tHovered connector");
-                if (isConnectorHovered()) {
-                    ImGui::Text("\t\tID (type): %u (%s)", hoveredConnector.connectorID, (hoveredConnector.isInput ? "input" : "output"));
+                if (selectedNodes.size() == 1) {
+                    const NodeKey selectionKey = *(selectedNodes.begin());
+                    const auto& selectedNode = *(graph->getNode(selectionKey));
+                    
+                    ImGui::Text("\tKey: %u", selectionKey);
+                    ImGui::Text("\tZ-index: %u", selectedNode.getZIndex());
+                    
+                    const Vec2 pos = selectedNode.getPosition();
+                    ImGui::Text("\tPosition: %.2f %.2f", pos.x, pos.y);
+                } else if (selectedNodes.size() > 1) {
+                    ImGui::Text("\tMultiple nodes selected");
                 } else {
-                    ImGui::Text("\t\tNone");
+                    ImGui::Text("\tNone");
                 }
-            } else {
-                ImGui::Text("\tNone");
+                
+                ImGui::Text("Hovered node");
+                if (hoveredNodeKey != T::InvalidKey) {
+                    ImGui::Text("\tKey: %u", hoveredNodeKey);
+                    ImGui::Text("\tZ-index: %u", graph->getNode(hoveredNodeKey)->getZIndex());
+                    ImGui::Text("\tHovered connector");
+                    if (isConnectorHovered()) {
+                        ImGui::Text("\t\tID (type): %u (%s)", hoveredConnector.connectorID, (hoveredConnector.isInput ? "input" : "output"));
+                    } else {
+                        ImGui::Text("\t\tNone");
+                    }
+                } else {
+                    ImGui::Text("\tNone");
+                }
+                
+                ImGui::TreePop();
             }
-            
-            ImGui::TreePop();
         }
     }
     ImGui::EndChild();

@@ -153,7 +153,13 @@ public:
     virtual std::string getWindowName() const final override;
     virtual ~MaterialEditor();
 protected:
+    virtual void onButtonClick(LogicGraphEditorButton button) final override;
+    virtual void onDrawButtonRow() final override;
+    void drawFilePopup(bool isLoadPopup);
+    
     virtual std::unique_ptr<MaterialLogicGraph> makeNewGraph(const NewGraphSettings& settings) final override;
+    
+    std::vector<char> nameBuffer;
 };
 
 }

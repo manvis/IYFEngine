@@ -735,6 +735,8 @@ std::uint32_t MaterialLogicGraph::getConnectorTypeColor(ConnectorType type, bool
 }
 
 MaterialEditor::MaterialEditor(NodeEditorSettings settings) : LogicGraphEditor(settings) {
+    nameBuffer.resize(128, '\0');
+    
     // TODO - dev only. REMOVE ONCE DONE
     graph = std::make_unique<MaterialLogicGraph>(con::GetDefaultMaterialPipelineDefinition(DefaultMaterialPipeline::Toon));
     TextureInputNode* nn = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 50.0f)));
@@ -752,6 +754,76 @@ MaterialEditor::MaterialEditor(NodeEditorSettings settings) : LogicGraphEditor(s
 
 std::string MaterialEditor::getWindowName() const {
     return LOC_SYS(LH("material_editor", MaterialNodeLocalizationNamespace));
+}
+
+void MaterialEditor::onButtonClick(LogicGraphEditorButton button) {
+    switch (button) {
+        case LogicGraphEditorButton::Load:
+            ImGui::OpenPopup(LOC_SYS(LH("load_material_editor", MaterialNodeLocalizationNamespace)).c_str());
+            break;
+        case LogicGraphEditorButton::Save:
+            ImGui::OpenPopup(LOC_SYS(LH("save_material_editor", MaterialNodeLocalizationNamespace)).c_str());
+            break;
+    }
+    
+    nameBuffer[0] = '\0';
+}
+
+void MaterialEditor::onDrawButtonRow() {
+    drawFilePopup(true);
+    drawFilePopup(false);
+}
+
+void MaterialEditor::drawFilePopup(bool isLoadPopup) {
+    const std::string popupName = isLoadPopup ? 
+        LOC_SYS(LH("load_material_editor", MaterialNodeLocalizationNamespace)) :
+        LOC_SYS(LH("save_material_editor", MaterialNodeLocalizationNamespace));
+    
+    if (ImGui::BeginPopupModal(popupName.c_str())) {
+        const std::string actionName = isLoadPopup ?
+        LOC_SYS(LH("load", MaterialNodeLocalizationNamespace)) :
+        LOC_SYS(LH("save", MaterialNodeLocalizationNamespace));
+    
+        const std::string nameFieldName = LOC_SYS(LH("name", MaterialNodeLocalizationNamespace));
+        if (ImGui::InputText(nameFieldName.c_str(), nameBuffer.data(), nameBuffer.size())) {
+            // TODO validate here or on save?
+        }
+        
+        if (ImGui::BeginChild("##material_instance_def_list", ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing()))) {
+            ImGui::Columns(3);
+            ImGui::Separator();
+            
+            ImGui::Text("%s", nameFieldName.c_str());
+            ImGui::NextColumn();
+            
+            std::string pipelineName = LOC_SYS(LH("pipeline", MaterialNodeLocalizationNamespace));
+            ImGui::Text("%s", pipelineName.c_str());
+            ImGui::NextColumn();
+            
+            const std::string hashName = LOC_SYS(LH("hash", MaterialNodeLocalizationNamespace));
+            ImGui::Text("%s", hashName.c_str());
+            ImGui::NextColumn();
+            ImGui::Separator();
+            
+            // TODO list all definitions
+            
+            ImGui::Columns();
+        }
+        ImGui::Separator();
+        
+        ImGui::EndChild();
+        
+        if (ImGui::Button(actionName.c_str())) {
+            ImGui::CloseCurrentPopup();
+        }
+        
+        ImGui::SameLine();
+        
+        if (ImGui::Button(LOC_SYS(LH("cancel", MaterialNodeLocalizationNamespace)).c_str())) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
 }
 
 MaterialEditor::~MaterialEditor() {}
