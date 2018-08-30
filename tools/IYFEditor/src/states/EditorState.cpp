@@ -124,6 +124,7 @@ void EditorState::initialize() {
     currentProject = engine->getProject();
     
     assetUpdateManager = std::make_unique<AssetUpdateManager>(engine);
+    assetUpdateManager->initialize();
     
     // TODO because of frequent file system acccess, quite a few of these should happen in a separate thread 
     // TODO load the default world
