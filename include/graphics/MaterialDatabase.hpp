@@ -29,9 +29,15 @@
 #ifndef IYF_MATERIAL_DATABASE_HPP
 #define IYF_MATERIAL_DATABASE_HPP
 
-#include <unordered_map>
+#include "graphics/MaterialPipelineDefinition.hpp"
 #include "graphics/MaterialInstanceDefinition.hpp"
 #include "utilities/hashing/Hashing.hpp"
+
+#include <string>
+#include <map>
+#include <unordered_map>
+#include <vector>
+#include <mutex>
 
 namespace iyf {
 class Engine;
@@ -43,13 +49,32 @@ public:
     void initialize();
     void dispose();
     
+    inline bool hasMaterial(const std::string& name) const {
+        return hasMaterial(HS(name));
+    }
+    
+    inline bool hasMaterial(hash32_t nameHash) const {
+        auto manifestLock = editorMode ? std::unique_lock<std::mutex>(materialMapMutex) : std::unique_lock<std::mutex>();
+        
+        return (materials.find(nameHash) != materials.end());
+    }
+    
+    inline const std::map<std::string, MaterialInstanceDefinition>& getAllMaterialsOrdered() const {
+        return orderedMaterials;
+    }
+    
     void removeNonSystemData();
     void rebuildFromFilesystem();
 private:
     Engine* engine;
+    
     std::unordered_map<hash32_t, MaterialInstanceDefinition> materials;
+    std::map<std::string, MaterialInstanceDefinition> orderedMaterials;
+    
+    mutable std::mutex materialMapMutex;
     
     bool isInit;
+    bool editorMode;
 };
 }
 

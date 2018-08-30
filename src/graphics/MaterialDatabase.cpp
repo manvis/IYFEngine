@@ -27,9 +27,12 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "graphics/MaterialDatabase.hpp"
+#include "core/Engine.hpp"
 
 namespace iyf {
-MaterialDatabase::MaterialDatabase(Engine* engine) : engine(engine), isInit(false) {}
+MaterialDatabase::MaterialDatabase(Engine* engine) : engine(engine), isInit(false) {
+    editorMode = engine->isEditorMode();
+}
 
 void MaterialDatabase::initialize() {
     if (isInit) {

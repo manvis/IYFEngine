@@ -220,33 +220,9 @@ protected:
     std::vector<std::string> assetTypeNames;
     fs::path currentlyOpenDir;
     
-    std::string currentlyProcessedAsset;
-    
     void showUnableToInstanceTooltip(const std::string& tooltip);
     std::deque<AssetData> assetClipboard;
     const std::size_t maxClipboardElements;
-    
-    struct ChangeTracker {
-        ChangeTracker(const std::string& path) : path(path), lastSize(0), stableSizeDuration(0) {}
-        
-        std::string path;
-        std::size_t lastSize;
-        std::chrono::duration<float> stableSizeDuration;
-    };
-    /// When files are created or modified, their contents are not immediately available
-    /// for safe reading (e.g., another program may be writing them or they are still being copied).
-    /// This vector is used to track the sizes of newly added files for some time. 
-    /// Once they stop changing, safe-ish reading can commence.
-    std::list<ChangeTracker> newFiles;
-    
-    /// List of original files that have been removed from the imports directory since the last update() call. These names will be hashed and 
-    /// used to first find, then remove both the assets that were imported from the original files and their corresponding database entries.
-    std::vector<std::string> filesToRemove;
-    
-    /// List of files that have been deemed "safe to process", based on potentially horrible guesswork. These file names will be
-    /// sent to the converterManager and, if the import succeeds, added to the project database.
-    /// This list is reset and re-processed on every update()
-    std::vector<std::string> filesToProcess;
     
     std::mutex fileSystemCallbackMutex;
     std::unique_ptr<AssetUpdateManager> assetUpdateManager;

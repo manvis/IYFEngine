@@ -112,9 +112,6 @@ EditorState::EditorState(iyf::Engine* engine) : GameState(engine),
         pickOrPlaceModeId(0), worldType(0), entityName("a"), cameraMode(CameraMode::Stationary), pipelineEditorOpen(true), materialEditorOpen(true),
         currentlyPickedAssetType(0), maxClipboardElements(5), logWindow(engine) {
     
-    filesToProcess.reserve(40);
-    filesToRemove.reserve(40);
-    
     pickPlaceModeDrawFunction = drawNothing;
     debugDataUnit = DebugDataUnit::Mebibytes;
     editorUI->doSomething();
