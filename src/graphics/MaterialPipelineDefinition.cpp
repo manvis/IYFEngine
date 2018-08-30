@@ -467,7 +467,6 @@ namespace con {
 const MaterialPipelineDefinition& GetDefaultMaterialPipelineDefinition(DefaultMaterialPipeline pipeline) {
     using DefaultMaterialPipelineDefinitionArray = std::array<MaterialPipelineDefinition, static_cast<std::size_t>(DefaultMaterialPipeline::COUNT)>;
     static const DefaultMaterialPipelineDefinitionArray DefaultMaterialPipelineDefinitions = {
-        MaterialPipelineDefinition(),
         createToonPipelineDefinition(),
     };
     

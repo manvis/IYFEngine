@@ -432,10 +432,8 @@ private:
 };
 
 enum class DefaultMaterialPipeline {
-    /// \warning DO NOT USE this for shader generation. This is supposed to act as an empty starting point with some sensible defaults.
-    Empty = 0,
-    Toon = 1,
-    // PBR = 2, // TODO implement PBR rendering
+    Toon = 0,
+    // PBR = 1, // TODO implement PBR rendering
     COUNT
 };
 
