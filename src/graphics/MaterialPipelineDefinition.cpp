@@ -142,7 +142,7 @@ MaterialPipelineDefinition::MaterialPipelineDefinition() {
 
 void MaterialPipelineDefinition::setName(std::string name) {
     if (!validateName(name)) {
-        throw std::invalid_argument("The name did not ");
+        throw std::invalid_argument("The name did not match the validation regex");
     }
     
     this->name = std::move(name);

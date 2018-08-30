@@ -51,6 +51,7 @@ extern const std::array<LocalizationHandle, static_cast<std::size_t>(MaterialRen
 
 /// This class stores material data and metadata for editing, serializes it into files and is used by the World objects to 
 /// instantiate Material objects that contain data used by the GPU during rendering.
+///
 /// \todo this class uses the word pipeline many times in documentation, but it's an INCORRECT use of this term. Fix it
 class MaterialInstanceDefinition : public Serializable {
 public:
