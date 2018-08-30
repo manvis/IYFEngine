@@ -43,7 +43,7 @@
 namespace iyf {
 class InotifyFileSystemWatcher : public FileSystemWatcher {
 public:
-    InotifyFileSystemWatcher(FileSystemWatcher::CreateInfo createInfo);
+    InotifyFileSystemWatcher(FileSystemWatcherCreateInfo createInfo);
     
     virtual bool addDirectory(const MonitoredDirectory& monitoredDirectory) final override;
     virtual bool removeDirectory(const fs::path& path) override final;

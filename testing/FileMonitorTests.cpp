@@ -150,11 +150,11 @@ void FileMonitorTests::initialize() {
         WriteRandomFile(MakeMovedFileName(MovedDir::SubDirB, i), FILE_SIZE_BYTES);
     }
     
-    iyf::FileSystemWatcher::MonitoredDirectory dir;
+    iyf::MonitoredDirectory dir;
     dir.path = MONITORED_DIR_NAME.string();
     
     // Finally, create the file system watcher
-    iyf::FileSystemWatcher::CreateInfo ci;
+    iyf::FileSystemWatcherCreateInfo ci;
     ci.writeChangesToLog = VERBOSE_TEST_EQUALS_ALL_EVENT_LOGGING ? isOutputVerbose() : false;
     ci.monitoredDirectories.emplace_back(std::move(dir));
     ci.handler = std::bind(&FileMonitorTests::monitorCallback, this, std::placeholders::_1);
@@ -320,7 +320,7 @@ TestResults FileMonitorTests::run() {
     
     assert(fs::exists(COPIED_EXTERNAL_FILE_DESTINATION));
     
-    iyf::FileSystemWatcher::MonitoredDirectory md;
+    iyf::MonitoredDirectory md;
     md.path = COPIED_EXTERNAL_FILE_DESTINATION.string();
     
     // Try adding a file
@@ -706,7 +706,7 @@ std::string FileMonitorTests::printEvent(const iyf::FileSystemEvent& event) {
     return ss.str();
 }
 
-void FileMonitorTests::monitorCallback(iyf::FileSystemWatcher::EventList events) {
+void FileMonitorTests::monitorCallback(std::vector<FileSystemEvent> events) {
     if (events.empty()) {
         errorText += "Unexpected callback call with an empty event list\n";
     }

@@ -72,7 +72,7 @@ public:
     virtual TestResults run() final override;
     virtual void cleanup() final override;
 private:
-    void monitorCallback(iyf::FileSystemWatcher::EventList events);
+    void monitorCallback(std::vector<FileSystemEvent> events);
     void printMonitoredDirectories(const std::vector<fs::path>& directories);
     std::string printEvent(const iyf::FileSystemEvent& event);
     static std::uint64_t WriteRandomFile(const std::string& path, std::size_t byteCount);

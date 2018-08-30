@@ -37,7 +37,7 @@
 #include <algorithm>
 
 namespace iyf {
-std::unique_ptr<FileSystemWatcher> FileSystemWatcher::MakePlatformFilesystemWatcher(CreateInfo createInfo) {
+std::unique_ptr<FileSystemWatcher> FileSystemWatcher::MakePlatformFilesystemWatcher(FileSystemWatcherCreateInfo createInfo) {
 #ifdef __linux__
     return std::make_unique<InotifyFileSystemWatcher>(std::move(createInfo));
 #elif _WIN64

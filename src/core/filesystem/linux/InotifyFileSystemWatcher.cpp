@@ -45,7 +45,7 @@ struct PathReplacement {
     std::string destination;
 };
 
-InotifyFileSystemWatcher::InotifyFileSystemWatcher(FileSystemWatcher::CreateInfo createInfo) : FileSystemWatcher(std::move(createInfo)), fd(-1) {
+InotifyFileSystemWatcher::InotifyFileSystemWatcher(FileSystemWatcherCreateInfo createInfo) : FileSystemWatcher(std::move(createInfo)), fd(-1) {
     fd = inotify_init1(IN_NONBLOCK);
     
     if (fd < 0) {

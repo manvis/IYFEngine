@@ -26,69 +26,33 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef FILESYSTEMWATCHER_HPP
-#define FILESYSTEMWATCHER_HPP
+#ifndef IYF_FILE_SYSTEM_WATCHER_HPP
+#define IYF_FILE_SYSTEM_WATCHER_HPP
 
 #include <string>
 #include <vector>
 #include <memory>
-#include <functional>
-#include <thread>
 #include <atomic>
-#include <chrono>
+#include <thread>
 
 #include "utilities/NonCopyable.hpp"
-#include "core/filesystem/FileSystemEvent.hpp"
+#include "core/filesystem/FileSystemWatcherCreateInfo.hpp"
 #include "core/filesystem/cppFilesystem.hpp"
 
 namespace iyf {
 
 class FileSystemWatcher : private iyf::NonCopyable {
 public:
-    using EventList = std::vector<FileSystemEvent>;
-    using Handler = std::function<void(EventList)>;
-    
-    struct MonitoredDirectory {
-        MonitoredDirectory() : monitoredEvents(FileSystemEventFlags::All), recursive(true) {}
-        
-        /// The path to the directory to monitor
-        fs::path path;
-        /// Flags indicating events to monitor. FileSystemEventFlags::All is the default.
-        FileSystemEventFlags monitoredEvents;
-        /// Should subdirectories (if any) be monitored?
-        bool recursive;
-    };
-    
-    struct CreateInfo {
-        CreateInfo() : ignoreHidden(true), writeChangesToLog(false), automaticallyAddNewDirectories(true), sleepDuration(std::chrono::milliseconds(100)) {}
-        
-        /// Should hidden files be monitored or not?
-        bool ignoreHidden;
-        /// Should changes be written to log? This does not affect change reports to callbacks in any way, however, there's a performance penalty.
-        ///
-        /// Logging is performed differently by each backend and may differ in format or provided data (or may not even work at all).
-        bool writeChangesToLog;
-        /// Should new directories be automatically added to the list of monitored directories? They will be reported to callbacks regardless.
-        bool automaticallyAddNewDirectories;
-        /// The number of milliseconds that FileSystemWatcher::run() should sleep for between calls to FileSystemWatcher::poll()
-        /// Does nothing if you're calling FileSystemWatcher::poll() manually.
-        std::chrono::milliseconds sleepDuration;
-        /// The handler function that will receive all callbacks
-        Handler handler;
-        ///.A vector of directories that will be monitored.
-        std::vector<MonitoredDirectory> monitoredDirectories;
-    };
-    
     /// Creates a FileSystemWatcher appropriate for the current platform
-    static std::unique_ptr<FileSystemWatcher> MakePlatformFilesystemWatcher(CreateInfo createInfo);
+    static std::unique_ptr<FileSystemWatcher> MakePlatformFilesystemWatcher(FileSystemWatcherCreateInfo createInfo);
     
-    inline FileSystemWatcher(CreateInfo createInfo) : createInfo(std::move(createInfo)) {
+    inline FileSystemWatcher(FileSystemWatcherCreateInfo createInfo) : createInfo(std::move(createInfo)) {
         if (this->createInfo.handler == nullptr) {
             throw std::invalid_argument("The handler function passed to the FileSystemWatcher cannot be nullptr");
         }
     }
     
-    inline const CreateInfo& getCreateInfo() const {
+    inline const FileSystemWatcherCreateInfo& getCreateInfo() const {
         return createInfo;
     }
     
@@ -128,10 +92,10 @@ public:
     
     virtual ~FileSystemWatcher() { }
 protected:
-    const CreateInfo createInfo;
+    const FileSystemWatcherCreateInfo createInfo;
     std::atomic<bool> running;
 };
 }
 
-#endif /* FILESYSTEMWATCHER_HPP */
+#endif // IYF_FILE_SYSTEM_WATCHER_HPP
 
