@@ -34,7 +34,6 @@
 #include "graphics/Camera.hpp"
 
 #include "tools/ShadingPipelineEditor.hpp"
-#include "assetImport/ConverterManager.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
 #include "AssetList.hpp"
 #include "core/Constants.hpp"
@@ -44,7 +43,6 @@
 #include <list>
 #include <set>
 
-#include "core/filesystem/FileSystemWatcher.hpp"
 #include "utilities/hashing/Hashing.hpp"
 
 #include "core/filesystem/cppFilesystem.hpp"
@@ -63,6 +61,7 @@ class ProfilerResults;
 namespace iyf::editor {
 class EditorUI;
 class MaterialEditor;
+class AssetUpdateManager;
     
 class ImGuiLog {
 public:
@@ -93,20 +92,6 @@ struct AssetListItem {
             return path < other.path;
         }
     }
-};
-
-/// The type of the AssetOperation
-///
-/// We don't do moves. It's simpler to mark an asset as deleted, followed by a creation of a new asset
-enum class AssetOperationType : std::uint32_t {
-    Created, Updated, Deleted, Moved
-};
-
-struct AssetOperation {
-    hash32_t nameHash;
-    AssetOperationType type;
-    std::chrono::steady_clock::time_point timePoint;
-    bool isDirectory;
 };
 
 class EditorState : public GameState {
@@ -228,11 +213,6 @@ protected:
     void showAssetWindow();
     void updateProjectFiles();
     
-    void fileSystemWatcherCallback(FileSystemWatcher::EventList eventList);
-    void fileSystemWatcherNewFileCallback(FileSystemEvent event);
-    bool executeAssetOperation(fs::path path, AssetOperation op) const;
-
-    fs::path importsDir;
     std::set<AssetListItem> assetList;
     bool assetBrowserPathChanged;
     bool assetDirUpdated;
@@ -240,22 +220,7 @@ protected:
     std::vector<std::string> assetTypeNames;
     fs::path currentlyOpenDir;
     
-    std::mutex assetOperationMutex;
-    std::map<fs::path, AssetOperation> assetOperations;
-    
-    std::unique_ptr<ConverterManager> converterManager;
-    
-    /// The future that stores the results of an asset import.
-    ///
-    /// \warning must be assigned and modified in one place only - the updateProjectFiles function
-    std::future<bool> assetProcessingFuture;
     std::string currentlyProcessedAsset;
-    
-    std::future<std::unique_ptr<ConverterState>> assetConverterInitFuture;
-    
-    inline bool isPerformingAssetTask() const {
-        return assetProcessingFuture.valid() && assetConverterInitFuture.valid();
-    }
     
     void showUnableToInstanceTooltip(const std::string& tooltip);
     std::deque<AssetData> assetClipboard;
@@ -283,12 +248,8 @@ protected:
     /// This list is reset and re-processed on every update()
     std::vector<std::string> filesToProcess;
     
-    std::chrono::steady_clock::time_point lastFileSystemUpdate;
-    
-    std::atomic<bool> fileSystemThreadRunning;
     std::mutex fileSystemCallbackMutex;
-    std::unique_ptr<FileSystemWatcher> fileSystemWatcher;
-    std::thread fileSystemWatcherThread;
+    std::unique_ptr<AssetUpdateManager> assetUpdateManager;
 // LOGGING AND DEBUG ------------------------------------------------------------
     ImGuiLog logWindow;
     enum class DebugDataUnit : int {

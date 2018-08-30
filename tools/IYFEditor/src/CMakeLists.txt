@@ -28,6 +28,7 @@ add_library(IYFTools STATIC
     assetImport/ShaderConverter.cpp
     assetImport/TextureConverter.cpp
     assetImport/FontConverter.cpp
+    tools/AssetUpdateManager.cpp
     tools/Compressonator_Test_Helpers.cpp
     tools/MaterialEditor.cpp
     tools/ShadingPipelineEditor.cpp

@@ -47,6 +47,7 @@
 #include "assets/loaders/MeshLoader.hpp"
 #include "localization/TextLocalization.hpp"
 #include "tools/MaterialEditor.hpp"
+#include "tools/AssetUpdateManager.hpp"
 
 #include "imgui.h"
 #include "tinyfiledialogs.h"
@@ -61,12 +62,6 @@
 
 // TODO move the test to tests
 #include "graphics/shaderGeneration/VulkanGLSLShaderGenerator.hpp"
-
-//#define IYF_EDITOR_LOG_RECEIVED_FILE_EVENT_LIST
-
-/// How long the size of a file needs to remain stable to be considered safe for writing.
-/// Used to determine if the file is safe to import
-const float MIN_STABLE_FILE_SIZE_DURATION_SECONDS = 0.25f;
 
 // TODO something smarter, like measuring the actual size
 #define ADD_REMOVE_COMPONENT_BUTTON_WIDTH 60
@@ -131,39 +126,7 @@ void EditorState::initialize() {
     IYFT_PROFILE(EditorInitialize, iyft::ProfilerTag::Editor)
     currentProject = engine->getProject();
     
-    importsDir = currentProject->getRootPath() / con::ImportPath;
-    
-    FileSystemWatcher::CreateInfo fsci;
-    fsci.handler = std::bind(&EditorState::fileSystemWatcherCallback, this, std::placeholders::_1);
-    fsci.writeChangesToLog = false;
-    
-    FileSystemWatcher::MonitoredDirectory md;
-    md.path = importsDir;
-    md.recursive = true;
-    md.monitoredEvents = FileSystemEventFlags::All;
-    
-    fsci.monitoredDirectories.push_back(std::move(md));
-    
-    fileSystemThreadRunning = true;
-    
-    lastFileSystemUpdate = std::chrono::steady_clock::now();
-    fileSystemWatcher = FileSystemWatcher::MakePlatformFilesystemWatcher(fsci);
-    fileSystemWatcherThread = std::thread([this](){
-        IYFT_PROFILER_NAME_THREAD("FileSystemWatcher");
-        
-        while (fileSystemThreadRunning) {
-            auto now = std::chrono::steady_clock::now();
-            std::chrono::duration<float> delta = now - lastFileSystemUpdate;
-            lastFileSystemUpdate = now;
-            
-            fileSystemWatcher->poll();
-            
-            // TODO Should sleep take more/less time?
-            IYFT_PROFILE(FileSystemWatcherSleep, iyft::ProfilerTag::AssetConversion);
-            
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-    });
+    assetUpdateManager = std::make_unique<AssetUpdateManager>(engine);
     
     // TODO because of frequent file system acccess, quite a few of these should happen in a separate thread 
     // TODO load the default world
@@ -262,11 +225,6 @@ void EditorState::initialize() {
     profilerZoom = 1.0f;
     profilerOpen = false;
     
-    converterManager = std::make_unique<ConverterManager>(filesystem, "");
-    const fs::path platformDataPath = converterManager->getAssetDestinationPath(con::GetCurrentPlatform());
-    const fs::path realPlatformDataPath = filesystem->getRealDirectory(platformDataPath.generic_string());
-    LOG_V("Converted assets for this platform will be written to " << realPlatformDataPath);
-    
 //    std::uint32_t i1 = util::BytesToInt32(1, 2, 3, 4);
 //    std::uint32_t i2 = util::BytesToInt32({1, 2, 3, 4});
 //    std::array<std::uint8_t, 4> i3;
@@ -285,8 +243,7 @@ void EditorState::dispose() {
         delete world;
     }
     
-    fileSystemThreadRunning = false;
-    fileSystemWatcherThread.join();
+    assetUpdateManager->dispose();
     
     currentProject = nullptr;
 }
@@ -553,7 +510,7 @@ void EditorState::frame(float delta) {
         ImGui::End();
     }
     
-    updateProjectFiles();
+    assetDirUpdated = assetUpdateManager->update();
     logWindow.show(engine->getLogString());
     // TODO implement pipeline editor
     
@@ -1633,396 +1590,6 @@ void EditorState::showAssetWindow() {
         ImGui::Text("TODO Implement previews");
         ImGui::End();
     }
-}
-
-// void EditorState::updateProjectFiles(float delta) {
-// //     assert (fileSystemWatcherThread.get_id() == std::this_thread::get_id());
-//     IYFT_PROFILE(ParseFileSystemChanges, iyft::ProfilerTag::AssetConversion);
-//     
-//     filesToProcess.clear();
-//     
-// //     LOG_D("Iterating newFiles " << newFiles.size());
-// //     std::size_t fn = 0;
-//     // Check if a recently added file is still changing by being written to or copied.
-//     for (auto i = newFiles.begin(); i != newFiles.end();) {
-//         
-// //         LOG_D(fn << " " << i->path);
-// //         fn++;
-//         std::size_t newSize = fs::file_size(i->path);
-//         
-//         //LOG_D(i->path << " " << newSize)
-//         
-//         if (newSize == i->lastSize && i->stableSizeDuration.count() >= MIN_STABLE_FILE_SIZE_DURATION_SECONDS) {
-//             // File should be safe for reading, remove it from the list of files we observe and add it to a vector of files to process.
-//             filesToProcess.emplace_back(i->path);
-//             i = newFiles.erase(i);
-//         } else if (newSize == i->lastSize) {
-//             // Size is stable for now
-//             i->stableSizeDuration += std::chrono::duration<float>(delta);
-//             ++i;
-//         } else {
-//             // Size isn't stable (or no longer stable). (Re)set stable size duration and size itself.
-//             i->lastSize = newSize;
-//             i->stableSizeDuration = std::chrono::duration<float>(0.0f);
-//             ++i;
-//         }
-//     }
-//     
-//     if (filesToProcess.empty() && filesToRemove.empty()) {
-//         return;
-//     }
-//     
-//     for (const auto& f : filesToRemove) {
-//         LOG_D("Deleting file: " << f)
-//         //project->removeAsset(f);
-//     }
-//     
-//     for (const auto& f : filesToProcess) {
-//         LOG_D("Processing file: " << f)
-//         //project->addPendingAssetImport(f);
-//     }
-//     
-//     filesToRemove.clear();
-// }
-bool EditorState::executeAssetOperation(fs::path path, AssetOperation op) const {
-    // TODO implement deletions, moves (deletion folowed by creation, maybe some lookup method for old assets)
-    // and folder operations
-    if (op.isDirectory) {
-        LOG_W("Directory import operations are not yet implemented")
-        return true;
-    }
-    
-    bool result = false;
-    switch (op.type) {
-        case AssetOperationType::Created:
-        case AssetOperationType::Updated: {
-            // No need to prepend con::ImportPath here. The hash does not contain it and computeNameHash would only strip it.
-            const hash32_t nameHash = AssetManager::ComputeNameHash(path);
-            
-            const fs::path sourcePath = con::ImportPath / path;
-            auto collisionCheckResult = engine->getAssetManager()->checkForHashCollision(nameHash, sourcePath);
-            if (collisionCheckResult) {
-                LOG_W("Failed to import " << path << ". Detected a hash collision with " << *collisionCheckResult);
-                return false;
-            }
-            
-            const PlatformIdentifier platform = con::GetCurrentPlatform();
-            std::unique_ptr<ConverterState> converterState = converterManager->initializeConverter(sourcePath, platform);
-            
-            if (converterState != nullptr) {
-                if (converterManager->convert(*converterState)) {
-                    const fs::path finalPath = converterManager->makeFinalPathForAsset(sourcePath, converterState->getType(), platform);
-                    engine->getAssetManager()->requestAssetRefresh(converterState->getType(), finalPath);
-                    result = true;
-                }
-            }
-            break;
-        }
-        case AssetOperationType::Deleted: {
-            const fs::path sourcePath = con::ImportPath / path;
-            const fs::path settingsPath = fs::path(sourcePath).concat(con::ImportSettingsExtension);
-            
-            const FileSystem* fs = engine->getFileSystem();
-            if (fs->exists(settingsPath)) {
-                fs->remove(settingsPath);
-            } else {
-                LOG_W("Failed to find the import settings file: " << settingsPath);
-            }
-            
-            const PlatformIdentifier platform = con::GetCurrentPlatform();
-            const fs::path finalPath = converterManager->makeFinalPathForAsset(sourcePath, AssetManager::GetAssetTypeFromExtension(sourcePath), platform);
-            engine->getAssetManager()->requestAssetDeletion(finalPath);
-            
-            result = true;
-            break;
-        }
-        case AssetOperationType::Moved:
-            // This isn't a good solution, moves can be done a lot more efficiently, but it's easy
-            throw std::runtime_error("Move ops should have been turned into deletions followed by creations by this point");
-    }
-    
-    return result;
-}
-
-void EditorState::updateProjectFiles() {
-    IYFT_PROFILE(EditorFileOpWindow, iyft::ProfilerTag::Editor)
-    
-    const bool valid = assetProcessingFuture.valid();
-    if (valid && assetProcessingFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-        if (!assetProcessingFuture.get()) {
-            LOG_W("Failed to process changes. File: " << currentlyProcessedAsset);
-        }
-    }
-    
-    std::lock_guard<std::mutex> lock(assetOperationMutex);
-    const std::size_t operationCount = assetOperations.size();
-    const bool pendingOperations = !assetOperations.empty();
-    const auto now = std::chrono::steady_clock::now();
-    if (!valid && pendingOperations) {
-        for (auto it = assetOperations.begin(); it != assetOperations.end();) {
-            const std::chrono::duration<float> duration = now - it->second.timePoint;
-            
-            if (duration.count() >= MIN_STABLE_FILE_SIZE_DURATION_SECONDS) {
-                // TODO technically, most asset import stuff is thread safe. I should look into importing multiple
-                // assets at the same time.
-                currentlyProcessedAsset = it->first.generic_string();
-                assetProcessingFuture = std::async(std::launch::async, &EditorState::executeAssetOperation, this, it->first, it->second);
-                
-                assetOperations.erase(it);
-                break;
-            }
-            
-            ++it;
-        }
-    }
-    
-    const bool popupShouldBeOpen = pendingOperations || valid;
-    
-    const char* modalName = "Asset operations in progress";
-    if (popupShouldBeOpen && !ImGui::IsPopupOpen(modalName)) {
-        ImGui::OpenPopup(modalName);
-    }
-    
-    if (ImGui::BeginPopupModal(modalName, NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("Processing %s, %lu more item(s) remain(s)", currentlyProcessedAsset.c_str(), operationCount);
-        if (!popupShouldBeOpen) {
-            assetDirUpdated = true;
-            ImGui::CloseCurrentPopup();
-        }
-        
-        ImGui::EndPopup();
-    }
-    
-//     GraphicsAPI* api = engine->getGraphicsAPI();
-//     AssetManager* manager = engine->getAssetManager();
-//     
-//     float width = api->getRenderSurfaceWidth() * 0.3f;
-//     float height = api->getRenderSurfaceHeight() * 0.2f;
-//     float posY = api->getRenderSurfaceHeight() - height;
-//     
-// // //     static int test = 0;
-// // //     if (test == 5) {
-// //         ImGui::OpenPopup("Blocker");
-// // //         test++;
-// // //     }
-// //     if (ImGui::BeginPopupModal("Blocker")) {
-// //         if (ImGui::Button("HRY")) {
-// //             ImGui::CloseCurrentPopup();
-// //         }
-// //         ImGui::EndPopup();
-// //     }
-//     
-//     ImGui::SetNextWindowPos(ImVec2(api->getRenderSurfaceWidth() * 0.7f, posY), ImGuiCond_Always);
-//     ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
-//     ImGui::Begin("Pending File Operations", nullptr);
-//     
-//     {
-//         std::lock_guard<std::mutex> lock(assetOperationMutex);
-//         int count = assetOperations.size();
-//         ImGui::Text("Pending operation count: %i", count);
-//         
-//         ImGui::BeginChild("Pending Operation List");
-//         if (count > 0) {
-//             ImGui::Columns(2);
-//             ImGui::Separator();
-//             for (auto it = assetOperations.begin(); it != assetOperations.end(); ) {
-//                 const auto& op = *it;
-//                 
-//                 // Try to fetch the metadata for the asset
-//                 auto metadataCopy = manager->getMetadataCopy(op.second.nameHash);
-//                 const bool metadataExists = metadataCopy ? true : false;
-//                 
-//                 // If we didn't get metadata and the operation was a deletion, the user removed a file that hasn't been imported in the
-//                 // first place. Therefore, we can safely ignore the operation.
-//                 if (!metadataExists && op.second.type == AssetOperationType::Deleted) {
-//                     it = assetOperations.erase(it);
-//                     continue;
-//                 }
-//                 
-//                 ImGui::Text("Path (hash): %s; (%u)", op.first.generic_string().c_str(), op.second.nameHash.value());
-//                 
-//                 const std::chrono::seconds duration = std::chrono::duration_cast<std::chrono::seconds>(now - op.second.timePoint);
-//                 switch (op.second.type) {
-//                     case AssetOperationType::Created:
-//                         ImGui::Text("Type: created");
-//                         ImGui::Text("Time: %lis ago", duration.count());
-//                         break;
-//                     case AssetOperationType::Updated:
-//                         ImGui::Text("Type: updated");
-//                         ImGui::Text("Time: %lis ago", duration.count());
-//                         break;
-//                     case AssetOperationType::Deleted:
-//                         ImGui::Text("Type: deleted");
-//                         ImGui::Text("Time: %lis ago", duration.count());
-//                         break;
-//                 }
-//                 ImGui::NextColumn();
-//                 
-//                 if (ImGui::Button("Execute")) {
-//                     LOG_D("Button: " << op.first);
-//                     // TODO import settings, separate thread, applies to creation and update
-//                     // TODO notify assetManager upon completion
-//                     //auto converter = converterManager->initializeConverter(op.first, con::GetCurrentPlatform());
-//                 }
-//                 ImGui::NextColumn();
-//                 ImGui::Separator();
-//                 
-//                 ++it;
-//             }
-//             ImGui::Columns();
-//         }
-//         ImGui::EndChild();
-//     }
-//     
-//     ImGui::End();
-}
-
-void EditorState::fileSystemWatcherCallback(FileSystemWatcher::EventList eventList) {
-#ifdef IYF_EDITOR_LOG_RECEIVED_FILE_EVENT_LIST
-    for (const auto& e : eventList) {
-        switch (e.getType()) {
-        case FileSystemEventFlags::Created:
-            LOG_D("-FS-CREATED:" << "\n\tOrigin: " << (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file")
-                                 << "\n\tSource: " << e.getSource());
-            break;
-        case FileSystemEventFlags::Deleted:
-            LOG_D("-FS-DELETED:" << "\n\tOrigin: " << (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file") 
-                                 << "\n\tSource: " << e.getSource());
-            break;
-        case FileSystemEventFlags::Modified:
-            LOG_D("-FS-MODIFIED:" << "\n\tOrigin: " << (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file")
-                                  << "\n\tSource: " << e.getSource());
-            break;
-        case FileSystemEventFlags::Moved:
-            LOG_D("-FS-MOVED:" << "\n\tOrigin: " << (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file")
-                               << "\n\tSource: " << e.getSource() << "\n\tDestination: " << e.getDestination());
-            break;
-        default:
-            throw std::runtime_error("Invalid event type");
-        }
-    }
-#endif // IYF_EDITOR_LOG_RECEIVED_FILE_EVENT_LIST
-    
-    std::lock_guard<std::mutex> lock(assetOperationMutex);
-    for (const auto& e : eventList) {
-        const bool isDirectory = e.getOrigin() == FileSystemEventOrigin::Directory;
-//         if (e.getOrigin() == FileSystemEventOrigin::Directory) {
-//             continue;
-//         }
-        
-        const fs::path finalSourcePath = e.getSource().lexically_relative(importsDir);
-        const fs::path finalDestinationPath = e.getDestination().lexically_relative(importsDir);
-        
-        // TODO updated settings files should probably trigger a re-import as well
-        if (!isDirectory && finalSourcePath.extension() == con::ImportSettingsExtension) {
-            continue;
-        }
-        
-        const hash32_t hashedName = HS(finalSourcePath.generic_string());
-        
-        std::size_t t;
-        switch (e.getType()) {
-        case FileSystemEventFlags::Created:
-            t = 0;
-            assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Created, lastFileSystemUpdate, isDirectory};
-            break;
-        case FileSystemEventFlags::Deleted:
-            t = 1;
-            assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Deleted, lastFileSystemUpdate, isDirectory};
-            break;
-        case FileSystemEventFlags::Modified:
-            t = 2;
-            assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Updated, lastFileSystemUpdate, isDirectory};
-            break;
-        case FileSystemEventFlags::Moved:
-            t = 3;
-            assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Deleted, lastFileSystemUpdate, isDirectory};
-            assetOperations[finalDestinationPath] = {HS(finalDestinationPath.generic_string()), AssetOperationType::Created, lastFileSystemUpdate, isDirectory};
-            break;
-        default:
-            throw std::runtime_error("Invalid event type");
-        }
-        
-        LOG_D(t << "; FSP " << finalSourcePath << "; FDP " << finalDestinationPath);
-    }
-    
-//     if (!isPerformingAssetTask()) {
-//         AssetOperation assetOp = assetOperations;
-//     }
-
-//     for (const FileSystemEvent& c : eventList) {
-//         if (c.getType() == FileSystemEventFlags::Created) {
-//             LOG_D("Import directory monitoring. CREATED: " << c.getSourceDirectory() << c.getSourceName())
-//             
-//             // TODO can hash collisions happen here or is this case handled in addNewAsset()?
-//             newFiles.emplace_back(c.getSourceDirectory() + c.getSourceName());
-//             LOG_D("nfSize " << newFiles.size());
-//         } else if (c.getType() == FileSystemEventFlags::Deleted) {
-//             LOG_D("Import directory monitoring. DELETED: " << c.getSourceDirectory() << c.getSourceName())
-// 
-//             filesToRemove.emplace_back(c.getSourceDirectory() + c.getSourceName());
-//         } else if (c.getType() == FileSystemEventFlags::Modified) {
-//             LOG_D("Import directory monitoring. MODIFIED: " << c.getSourceDirectory() << c.getSourceName())
-//             
-//             std::string sourcePath = c.getSourceDirectory() + c.getSourceName();
-//             
-//             // Check if the file is contained in newFiles. If it is, it means it's being written to
-//             // and should not be messed with. If it's not - time to re-import
-//             auto result = std::find_if(std::begin(newFiles), std::end(newFiles), [&sourcePath](const ChangeTracker& a) {
-//                 return a.path == sourcePath;
-//             });
-//             
-//             if (result == std::end(newFiles)) {
-//                 filesToRemove.emplace_back(sourcePath);
-//                 newFiles.emplace_back(c.getDestinationDirectory() + c.getDestinationName());
-//             }
-//             
-//         } else if (c.getType() == FileSystemEventFlags::Moved) {
-//             if (c.getSourceDirectory().empty()) {
-//                 // If a source path is empty, a file has just arrived. It MAY be a new one, or a replacement for an old one
-//                 std::string fullPath = c.getDestinationDirectory() + c.getDestinationName();
-//                 std::string strippedPath = project->stripProjectBasePath(fullPath);
-//                 
-//                 //std::string relativePath = ;
-//                 auto nameHash = HS(strippedPath.c_str());
-//                 
-//                 sqlite3_bind_int64(selectImportPath, 1, nameHash.value());
-//                 int collisionResult = sqlite3_step(selectImportPath);
-// 
-//                 // SQLITE_DONE == hash is not in DB yet, can safely insert
-//                 if (collisionResult == SQLITE_DONE) {
-//                    newFiles.emplace_back(fullPath);
-//                     LOG_D("Import directory monitoring. NEW FILE MOVED INTO: " << c.getDestinationDirectory() << c.getDestinationName())
-//                 } else { // SQLITE_ROW == hash already in DB, file needs to either be re-imported (if names match) OR we have a hash collision if they don't 
-//                     const unsigned char* collidingPath = sqlite3_column_text(selectImportPath, 0);
-// 
-//                     if (std::string(reinterpret_cast<const char*>(collidingPath)) == strippedPath) {
-//                         filesToRemove.emplace_back(fullPath);
-//                         newFiles.emplace_back(fullPath);
-//                         
-//                         LOG_D("Import directory monitoring. REPLACEMENT FILE MOVED INTO: " << c.getDestinationDirectory() << c.getDestinationName())
-//                     } else {
-//                         // TODO Handle a hash collision gracefully or at very least localize this message.
-//                         LOG_E("Hash collision: \"" << fullPath << "\" collides with \"" << collidingPath << "\"")
-//                         throw std::runtime_error("Hash collision occured");
-//                     }
-//                 }
-// 
-//                 sqlite3_reset(selectImportPath);
-//             } else if (c.getDestinationDirectory().empty()) { // If the destination path is empty, a file needs to be treatead as if it has been deleted
-//                 filesToRemove.emplace_back(c.getDestinationDirectory() + c.getDestinationName());
-//                 LOG_D("Import directory monitoring. FILE REMOVED VIA MOVE FROM: " << c.getSourceDirectory() << c.getSourceName())
-//             } else if (c.getSourceDirectory() == c.getDestinationDirectory()) { // If neither path is empty and both are equal, we have a rename
-//                 LOG_D("Import directory monitoring. RENAMED FROM: " << c.getSourceName() << " TO: " << c.getDestinationName())
-//                 
-//                 // TODO actual renaming instead of re-import
-//                 filesToRemove.emplace_back(c.getSourceDirectory() + c.getSourceName());
-//                 newFiles.emplace_back(c.getDestinationDirectory() + c.getDestinationName());
-//             } else { // Two different directories should not appear, since (at least for now) we're only tracking the root of the imports folder.
-//                 assert(false);
-//             }
-//         }
-//     }
 }
 
 void ImGuiLog::show(const std::string& logStr) {
