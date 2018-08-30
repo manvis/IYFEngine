@@ -94,7 +94,8 @@ graphics/DebugRenderer.cpp
 graphics/GraphicsAPI.cpp
 graphics/GraphicsAPIConstants.cpp
 graphics/GraphicsSystem.cpp
-graphics/MaterialDefinition.cpp
+graphics/MaterialDatabase.cpp
+graphics/MaterialInstanceDefinition.cpp
 graphics/MaterialPipelineDefinition.cpp
 graphics/Renderer.cpp
 graphics/ShaderConstants.cpp

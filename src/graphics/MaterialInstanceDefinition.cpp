@@ -26,7 +26,7 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "graphics/MaterialDefinition.hpp"
+#include "graphics/MaterialInstanceDefinition.hpp"
 #include "core/filesystem/File.hpp"
 #include "utilities/hashing/HashCombine.hpp"
 
@@ -39,7 +39,7 @@ const std::array<LocalizationHandle, static_cast<std::size_t>(MaterialRenderMode
     LH("transparentRenderMode"), // 1
 };
 
-void MaterialDefinition::serialize(Serializer& fw) const {
+void MaterialInstanceDefinition::serialize(Serializer& fw) const {
     assert(components.size() <= 255);
     
     if (idNeedsRecompute) {
@@ -47,7 +47,7 @@ void MaterialDefinition::serialize(Serializer& fw) const {
     }
     
     if (components.size() > con::MaxMaterialComponents) {
-        throw std::runtime_error("Can't have more than con::MaxMaterialComponents in a MaterialDefinition called " + name);
+        throw std::runtime_error("Can't have more than con::MaxMaterialComponents in a MaterialInstanceDefinition called " + name);
     }
     
     fw.writeUInt32(id);
@@ -62,7 +62,7 @@ void MaterialDefinition::serialize(Serializer& fw) const {
     }
 }
 
-void MaterialDefinition::deserialize(Serializer& fr) {
+void MaterialInstanceDefinition::deserialize(Serializer& fr) {
     id = hash32_t(fr.readUInt32());
     idNeedsRecompute = false;
     
@@ -79,14 +79,14 @@ void MaterialDefinition::deserialize(Serializer& fr) {
     }
 }
 
-void MaterialDefinition::serializeName(Serializer& fw) const {
+void MaterialInstanceDefinition::serializeName(Serializer& fw) const {
     assert(name.size() + 1 <= 255);
     
     fw.writeUInt8(name.size() + 1);
     fw.writeBytes(name.c_str(), sizeof(char) * (name.size() + 1));
 }
 
-void MaterialDefinition::deserializeName(Serializer& fr) {
+void MaterialInstanceDefinition::deserializeName(Serializer& fr) {
     std::size_t charCount = fr.readUInt8();
     
     std::vector<char> nameVec;
@@ -97,9 +97,9 @@ void MaterialDefinition::deserializeName(Serializer& fr) {
     name = std::string(nameVec.data());
 }
 
-void MaterialDefinition::recomputeID() {
+void MaterialInstanceDefinition::recomputeID() {
     if (components.size() > con::MaxMaterialComponents) {
-        throw std::runtime_error("Can't have more than con::MaxMaterialComponents in a MaterialDefinition called " + name);
+        throw std::runtime_error("Can't have more than con::MaxMaterialComponents in a MaterialInstanceDefinition called " + name);
     }
     
     hash32_t seed(0);

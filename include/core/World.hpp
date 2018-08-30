@@ -30,7 +30,6 @@
 #define WORLD_HPP
 
 // TODO at least some of these should no longer be required
-#include "graphics/MaterialDefinition.hpp"
 #include "graphics/Lights.hpp"
 
 #include "core/EntitySystemManager.hpp"
@@ -161,11 +160,6 @@ protected:
     std::unordered_map<hash32_t, std::size_t> definitionToMaterial;
     
     bool physicsDebugDrawn;
-    
-    // The following will only be filled if developmentMode is set -----------------
-    
-    /// Stores material definitions to keep track of updates
-    std::vector<MaterialDefinition> materialDefinitions;
 };
 
 }

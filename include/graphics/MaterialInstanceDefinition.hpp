@@ -26,8 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef MATERIALDEFINITION_HPP
-#define MATERIALDEFINITION_HPP
+#ifndef IYF_MATERIAL_INSTANCE_DEFINITION_HPP
+#define IYF_MATERIAL_INSTANCE_DEFINITION_HPP
 
 #include "utilities/hashing/Hashing.hpp"
 #include "core/Constants.hpp"
@@ -52,7 +52,7 @@ extern const std::array<LocalizationHandle, static_cast<std::size_t>(MaterialRen
 /// This class stores material data and metadata for editing, serializes it into files and is used by the World objects to 
 /// instantiate Material objects that contain data used by the GPU during rendering.
 /// \todo this class uses the word pipeline many times in documentation, but it's an INCORRECT use of this term. Fix it
-class MaterialDefinition : public Serializable {
+class MaterialInstanceDefinition : public Serializable {
 public:
     enum class DataType : std::uint8_t {
         TextureID = 1,
@@ -60,16 +60,16 @@ public:
     };
     
     /// Default constructor that initializes all hashes to 0
-    MaterialDefinition() : pipelineID(0), pipelineVariant(0), renderMode(MaterialRenderMode::Opaque), name("NewMaterial"), id(0), idNeedsRecompute(true) {}
+    MaterialInstanceDefinition() : pipelineID(0), pipelineVariant(0), renderMode(MaterialRenderMode::Opaque), name("NewMaterial"), id(0), idNeedsRecompute(true) {}
     
-    /// \brief Compute and retrieve a hash that uniquely identifies this MaterialDefinition.
+    /// \brief Compute and retrieve a hash that uniquely identifies this MaterialInstanceDefinition.
     ///
     /// \warning This value is a combination of other fields (except for the name) and IT WILL CHANGE if any field is changed, so make sure
     /// to only call this function after all other fields are set and you are sure that they won't change
     /// 
     /// This function is fairly cheap to call since the class keeps track of changes and only re-computes the ID if any setters or non-const ???
     /// 
-    /// \return Unique identifier for this MaterialDefinition
+    /// \return Unique identifier for this MaterialInstanceDefinition
     inline hash32_t getID() {
         if (idNeedsRecompute) {
             recomputeID();
@@ -78,22 +78,22 @@ public:
         return id;
     }
     
-    /// \brief Get a human readable name assigned to this MaterialDefinition
+    /// \brief Get a human readable name assigned to this MaterialInstanceDefinition
     inline std::string getName() const {
         return name;
     }
 
-    /// \brief Assign a new human readable name to this MaterialDefinition
+    /// \brief Assign a new human readable name to this MaterialInstanceDefinition
     inline void setName(std::string newName) {
         name = newName;
     }
 
-    /// \brief Get an ID of a pipeline that's currently associated with this MaterialDefinition
+    /// \brief Get an ID of a pipeline that's currently associated with this MaterialInstanceDefinition
     inline hash32_t getPipelineID() const {
         return pipelineID;
     }
 
-    /// \brief Associate a new pipeline with this MaterialDefinition
+    /// \brief Associate a new pipeline with this MaterialInstanceDefinition
     ///
     /// \warning Calling this will invalidate and potentially change the ID. It will be recomputed the next time getID() is called.
     inline void setPipelineID(hash32_t newPipelineID) {
@@ -101,7 +101,7 @@ public:
         idNeedsRecompute = true;
     }
 
-    /// \brief Get a pipeline variant that is associated with this MaterialDefinition
+    /// \brief Get a pipeline variant that is associated with this MaterialInstanceDefinition
     inline hash32_t getPipelineVariant() const {
         return pipelineVariant;
     }
@@ -114,12 +114,12 @@ public:
         idNeedsRecompute = true;
     }
 
-    /// \brief Get a MaterialRenderMode that is used by Materials created from this MaterialDefinition
+    /// \brief Get a MaterialRenderMode that is used by Materials created from this MaterialInstanceDefinition
     inline MaterialRenderMode getRenderMode() const {
         return renderMode;
     }
 
-    /// \brief Set a new MaterialRenderMode that will be used by Materials created from this MaterialDefinition
+    /// \brief Set a new MaterialRenderMode that will be used by Materials created from this MaterialInstanceDefinition
     ///
     /// \warning Calling this will invalidate and potentially change the ID. It will be recomputed the next time getID() is called.
     ///
@@ -169,7 +169,7 @@ protected:
     /// of this vector, the order of its elements and requirements for them (e.g., the number of color channels) depend on the associated pipeline and its variant. The 
     /// appropriate pipeline also stores the human readable names for these elements.
     ///
-    /// \warning Make sure to always have exactly as many material components as the pipeline requires and NEVER create a MaterialDefinition with more than MaxMaterialComponents 
+    /// \warning Make sure to always have exactly as many material components as the pipeline requires and NEVER create a MaterialInstanceDefinition with more than MaxMaterialComponents 
     /// components or exceptions will be thrown at various different stages
     std::vector<std::pair<DataType, std::uint32_t>> components;
     
@@ -181,5 +181,5 @@ protected:
 };
 }
 
-#endif /* MATERIALDEFINITION_HPP */
+#endif // IYF_MATERIAL_INSTANCE_DEFINITION_HPP
 

@@ -29,12 +29,10 @@
 #ifndef IYF_MATERIAL_HPP
 #define IYF_MATERIAL_HPP
 
-#include "assets/Asset.hpp"
-#include "graphics/MaterialDefinition.hpp"
+#include "graphics/MaterialInstanceDefinition.hpp"
 
 namespace iyf {
-/// \brief A material Asset
-class Material : public Asset {
+class Material {
 public:
     // 
 };

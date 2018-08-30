@@ -94,6 +94,9 @@ void Engine::setProject(std::unique_ptr<Project> project) {
     // when the last EditorState was popped. If they weren't, we will crash.
     assetManager->removeNonSystemAssetsFromManifest();
     assetManager->buildManifestFromFilesystem();
+    
+    materialDatabase->removeNonSystemData();
+    materialDatabase->rebuildFromFilesystem();
 }
 
 void Engine::init() {
@@ -222,6 +225,9 @@ void Engine::init() {
     assetManager = std::make_unique<AssetManager>(this);
     assetManager->initialize();
     
+    materialDatabase = std::make_unique<MaterialDatabase>(this);
+    materialDatabase->initialize();
+    
     // Initialize the renderer
     // TODO choose a renderer based on configuration
     renderer = std::unique_ptr<ClusteredRenderer>(new ClusteredRenderer(this, graphicsAPI.get()));
@@ -271,6 +277,9 @@ Engine::~Engine() {
     
     assetManager->dispose();
     assetManager = nullptr;
+    
+    materialDatabase->dispose();
+    materialDatabase = nullptr;
     
     graphicsAPI->dispose();
     graphicsAPI = nullptr;

@@ -748,6 +748,8 @@ MaterialEditor::MaterialEditor(NodeEditorSettings settings) : LogicGraphEditor(s
     TextureInputNode* nn4 = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 350.0f)));
     assert(nn4 != nullptr);
     
+    con::GetDefaultMaterialPipelineDefinition(DefaultMaterialPipeline::Toon).computeHash();
+    
     graph->addNode(MaterialNodeType::PerFrameData, Vec2(0.0f, 150.0f));
 //     LOG_V("LOCALIZED: " << nn->getLocalizationHandle().getHashValue());
 }

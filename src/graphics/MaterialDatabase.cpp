@@ -26,31 +26,30 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_MATERIAL_DATABASE_HPP
-#define IYF_MATERIAL_DATABASE_HPP
-
-#include <unordered_map>
-#include "graphics/MaterialInstanceDefinition.hpp"
-#include "utilities/hashing/Hashing.hpp"
+#include "graphics/MaterialDatabase.hpp"
 
 namespace iyf {
-class Engine;
+MaterialDatabase::MaterialDatabase(Engine* engine) : engine(engine), isInit(false) {}
 
-class MaterialDatabase {
-public:
-    MaterialDatabase(Engine* engine);
+void MaterialDatabase::initialize() {
+    if (isInit) {
+        return;
+    }
     
-    void initialize();
-    void dispose();
+    rebuildFromFilesystem();
     
-    void removeNonSystemData();
-    void rebuildFromFilesystem();
-private:
-    Engine* engine;
-    std::unordered_map<hash32_t, MaterialInstanceDefinition> materials;
-    
-    bool isInit;
-};
+    isInit = true;
 }
 
-#endif // IYF_MATERIAL_DATABASE_HPP
+void MaterialDatabase::dispose() {
+    isInit = false;
+}
+
+void MaterialDatabase::removeNonSystemData() {
+    //
+}
+
+void MaterialDatabase::rebuildFromFilesystem() {
+    //
+}
+}
