@@ -28,6 +28,7 @@
 
 #include "graphics/MaterialPipelineDefinition.hpp"
 #include "core/filesystem/File.hpp"
+#include "core/serialization/MemorySerializer.hpp"
 #include "core/Logger.hpp"
 #include "utilities/StringUtilities.hpp"
 #include "utilities/Regexes.hpp"
@@ -317,6 +318,13 @@ void MaterialPipelineDefinition::deserialize(Serializer& fr) {
 //     fw.writeUInt8(usesGeometryShaders);
 //     fw.writeUInt8(vertexColorDataRequiredGS);
 //     fw.writeUInt64(geometryShaderDataSets.to_ullong());
+}
+
+hash64_t MaterialPipelineDefinition::computeHash() const {
+    MemorySerializer ms(1024);
+    serialize(ms);
+    
+    return HF(ms.data(), ms.size());
 }
 
 /// TODO move these to compilation

@@ -165,6 +165,12 @@ public:
     virtual void serialize(Serializer& fw) const final;
     virtual void deserialize(Serializer& fr) final;
     
+    /// Computes a hash that uniquely identifies this MaterialPipelineDefinition.
+    ///
+    /// \remark This function serializes this MaterialPipelineDefinition to a memory buffer and then computes the 
+    /// hash of the said buffer. For performance reasons, you should cache the computed values.
+    hash64_t computeHash() const;
+    
     /// Get the name of the material pipeline
     inline const std::string& getName() const {
         return name;
