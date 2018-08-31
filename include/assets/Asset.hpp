@@ -30,6 +30,7 @@
 #define ASSET_HPP
 
 #include "utilities/hashing/Hashing.hpp"
+#include <bitset>
 
 namespace iyf {
 
@@ -48,17 +49,34 @@ public:
     ///
     /// \warning This should only be called inside TypeManager::load(). Calling it anyhwere else may cause 
     /// resource leaks, incorrect asset data being passed to various systems and other nasty bugs.
-    void setNameHash(hash32_t newNameHash) {
+    inline void setNameHash(hash32_t newNameHash) {
         nameHash = newNameHash;
     }
     
-    /// \brief returns the name hash of this Asset
-    hash32_t getNameHash() const {
+    /// \returns The name hash of this Asset
+    inline hash32_t getNameHash() const {
         return nameHash;
     }
     
+    /// \brief Marks this asset as loaded (true) or loading (false)
+    ///
+    /// \warning This should only be called inside the TypeManager.
+    inline void setLoaded(bool loaded) {
+        this->loaded = loaded;
+    }
+    
+    /// If this is true, the asset is loaded and can safely be used. If it's false, the asset is being loaded
+    /// asynchronously (or there's a horrible bug somewhere and you're accessing a stale handle of a long
+    /// dead asset) and you MUSTN'T use any data contained within it.
+    inline bool isLoaded() const {
+        return loaded;
+    }
+protected:
+    Asset() : loaded(false) {}
 private:
     hash32_t nameHash;
+    bool loaded;
+    // What should I do with the 3 bytes here?
 };
 
 }
