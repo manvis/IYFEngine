@@ -77,9 +77,10 @@ void AssetUpdateManager::initialize() {
         
         while (watcherThreadRunning) {
             auto now = std::chrono::steady_clock::now();
-            std::chrono::duration<float> delta = now - lastFileSystemUpdate;
+//             std::chrono::duration<float> delta = now - lastFileSystemUpdate;
             lastFileSystemUpdate = now;
             
+            // This checks the file system state and sends all changes to the watcherCallback() function
             fileSystemWatcher->poll();
             
             // TODO Should sleep take more/less time?
@@ -127,14 +128,11 @@ void AssetUpdateManager::watcherCallback(std::vector<FileSystemEvent> eventList)
     std::lock_guard<std::mutex> lock(assetOperationMutex);
     for (const auto& e : eventList) {
         const bool isDirectory = e.getOrigin() == FileSystemEventOrigin::Directory;
-//         if (e.getOrigin() == FileSystemEventOrigin::Directory) {
-//             continue;
-//         }
         
         const fs::path finalSourcePath = e.getSource().lexically_relative(importsDir);
         const fs::path finalDestinationPath = e.getDestination().lexically_relative(importsDir);
         
-        // TODO updated settings files should probably trigger a re-import as well
+        // TODO updated settings files (e.g. via version control) should probably trigger a re-import as well
         if (!isDirectory && finalSourcePath.extension() == con::ImportSettingsExtension) {
             continue;
         }
@@ -270,7 +268,7 @@ bool AssetUpdateManager::update() {
     bool result = false;
     
     if (ImGui::BeginPopupModal(modalName, NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("Processing %s, %lu more item(s) remain(s)", currentlyProcessedAsset.first.generic_string(), operationCount);
+        ImGui::Text("Processing %s, %lu more item(s) remain(s)", currentlyProcessedAsset.first.generic_string().c_str(), operationCount);
         if (!popupShouldBeOpen) {
             result = true;
             ImGui::CloseCurrentPopup();
