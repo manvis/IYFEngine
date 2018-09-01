@@ -38,7 +38,7 @@ ShaderTypeManager::ShaderTypeManager(AssetManager* manager) : TypeManager(manage
     api = engine->getGraphicsAPI();
 }
 
-void ShaderTypeManager::performLoad(hash32_t, const fs::path& path, const Metadata& meta, Shader& assetData) {
+void ShaderTypeManager::performLoad(hash32_t, const fs::path& path, const Metadata& meta, Shader& assetData, bool isAsync) {
     const ShaderMetadata& shaderMeta = std::get<ShaderMetadata>(meta);
     
     File file(path, File::OpenMode::Read);

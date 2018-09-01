@@ -38,7 +38,7 @@ TextureTypeManager::TextureTypeManager(AssetManager* manager) : TypeManager(mana
     api = engine->getGraphicsAPI();
 }
 
-void TextureTypeManager::performLoad(hash32_t, const fs::path& path, const Metadata& meta, Texture& assetData) {
+void TextureTypeManager::performLoad(hash32_t, const fs::path& path, const Metadata& meta, Texture& assetData, bool isAsync) {
     const TextureMetadata& textureMeta = std::get<TextureMetadata>(meta);
     
     File file(path, File::OpenMode::Read);

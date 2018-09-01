@@ -94,7 +94,7 @@ public:
     virtual ~TypeManager() { }
     
     /// Load an asset that has not been loaded yet
-    inline AssetHandle<T> load(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut);
+    inline AssetHandle<T> load(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut, bool isAsync);
     /// Fetch a handle to an asset that has already been loaded
     inline AssetHandle<T> fetch(std::uint32_t id);
     /// Return a handle that corresponds to a "missing" asset
@@ -148,7 +148,7 @@ public:
         }
     }
 protected:
-    virtual void performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, T& assetData) = 0;
+    virtual void performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, T& assetData, bool isAsync) = 0;
     virtual void performFree(T& assetData) = 0;
     
     virtual bool refresh(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) final override {
@@ -166,14 +166,14 @@ protected:
 };
 
 template <typename T, size_t chunkSize>
-AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut) {
+AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut, bool isAsync) {
     // Find a free slot in the freeList or start using a new slot at the end
     std::uint32_t id;
     
     if (freeList.empty()) {
         T temp;
         
-        performLoad(nameHash, path, meta, temp);
+        performLoad(nameHash, path, meta, temp, isAsync);
         temp.setNameHash(nameHash);
         
         assets.push_back(std::move(temp));
@@ -188,7 +188,7 @@ AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const fs::path
         id = freeList.back();
         freeList.pop_back();
         
-        performLoad(nameHash, path, meta, assets[id]);
+        performLoad(nameHash, path, meta, assets[id], isAsync);
         assets[id].setNameHash(nameHash);
         
         // Check if the asset has been cleared successfully
@@ -254,33 +254,25 @@ public:
     /// own decisions on GarbageCollectionRunPolicy.
     void collectGarbage();
     
-    /// Either loads an asset or retrieves a handle to an already loaded one
-    ///
-    /// \todo an empty handle would be nicer than an assert
+    /// Either loads an asset or retrieves a handle to an already loaded one. This operation happens synchronously, that is
+    /// once it is done, you can use the asset immediately.
     ///
     /// \param nameHash hashed path to an asset
     /// \return An AssetHandle
     template <typename T>
     inline AssetHandle<T> load(hash32_t nameHash) {
-        auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
-        std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
-        
-        const auto assetReference = loadedAssets.find(nameHash);
-        
-        assert(manifest.find(nameHash) != manifest.end());
-        const ManifestElement& asset = manifest[nameHash];
-        
-        TypeManager<T>* typeManager = dynamic_cast<TypeManager<T>*>(typeManagers[static_cast<std::size_t>(asset.type)].get());
-        
-        if (assetReference == loadedAssets.end()) {
-            std::uint32_t id;
-            
-            AssetHandle<T> loadedHandle = typeManager->load(nameHash, asset.path, asset.metadata, id);
-            loadedAssets[nameHash] = {asset.type, id};
-            return loadedHandle;
-        } else {
-            return typeManager->fetch(assetReference->second.second);
-        }
+        return loadImpl<T>(nameHash, false);
+    }
+    
+    /// Either loads an asset or retrieves a handle to an already loaded one. This operation happens asynchronously, that is
+    /// you cannot safely use the asset until Asset::isLoaded() returns true, which, depending on the asset type, may take a
+    /// while.
+    ///
+    /// \param nameHash hashed path to an asset
+    /// \return An AssetHandle
+    template <typename T>
+    inline AssetHandle<T> loadAsync(hash32_t nameHash) {
+        return loadImpl<T>(nameHash, true);
     }
     
     template <typename T>
@@ -447,6 +439,30 @@ public:
         Metadata metadata;
     };
 private:
+    /// \todo an empty handle would be nicer than an assert
+    template <typename T>
+    inline AssetHandle<T> loadImpl(hash32_t nameHash, bool isAsync) {
+        auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
+        std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
+        
+        const auto assetReference = loadedAssets.find(nameHash);
+        
+        assert(manifest.find(nameHash) != manifest.end());
+        const ManifestElement& asset = manifest[nameHash];
+        
+        TypeManager<T>* typeManager = dynamic_cast<TypeManager<T>*>(typeManagers[static_cast<std::size_t>(asset.type)].get());
+        
+        if (assetReference == loadedAssets.end()) {
+            std::uint32_t id;
+            
+            AssetHandle<T> loadedHandle = typeManager->load(nameHash, asset.path, asset.metadata, id, isAsync);
+            loadedAssets[nameHash] = {asset.type, id};
+            return loadedHandle;
+        } else {
+            return typeManager->fetch(assetReference->second.second);
+        }
+    }
+    
     /// \brief Adds a file to the manifest.
     ///
     /// \todo many things written here are no longer relevant or true.
@@ -537,7 +553,8 @@ inline bool TypeManager<T, chunkSize>::refreshImpl(hash32_t nameHash, const fs::
     }
     
     performFree(assets[id]);
-    performLoad(nameHash, path, meta, assets[id]);
+    // TODO probably needs to be done asynchronously
+    performLoad(nameHash, path, meta, assets[id], false);
     assets[id].setNameHash(nameHash);
     
     return true;

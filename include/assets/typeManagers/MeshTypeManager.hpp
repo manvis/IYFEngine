@@ -109,7 +109,7 @@ public:
 protected:
     virtual void initMissingAssetHandle() final override;
     
-    virtual void performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, Mesh& assetData) override;
+    virtual void performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, Mesh& assetData, bool isAsync) override;
     virtual void performFree(Mesh& assetData) override;
     
     struct RangeDataResult {

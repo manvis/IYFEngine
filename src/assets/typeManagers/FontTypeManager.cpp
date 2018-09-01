@@ -37,7 +37,7 @@ FontTypeManager::FontTypeManager(AssetManager* manager) : TypeManager(manager) {
     api = engine->getGraphicsAPI();
 }
 
-void FontTypeManager::performLoad(hash32_t, const fs::path& path, const Metadata&, Font& assetData) {
+void FontTypeManager::performLoad(hash32_t, const fs::path& path, const Metadata&, Font& assetData, bool isAsync) {
 //     const FontMetadata& fontMetadata = std::get<FontMetadata>(meta);
     
     File file(path, File::OpenMode::Read);
