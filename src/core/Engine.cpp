@@ -347,6 +347,7 @@ void Engine::executeMainLoop() {
         
         inputState->pollInput(); //TODO really here?
         assetManager->collectGarbage(); // TODO really here? TODO Make it smarter. Iterating through all assets every frame is NOT smart
+        assetManager->enableLoadedAssets();
         
         currentTime = std::chrono::steady_clock::now();
         

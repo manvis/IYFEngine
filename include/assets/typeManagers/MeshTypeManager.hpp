@@ -106,6 +106,8 @@ public:
     /// \warning Make sure that the physics objects using these mappings get destroyed before the backing graphics data
     /// is cleared.
     std::pair<GraphicsToPhysicsDataMapping, GraphicsToPhysicsDataMapping> getGraphicsToPhysicsDataMapping(const Mesh& assetData) const;
+    
+    virtual void enableLoadedAssets() final override;
 protected:
     virtual void initMissingAssetHandle() final override;
     

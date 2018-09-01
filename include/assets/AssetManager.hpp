@@ -64,6 +64,7 @@ public:
     ///
     /// \throws std::logic_error if the engine is running in game mode.
     virtual bool refresh(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) = 0;
+    virtual void enableLoadedAssets() = 0;
 protected:
     friend class AssetManager;
     /// Our friend AssetManager calls this function once it finishes building the manifest. The "missing" assets
@@ -253,6 +254,9 @@ public:
     /// \warning This class does not and should not inherit from GarbageCollecting interface because it makes its
     /// own decisions on GarbageCollectionRunPolicy.
     void collectGarbage();
+    
+    /// Enables the assets that were loaded asynchronously, if any.
+    void enableLoadedAssets();
     
     /// Either loads an asset or retrieves a handle to an already loaded one. This operation happens synchronously, that is
     /// once it is done, you can use the asset immediately.

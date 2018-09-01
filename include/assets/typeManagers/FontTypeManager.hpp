@@ -43,6 +43,8 @@ public:
     virtual AssetType getType() final override {
         return AssetType::Font;
     }
+    
+    virtual void enableLoadedAssets() final override;
 protected:
     virtual void initMissingAssetHandle() final override;
     

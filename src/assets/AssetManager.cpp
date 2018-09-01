@@ -416,6 +416,15 @@ void AssetManager::collectGarbage() {
     }
 }
 
+void AssetManager::enableLoadedAssets() {
+    // TODO make this smarter
+    for (auto& tm : typeManagers) {
+        if (tm != nullptr) {
+            tm->enableLoadedAssets();
+        }
+    }
+}
+
 void AssetManager::loadSystemAssets() {
     //
 //     std::vector<int> v;
