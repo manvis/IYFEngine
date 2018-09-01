@@ -36,6 +36,10 @@
 
 #include <SDL2/SDL.h>
 
+namespace iyft {
+class ThreadPool;
+}
+
 namespace iyf {
 
 class GameState;
@@ -197,6 +201,22 @@ public:
     MaterialDatabase* getMaterialDatabase() const {
         return materialDatabase.get();
     }
+    
+    /// The long term worker iyft::ThreadPool should be used for tasks that may take multiple frames to complete, e.g., network
+    /// requests, asset loading, etc.
+    ///
+    /// \return A pool of long term worker threads.
+    iyft::ThreadPool* getLongTermWorkerPool() const {
+        return longTermWorkerPool.get();
+    }
+    
+    /// The frame worker iyft::ThreadPool should be used for tasks that take a fraction of the frame to complete, e.g., particle
+    /// simulation or animation may be divided into multiple tasks, sent to the pool and waited for.
+    /// 
+    /// \return A pool of short term worker threads.
+    iyft::ThreadPool* getFrameWorkerPool() const {
+        return frameWorkerPool.get();
+    }
 
     const std::string& getLogString() {
         return log;
@@ -236,6 +256,10 @@ private:
     
     // Materials
     std::unique_ptr<MaterialDatabase> materialDatabase;
+    
+    // Threading
+    std::unique_ptr<iyft::ThreadPool> longTermWorkerPool;
+    std::unique_ptr<iyft::ThreadPool> frameWorkerPool;
 
     // SDL video
     SDL_Window* window;

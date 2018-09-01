@@ -62,6 +62,7 @@
 #include "assets/AssetManager.hpp"
 
 #include "threading/ThreadProfiler.hpp"
+#include "threading/ThreadPool.hpp"
 
 #include "graphics/MaterialDatabase.hpp"
 #include "graphics/clusteredRenderers/ClusteredRenderer.hpp"
@@ -156,6 +157,10 @@ void Engine::init() {
         LOG_E("Failed to load system strings. Error: " << SystemLocalizer().loadResultToErrorString(result));
         throw std::runtime_error("Failed to load system strings (check log)");
     }
+    
+    // TODO I need a smarter way to pick the number of workers
+    longTermWorkerPool = std::make_unique<iyft::ThreadPool>(2);
+    frameWorkerPool = std::make_unique<iyft::ThreadPool>(2);
     
     if (!SystemLocalizer().executePendingSwap()) {
         throw std::runtime_error("Failed to swap in loaded strings");
@@ -286,6 +291,9 @@ Engine::~Engine() {
     
     soundAPI->dispose();
     soundAPI = nullptr;
+    
+    longTermWorkerPool = nullptr;
+    frameWorkerPool = nullptr;
     
     fileSystem = nullptr;
     
