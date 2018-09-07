@@ -74,7 +74,10 @@ public:
     bool update();
 private:
     void watcherCallback(std::vector<FileSystemEvent> eventList);
-    bool executeAssetOperation(fs::path path, AssetOperation op) const;
+    
+    /// Asynchronously proocesses the asset changes and, if everything succeeded, returns a non-nullptr
+    /// function that must be run in the main thread in order to update the AssetManager state.
+    std::function<void()> executeAssetOperation(fs::path path, AssetOperation op) const;
     
     Engine* engine;
     fs::path importsDir;
@@ -90,7 +93,7 @@ private:
     
     std::mutex assetOperationMutex;
     std::future<std::unique_ptr<ConverterState>> assetConverterInitFuture;
-    std::future<bool> assetProcessingFuture;
+    std::future<std::function<void()>> assetProcessingFuture;
     
     std::atomic<bool> watcherThreadRunning;
     bool isInit;

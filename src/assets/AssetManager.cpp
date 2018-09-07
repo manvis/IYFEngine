@@ -496,6 +496,7 @@ void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
     const fs::path binaryMetadataPath = MakeMetadataPathName(path, true);
     const fs::path textMetadataPath = MakeMetadataPathName(path, false);
     
+    // TODO it would be nice to eventually perform these in a separate thread
     bool binaryMetadataExists = fs->exists(binaryMetadataPath);
     bool textMetadataExists = fs->exists(textMetadataPath);
     
@@ -531,7 +532,7 @@ void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
     }
 }
 
-void AssetManager::requestAssetDeletion(const fs::path& path) {
+void AssetManager::requestAssetDeletion(const fs::path& path, bool isDir) {
     if (!editorMode) {
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
@@ -570,7 +571,7 @@ void AssetManager::requestAssetDeletion(const fs::path& path) {
     fs->remove(path);
 }
 
-void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& destinationPath) {
+void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& destinationPath, bool isDir) {
     if (!editorMode) {
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }

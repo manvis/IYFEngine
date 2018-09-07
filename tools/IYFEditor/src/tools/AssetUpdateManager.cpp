@@ -28,13 +28,16 @@
 
 #include "tools/AssetUpdateManager.hpp"
 
-#include "assetImport/ConverterManager.hpp"
 #include "core/Engine.hpp"
 #include "core/Logger.hpp"
 #include "core/Project.hpp"
 #include "core/filesystem/FileSystem.hpp"
 #include "core/filesystem/FileSystemWatcher.hpp"
+
 #include "assets/AssetManager.hpp"
+#include "assetImport/ConverterManager.hpp"
+
+#include "threading/ThreadPool.hpp"
 #include "threading/ThreadProfiler.hpp"
 
 #include "imgui.h"
@@ -166,15 +169,15 @@ void AssetUpdateManager::watcherCallback(std::vector<FileSystemEvent> eventList)
     }
 }
 
-bool AssetUpdateManager::executeAssetOperation(fs::path path, AssetOperation op) const {
+std::function<void()> AssetUpdateManager::executeAssetOperation(fs::path path, AssetOperation op) const {
     // TODO implement deletions, moves (deletion folowed by creation, maybe some lookup method for old assets)
     // and folder operations
     if (op.isDirectory) {
         LOG_W("Directory import operations are not yet implemented")
-        return true;
+        return []{};
     }
     
-    bool result = false;
+    AssetManager* assetManager = engine->getAssetManager();
     switch (op.type) {
         case AssetOperationType::Created:
         case AssetOperationType::Updated: {
@@ -182,10 +185,10 @@ bool AssetUpdateManager::executeAssetOperation(fs::path path, AssetOperation op)
             const hash32_t nameHash = AssetManager::ComputeNameHash(path);
             
             const fs::path sourcePath = con::ImportPath / path;
-            auto collisionCheckResult = engine->getAssetManager()->checkForHashCollision(nameHash, sourcePath);
+            auto collisionCheckResult = assetManager->checkForHashCollision(nameHash, sourcePath);
             if (collisionCheckResult) {
                 LOG_W("Failed to import " << path << ". Detected a hash collision with " << *collisionCheckResult);
-                return false;
+                return nullptr;
             }
             
             const PlatformIdentifier platform = con::GetCurrentPlatform();
@@ -194,10 +197,14 @@ bool AssetUpdateManager::executeAssetOperation(fs::path path, AssetOperation op)
             if (converterState != nullptr) {
                 if (converterManager->convert(*converterState)) {
                     const fs::path finalPath = converterManager->makeFinalPathForAsset(sourcePath, converterState->getType(), platform);
-                    engine->getAssetManager()->requestAssetRefresh(converterState->getType(), finalPath);
-                    result = true;
+                    const AssetType assetType = converterState->getType();
+                    
+                    return [assetManager, assetType, finalPath] {
+                        assetManager->requestAssetRefresh(assetType, finalPath);
+                    };
                 }
             }
+            
             break;
         }
         case AssetOperationType::Deleted: {
@@ -213,17 +220,17 @@ bool AssetUpdateManager::executeAssetOperation(fs::path path, AssetOperation op)
             
             const PlatformIdentifier platform = con::GetCurrentPlatform();
             const fs::path finalPath = converterManager->makeFinalPathForAsset(sourcePath, AssetManager::GetAssetTypeFromExtension(sourcePath), platform);
-            engine->getAssetManager()->requestAssetDeletion(finalPath);
             
-            result = true;
-            break;
+            return [assetManager, finalPath]{
+                assetManager->requestAssetDeletion(finalPath, false);
+            };
         }
         case AssetOperationType::Moved:
-            // This isn't a good solution, moves can be done a lot more efficiently, but it's easy
+            // TODO This isn't a good solution, moves can be done a lot more efficiently, but it's easy
             throw std::runtime_error("Move ops should have been turned into deletions followed by creations by this point");
     }
     
-    return result;
+    return nullptr;
 }
 
 bool AssetUpdateManager::update() {
@@ -231,8 +238,11 @@ bool AssetUpdateManager::update() {
     
     const bool valid = assetProcessingFuture.valid();
     if (valid && assetProcessingFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-        if (!assetProcessingFuture.get()) {
+        std::function<void()> notificationFunction = assetProcessingFuture.get();
+        if (notificationFunction == nullptr) {
             LOG_W("Failed to process changes. File: " << currentlyProcessedAsset.first.generic_string());
+        } else {
+            notificationFunction();
         }
     }
     
@@ -245,10 +255,13 @@ bool AssetUpdateManager::update() {
             const std::chrono::duration<float> duration = now - it->second.timePoint;
             
             if (duration.count() >= MIN_STABLE_FILE_SIZE_DURATION_SECONDS) {
+                iyft::ThreadPool* tp = engine->getLongTermWorkerPool();
+                
                 // TODO technically, most asset import stuff is thread safe. I should look into importing multiple
                 // assets at the same time.
                 currentlyProcessedAsset = *it;
-                assetProcessingFuture = std::async(std::launch::async, &AssetUpdateManager::executeAssetOperation, this, it->first, it->second);
+                //assetProcessingFuture = std::async(std::launch::async, &AssetUpdateManager::executeAssetOperation, this, it->first, it->second);
+                assetProcessingFuture = tp->addTaskWithResult(&AssetUpdateManager::executeAssetOperation, this, it->first, it->second);
                 
                 assetOperations.erase(it);
                 break;

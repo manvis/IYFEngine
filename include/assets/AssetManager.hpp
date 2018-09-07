@@ -419,14 +419,12 @@ public:
     /// Used by the editor to delete a specific asset (or a folder of assets)
     /// 
     /// \throws std::logic_error if this AssetManager was constructed using an Engine running in game mode.
-    void requestAssetDeletion(const fs::path& path);
+    void requestAssetDeletion(const fs::path& path, bool isDir);
     
     /// Used by the editor to rename or move a specific asset (or a folder of assets)
-    ///
-    /// \todo Implement this
     /// 
     /// \throws std::logic_error if this AssetManager was constructed using an Engine running in game mode.
-    void requestAssetMove(const fs::path& sourcePath, const fs::path& destinationPath);
+    void requestAssetMove(const fs::path& sourcePath, const fs::path& destinationPath, bool isDir);
     
     /// Removes all non-system assets from the manifest. Typically used when closing a Project. For performance reasons, 
     /// this function should only be called after all Entity objects that use non-system assets have been unloaded.
