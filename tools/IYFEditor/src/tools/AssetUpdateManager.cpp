@@ -142,43 +142,56 @@ void AssetUpdateManager::watcherCallback(std::vector<FileSystemEvent> eventList)
         
         const hash32_t hashedName = HS(finalSourcePath.generic_string());
         
-        std::size_t t;
+        const char* t = "InvalidOP";
         switch (e.getType()) {
         case FileSystemEventFlags::Created:
-            t = 0;
+            t = "Created";
             assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Created, lastFileSystemUpdate, isDirectory};
             break;
         case FileSystemEventFlags::Deleted:
-            t = 1;
+            t = "Deleted";
             assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Deleted, lastFileSystemUpdate, isDirectory};
             break;
         case FileSystemEventFlags::Modified:
-            t = 2;
+            t = "Modified";
             assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Updated, lastFileSystemUpdate, isDirectory};
             break;
         case FileSystemEventFlags::Moved:
-            t = 3;
+            t = "Moved";
             assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Deleted, lastFileSystemUpdate, isDirectory};
             assetOperations[finalDestinationPath] = {HS(finalDestinationPath.generic_string()), AssetOperationType::Created, lastFileSystemUpdate, isDirectory};
             break;
         default:
             throw std::runtime_error("Invalid event type");
         }
-        
-        LOG_D(t << "; FSP " << finalSourcePath << "; FDP " << finalDestinationPath);
+        //TODO test current (just to make sure I didn't screw it up) and stop turning moves into creations and deletions
+        LOG_D(t << " a " << (isDirectory ? "directory" : " file") << "; SRC " << finalSourcePath << "; DST " << finalDestinationPath);
     }
 }
 
 std::function<void()> AssetUpdateManager::executeAssetOperation(fs::path path, AssetOperation op) const {
-    // TODO implement deletions, moves (deletion folowed by creation, maybe some lookup method for old assets)
-    // and folder operations
-    if (op.isDirectory) {
-        LOG_W("Directory import operations are not yet implemented")
-        return []{};
-    }
-    
     AssetManager* assetManager = engine->getAssetManager();
-    switch (op.type) {
+    if (op.isDirectory) {
+        // TODO implement deletions, moves (deletion folowed by creation, maybe some lookup method for old assets)
+        // and folder operations
+        switch (op.type) {
+            case AssetOperationType::Created:
+            case AssetOperationType::Updated:
+                // We don't track folders as assets
+                return []{};
+            case AssetOperationType::Deleted: {
+                const fs::path sourcePath = con::ImportPath / path;
+                return [assetManager, sourcePath]{
+                    assetManager->requestAssetDeletion(sourcePath, true);
+                };
+            }
+                
+        }
+        
+        LOG_W("Directory import operations are not yet implemented")
+        
+    } else {
+        switch (op.type) {
         case AssetOperationType::Created:
         case AssetOperationType::Updated: {
             // No need to prepend con::ImportPath here. The hash does not contain it and computeNameHash would only strip it.
@@ -215,7 +228,7 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(fs::path path, A
             if (fs->exists(settingsPath)) {
                 fs->remove(settingsPath);
             } else {
-                LOG_W("Failed to find the import settings file: " << settingsPath);
+                LOG_V("Failed to find the import settings file: " << settingsPath << ". Assuming it was deleted by the user.");
             }
             
             const PlatformIdentifier platform = con::GetCurrentPlatform();
@@ -228,9 +241,10 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(fs::path path, A
         case AssetOperationType::Moved:
             // TODO This isn't a good solution, moves can be done a lot more efficiently, but it's easy
             throw std::runtime_error("Move ops should have been turned into deletions followed by creations by this point");
+        }
     }
     
-    return nullptr;
+    throw std::runtime_error("Unknown file or directory operation");
 }
 
 bool AssetUpdateManager::update() {

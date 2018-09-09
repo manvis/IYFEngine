@@ -39,6 +39,7 @@
 #include "assets/typeManagers/ShaderTypeManager.hpp"
 #include "assets/typeManagers/TextureTypeManager.hpp"
 #include "utilities/DataSizes.hpp"
+#include "utilities/FileInDir.hpp"
 
 namespace iyf {
 using namespace iyf::literals;
@@ -532,7 +533,7 @@ void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
     }
 }
 
-void AssetManager::requestAssetDeletion(const fs::path& path, bool isDir) {
+void AssetManager::requestAssetDeletion(const fs::path& path, [[maybe_unused]] bool isDir) {
     if (!editorMode) {
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
@@ -542,33 +543,58 @@ void AssetManager::requestAssetDeletion(const fs::path& path, bool isDir) {
     
     const FileSystem* fs = engine->getFileSystem();
     
-    auto validationResult = ValidateAndHashPath(fs, path);
-    if (!validationResult) {
-        return;
+    if (isDir) {
+#ifndef NDEBUG
+        // TODO at least so far (on Linux) I get all file deletion events from inotify BEFORE I get the directory deletion
+        // event. Unfortunately, I have to store all events I receive in a map because I need to track if a file is still being
+        // modified by an external program. That is, for my purposes, a file's STATE is more important than the event order.
+        //
+        // Since using a map screws up the order, it is possible that a directory deletion event arrives BEFORE file deletion events,
+        // which renders the following check useless. However, since directories are NOT assets in my engine, this SHOULDN'T matter, for
+        // as long as all file deletion events arrive eventually.
+        //
+        // What I want you to do future me (or my helper) is to make sure the events ALWAYS arrive on all platforms.
+//         for (const auto& me : manifest) {
+//             fs::path src;
+//             bool inDir = std::visit([&path, &src](auto&& meta) {
+//                 src = meta.getSourceAssetPath();
+//                 return util::FileInDir(path, src);
+//             }, me.second.metadata);
+//             
+//             if (inDir) {
+//                 LOG_V("File " << src << " not removed from the " << path << " directory before its deletion.");
+//             }
+//         }
+#endif // NDEBUG
+    } else {
+        auto validationResult = ValidateAndHashPath(fs, path);
+        if (!validationResult) {
+            return;
+        }
+        
+        const hash32_t nameHash = *validationResult;
+        
+        const auto& loadedAsset = loadedAssets.find(nameHash);
+        if (loadedAsset != loadedAssets.end()) {
+            LOG_W("The file (" << path << ") that was removed had live references. If you don't find "
+                "and fix them, they will be replaced with missing assets next time you start the editor.");
+        }
+        
+        const fs::path binaryMetadataPath = MakeMetadataPathName(path, true);
+        const fs::path textMetadataPath = MakeMetadataPathName(path, false);
+        
+        bool binaryMetadataExists = fs->exists(binaryMetadataPath);
+        if (binaryMetadataExists) {
+            fs->remove(binaryMetadataPath);
+        }
+        
+        bool textMetadataExists = fs->exists(textMetadataPath);
+        if (textMetadataExists) {
+            fs->remove(textMetadataPath);
+        }
+        
+        fs->remove(path);
     }
-    
-    const hash32_t nameHash = *validationResult;
-    
-    const auto& loadedAsset = loadedAssets.find(nameHash);
-    if (loadedAsset != loadedAssets.end()) {
-        LOG_W("The file (" << path << ") that was removed had live references. If you don't find "
-              "and fix them, they will be replaced with missing assets next time you start the editor.");
-    }
-    
-    const fs::path binaryMetadataPath = MakeMetadataPathName(path, true);
-    const fs::path textMetadataPath = MakeMetadataPathName(path, false);
-    
-    bool binaryMetadataExists = fs->exists(binaryMetadataPath);
-    if (binaryMetadataExists) {
-        fs->remove(binaryMetadataPath);
-    }
-    
-    bool textMetadataExists = fs->exists(textMetadataPath);
-    if (textMetadataExists) {
-        fs->remove(textMetadataPath);
-    }
-    
-    fs->remove(path);
 }
 
 void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& destinationPath, bool isDir) {
