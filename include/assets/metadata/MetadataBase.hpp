@@ -37,12 +37,18 @@
 
 namespace iyf {
 
+enum class MetadataSource {
+    Constructor,
+    JSON,
+    BinaryData,
+};
+
 class MetadataBase : public Serializable, public TextSerializable {
 public:
-    inline MetadataBase(AssetType assetType) : assetType(assetType), complete(false), systemAsset(false), fileHash(0) {}
+    inline MetadataBase(AssetType assetType) : assetType(assetType), metadataSource(MetadataSource::Constructor), complete(false), systemAsset(false), fileHash(0) {}
     
     inline MetadataBase(AssetType assetType, hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash, bool systemAsset, const std::vector<std::string>& tags, bool complete) 
-        : assetType(assetType), complete(complete), systemAsset(systemAsset), tags(tags), fileHash(fileHash), sourceAsset(sourceAsset), sourceFileHash(sourceFileHash) {}
+        : assetType(assetType), metadataSource(MetadataSource::Constructor), complete(complete), systemAsset(systemAsset), tags(tags), fileHash(fileHash), sourceAsset(sourceAsset), sourceFileHash(sourceFileHash) {}
     
     AssetType getAssetType() const {
         return assetType;
@@ -102,6 +108,11 @@ public:
     /// This function reads some parameters common to all metadata files and then calls deserializeJSONImpl()
     virtual void deserializeJSON(JSONObject& jo) final override;
     
+    /// Gets the source of the metadata object
+    inline MetadataSource getMetadataSource() const {
+        return metadataSource;
+    }
+    
 private:
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const = 0;
     virtual void deserializeImpl(Serializer& fr, std::uint16_t version) = 0;
@@ -109,6 +120,7 @@ private:
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint16_t version) = 0;
     
     AssetType assetType;
+    MetadataSource metadataSource;
     bool complete;
     bool systemAsset;
     std::vector<std::string> tags;

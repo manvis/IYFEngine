@@ -91,6 +91,7 @@ void MetadataBase::deserialize(Serializer& fr)  {
     deserializeImpl(fr, version);
     
     complete = true;
+    metadataSource = MetadataSource::BinaryData;
 }
 
 void MetadataBase::serializeJSON(PrettyStringWriter& pw) const  {
@@ -156,5 +157,6 @@ void MetadataBase::deserializeJSON(JSONObject& jo) {
     deserializeJSONImpl(jo, version);
     
     complete = true;
+    metadataSource = MetadataSource::JSON;
 }
 }
