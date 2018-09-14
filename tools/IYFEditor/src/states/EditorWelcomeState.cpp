@@ -206,12 +206,27 @@ void EditorWelcomeState::initialize() {
         
         ProjectData data;
         data.name = name;
-        data.path = path;
+        
+        if (!fs::exists(path)) {
+            LOG_V("Project " << name << " no longer exists in " << path << ". It will be removed from the project list.");
+            data.path.clear();
+        } else {
+            data.path = path;
+        }
+        
         data.lastOpen = timeInt;
         data.lastOpenText = timeSinceEpochToString(timeInt);
         
         lastLoadedProjects.push_back(std::move(data));
     }
+    
+    lastLoadedProjects.erase(std::remove_if(lastLoadedProjects.begin(), lastLoadedProjects.end(), [](const ProjectData& data) {
+//         LOG_D("PTH: " << data.path);
+        return data.path.empty();
+    }), lastLoadedProjects.end());
+    
+    LOG_V("Number of remembered loaded projects: " << lastLoadedProjects.size())
+    writeProjectList();
     
     const std::string firstName = config->getValue("user_first_name", ConfigurationValueFamily::Editor);
     const std::string middleName = config->getValue("user_middle_name", ConfigurationValueFamily::Editor);
