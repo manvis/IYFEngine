@@ -66,6 +66,8 @@ private:
     std::unique_ptr<World> world;
     
     struct ProjectData {
+        ProjectData() : lastOpen(0) {}
+        
         std::string name;
         std::string path;
         std::string lastOpenText;
