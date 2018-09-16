@@ -863,6 +863,8 @@ public:
     }
     
     virtual void serializeJSON(PrettyStringWriter& pw) const override {
+        pw.StartObject();
+        
         pw.String(VERSION_FIELD_NAME);
         pw.Uint(1);
         
@@ -913,6 +915,8 @@ public:
             pw.EndObject();
         }
         pw.EndArray();
+        
+        pw.EndObject();
     }
     
     virtual void deserializeJSON(JSONObject& jo) override {

@@ -63,6 +63,7 @@ assets/typeManagers/TextureTypeManager.cpp
 core/configuration/Configuration.cpp
 core/interfaces/Configurable.cpp
 core/interfaces/ComponentContainer.cpp
+core/interfaces/TextSerializable.cpp
 core/serialization/MemorySerializer.cpp
 core/serialization/VirtualFileSystemSerializer.cpp
 core/ComponentType.cpp
