@@ -61,6 +61,10 @@ public:
     }
     
     IYF_FORCE_INLINE constexpr HashedValue<T>& operator=(const HashedValue<T>& right) {
+        if (&right == this) {
+            return *this;
+        }
+        
         hashValue = right.hashValue;
         return *this;
     }
