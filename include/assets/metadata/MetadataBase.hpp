@@ -114,6 +114,8 @@ public:
     }
     
 private:
+    friend class AssetManager;
+    
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const = 0;
     virtual void deserializeImpl(Serializer& fr, std::uint16_t version) = 0;
     virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const = 0;

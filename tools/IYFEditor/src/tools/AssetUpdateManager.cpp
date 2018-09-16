@@ -146,26 +146,32 @@ void AssetUpdateManager::watcherCallback(std::vector<FileSystemEvent> eventList)
         switch (e.getType()) {
         case FileSystemEventFlags::Created:
             t = "Created";
-            assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Created, lastFileSystemUpdate, isDirectory};
+            assetOperations[finalSourcePath] = {fs::path(), hashedName, AssetOperationType::Created, lastFileSystemUpdate, isDirectory};
             break;
         case FileSystemEventFlags::Deleted:
             t = "Deleted";
-            assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Deleted, lastFileSystemUpdate, isDirectory};
+            assetOperations[finalSourcePath] = {fs::path(), hashedName, AssetOperationType::Deleted, lastFileSystemUpdate, isDirectory};
             break;
         case FileSystemEventFlags::Modified:
             t = "Modified";
-            assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Updated, lastFileSystemUpdate, isDirectory};
+            assetOperations[finalSourcePath] = {fs::path(), hashedName, AssetOperationType::Updated, lastFileSystemUpdate, isDirectory};
             break;
         case FileSystemEventFlags::Moved:
             t = "Moved";
-            assetOperations[finalSourcePath] = {hashedName, AssetOperationType::Deleted, lastFileSystemUpdate, isDirectory};
-            assetOperations[finalDestinationPath] = {HS(finalDestinationPath.generic_string()), AssetOperationType::Created, lastFileSystemUpdate, isDirectory};
+            
+            if (isDirectory) {
+                assetOperations[finalSourcePath] = {finalDestinationPath, hashedName, AssetOperationType::Moved, lastFileSystemUpdate, isDirectory};
+            } else {
+                assetOperations[finalSourcePath] = {fs::path(), hashedName, AssetOperationType::Deleted, lastFileSystemUpdate, isDirectory};
+                assetOperations[finalDestinationPath] = {fs::path(), HS(finalDestinationPath.generic_string()), AssetOperationType::Created, lastFileSystemUpdate, isDirectory};
+            }
+            
             break;
         default:
             throw std::runtime_error("Invalid event type");
         }
         //TODO test current (just to make sure I didn't screw it up) and stop turning moves into creations and deletions
-        LOG_D(t << " a " << (isDirectory ? "directory" : " file") << "; SRC " << finalSourcePath << "; DST " << finalDestinationPath);
+        LOG_V(t << " a " << (isDirectory ? "directory" : " file") << "; SRC " << finalSourcePath << "; DST " << finalDestinationPath);
     }
 }
 
@@ -185,7 +191,13 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(fs::path path, A
                     assetManager->requestAssetDeletion(sourcePath, true);
                 };
             }
-                
+            case AssetOperationType::Moved: {
+                const fs::path sourcePath = con::ImportPath / path;
+                const fs::path destinationPath = con::ImportPath / op.destination;
+                return [assetManager, sourcePath, destinationPath] {
+                    assetManager->requestAssetMove(sourcePath, destinationPath, true);
+                };
+            }
         }
         
         LOG_W("Directory import operations are not yet implemented")

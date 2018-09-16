@@ -57,6 +57,7 @@ enum class AssetOperationType : std::uint32_t {
 };
 
 struct AssetOperation {
+    fs::path destination;
     hash32_t nameHash;
     AssetOperationType type;
     std::chrono::steady_clock::time_point timePoint;

@@ -313,7 +313,8 @@ void InotifyFileSystemWatcher::addNewlyCreatedOrMovedDirectories(const fs::path&
     }
     
     for (const auto& p : fs::recursive_directory_iterator(dir)) {
-        if (fs::is_directory(p)) {
+        const bool isDir = fs::is_directory(p);
+        if (isDir) {
             result = addDirectoryImplNoLock(p.path().string(), FileSystemEventFlags::All);
             
             if (!result) {
@@ -321,7 +322,7 @@ void InotifyFileSystemWatcher::addNewlyCreatedOrMovedDirectories(const fs::path&
             }
         }
         
-        events.emplace_back(FileSystemEventFlags::Created, FileSystemEventOrigin::File, p.path().string(), fs::path());
+        events.emplace_back(FileSystemEventFlags::Created, isDir ? FileSystemEventOrigin::Directory : FileSystemEventOrigin::File, p.path().string(), fs::path());
     }
 }
 

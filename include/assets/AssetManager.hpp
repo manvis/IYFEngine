@@ -465,6 +465,9 @@ private:
         }
     }
     
+    /// Called by checkForHashCollision(). Needed to avoid a deadlock when checking for hash collisions during asset move.
+    std::optional<fs::path> checkForHashCollisionImpl(hash32_t nameHash, const fs::path& checkPath) const;
+    
     /// \brief Adds a file to the manifest.
     ///
     /// \todo many things written here are no longer relevant or true.

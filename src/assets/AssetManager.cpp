@@ -605,7 +605,119 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
     std::lock_guard<std::mutex> manifestLock(manifestMutex);
     std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
     
-    throw std::runtime_error("NOT YET IMPLEMENTED");
+    LOG_D("Beginning asset data move for " << (isDir ? "directory" : "file") << ". Moving from " << sourcePath << " to " << destinationPath);
+    
+    if (isDir) {
+        // Can't change the key immediately. It would mess up the iteration order.
+        std::vector<std::pair<hash32_t, hash32_t>> fileMoves;
+        fileMoves.reserve(64);
+        
+        for (auto& me : manifest) {
+            fs::path currentSourceAssetPath;
+            const bool inDir = std::visit([&sourcePath, &currentSourceAssetPath](auto&& meta) {
+                assert(meta.getMetadataSource() == MetadataSource::JSON);
+                
+                currentSourceAssetPath = meta.getSourceAssetPath();
+                return util::FileInDir(sourcePath, currentSourceAssetPath);
+            }, me.second.metadata);
+            
+            const std::string currentSourceAssetPathString = currentSourceAssetPath.generic_string();
+            const std::string sourceDirectoryString = sourcePath.generic_string();
+            
+            if (inDir) {
+                assert(currentSourceAssetPathString.compare(0, sourceDirectoryString.length(), sourceDirectoryString) == 0);
+                
+                const FileSystem* fs = engine->getFileSystem();
+                const fs::path fullNewPath = destinationPath / fs::path(currentSourceAssetPathString.substr(sourceDirectoryString.length()));
+                
+                const hash32_t currentSourceHash = ComputeNameHash(currentSourceAssetPath);
+                const hash32_t newPathHash = ComputeNameHash(fullNewPath);
+                
+                assert(currentSourceHash == me.first);
+                
+                fs::path postMoveAssetPath(me.second.path.parent_path());
+                postMoveAssetPath /= std::to_string(newPathHash.value());
+                
+                if (checkForHashCollisionImpl(newPathHash, fullNewPath)) {
+                    LOG_W("Couldn't move " << currentSourceAssetPathString << " (a.k.a. " << me.second.path << ") to " <<
+                       fullNewPath << " (a.k.a. " << postMoveAssetPath << "). A hash collision has occured. You'll need  "
+                       "to rename and re-import the file. Moreover, references to this file won't be updated.");
+                    continue;
+                }
+                
+                if (!fs->exists(me.second.path)) {
+                    LOG_W("Couldn't move " << currentSourceAssetPathString << " (a.k.a. " << me.second.path << ") to " <<
+                       fullNewPath << " (a.k.a. " << postMoveAssetPath << "). File does not exist.");
+                    continue;
+                }
+                
+                // The paths in the virtual filesystem are used to retrieve and serialize metadata
+                const fs::path moveSourceVirtualFS = me.second.path;
+                fs::path moveDestinationVirtualFS = moveSourceVirtualFS.parent_path();
+                moveDestinationVirtualFS /= std::to_string(newPathHash.value());
+                
+                // The paths in the real filesystem are used for actual file moves.
+                const fs::path fullMoveSource = fs->getRealDirectory(moveSourceVirtualFS);
+                assert(!fullMoveSource.empty());
+                
+                fs::path fullMoveDestination = fullMoveSource.parent_path();
+                fullMoveDestination /= std::to_string(newPathHash.value());
+                
+                fs::rename(fullMoveSource, fullMoveDestination);
+                
+                // Retrieve metadata
+                const fs::path binaryMetadataPath = MakeMetadataPathName(moveSourceVirtualFS, true);
+                const fs::path textMetadataPath = MakeMetadataPathName(moveSourceVirtualFS, false);
+                
+                bool binaryMetadataExists = fs->exists(binaryMetadataPath);
+                if (binaryMetadataExists) {
+                    fs->remove(binaryMetadataPath);
+                }
+                
+                bool textMetadataExists = fs->exists(textMetadataPath);
+                if (textMetadataExists) {
+                    fs->remove(textMetadataPath);
+                }
+                
+                LOG_D(currentSourceAssetPathString << "\n\t" << fullNewPath.generic_string() << "\n\t" << me.second.path << "\n\t" << postMoveAssetPath);// << "\n\t------\n\t" << 
+                
+                // Update the paths stored in the metadata object
+                me.second.path = postMoveAssetPath;
+                std::visit([&fullNewPath](auto&& meta) {
+                    meta.sourceAsset = fullNewPath;
+                }, me.second.metadata);
+                
+                // Save the updated metadata
+                if (textMetadataExists || (!textMetadataExists && !binaryMetadataExists)) {
+                    const std::string jsonString = std::visit([](auto&& meta) {
+                        return meta.getJSONString();
+                    }, me.second.metadata);
+                    
+                    File metadataOutput(MakeMetadataPathName(moveDestinationVirtualFS, false), File::OpenMode::Write);
+                    metadataOutput.writeString(jsonString);
+                } else {
+                    VirtualFileSystemSerializer serializer(MakeMetadataPathName(moveDestinationVirtualFS, true), File::OpenMode::Write);
+                    std::visit([&serializer](auto&& meta) {
+                        meta.serialize(serializer);
+                    }, me.second.metadata);
+                }
+
+                // TODO notify an appropriate type manager.
+                
+                fileMoves.emplace_back(std::make_pair(currentSourceHash, newPathHash));
+            }
+        }
+        
+        for (const auto fm : fileMoves) {
+            auto node = manifest.extract(fm.first);
+            assert(!node.empty());
+            
+            node.key() = fm.second;
+            manifest.insert(std::move(node));
+        }
+    } else {
+        throw std::runtime_error("NOT IMPLEMENTED YET");
+    }
 }
 
 void AssetManager::appendAssetToManifest(hash32_t nameHash, const fs::path& path, const Metadata& metadata) {
@@ -667,6 +779,10 @@ std::optional<fs::path> AssetManager::checkForHashCollision(hash32_t nameHash, c
     
     std::unique_lock<std::mutex> lock(manifestMutex);
     
+    return checkForHashCollisionImpl(nameHash, checkPath);
+}
+
+std::optional<fs::path> AssetManager::checkForHashCollisionImpl(hash32_t nameHash, const fs::path& checkPath) const {
     auto result = manifest.find(nameHash);
     if (result != manifest.end()) {
         const fs::path foundPath = std::visit([](auto&& arg){return arg.getSourceAssetPath();}, result->second.metadata);
