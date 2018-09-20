@@ -669,9 +669,9 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
             const fs::path binaryMetadataPath = MakeMetadataPathName(moveSourceVirtualFS, true);
             const fs::path textMetadataPath = MakeMetadataPathName(moveSourceVirtualFS, false);
             
-            LOG_D(currentSourceAssetPathString << "\n\t" << fullNewPath.generic_string() << "\n\t" << 
-                  me.second.path << "\n\t" << postMoveAssetPath << "\n\t" <<
-                  binaryMetadataPath << "\n\t" << textMetadataPath);
+//             LOG_D(currentSourceAssetPathString << "\n\t" << fullNewPath.generic_string() << "\n\t" << 
+//                   me.second.path << "\n\t" << postMoveAssetPath << "\n\t" <<
+//                   binaryMetadataPath << "\n\t" << textMetadataPath);
             
             bool binaryMetadataExists = fs->exists(binaryMetadataPath);
             if (binaryMetadataExists) {
@@ -692,7 +692,6 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
                     throw std::logic_error("Failed to remove a metadata file. Check log.");
                 }
             }
-            //FIGURE OUT WHY REMOVED ASSERTS FAIL WHEN MOVING ASSETS THAT WERE CREATED DURING A PREVIOUS RUN OF THE ENGINE
             
             // Update the paths stored in the metadata object
             me.second.path = postMoveAssetPath;
