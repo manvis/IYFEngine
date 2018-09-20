@@ -31,6 +31,7 @@
 #include "graphics/MeshComponent.hpp"
 #include "core/Constants.hpp"
 #include "core/Logger.hpp"
+#include "core/Platform.hpp"
 #include "core/Engine.hpp"
 #include "core/filesystem/FileSystem.hpp"
 #include "core/serialization/VirtualFileSystemSerializer.hpp"
@@ -597,7 +598,7 @@ void AssetManager::requestAssetDeletion(const fs::path& path, [[maybe_unused]] b
     }
 }
 
-void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& destinationPath, bool isDir) {
+void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& destinationPath, [[maybe_unused]] bool isDir) {
     if (!editorMode) {
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
@@ -607,116 +608,138 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
     
     LOG_D("Beginning asset data move for " << (isDir ? "directory" : "file") << ". Moving from " << sourcePath << " to " << destinationPath);
     
-    if (isDir) {
-        // Can't change the key immediately. It would mess up the iteration order.
-        std::vector<std::pair<hash32_t, hash32_t>> fileMoves;
-        fileMoves.reserve(64);
+    // Can't change the key immediately. It would mess up the iteration order.
+    std::vector<std::pair<hash32_t, hash32_t>> fileMoves;
+    fileMoves.reserve(64);
+    
+    for (auto& me : manifest) {
+        fs::path currentSourceAssetPath;
+        const bool inDir = std::visit([&sourcePath, &currentSourceAssetPath](auto&& meta) {
+            assert(meta.getMetadataSource() == MetadataSource::JSON);
+            
+            currentSourceAssetPath = meta.getSourceAssetPath();
+            return util::FileInDir(sourcePath, currentSourceAssetPath);
+        }, me.second.metadata);
         
-        for (auto& me : manifest) {
-            fs::path currentSourceAssetPath;
-            const bool inDir = std::visit([&sourcePath, &currentSourceAssetPath](auto&& meta) {
-                assert(meta.getMetadataSource() == MetadataSource::JSON);
-                
-                currentSourceAssetPath = meta.getSourceAssetPath();
-                return util::FileInDir(sourcePath, currentSourceAssetPath);
+        const std::string currentSourceAssetPathString = currentSourceAssetPath.generic_string();
+        const std::string sourceDirectoryString = sourcePath.generic_string();
+        
+        if (inDir) {
+            assert(currentSourceAssetPathString.compare(0, sourceDirectoryString.length(), sourceDirectoryString) == 0);
+            
+            const FileSystem* fs = engine->getFileSystem();
+            const fs::path fullNewPath = destinationPath / fs::path(currentSourceAssetPathString.substr(sourceDirectoryString.length()));
+            
+            const hash32_t currentSourceHash = ComputeNameHash(currentSourceAssetPath);
+            const hash32_t newPathHash = ComputeNameHash(fullNewPath);
+            
+            assert(currentSourceHash == me.first);
+            
+            fs::path postMoveAssetPath(me.second.path.parent_path());
+            postMoveAssetPath /= std::to_string(newPathHash.value());
+            
+            if (checkForHashCollisionImpl(newPathHash, fullNewPath)) {
+                LOG_W("Couldn't move " << currentSourceAssetPathString << " (a.k.a. " << me.second.path << ") to " <<
+                    fullNewPath << " (a.k.a. " << postMoveAssetPath << "). A hash collision has occured. You'll need  "
+                    "to rename and re-import the file. Moreover, references to this file won't be updated.");
+                continue;
+            }
+            
+            if (!fs->exists(me.second.path)) {
+                LOG_W("Couldn't move " << currentSourceAssetPathString << " (a.k.a. " << me.second.path << ") to " <<
+                    fullNewPath << " (a.k.a. " << postMoveAssetPath << "). File does not exist.");
+                continue;
+            }
+            
+            // The paths in the virtual filesystem are used to retrieve and serialize metadata
+            const fs::path moveSourceVirtualFS = me.second.path;
+            fs::path moveDestinationVirtualFS = moveSourceVirtualFS.parent_path();
+            moveDestinationVirtualFS /= std::to_string(newPathHash.value());
+            
+            // The paths in the real filesystem are used for actual file moves.
+            const fs::path fullMoveSource = fs->getRealDirectory(moveSourceVirtualFS);
+            assert(!fullMoveSource.empty());
+            
+            fs::path fullMoveDestination = fullMoveSource.parent_path();
+            fullMoveDestination /= std::to_string(newPathHash.value());
+            
+            fs::rename(fullMoveSource, fullMoveDestination);
+            
+            // Retrieve metadata
+            const fs::path binaryMetadataPath = MakeMetadataPathName(moveSourceVirtualFS, true);
+            const fs::path textMetadataPath = MakeMetadataPathName(moveSourceVirtualFS, false);
+            
+            LOG_D(currentSourceAssetPathString << "\n\t" << fullNewPath.generic_string() << "\n\t" << 
+                  me.second.path << "\n\t" << postMoveAssetPath << "\n\t" <<
+                  binaryMetadataPath << "\n\t" << textMetadataPath);
+            
+            bool binaryMetadataExists = fs->exists(binaryMetadataPath);
+            if (binaryMetadataExists) {
+                bool removed = fs->remove(binaryMetadataPath);
+                if (!removed) {
+                    LOG_E("Failed to remove a binary metadata file: " << binaryMetadataPath << "\n\tLast filesystem error: " << fs->getLastErrorText());
+                    
+                    throw std::logic_error("Failed to remove a metadata file. Check log.");
+                }
+            }
+            
+            bool textMetadataExists = fs->exists(textMetadataPath);
+            if (textMetadataExists) {
+                bool removed = fs->remove(textMetadataPath);
+                if (!removed) {
+                    LOG_E("Failed to remove a text metadata file: " << textMetadataPath << "\n\tLast filesystem error: " << fs->getLastErrorText());
+                    
+                    throw std::logic_error("Failed to remove a metadata file. Check log.");
+                }
+            }
+            //FIGURE OUT WHY REMOVED ASSERTS FAIL WHEN MOVING ASSETS THAT WERE CREATED DURING A PREVIOUS RUN OF THE ENGINE
+            
+            // Update the paths stored in the metadata object
+            me.second.path = postMoveAssetPath;
+            std::visit([&fullNewPath](auto&& meta) {
+                meta.sourceAsset = fullNewPath;
             }, me.second.metadata);
             
-            const std::string currentSourceAssetPathString = currentSourceAssetPath.generic_string();
-            const std::string sourceDirectoryString = sourcePath.generic_string();
-            
-            if (inDir) {
-                assert(currentSourceAssetPathString.compare(0, sourceDirectoryString.length(), sourceDirectoryString) == 0);
-                
-                const FileSystem* fs = engine->getFileSystem();
-                const fs::path fullNewPath = destinationPath / fs::path(currentSourceAssetPathString.substr(sourceDirectoryString.length()));
-                
-                const hash32_t currentSourceHash = ComputeNameHash(currentSourceAssetPath);
-                const hash32_t newPathHash = ComputeNameHash(fullNewPath);
-                
-                assert(currentSourceHash == me.first);
-                
-                fs::path postMoveAssetPath(me.second.path.parent_path());
-                postMoveAssetPath /= std::to_string(newPathHash.value());
-                
-                if (checkForHashCollisionImpl(newPathHash, fullNewPath)) {
-                    LOG_W("Couldn't move " << currentSourceAssetPathString << " (a.k.a. " << me.second.path << ") to " <<
-                       fullNewPath << " (a.k.a. " << postMoveAssetPath << "). A hash collision has occured. You'll need  "
-                       "to rename and re-import the file. Moreover, references to this file won't be updated.");
-                    continue;
-                }
-                
-                if (!fs->exists(me.second.path)) {
-                    LOG_W("Couldn't move " << currentSourceAssetPathString << " (a.k.a. " << me.second.path << ") to " <<
-                       fullNewPath << " (a.k.a. " << postMoveAssetPath << "). File does not exist.");
-                    continue;
-                }
-                
-                // The paths in the virtual filesystem are used to retrieve and serialize metadata
-                const fs::path moveSourceVirtualFS = me.second.path;
-                fs::path moveDestinationVirtualFS = moveSourceVirtualFS.parent_path();
-                moveDestinationVirtualFS /= std::to_string(newPathHash.value());
-                
-                // The paths in the real filesystem are used for actual file moves.
-                const fs::path fullMoveSource = fs->getRealDirectory(moveSourceVirtualFS);
-                assert(!fullMoveSource.empty());
-                
-                fs::path fullMoveDestination = fullMoveSource.parent_path();
-                fullMoveDestination /= std::to_string(newPathHash.value());
-                
-                fs::rename(fullMoveSource, fullMoveDestination);
-                
-                // Retrieve metadata
-                const fs::path binaryMetadataPath = MakeMetadataPathName(moveSourceVirtualFS, true);
-                const fs::path textMetadataPath = MakeMetadataPathName(moveSourceVirtualFS, false);
-                
-                bool binaryMetadataExists = fs->exists(binaryMetadataPath);
-                if (binaryMetadataExists) {
-                    fs->remove(binaryMetadataPath);
-                }
-                
-                bool textMetadataExists = fs->exists(textMetadataPath);
-                if (textMetadataExists) {
-                    fs->remove(textMetadataPath);
-                }
-                
-                LOG_D(currentSourceAssetPathString << "\n\t" << fullNewPath.generic_string() << "\n\t" << me.second.path << "\n\t" << postMoveAssetPath);// << "\n\t------\n\t" << 
-                
-                // Update the paths stored in the metadata object
-                me.second.path = postMoveAssetPath;
-                std::visit([&fullNewPath](auto&& meta) {
-                    meta.sourceAsset = fullNewPath;
+            // Save the updated metadata
+            if (textMetadataExists || (!textMetadataExists && !binaryMetadataExists)) {
+                const std::string jsonString = std::visit([](auto&& meta) {
+                    return meta.getJSONString();
                 }, me.second.metadata);
                 
-                // Save the updated metadata
-                if (textMetadataExists || (!textMetadataExists && !binaryMetadataExists)) {
-                    const std::string jsonString = std::visit([](auto&& meta) {
-                        return meta.getJSONString();
-                    }, me.second.metadata);
-                    
-                    File metadataOutput(MakeMetadataPathName(moveDestinationVirtualFS, false), File::OpenMode::Write);
-                    metadataOutput.writeString(jsonString);
-                } else {
-                    VirtualFileSystemSerializer serializer(MakeMetadataPathName(moveDestinationVirtualFS, true), File::OpenMode::Write);
-                    std::visit([&serializer](auto&& meta) {
-                        meta.serialize(serializer);
-                    }, me.second.metadata);
-                }
-
-                // TODO notify an appropriate type manager.
-                
-                fileMoves.emplace_back(std::make_pair(currentSourceHash, newPathHash));
+                const fs::path newMetadataPath = MakeMetadataPathName(moveDestinationVirtualFS, false);
+                File metadataOutput(newMetadataPath, File::OpenMode::Write);
+                metadataOutput.writeString(jsonString);
+            } else {
+                const fs::path newMetadataPath = MakeMetadataPathName(moveDestinationVirtualFS, true);
+                VirtualFileSystemSerializer serializer(newMetadataPath, File::OpenMode::Write);
+                std::visit([&serializer](auto&& meta) {
+                    meta.serialize(serializer);
+                }, me.second.metadata);
             }
-        }
-        
-        for (const auto fm : fileMoves) {
-            auto node = manifest.extract(fm.first);
-            assert(!node.empty());
+
+            auto loadedAsset = loadedAssets.find(currentSourceHash);
+            if (loadedAsset != loadedAssets.end()) {
+                std::uint32_t loadedAssetID = loadedAsset->second.second;
+                
+                auto node = loadedAssets.extract(currentSourceHash);
+                assert(!node.empty());
+                
+                node.key() = newPathHash;
+                loadedAssets.insert(std::move(node));
+                
+                typeManagers[static_cast<std::size_t>(me.second.type)]->notifyMove(loadedAssetID, currentSourceHash, newPathHash);
+            }
             
-            node.key() = fm.second;
-            manifest.insert(std::move(node));
+            fileMoves.emplace_back(std::make_pair(currentSourceHash, newPathHash));
         }
-    } else {
-        throw std::runtime_error("NOT IMPLEMENTED YET");
+    }
+    
+    for (const auto fm : fileMoves) {
+        auto node = manifest.extract(fm.first);
+        assert(!node.empty());
+        
+        node.key() = fm.second;
+        manifest.insert(std::move(node));
     }
 }
 

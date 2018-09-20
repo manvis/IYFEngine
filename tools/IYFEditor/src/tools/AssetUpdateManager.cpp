@@ -158,14 +158,7 @@ void AssetUpdateManager::watcherCallback(std::vector<FileSystemEvent> eventList)
             break;
         case FileSystemEventFlags::Moved:
             t = "Moved";
-            
-            if (isDirectory) {
-                assetOperations[finalSourcePath] = {finalDestinationPath, hashedName, AssetOperationType::Moved, lastFileSystemUpdate, isDirectory};
-            } else {
-                assetOperations[finalSourcePath] = {fs::path(), hashedName, AssetOperationType::Deleted, lastFileSystemUpdate, isDirectory};
-                assetOperations[finalDestinationPath] = {fs::path(), HS(finalDestinationPath.generic_string()), AssetOperationType::Created, lastFileSystemUpdate, isDirectory};
-            }
-            
+            assetOperations[finalSourcePath] = {finalDestinationPath, hashedName, AssetOperationType::Moved, lastFileSystemUpdate, isDirectory};
             break;
         default:
             throw std::runtime_error("Invalid event type");
@@ -203,6 +196,7 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(fs::path path, A
         LOG_W("Directory import operations are not yet implemented")
         
     } else {
+        // TODO some of the logic here should go to the AssetManager instead
         switch (op.type) {
         case AssetOperationType::Created:
         case AssetOperationType::Updated: {
@@ -239,8 +233,6 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(fs::path path, A
             const FileSystem* fs = engine->getFileSystem();
             if (fs->exists(settingsPath)) {
                 fs->remove(settingsPath);
-            } else {
-                LOG_V("Failed to find the import settings file: " << settingsPath << ". Assuming it was deleted by the user.");
             }
             
             const PlatformIdentifier platform = con::GetCurrentPlatform();
@@ -251,8 +243,11 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(fs::path path, A
             };
         }
         case AssetOperationType::Moved:
-            // TODO This isn't a good solution, moves can be done a lot more efficiently, but it's easy
-            throw std::runtime_error("Move ops should have been turned into deletions followed by creations by this point");
+            const fs::path sourcePath = con::ImportPath / path;
+            const fs::path destinationPath = con::ImportPath / op.destination;
+            return [assetManager, sourcePath, destinationPath] {
+                assetManager->requestAssetMove(sourcePath, destinationPath, false);
+            };
         }
     }
     

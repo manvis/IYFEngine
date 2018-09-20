@@ -67,12 +67,15 @@ public:
     virtual void enableLoadedAssets() = 0;
 protected:
     friend class AssetManager;
+    
     /// Our friend AssetManager calls this function once it finishes building the manifest. The "missing" assets
     /// are treated like any other assets and require the presence of a manifest to be loaded.
     virtual void initMissingAssetHandle() = 0;
     
     void logLeakedAsset(std::size_t id, hash32_t nameHash, std::uint32_t count);
     void notifyRemoval(hash32_t nameHash);
+    
+    virtual void notifyMove(std::uint32_t id, hash32_t sourceNameHash, hash32_t destinationNameHash) = 0;
     
     AssetManager* manager;
 };
@@ -157,6 +160,13 @@ protected:
     }
     
     inline bool refreshImpl(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id);
+    
+    virtual void notifyMove(std::uint32_t id, [[maybe_unused]] hash32_t sourceNameHash, hash32_t destinationNameHash) override {
+        T& asset = assets[id];
+        assert(asset.getNameHash() == sourceNameHash);
+        
+        asset.setNameHash(destinationNameHash);
+    }
     
     std::vector<std::uint32_t> freeList;
     ChunkedVector<std::atomic<std::uint32_t>, chunkSize> counts;
@@ -406,7 +416,7 @@ public:
     /// to retrieve debug data directly from type managers.
     ///
     /// The returned pointer is guaranteed to stay valid until Engine::quit() is called.
-    const TypeManagerBase* getTypeManager(AssetType type) const {
+    inline const TypeManagerBase* getTypeManager(AssetType type) const {
         return typeManagers[static_cast<std::size_t>(type)].get();
     }
 //--------------- Editor API Start
