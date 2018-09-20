@@ -142,14 +142,30 @@ void SystemAssetPacker::pack() {
     // TODO different platforms should use different packages. Linux and Windows share the same assets (e.g. BC compressed textures).
     /// However, once Android is supported, we will need to add support for ETC2 compressed textures.
     /// for (platformID : platforms) ...
-    const PlatformIdentifier currentPlatform = PlatformIdentifier::Linux_Desktop_x86_64;
+    const PlatformIdentifier processedPlatform = PlatformIdentifier::Linux_Desktop_x86_64;
     
-    const fs::path platformDataPath = cm.getAssetDestinationPath(currentPlatform);
-    
+    const fs::path platformDataPath = cm.getAssetDestinationPath(processedPlatform);
     const fs::path realPlatformDataPath = filesystem->getRealDirectory(platformDataPath.generic_string());
-    if (!realPlatformDataPath.empty()) {
-        LOG_D("Removing asset data processed by a previous run from " << realPlatformDataPath);
-        fs::remove_all(realPlatformDataPath);
+    
+    const fs::path systemArchiveName = ("system" + con::PackFileExtension);
+    const fs::path archivePath = realPlatformDataPath / systemArchiveName;
+    
+    if (processedPlatform == con::GetCurrentPlatform()) {
+        const fs::path assetsFolder = realPlatformDataPath / con::AssetPath;
+        if (fs::exists(assetsFolder)) {
+            LOG_D("Removing the assets folder that was built by a previous run: " << assetsFolder);
+            fs::remove_all(assetsFolder);
+        }
+        
+        if (fs::exists(archivePath)) {
+            LOG_D("Removing the asset pack that was built by a previous run: " << archivePath);
+            fs::remove_all(archivePath);
+        }
+    } else {
+        if (!realPlatformDataPath.empty()) {
+            LOG_D("Removing asset data processed by a previous run from " << realPlatformDataPath);
+            fs::remove_all(realPlatformDataPath);
+        }
     }
     
     const fs::path pathToCreate = filesystem->getCurrentWriteDirectory() / platformDataBasePath;
@@ -157,19 +173,16 @@ void SystemAssetPacker::pack() {
     LOG_D("Creating asset data directories for current platform: " << pathToCreate);
     fs::create_directories(pathToCreate);
     
-    if (!Project::CreateImportedAssetDirectories(pathToCreate, currentPlatform)) {
+    if (!Project::CreateImportedAssetDirectories(pathToCreate, processedPlatform)) {
         throw std::runtime_error("Failed to create imported asset directories");
     }
     
-    recursiveExport("raw/system", cm, currentPlatform);
-    
-    const fs::path systemArchiveName = ("system" + con::PackFileExtension);
-    const fs::path archivePath = realPlatformDataPath / systemArchiveName;
+    recursiveExport("raw/system", cm, processedPlatform);
     
     std::vector<util::PathToCompress> pathsToCompress;
     pathsToCompress.reserve(100);
     
-    const fs::path pathWithPlatform = pathToCreate / con::PlatformIdentifierToName(currentPlatform);
+    const fs::path pathWithPlatform = pathToCreate / ((processedPlatform == con::GetCurrentPlatform()) ? fs::path() : con::PlatformIdentifierToName(processedPlatform));
     for (const auto& d : fs::recursive_directory_iterator(pathWithPlatform)) {
         if (!fs::is_directory(d)) {
             const fs::path relativePath = d.path().lexically_relative(pathWithPlatform);
@@ -181,14 +194,14 @@ void SystemAssetPacker::pack() {
 //     pathsToCompress.emplace_back(filesystem->getCurrentWriteDirectory() / con::ProjectBaseConfigFile, con::ProjectBaseConfigFile);
     
     if (util::CompressFileListToZip(pathsToCompress, archivePath, util::CompressionLevel::Best)) {
-        LOG_V("Successfully compressed system files for the " << con::PlatformIdentifierToName(currentPlatform) << " platform.");
+        LOG_V("Successfully compressed system files for the " << con::PlatformIdentifierToName(processedPlatform) << " platform.");
     } else {
-        LOG_E("Failed to compress system files for the " << con::PlatformIdentifierToName(currentPlatform) << " platform.");
+        LOG_E("Failed to compress system files for the " << con::PlatformIdentifierToName(processedPlatform) << " platform.");
         throw std::runtime_error("Failed to compress system files (check log)");
     }
     
     // Copy the files for the current platform next to the executable
-    if (currentPlatform == con::GetCurrentPlatform()) {
+    if (processedPlatform == con::GetCurrentPlatform()) {
         LOG_V("Copying the files for current platfom to " << filesystem->getBaseDirectory());
         fs::copy_file(archivePath, filesystem->getBaseDirectory() / systemArchiveName, fs::copy_option::overwrite_if_exists);
         

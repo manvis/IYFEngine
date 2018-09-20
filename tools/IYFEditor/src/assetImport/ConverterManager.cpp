@@ -109,6 +109,14 @@ fs::path ConverterManager::getRealPath(const fs::path& path) const {
     return fileSystem->getRealDirectory(path);
 }
 
+const fs::path ConverterManager::getAssetDestinationPath(PlatformIdentifier platformID) const {
+    if (platformID == con::GetCurrentPlatform()) {
+        return assetDestination;
+    }
+
+    return assetDestination / con::PlatformIdentifierToName(platformID);
+}
+
 AssetType ConverterManager::getAssetType(const fs::path& sourcePath) const {
     return AssetManager::GetAssetTypeFromExtension(sourcePath);
 }

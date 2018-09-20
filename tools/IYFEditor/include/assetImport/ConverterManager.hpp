@@ -49,9 +49,7 @@ public:
         return con::PlatformIdentifierToInfo(platformID);
     }
     
-    inline const fs::path getAssetDestinationPath(PlatformIdentifier platformID) const {
-        return assetDestination / con::PlatformIdentifierToName(platformID);
-    }
+    const fs::path getAssetDestinationPath(PlatformIdentifier platformID) const;
     
     inline const FileSystem* getFileSystem() const {
         return fileSystem;
