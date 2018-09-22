@@ -242,13 +242,24 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(fs::path path, A
                 assetManager->requestAssetDeletion(finalPath, false);
             };
         }
-        case AssetOperationType::Moved:
-            const fs::path sourcePath = con::ImportPath / path;
-            const fs::path destinationPath = con::ImportPath / op.destination;
+        case AssetOperationType::Moved: {
+            const fs::path sourcePath = importsDir / path;
+            const fs::path destinationPath = importsDir / op.destination;
+            
+            const fs::path settingsSourcePath = fs::path(sourcePath).concat(con::ImportSettingsExtension);
+            const fs::path settingsDestinationPath = fs::path(destinationPath).concat(con::ImportSettingsExtension);
+            
+            const FileSystem* fs = engine->getFileSystem();
+            bool result = fs->rename(settingsSourcePath, settingsDestinationPath);
+            
+            if (!result) {
+                LOG_W("Failed to move an import settings file");
+            }
+            
             return [assetManager, sourcePath, destinationPath] {
                 assetManager->requestAssetMove(sourcePath, destinationPath, false);
             };
-        }
+        }}
     }
     
     throw std::runtime_error("Unknown file or directory operation");
