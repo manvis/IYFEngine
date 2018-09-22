@@ -175,6 +175,14 @@ public:
         char** fileList = PHYSFS_enumerateFiles(path.generic_string().c_str());
         return fileList;
     }
+    
+    /// \brief Renames (moves) a file. Expects real file system paths.
+    ///
+    /// \remark Since PHYSFS (as of this writing) doesn't have a rename function, this uses the APIs from the fs namespace,
+    /// which is why real paths are required here.
+    ///
+    /// \warning You should use this instead of fs::rename for all asset management operations.
+    bool rename(const fs::path& source, const fs::path& destination) const;
 
     /// \brief Frees the list of directory contents
     /// 

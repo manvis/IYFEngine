@@ -663,7 +663,7 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
             fs::path fullMoveDestination = fullMoveSource.parent_path();
             fullMoveDestination /= std::to_string(newPathHash.value());
             
-            fs::rename(fullMoveSource, fullMoveDestination);
+            fs->rename(fullMoveSource, fullMoveDestination);
             
             // Retrieve metadata
             const fs::path binaryMetadataPath = MakeMetadataPathName(moveSourceVirtualFS, true);

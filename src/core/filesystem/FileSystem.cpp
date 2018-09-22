@@ -80,6 +80,18 @@ void FileSystem::setWritePath(fs::path realPath) {
     currentWriteDir = std::move(realPath);
 }
 
+bool FileSystem::rename(const fs::path& source, const fs::path& destination) const {
+    boost::system::error_code ec;
+    fs::rename(source, destination, ec);
+    
+    if (ec) {
+        LOG_E("Failed to move a file from " << source << " to " << destination << "\n\tERROR (CODE): " << ec.message() << " (" << ec.value() << ")");
+        return false;
+    } else {
+        return true;
+    }
+}
+
 void FileSystem::addReadPath(fs::path realPath, const fs::path& virtualPath, bool appendToSearchPath) {
     if (PHYSFS_mount(realPath.c_str(), virtualPath.c_str(), appendToSearchPath ? 1 : 0) == 0)  {
         LOG_E("Failed to mount a real path (" << realPath << ") for reading as virtual path (" << virtualPath << "). PHYSFS error: " << getLastErrorText());
