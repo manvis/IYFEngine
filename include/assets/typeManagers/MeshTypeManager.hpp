@@ -106,12 +106,11 @@ public:
     /// \warning Make sure that the physics objects using these mappings get destroyed before the backing graphics data
     /// is cleared.
     std::pair<GraphicsToPhysicsDataMapping, GraphicsToPhysicsDataMapping> getGraphicsToPhysicsDataMapping(const Mesh& assetData) const;
-    
-    virtual void enableLoadedAssets() final override;
 protected:
     virtual void initMissingAssetHandle() final override;
     
-    virtual void performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, Mesh& assetData, bool isAsync) override;
+    virtual std::unique_ptr<LoadedAssetData> readFile(hash32_t nameHash, const fs::path& path, const Metadata& meta, Mesh& assetData) final override;
+    virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) final override;
     virtual void performFree(Mesh& assetData) override;
     
     struct RangeDataResult {
@@ -128,7 +127,7 @@ protected:
     
     std::vector<BufferWithRanges> vertexDataBuffers;
     std::vector<BufferWithRanges> indexDataBuffers;
-    GraphicsAPI* api;
+    GraphicsAPI* gfx;
     Engine* engine;
 };
 

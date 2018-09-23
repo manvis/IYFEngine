@@ -43,7 +43,16 @@
 #include "utilities/FileInDir.hpp"
 
 namespace iyf {
+namespace con {
+const std::chrono::milliseconds MinAsyncLoadWindow = std::chrono::milliseconds(2);
+const std::chrono::milliseconds MaxAsyncLoadWindow = std::chrono::milliseconds(60);
+}
+
 using namespace iyf::literals;
+TypeManagerBase::TypeManagerBase(AssetManager* manager) : manager(manager) {
+    longTermWorkerPool = manager->getEngine()->getLongTermWorkerPool();
+}
+
 void TypeManagerBase::logLeakedAsset(std::size_t id, hash32_t nameHash, std::uint32_t count) {
     LOG_W("Asset with id " << id << " loaded from path " << manager->getAssetPath(nameHash) << " still has " << count << " live references. ")
 }
@@ -87,7 +96,7 @@ const std::unordered_map<std::string, AssetType> AssetManager::ExtensionToType =
     {".csv", AssetType::Strings},
 };
 
-AssetManager::AssetManager(Engine* engine) : engine(engine), isInit(false) {
+AssetManager::AssetManager(Engine* engine) : engine(engine), asyncLoadWindow(con::MinAsyncLoadWindow), isInit(false) {
     if (std::atomic<std::uint32_t>::is_always_lock_free) {
         LOG_V("std::uint32_t is lock free on this system");
     } else {
@@ -419,18 +428,36 @@ void AssetManager::collectGarbage() {
 }
 
 void AssetManager::enableLoadedAssets() {
-    // TODO make this smarter
+    const auto start = std::chrono::steady_clock::now();
+    auto now = start;
+
     for (auto& tm : typeManagers) {
         if (tm != nullptr) {
-            tm->enableLoadedAssets();
+            while ((tm->hasAssetsToEnable() == TypeManagerBase::AssetsToEnableResult::HasAssetsToEnable) && (now - start < asyncLoadWindow)) {
+                tm->enableAsyncLoadedAsset();
+                
+                now = std::chrono::steady_clock::now();
+            }
         }
     }
+    
+    // TODO should I sleep or something to avoid inconsistent frame rates?
+}
+
+void AssetManager::setAsyncLoadWindow(std::chrono::milliseconds loadWindow) {
+    asyncLoadWindow = std::clamp(loadWindow, con::MinAsyncLoadWindow, con::MaxAsyncLoadWindow);
+}
+
+std::chrono::milliseconds AssetManager::getAsyncLoadWindow() const {
+    return asyncLoadWindow;
 }
 
 void AssetManager::loadSystemAssets() {
     //
 //     std::vector<int> v;
 //     v.push_back(42);
+    // TODO FIXME
+    LOG_W("SYSTEM ASSETS NOT PRELOADED");
 }
 
 static inline fs::path MakeMetadataPathName(const fs::path& filePath, bool binary) {
@@ -498,7 +525,8 @@ void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
     const fs::path binaryMetadataPath = MakeMetadataPathName(path, true);
     const fs::path textMetadataPath = MakeMetadataPathName(path, false);
     
-    // TODO it would be nice to eventually perform these in a separate thread
+    // Don't move these file operations to any other thread. Editor APIs are kept synchronous on purpose
+    // to avoid race conditions.
     bool binaryMetadataExists = fs->exists(binaryMetadataPath);
     bool textMetadataExists = fs->exists(textMetadataPath);
     
@@ -581,6 +609,7 @@ void AssetManager::requestAssetDeletion(const fs::path& path, [[maybe_unused]] b
                 "and fix them, they will be replaced with missing assets next time you start the editor.");
         }
         
+        // All metadata operations are synchronous in editor mode
         const fs::path binaryMetadataPath = MakeMetadataPathName(path, true);
         const fs::path textMetadataPath = MakeMetadataPathName(path, false);
         

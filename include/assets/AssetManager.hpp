@@ -30,6 +30,7 @@
 #define ASSETMANAGER_HPP
 
 #include "core/Constants.hpp"
+#include "core/Logger.hpp"
 #include "core/interfaces/GarbageCollecting.hpp"
 #include "utilities/hashing/Hashing.hpp"
 #include "utilities/NonCopyable.hpp"
@@ -38,6 +39,7 @@
 #include "assets/Asset.hpp"
 #include "assets/AssetHandle.hpp"
 #include "graphics/MaterialPipelineDefinition.hpp"
+#include "threading/ThreadPool.hpp"
 
 #include <unordered_map>
 #include <array>
@@ -45,6 +47,7 @@
 #include <atomic>
 #include <thread>
 #include <mutex>
+#include <future>
 
 namespace iyf {
 class Engine;
@@ -52,21 +55,38 @@ class MeshLoader;
 
 class AssetManager;
 
+namespace con {
+extern const std::chrono::milliseconds MinAsyncLoadWindow;
+extern const std::chrono::milliseconds MaxAsyncLoadWindow;
+}
+
 class TypeManagerBase : public GarbageCollecting {
 public:
-    inline TypeManagerBase(AssetManager* manager) : manager(manager) { }
+    TypeManagerBase(AssetManager* manager);
+    
     virtual AssetType getType() = 0;
     virtual ~TypeManagerBase() {}
     
-    /// Reload the specified asset from disk.
+    /// \brief Reload the specified asset from disk.
     ///
     /// \warning This function can only be used if the Engine is running in editor mode.
     ///
     /// \throws std::logic_error if the engine is running in game mode.
     virtual bool refresh(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) = 0;
-    virtual void enableLoadedAssets() = 0;
 protected:
     friend class AssetManager;
+    
+    enum class AssetsToEnableResult {
+        HasAssetsToEnable, /// < The TypeManager has assets that are ready to be enabled
+        NoAssetsToEnable, /// < The TypeManager doesn't have any assets that need to be enabled
+        Busy /// < The TypeManager has assets that need to be enabled, but can't do it. E.g., a GPU upload buffer for this frame has been filled.
+    };
+    
+    /// \brief Enable a single asset that has been loaded asynchronously.
+    virtual void enableAsyncLoadedAsset() = 0;
+    
+    /// \returns True if there are any asynchronously loaded assets to enable and false if not.
+    virtual AssetsToEnableResult hasAssetsToEnable() const = 0;
     
     /// Our friend AssetManager calls this function once it finishes building the manifest. The "missing" assets
     /// are treated like any other assets and require the presence of a manifest to be loaded.
@@ -78,6 +98,18 @@ protected:
     virtual void notifyMove(std::uint32_t id, hash32_t sourceNameHash, hash32_t destinationNameHash) = 0;
     
     AssetManager* manager;
+    iyft::ThreadPool* longTermWorkerPool;
+};
+
+struct LoadedAssetData {
+    LoadedAssetData(const Metadata& metadata, Asset& assetData, std::pair<std::unique_ptr<char[]>, std::int64_t> rawData) 
+        : assetData(assetData), metadata(metadata), rawData(std::move(rawData)) {}
+    
+    Asset& assetData;
+    const Metadata& metadata;
+    std::pair<std::unique_ptr<char[]>, std::int64_t> rawData;
+    
+    virtual ~LoadedAssetData() {}
 };
 
 /// TypeManager handles the actual loading and unloading of //
@@ -123,6 +155,7 @@ public:
                         
                         freeList.push_back(id);
                         performFree(assets[id]);
+                        assets[id].setLoaded(false);
                         
                         // Set this to a special value in order to prevent repeated clearing
                         *current = ClearedAsset;
@@ -152,8 +185,57 @@ public:
         }
     }
 protected:
-    virtual void performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, T& assetData, bool isAsync) = 0;
     virtual void performFree(T& assetData) = 0;
+    
+    /// A concrete implementation of this function should read the file from disk into memory and perform any processing that 
+    /// can be done without (or with minimal) synchronization. The second part is especially important because this function may be
+    /// called at almost any time, from almost any thread.
+    ///
+    /// Assigning to assetData is considered safe because assets aren't supposed to be touched by other code while Asset::isLoaded()
+    /// is false.
+    ///
+    /// \return everything that is required by enableAsset();
+    virtual std::unique_ptr<LoadedAssetData> readFile(hash32_t nameHash, const fs::path& path, const Metadata& meta, T& assetData) = 0;
+    
+    /// A concrete implementation of this function should "enable" a loaded asset by finishing all preparations (e.g., uploading data 
+    /// to the GPU) and setting Asset::setLoaded() to true. Always called on the main thread.
+    virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) = 0;
+    
+    virtual void enableAsyncLoadedAsset() final override {
+        // This should only be called after hasAssetsToEnable
+        assert(!toEnable.empty());
+        assert(toEnable.front().valid());
+        assert(toEnable.front().wait_for(std::chrono::seconds(0)) == std::future_status::ready);
+        
+        std::unique_ptr<LoadedAssetData> data = toEnable.front().get();
+        
+        Asset& assetData = data->assetData;
+        assert(assetData.isLoaded());
+        
+        enableAsset(std::move(data));
+        
+        toEnable.pop_front();
+    }
+    
+    /// \remark This default implementation doesn't handle the AssetsToEnableResult::Busy case because every TypeManager defines
+    /// "busy" in a different way and some can't be busy at all.
+    virtual AssetsToEnableResult hasAssetsToEnable() const override {
+        if (toEnable.empty()) {
+            return AssetsToEnableResult::NoAssetsToEnable;
+        }
+        
+        // TODO Technically, depending on the size of the files and how work gets assigned to threads, it's possible that
+        // a later operation will finish before an earlier one. Iterating over and checking many elements every frame  (e.g.,
+        // when loading a World) doesn't seem to be a particularly good idea as well. If this proves to be a problem, I'll 
+        // need to look for a smarter solution, e.g., use a syncronized queue that receives a LoadedAssetData object whenever
+        // readFile() finishes. However, the current solution seems to be good enough for now.
+        assert(toEnable.front().valid());
+        if (toEnable.front().wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            return AssetsToEnableResult::HasAssetsToEnable;
+        } else {
+            return AssetsToEnableResult::NoAssetsToEnable;
+        }
+    }
     
     virtual bool refresh(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) final override {
         return refreshImpl(nameHash, path, meta, id);
@@ -172,6 +254,8 @@ protected:
     ChunkedVector<std::atomic<std::uint32_t>, chunkSize> counts;
     ChunkedVector<T, chunkSize> assets;
     
+    std::deque<std::future<std::unique_ptr<LoadedAssetData>>> toEnable;
+    
     /// A value that can safely be used for missing assets.
     AssetHandle<T> missingAssetHandle;
 };
@@ -182,15 +266,21 @@ AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const fs::path
     std::uint32_t id;
     
     if (freeList.empty()) {
-        T temp;
-        
-        performLoad(nameHash, path, meta, temp, isAsync);
-        temp.setNameHash(nameHash);
-        
-        assets.push_back(std::move(temp));
+        assets.emplace_back();
         
         id = assets.size() - 1;
         counts.emplace_back(0);
+        
+        assets[id].setNameHash(nameHash);
+        LOG_D("xx" << &assets[id])
+        
+        if (isAsync) {
+            toEnable.emplace_back(longTermWorkerPool->addTaskWithResult(&TypeManager<T, chunkSize>::readFile, this, nameHash, path, meta, assets[id]));
+        } else {
+            std::unique_ptr<LoadedAssetData> loadedFile = readFile(nameHash, path, meta, assets[id]);
+            enableAsset(std::move(loadedFile));
+            assert(assets[id].isLoaded());
+        }
         
         idOut = id;
         
@@ -199,8 +289,15 @@ AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const fs::path
         id = freeList.back();
         freeList.pop_back();
         
-        performLoad(nameHash, path, meta, assets[id], isAsync);
         assets[id].setNameHash(nameHash);
+        
+        if (isAsync) {
+            toEnable.emplace_back(longTermWorkerPool->addTaskWithResult(&TypeManager<T, chunkSize>::readFile, this, nameHash, path, meta, assets[id]));
+        } else {
+            std::unique_ptr<LoadedAssetData> loadedFile = readFile(nameHash, path, meta, assets[id]);
+            enableAsset(std::move(loadedFile));
+            assert(assets[id].isLoaded());
+        }
         
         // Check if the asset has been cleared successfully
         assert(counts[id] == ClearedAsset);
@@ -249,6 +346,25 @@ public:
         }
     }
     
+    /// \brief Sets the async load window. See getAsyncLoadWindow() for more info about what it is.
+    ///
+    /// The loadWindow is clamped using std::clamp(loadWindow, con::MinAsyncLoadWindow, con::MaxAsyncLoadWindow)
+    void setAsyncLoadWindow(std::chrono::milliseconds loadWindow);
+    
+    /// \brief Returns the current async load window.
+    ///
+    /// An async load window is the maximum amount of time that the AssetManager is allowed to spend enabling loaded assets
+    /// every frame.
+    ///
+    /// Enabling an asset usually involves some extra work, e.g., enabling a mesh uploads its data to the GPU. If a window is
+    /// too low, loading may take forever, but you'll have a stable and high framerate. If a window is too high, loading will
+    /// take a lot less time, however the framerate may degrade to a slide show. Both high and low load windows may be useful.
+    /// If you are showing nothing but a loading bar, a high async load window makes sense. On the other hand, if you're masking
+    /// loading with an endless corridor or an elevator ride, a lower value should be used to maintain an interactive framerate.
+    ///
+    /// \returns The async load window.
+    std::chrono::milliseconds getAsyncLoadWindow() const;
+    
     /// Creates and initializes all type managers and loads all system assets that will be stored in memory
     /// persistently
     void initialize();
@@ -268,25 +384,21 @@ public:
     /// Enables the assets that were loaded asynchronously, if any.
     void enableLoadedAssets();
     
-    /// Either loads an asset or retrieves a handle to an already loaded one. This operation happens synchronously, that is
-    /// once it is done, you can use the asset immediately.
+    /// \brief Either loads an asset or retrieves a handle to an already loaded one.
     ///
-    /// \param nameHash hashed path to an asset
-    /// \return An AssetHandle
-    template <typename T>
-    inline AssetHandle<T> load(hash32_t nameHash) {
-        return loadImpl<T>(nameHash, false);
-    }
-    
-    /// Either loads an asset or retrieves a handle to an already loaded one. This operation happens asynchronously, that is
-    /// you cannot safely use the asset until Asset::isLoaded() returns true, which, depending on the asset type, may take a
+    /// Asset loads can be synchronous (async is false) or asynchronous (async is true).
+    ///
+    /// If an asset is loaded synchronously, it becomes available and safe to use immediately after this function returns.
+    /// If an asset is loaded asynchronously, it cannot be used until Asset::isLoaded() returns true. Depending on the asset type, may take a
     /// while.
     ///
+    /// \warning TODO FIXME Synchronous loading may introduce race conditions under certain circumstances
+    ///
     /// \param nameHash hashed path to an asset
     /// \return An AssetHandle
     template <typename T>
-    inline AssetHandle<T> loadAsync(hash32_t nameHash) {
-        return loadImpl<T>(nameHash, true);
+    inline AssetHandle<T> load(hash32_t nameHash, bool async) {
+        return loadImpl<T>(nameHash, async);
     }
     
     template <typename T>
@@ -301,7 +413,8 @@ public:
     
     template <typename T>
     inline AssetHandle<T> getSystemAsset(const std::string& name) {
-        return load<T>(getSystemAssetNameHash(name));
+        // System assets should have already been loaded by this point, which it's safe to use a synchronous load here.
+        return load<T>(getSystemAssetNameHash(name), false);
     }
     
     inline hash32_t getSystemAssetNameHash(const std::string& name) {
@@ -530,6 +643,9 @@ private:
     ///
     /// On the other hand, std containers can be safely read from multiple threads. Therefore, if the Engine is running in game 
     /// mode and the manifest is read-only (which it becomes immediately after it is loaded), the mutex isn't required.
+    ///
+    /// \remark Now that all manifest access is more or less synchronous and happens in well defined places, this mutex is mostly
+    /// useless, but I'm keeping it just in case.
     mutable std::mutex manifestMutex;
     
     /// Assets can be loaded both synchronously and asynchronously and the loaded asset map may be modified from multiple
@@ -555,6 +671,8 @@ private:
     /// imports of new or modified assets
     std::thread importManagementThread;
     
+    std::chrono::milliseconds asyncLoadWindow;
+    
     bool editorMode;
     bool isInit;
     
@@ -567,9 +685,10 @@ inline bool TypeManager<T, chunkSize>::refreshImpl(hash32_t nameHash, const fs::
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
     
+    // Everything must happen synchronously
     performFree(assets[id]);
-    // TODO probably needs to be done asynchronously
-    performLoad(nameHash, path, meta, assets[id], false);
+    std::unique_ptr<LoadedAssetData> loadedFile = readFile(nameHash, path, meta, assets[id]);
+    enableAsset(std::move(loadedFile));
     assets[id].setNameHash(nameHash);
     
     return true;

@@ -37,18 +37,18 @@ FontTypeManager::FontTypeManager(AssetManager* manager) : TypeManager(manager) {
     api = engine->getGraphicsAPI();
 }
 
-void FontTypeManager::enableLoadedAssets() {
-    //
+std::unique_ptr<LoadedAssetData> FontTypeManager::readFile(hash32_t, const fs::path& path, const Metadata& metadata, Font& assetData) {
+    File file(path, File::OpenMode::Read);
+    
+    return std::make_unique<LoadedAssetData>(metadata, assetData, file.readWholeFile());
 }
 
-void FontTypeManager::performLoad(hash32_t, const fs::path& path, const Metadata&, Font& assetData, bool isAsync) {
-//     const FontMetadata& fontMetadata = std::get<FontMetadata>(meta);
-    
-    File file(path, File::OpenMode::Read);
-    auto wholeFile = file.readWholeFile();
-    
-    assetData.data = wholeFile.first.release();
-    assetData.size = wholeFile.second;
+void FontTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) {
+    Font& assetData = static_cast<Font&>(loadedAssetData->assetData);
+
+    assetData.data = loadedAssetData->rawData.first.release();
+    assetData.size = loadedAssetData->rawData.second;
+    assetData.setLoaded(true);
 }
 
 void FontTypeManager::performFree(Font& assetData) {

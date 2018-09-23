@@ -38,25 +38,25 @@ ShaderTypeManager::ShaderTypeManager(AssetManager* manager) : TypeManager(manage
     api = engine->getGraphicsAPI();
 }
 
-void ShaderTypeManager::enableLoadedAssets() {
-    //
-}
-
-void ShaderTypeManager::performLoad(hash32_t, const fs::path& path, const Metadata& meta, Shader& assetData, bool isAsync) {
-    const ShaderMetadata& shaderMeta = std::get<ShaderMetadata>(meta);
-    
-    File file(path, File::OpenMode::Read);
-    auto wholeFile = file.readWholeFile();
-    
-    assetData.handle = api->createShader(shaderMeta.getShaderStage(), wholeFile.first.get(), wholeFile.second);
-    assetData.purpose = shaderMeta.getShaderPurpose();
-    assetData.stage = shaderMeta.getShaderStage();
-}
-
 void ShaderTypeManager::performFree(Shader& assetData) {
     if (!api->destroyShader(assetData.handle)) {
         LOG_W("Failed to destroy a shader that was loaded from a file with hash: " << assetData.getNameHash());
     }
+}
+
+std::unique_ptr<LoadedAssetData> ShaderTypeManager::readFile(hash32_t, const fs::path& path, const Metadata& meta, Shader& assetData) {
+    File file(path, File::OpenMode::Read);
+    return std::make_unique<LoadedAssetData>(meta, assetData, file.readWholeFile());
+}
+
+void ShaderTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) {
+    const ShaderMetadata& shaderMeta = std::get<ShaderMetadata>(loadedAssetData->metadata);
+    Shader& assetData = static_cast<Shader&>(loadedAssetData->assetData);
+    
+    assetData.handle = api->createShader(shaderMeta.getShaderStage(), loadedAssetData->rawData.first.get(), loadedAssetData->rawData.second);
+    assetData.purpose = shaderMeta.getShaderPurpose();
+    assetData.stage = shaderMeta.getShaderStage();
+    assetData.setLoaded(true);
 }
 
 void ShaderTypeManager::initMissingAssetHandle() {

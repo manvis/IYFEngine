@@ -42,7 +42,7 @@ const BufferUsageFlags CombinedUsageFlags = BufferUsageFlagBits::VertexBuffer | 
 
 MeshTypeManager::MeshTypeManager(AssetManager* manager, Bytes VBOSize, Bytes IBOSize) : TypeManager(manager), VBOSize(VBOSize), IBOSize(IBOSize) {
     engine = manager->getEngine();
-    api = engine->getGraphicsAPI();
+    gfx = engine->getGraphicsAPI();
     
     std::vector<BufferCreateInfo> bci = {
         {VBOUsageFlags, VBOSize},
@@ -52,7 +52,7 @@ MeshTypeManager::MeshTypeManager(AssetManager* manager, Bytes VBOSize, Bytes IBO
     std::vector<Buffer> output;
     output.reserve(2);
     
-    api->createBuffers(bci, MemoryType::DeviceLocal, output);
+    gfx->createBuffers(bci, MemoryType::DeviceLocal, output);
     
     // The actual size of a buffer may be different (bigger) because of alignment requirements.
     char* vboData = new char[VBOSize.count()];
@@ -91,148 +91,7 @@ MeshTypeManager::~MeshTypeManager() {
         delete[] data;
     }
     
-    api->destroyBuffers(toClear);
-}
-
-void MeshTypeManager::enableLoadedAssets() {
-    //
-}
-
-void MeshTypeManager::performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, Mesh& assetData, bool isAsync) {
-    const MeshLoader loader(engine);
-    MeshLoader::MemoryRequirements requirements = loader.getMeshMemoryRequirements(meta);
-    
-    // TODO implement bones
-    //LOG_D(requirements.boneCount << " " << requirements.vertexBoneDataSize)
-    assert(requirements.boneCount == 0);
-    // Required to store multiple vertex types in a single VBO
-    Bytes vertexAlignment(con::GetVertexDataLayoutDefinition(requirements.vertexDataLayout).getSize());
-    Bytes indexAlignment(requirements.indices32Bit ? 4 : 2);
-    
-    // TODO make this buffer reuse code generic and move it somewhere else
-    // We call findRange even if indexSize and vertexSize are bigger than IBOSize and VBOSize because
-    // we may be able to reuse an older big buffer.
-    auto iboRangeResult = findRange(requirements.indexSize, indexAlignment, indexDataBuffers);
-    auto vboRangeResult = findRange(requirements.vertexSize, vertexAlignment, vertexDataBuffers);
-    
-    if (!iboRangeResult.result && !vboRangeResult.result) {
-        Bytes newVBOSize = std::max(VBOSize, requirements.vertexSize);
-        Bytes newIBOSize = std::max(IBOSize, requirements.indexSize);
-        
-        std::vector<BufferCreateInfo> bci = {
-            {VBOUsageFlags, newVBOSize},
-            {IBOUsageFlags, newIBOSize}
-        };
-        
-        std::vector<Buffer> output;
-        output.reserve(2);
-        
-        api->createBuffers(bci, MemoryType::DeviceLocal, output);
-        
-        // The actual size of a buffer may be different (bigger) because of alignment requirements.
-        char* vboData = new char[newVBOSize.count()];
-        vertexDataBuffers.emplace_back(output[0], output[0].size(), vboData);
-        
-        char* iboData = new char[newIBOSize.count()];
-        indexDataBuffers.emplace_back(output[1], output[1].size(), iboData);
-        
-        auto vbo = vertexDataBuffers.back().freeRanges.getFreeRange(requirements.vertexSize, vertexAlignment);
-        auto ibo = indexDataBuffers.back().freeRanges.getFreeRange(requirements.indexSize, indexAlignment);
-        
-        assert(vbo.status);
-        assert(ibo.status);
-        assert(vertexDataBuffers.size() <= 255);
-        assert(indexDataBuffers.size() <= 255);
-        
-        char* vboLocation = vboData + (vbo.completeRange.offset.count() + vbo.startPadding);
-        char* iboLocation = iboData + (ibo.completeRange.offset.count() + ibo.startPadding);
-        
-        vboRangeResult = {vbo.completeRange, vboLocation, vbo.status, static_cast<uint8_t>(vertexDataBuffers.size() - 1)};
-        iboRangeResult = {ibo.completeRange, iboLocation, ibo.status, static_cast<uint8_t>(indexDataBuffers.size() - 1)};
-    } else if (!iboRangeResult.result) {
-        Bytes newIBOSize = std::max(IBOSize, requirements.indexSize);
-        
-        std::vector<BufferCreateInfo> bci = {
-            {IBOUsageFlags, newIBOSize}
-        };
-        
-        std::vector<Buffer> output;
-        output.reserve(1);
-        
-        api->createBuffers(bci, MemoryType::DeviceLocal, output);
-        
-        char* iboData = new char[newIBOSize.count()];
-        indexDataBuffers.emplace_back(output[0], output[0].size(), iboData);
-        
-        auto ibo = indexDataBuffers.back().freeRanges.getFreeRange(requirements.indexSize, indexAlignment);
-        
-        assert(ibo.status);
-        assert(indexDataBuffers.size() <= 255);
-        
-        char* iboLocation = iboData + (ibo.completeRange.offset.count() + ibo.startPadding);
-        
-        iboRangeResult = {ibo.completeRange, iboLocation, ibo.status, static_cast<uint8_t>(indexDataBuffers.size() - 1)};
-    } else if (!vboRangeResult.result) {
-        Bytes newVBOSize = std::max(VBOSize, requirements.vertexSize);
-        
-        std::vector<BufferCreateInfo> bci = {
-            {VBOUsageFlags, newVBOSize}
-        };
-        
-        std::vector<Buffer> output;
-        output.reserve(1);
-        
-        api->createBuffers(bci, MemoryType::DeviceLocal, output);
-        
-        char* vboData = new char[newVBOSize.count()];
-        vertexDataBuffers.emplace_back(output[0], output[0].size(), vboData);
-        
-        auto vbo = vertexDataBuffers.back().freeRanges.getFreeRange(requirements.vertexSize, vertexAlignment);
-        
-        assert(vbo.status);
-        assert(vertexDataBuffers.size() <= 255);
-        
-        char* vboLocation = vboData + (vbo.completeRange.offset.count() + vbo.startPadding);
-        
-        vboRangeResult = {vbo.completeRange, vboLocation, vbo.status, static_cast<uint8_t>(vertexDataBuffers.size() - 1)};
-    }
-    
-    MeshLoader::LoadedMeshData lmd;
-    if (!loader.loadMesh(path, lmd, vboRangeResult.data, iboRangeResult.data)) {
-        throw std::runtime_error("Failed to find a mesh file");
-    }
-    
-    assetData.vboID = vboRangeResult.bufferID;
-    assetData.iboID = iboRangeResult.bufferID;
-    assetData.submeshCount = lmd.count;
-    assetData.hasBones = false; // TODO change
-    assetData.vertexDataLayout = requirements.vertexDataLayout;
-    assetData.indices32Bit = requirements.indices32Bit;
-    assetData.aabb  = lmd.aabb;
-    assetData.boundingSphere = lmd.boundingSphere;
-    
-    if (lmd.count > 1) {
-        assetData.meshData = SubmeshList(lmd.count);
-        //TODO implement
-        throw std::runtime_error("IMPLEMENT ME");
-//         for (std::size_t i = 0; i < assetData
-    } else {
-        PrimitiveData data;
-        assert(iboRangeResult.range.offset % indexAlignment == 0);
-        assert(vboRangeResult.range.offset % vertexAlignment == 0);
-        
-        // range.offset is in bytes, we need a number of indices. Since one index is 2 bytes, we divide
-        data.indexOffset = iboRangeResult.range.offset / indexAlignment;
-        data.indexCount = lmd.submeshes[0].numIndices;
-        // range offset is in bytes, we need a number of vertices.
-        data.vertexOffset = vboRangeResult.range.offset / vertexAlignment;
-        data.vertexCount = lmd.submeshes[0].numVertices;
-        
-        assetData.meshData = data;
-    }
-    
-    api->updateDeviceVisibleBuffer(vertexDataBuffers[vboRangeResult.bufferID].buffer, {{0, vboRangeResult.range.offset, vboRangeResult.range.size}}, vboRangeResult.data);
-    api->updateDeviceVisibleBuffer(indexDataBuffers[iboRangeResult.bufferID].buffer, {{0, iboRangeResult.range.offset, iboRangeResult.range.size}}, iboRangeResult.data);
+    gfx->destroyBuffers(toClear);
 }
 
 void MeshTypeManager::performFree(Mesh& assetData) {
@@ -291,6 +150,149 @@ MeshTypeManager::RangeDataResult MeshTypeManager::findRange(Bytes size, Bytes al
     }
     
     return {BufferRange(0_B, size), nullptr, false, 0};
+}
+
+std::unique_ptr<LoadedAssetData> MeshTypeManager::readFile(hash32_t nameHash, const fs::path& path, const Metadata& meta, Mesh& assetData) {
+    const MeshLoader loader(engine);
+    MeshLoader::MemoryRequirements requirements = loader.getMeshMemoryRequirements(meta);
+    
+    // TODO implement bones
+    //LOG_D(requirements.boneCount << " " << requirements.vertexBoneDataSize)
+    assert(requirements.boneCount == 0);
+    // Required to store multiple vertex types in a single VBO
+    Bytes vertexAlignment(con::GetVertexDataLayoutDefinition(requirements.vertexDataLayout).getSize());
+    Bytes indexAlignment(requirements.indices32Bit ? 4 : 2);
+    
+    // TODO make this buffer reuse code generic and move it somewhere else
+    // We call findRange even if indexSize and vertexSize are bigger than IBOSize and VBOSize because
+    // we may be able to reuse an older big buffer.
+    auto iboRangeResult = findRange(requirements.indexSize, indexAlignment, indexDataBuffers);
+    auto vboRangeResult = findRange(requirements.vertexSize, vertexAlignment, vertexDataBuffers);
+    
+    if (!iboRangeResult.result && !vboRangeResult.result) {
+        Bytes newVBOSize = std::max(VBOSize, requirements.vertexSize);
+        Bytes newIBOSize = std::max(IBOSize, requirements.indexSize);
+        
+        std::vector<BufferCreateInfo> bci = {
+            {VBOUsageFlags, newVBOSize},
+            {IBOUsageFlags, newIBOSize}
+        };
+        
+        std::vector<Buffer> output;
+        output.reserve(2);
+        
+        gfx->createBuffers(bci, MemoryType::DeviceLocal, output);
+        
+        // The actual size of a buffer may be different (bigger) because of alignment requirements.
+        char* vboData = new char[newVBOSize.count()];
+        vertexDataBuffers.emplace_back(output[0], output[0].size(), vboData);
+        
+        char* iboData = new char[newIBOSize.count()];
+        indexDataBuffers.emplace_back(output[1], output[1].size(), iboData);
+        
+        auto vbo = vertexDataBuffers.back().freeRanges.getFreeRange(requirements.vertexSize, vertexAlignment);
+        auto ibo = indexDataBuffers.back().freeRanges.getFreeRange(requirements.indexSize, indexAlignment);
+        
+        assert(vbo.status);
+        assert(ibo.status);
+        assert(vertexDataBuffers.size() <= 255);
+        assert(indexDataBuffers.size() <= 255);
+        
+        char* vboLocation = vboData + (vbo.completeRange.offset.count() + vbo.startPadding);
+        char* iboLocation = iboData + (ibo.completeRange.offset.count() + ibo.startPadding);
+        
+        vboRangeResult = {vbo.completeRange, vboLocation, vbo.status, static_cast<uint8_t>(vertexDataBuffers.size() - 1)};
+        iboRangeResult = {ibo.completeRange, iboLocation, ibo.status, static_cast<uint8_t>(indexDataBuffers.size() - 1)};
+    } else if (!iboRangeResult.result) {
+        Bytes newIBOSize = std::max(IBOSize, requirements.indexSize);
+        
+        std::vector<BufferCreateInfo> bci = {
+            {IBOUsageFlags, newIBOSize}
+        };
+        
+        std::vector<Buffer> output;
+        output.reserve(1);
+        
+        gfx->createBuffers(bci, MemoryType::DeviceLocal, output);
+        
+        char* iboData = new char[newIBOSize.count()];
+        indexDataBuffers.emplace_back(output[0], output[0].size(), iboData);
+        
+        auto ibo = indexDataBuffers.back().freeRanges.getFreeRange(requirements.indexSize, indexAlignment);
+        
+        assert(ibo.status);
+        assert(indexDataBuffers.size() <= 255);
+        
+        char* iboLocation = iboData + (ibo.completeRange.offset.count() + ibo.startPadding);
+        
+        iboRangeResult = {ibo.completeRange, iboLocation, ibo.status, static_cast<uint8_t>(indexDataBuffers.size() - 1)};
+    } else if (!vboRangeResult.result) {
+        Bytes newVBOSize = std::max(VBOSize, requirements.vertexSize);
+        
+        std::vector<BufferCreateInfo> bci = {
+            {VBOUsageFlags, newVBOSize}
+        };
+        
+        std::vector<Buffer> output;
+        output.reserve(1);
+        
+        gfx->createBuffers(bci, MemoryType::DeviceLocal, output);
+        
+        char* vboData = new char[newVBOSize.count()];
+        vertexDataBuffers.emplace_back(output[0], output[0].size(), vboData);
+        
+        auto vbo = vertexDataBuffers.back().freeRanges.getFreeRange(requirements.vertexSize, vertexAlignment);
+        
+        assert(vbo.status);
+        assert(vertexDataBuffers.size() <= 255);
+        
+        char* vboLocation = vboData + (vbo.completeRange.offset.count() + vbo.startPadding);
+        
+        vboRangeResult = {vbo.completeRange, vboLocation, vbo.status, static_cast<uint8_t>(vertexDataBuffers.size() - 1)};
+    }
+    
+    MeshLoader::LoadedMeshData lmd;
+    if (!loader.loadMesh(path, lmd, vboRangeResult.data, iboRangeResult.data)) {
+        throw std::runtime_error("Failed to find a mesh file");
+    }
+    
+    assetData.vboID = vboRangeResult.bufferID;
+    assetData.iboID = iboRangeResult.bufferID;
+    assetData.submeshCount = lmd.count;
+    assetData.hasBones = false; // TODO change
+    assetData.vertexDataLayout = requirements.vertexDataLayout;
+    assetData.indices32Bit = requirements.indices32Bit;
+    assetData.aabb  = lmd.aabb;
+    assetData.boundingSphere = lmd.boundingSphere;
+    
+    if (lmd.count > 1) {
+        assetData.meshData = SubmeshList(lmd.count);
+        //TODO implement
+        throw std::runtime_error("IMPLEMENT ME");
+//         for (std::size_t i = 0; i < assetData
+    } else {
+        PrimitiveData data;
+        assert(iboRangeResult.range.offset % indexAlignment == 0);
+        assert(vboRangeResult.range.offset % vertexAlignment == 0);
+        
+        // range.offset is in bytes, we need a number of indices. Since one index is 2 bytes, we divide
+        data.indexOffset = iboRangeResult.range.offset / indexAlignment;
+        data.indexCount = lmd.submeshes[0].numIndices;
+        // range offset is in bytes, we need a number of vertices.
+        data.vertexOffset = vboRangeResult.range.offset / vertexAlignment;
+        data.vertexCount = lmd.submeshes[0].numVertices;
+        
+        assetData.meshData = data;
+    }
+    
+    gfx->updateDeviceVisibleBuffer(vertexDataBuffers[vboRangeResult.bufferID].buffer, {{0, vboRangeResult.range.offset, vboRangeResult.range.size}}, vboRangeResult.data);
+    gfx->updateDeviceVisibleBuffer(indexDataBuffers[iboRangeResult.bufferID].buffer, {{0, iboRangeResult.range.offset, iboRangeResult.range.size}}, iboRangeResult.data);
+    
+    return std::make_unique<LoadedAssetData>(meta, assetData, std::make_pair(std::unique_ptr<char[]>(), 0));
+}
+
+void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) {
+    loadedAssetData->assetData.setLoaded(true);
 }
 
 }

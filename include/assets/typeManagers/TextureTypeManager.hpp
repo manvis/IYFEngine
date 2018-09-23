@@ -43,15 +43,14 @@ public:
     virtual AssetType getType() final override {
         return AssetType::Texture;
     }
-    
-    virtual void enableLoadedAssets() final override;
 protected:
     virtual void initMissingAssetHandle() final override;
     
-    virtual void performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, Texture& assetData, bool isAsync) final override;
+    virtual std::unique_ptr<LoadedAssetData> readFile(hash32_t nameHash, const fs::path& path, const Metadata& meta, Texture& assetData) final override;
+    virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) final override;
     virtual void performFree(Texture& assetData) final override;
 private:
-    GraphicsAPI* api;
+    GraphicsAPI* gfx;
     Engine* engine;
 };
 }

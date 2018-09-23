@@ -55,9 +55,8 @@ void CubemapSkybox::initialize() {
     
     GraphicsAPI* api = renderer->getGraphicsAPI();
     
-    // TODO files MUST be handled via sandboxed API
-    
-    skyCubemap = assetManager->load<Texture>(textureNameHash);
+    // TODO asynchronous loading? Pass texture directly instead of a name hash?
+    skyCubemap = assetManager->load<Texture>(textureNameHash, false);
     skyCubemapView = api->createDefaultImageView(skyCubemap->image);
     skyCubemapSampler = api->createPresetSampler(SamplerPreset::SkyBox, static_cast<float>(skyCubemap->image.levels));
     

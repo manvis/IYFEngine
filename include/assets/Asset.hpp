@@ -45,6 +45,8 @@ namespace iyf {
 /// All Asset derivatives must also be default constructible.
 class Asset {
 public:
+    virtual ~Asset() {}
+    
     /// \brief Sets the name hash of this Asset to a new value.
     ///
     /// \warning This should only be called inside TypeManager::load(). Calling it anyhwere else may cause 

@@ -163,7 +163,7 @@ void AssetUpdateManager::watcherCallback(std::vector<FileSystemEvent> eventList)
         default:
             throw std::runtime_error("Invalid event type");
         }
-        //TODO test current (just to make sure I didn't screw it up) and stop turning moves into creations and deletions
+        
         LOG_V(t << " a " << (isDirectory ? "directory" : " file") << "; SRC " << finalSourcePath << "; DST " << finalDestinationPath);
     }
 }
@@ -171,8 +171,6 @@ void AssetUpdateManager::watcherCallback(std::vector<FileSystemEvent> eventList)
 std::function<void()> AssetUpdateManager::executeAssetOperation(fs::path path, AssetOperation op) const {
     AssetManager* assetManager = engine->getAssetManager();
     if (op.isDirectory) {
-        // TODO implement deletions, moves (deletion folowed by creation, maybe some lookup method for old assets)
-        // and folder operations
         switch (op.type) {
             case AssetOperationType::Created:
             case AssetOperationType::Updated:
@@ -196,7 +194,6 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(fs::path path, A
         LOG_W("Directory import operations are not yet implemented")
         
     } else {
-        // TODO some of the logic here should go to the AssetManager instead
         switch (op.type) {
         case AssetOperationType::Created:
         case AssetOperationType::Updated: {
@@ -288,11 +285,7 @@ bool AssetUpdateManager::update() {
             
             if (duration.count() >= MIN_STABLE_FILE_SIZE_DURATION_SECONDS) {
                 iyft::ThreadPool* tp = engine->getLongTermWorkerPool();
-                
-                // TODO technically, most asset import stuff is thread safe. I should look into importing multiple
-                // assets at the same time.
                 currentlyProcessedAsset = *it;
-                //assetProcessingFuture = std::async(std::launch::async, &AssetUpdateManager::executeAssetOperation, this, it->first, it->second);
                 assetProcessingFuture = tp->addTaskWithResult(&AssetUpdateManager::executeAssetOperation, this, it->first, it->second);
                 
                 assetOperations.erase(it);
@@ -323,88 +316,6 @@ bool AssetUpdateManager::update() {
     }
     
     return result;
-//     GraphicsAPI* api = engine->getGraphicsAPI();
-//     AssetManager* manager = engine->getAssetManager();
-//     
-//     float width = api->getRenderSurfaceWidth() * 0.3f;
-//     float height = api->getRenderSurfaceHeight() * 0.2f;
-//     float posY = api->getRenderSurfaceHeight() - height;
-//     
-// // //     static int test = 0;
-// // //     if (test == 5) {
-// //         ImGui::OpenPopup("Blocker");
-// // //         test++;
-// // //     }
-// //     if (ImGui::BeginPopupModal("Blocker")) {
-// //         if (ImGui::Button("HRY")) {
-// //             ImGui::CloseCurrentPopup();
-// //         }
-// //         ImGui::EndPopup();
-// //     }
-//     
-//     ImGui::SetNextWindowPos(ImVec2(api->getRenderSurfaceWidth() * 0.7f, posY), ImGuiCond_Always);
-//     ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
-//     ImGui::Begin("Pending File Operations", nullptr);
-//     
-//     {
-//         std::lock_guard<std::mutex> lock(assetOperationMutex);
-//         int count = assetOperations.size();
-//         ImGui::Text("Pending operation count: %i", count);
-//         
-//         ImGui::BeginChild("Pending Operation List");
-//         if (count > 0) {
-//             ImGui::Columns(2);
-//             ImGui::Separator();
-//             for (auto it = assetOperations.begin(); it != assetOperations.end(); ) {
-//                 const auto& op = *it;
-//                 
-//                 // Try to fetch the metadata for the asset
-//                 auto metadataCopy = manager->getMetadataCopy(op.second.nameHash);
-//                 const bool metadataExists = metadataCopy ? true : false;
-//                 
-//                 // If we didn't get metadata and the operation was a deletion, the user removed a file that hasn't been imported in the
-//                 // first place. Therefore, we can safely ignore the operation.
-//                 if (!metadataExists && op.second.type == AssetOperationType::Deleted) {
-//                     it = assetOperations.erase(it);
-//                     continue;
-//                 }
-//                 
-//                 ImGui::Text("Path (hash): %s; (%u)", op.first.generic_string().c_str(), op.second.nameHash.value());
-//                 
-//                 const std::chrono::seconds duration = std::chrono::duration_cast<std::chrono::seconds>(now - op.second.timePoint);
-//                 switch (op.second.type) {
-//                     case AssetOperationType::Created:
-//                         ImGui::Text("Type: created");
-//                         ImGui::Text("Time: %lis ago", duration.count());
-//                         break;
-//                     case AssetOperationType::Updated:
-//                         ImGui::Text("Type: updated");
-//                         ImGui::Text("Time: %lis ago", duration.count());
-//                         break;
-//                     case AssetOperationType::Deleted:
-//                         ImGui::Text("Type: deleted");
-//                         ImGui::Text("Time: %lis ago", duration.count());
-//                         break;
-//                 }
-//                 ImGui::NextColumn();
-//                 
-//                 if (ImGui::Button("Execute")) {
-//                     LOG_D("Button: " << op.first);
-//                     // TODO import settings, separate thread, applies to creation and update
-//                     // TODO notify assetManager upon completion
-//                     //auto converter = converterManager->initializeConverter(op.first, con::GetCurrentPlatform());
-//                 }
-//                 ImGui::NextColumn();
-//                 ImGui::Separator();
-//                 
-//                 ++it;
-//             }
-//             ImGui::Columns();
-//         }
-//         ImGui::EndChild();
-//     }
-//     
-//     ImGui::End();
 }
 
 void AssetUpdateManager::dispose() {

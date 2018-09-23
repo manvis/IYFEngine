@@ -108,9 +108,7 @@ void World::addStaticMesh(hash32_t nameHash) {
     }
     
     const MeshMetadata& meshMetadata = std::get<MeshMetadata>(*metadata);
-    
-    // TODO FIXME Race condition - the asset may have already been removed
-    mc.setMesh(assetManager->load<Mesh>(nameHash));
+    mc.setMesh(assetManager->load<Mesh>(nameHash, false));
     
 #if IYF_BOUNDING_VOLUME == IYF_SPHERE_BOUNDS
     mc.setPreTransformBoundingVolume(mc.getMesh()->boundingSphere);
@@ -151,10 +149,7 @@ void World::addDynamicMesh(hash32_t nameHash) {
     }
     
     const MeshMetadata& meshMetadata = std::get<MeshMetadata>(*metadata);
-    
-    // TODO FIXME Race condition - the asset may have already been removed
-    mc.setMesh(assetManager->load<Mesh>(nameHash));
-    //mc.setMesh(assetManager->getMissingAsset<Mesh>(AssetType::Mesh));
+    mc.setMesh(assetManager->load<Mesh>(nameHash, false));
     
 #if IYF_BOUNDING_VOLUME == IYF_SPHERE_BOUNDS
     mc.setPreTransformBoundingVolume(mc.getMesh()->boundingSphere);

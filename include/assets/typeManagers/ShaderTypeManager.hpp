@@ -43,12 +43,11 @@ public:
     virtual AssetType getType() final override {
         return AssetType::Shader;
     }
-    
-    virtual void enableLoadedAssets() final override;
 protected:
     virtual void initMissingAssetHandle() final override;
     
-    virtual void performLoad(hash32_t nameHash, const fs::path& path, const Metadata& meta, Shader& assetData, bool isAsync) final override;
+    virtual std::unique_ptr<LoadedAssetData> readFile(hash32_t nameHash, const fs::path& path, const Metadata& meta, Shader& assetData) final override;
+    virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) final override;
     virtual void performFree(Shader& assetData) final override;
 private:
     GraphicsAPI* api;

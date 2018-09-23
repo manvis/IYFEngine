@@ -35,31 +35,31 @@
 namespace iyf {
 TextureTypeManager::TextureTypeManager(AssetManager* manager) : TypeManager(manager) {
     engine = manager->getEngine();
-    api = engine->getGraphicsAPI();
+    gfx = engine->getGraphicsAPI();
 }
 
-void TextureTypeManager::enableLoadedAssets() {
-    //
+void TextureTypeManager::performFree(Texture& assetData) {
+    if (!gfx->destroyImage(assetData.image)) {
+        LOG_W("Failed to destroy an image that was loaded from a file with hash: " << assetData.getNameHash());
+    }
 }
 
-void TextureTypeManager::performLoad(hash32_t, const fs::path& path, const Metadata& meta, Texture& assetData, bool isAsync) {
-    const TextureMetadata& textureMeta = std::get<TextureMetadata>(meta);
-    
+std::unique_ptr<LoadedAssetData> TextureTypeManager::readFile(hash32_t nameHash, const fs::path& path, const Metadata& meta, Texture& assetData) {
     File file(path, File::OpenMode::Read);
-    auto wholeFile = file.readWholeFile();
+    return std::make_unique<LoadedAssetData>(meta, assetData, file.readWholeFile());
+}
+
+void TextureTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) {
+    const TextureMetadata& textureMeta = std::get<TextureMetadata>(loadedAssetData->metadata);
+    Texture& assetData = static_cast<Texture&>(loadedAssetData->assetData);
     
-    assetData.image = api->createCompressedImage(wholeFile.first.get(), wholeFile.second);
+    assetData.image = gfx->createCompressedImage(loadedAssetData->rawData.first.get(), loadedAssetData->rawData.second);
     
     assert(assetData.image.height == textureMeta.getHeight());
     assert(assetData.image.width == textureMeta.getWidth());
     assert(assetData.image.layers == textureMeta.getLayers());
     assert(assetData.image.levels == textureMeta.getLevels());
-}
-
-void TextureTypeManager::performFree(Texture& assetData) {
-    if (!api->destroyImage(assetData.image)) {
-        LOG_W("Failed to destroy an image that was loaded from a file with hash: " << assetData.getNameHash());
-    }
+    assetData.setLoaded(true);
 }
 
 void TextureTypeManager::initMissingAssetHandle() {
