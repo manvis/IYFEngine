@@ -35,6 +35,18 @@
 namespace iyf {
 using namespace iyf::literals;
 
+struct LoadedMeshAssetData : public LoadedAssetData {
+    LoadedMeshAssetData(const Metadata& metadata, Asset& assetData, MeshLoader::MemoryRequirements requirements, MeshLoader::LoadedMeshData loadedMeshData,
+                        std::unique_ptr<char[]> vbo, std::unique_ptr<char[]> ibo) 
+        : LoadedAssetData(metadata, assetData, {nullptr, 0}), requirements(std::move(requirements)), loadedMeshData(std::move(loadedMeshData)),
+        vbo(std::move(vbo)), ibo(std::move(ibo)) {}
+    
+    MeshLoader::MemoryRequirements requirements;
+    MeshLoader::LoadedMeshData loadedMeshData;
+    std::unique_ptr<char[]> vbo;
+    std::unique_ptr<char[]> ibo;
+};
+
 // Transfer destination is needed because we'll be copying data there
 const BufferUsageFlags VBOUsageFlags = BufferUsageFlagBits::VertexBuffer | BufferUsageFlagBits::TransferDestination;
 const BufferUsageFlags IBOUsageFlags = BufferUsageFlagBits::IndexBuffer  | BufferUsageFlagBits::TransferDestination;
@@ -159,6 +171,24 @@ std::unique_ptr<LoadedAssetData> MeshTypeManager::readFile(hash32_t nameHash, co
     // TODO implement bones
     //LOG_D(requirements.boneCount << " " << requirements.vertexBoneDataSize)
     assert(requirements.boneCount == 0);
+    
+    std::unique_ptr<char[]> vbo = std::unique_ptr<char[]>(new char[requirements.vertexSize.count()]);
+    std::unique_ptr<char[]> ibo = std::unique_ptr<char[]>(new char[requirements.indexSize.count()]);
+    
+    MeshLoader::LoadedMeshData lmd;
+    if (!loader.loadMesh(path, lmd, vbo.get(), ibo.get())) {
+        throw std::runtime_error("Failed to find a mesh file");
+    }
+    
+    return std::make_unique<LoadedMeshAssetData>(meta, assetData, std::move(requirements), std::move(lmd), std::move(vbo), std::move(ibo));
+}
+
+void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) {
+    LoadedMeshAssetData* loadedData = static_cast<LoadedMeshAssetData*>(loadedAssetData.get());
+    
+    Mesh& assetData = static_cast<Mesh&>(loadedAssetData->assetData);
+    const MeshLoader::MemoryRequirements& requirements = loadedData->requirements;
+    
     // Required to store multiple vertex types in a single VBO
     Bytes vertexAlignment(con::GetVertexDataLayoutDefinition(requirements.vertexDataLayout).getSize());
     Bytes indexAlignment(requirements.indices32Bit ? 4 : 2);
@@ -251,10 +281,9 @@ std::unique_ptr<LoadedAssetData> MeshTypeManager::readFile(hash32_t nameHash, co
         vboRangeResult = {vbo.completeRange, vboLocation, vbo.status, static_cast<uint8_t>(vertexDataBuffers.size() - 1)};
     }
     
-    MeshLoader::LoadedMeshData lmd;
-    if (!loader.loadMesh(path, lmd, vboRangeResult.data, iboRangeResult.data)) {
-        throw std::runtime_error("Failed to find a mesh file");
-    }
+    MeshLoader::LoadedMeshData& lmd = loadedData->loadedMeshData;
+    std::memcpy(vboRangeResult.data, loadedData->vbo.get(), requirements.vertexSize.count());
+    std::memcpy(iboRangeResult.data, loadedData->ibo.get(), requirements.vertexSize.count());
     
     assetData.vboID = vboRangeResult.bufferID;
     assetData.iboID = iboRangeResult.bufferID;
@@ -288,11 +317,7 @@ std::unique_ptr<LoadedAssetData> MeshTypeManager::readFile(hash32_t nameHash, co
     gfx->updateDeviceVisibleBuffer(vertexDataBuffers[vboRangeResult.bufferID].buffer, {{0, vboRangeResult.range.offset, vboRangeResult.range.size}}, vboRangeResult.data);
     gfx->updateDeviceVisibleBuffer(indexDataBuffers[iboRangeResult.bufferID].buffer, {{0, iboRangeResult.range.offset, iboRangeResult.range.size}}, iboRangeResult.data);
     
-    return std::make_unique<LoadedAssetData>(meta, assetData, std::make_pair(std::unique_ptr<char[]>(), 0));
-}
-
-void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) {
-    loadedAssetData->assetData.setLoaded(true);
+    assetData.setLoaded(true);
 }
 
 }
