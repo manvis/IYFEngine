@@ -110,62 +110,7 @@ public:
     /// \warning This method does not check if the BufferRange being inserted overlaps with others.
     /// It is assumed that no overlap exists. Inserting overlapping BufferRanges results in undefinded
     /// behaviour.
-    inline bool insert(const BufferRange& value) {
-        if (value.offset + value.size > totalSpace) {
-            return false;
-        }
-        
-        auto beginning = data.begin();
-        auto ending = data.end();
-        
-        auto it = std::lower_bound(beginning, ending, value, CompareType());
-        
-        freeSpace += value.size;
-        
-        if (it != beginning && it != ending) { // Safe to check both
-            BufferRange& previous = *(std::prev(it));
-            BufferRange& next = *it;
-            
-            bool resizePrevious = (previous.offset + previous.size) == value.offset;
-            bool resizeNext = value.offset + value.size == next.offset;
-            
-            if (resizePrevious && resizeNext) {
-                previous.size += (value.size + next.size);
-                data.erase(it);
-            } else if (resizePrevious) {
-                previous.size += value.size;
-            } else if (resizeNext) {
-                next.offset -= value.size;
-                next.size += value.size;
-            } else {
-                data.insert(it, value);
-            }
-            
-            
-        } else if (it == ending && it != beginning) { // Safe to check the previous one
-            BufferRange& previous = *(std::prev(it));
-            
-            if (previous.offset + previous.size == value.offset) {
-                previous.size += value.size;
-            } else {
-                data.insert(it, value);
-            }
-            
-        } else if (it == beginning && it != ending) { // Safe to check the next one
-            BufferRange& next = *it;
-            
-            if (value.offset + value.size == next.offset) {
-                next.offset -= value.size;
-                next.size += value.size;
-            } else {
-                data.insert(it, value);
-            }
-        } else { // Just insert and that's it
-            data.insert(it, value);
-        }
-        
-        return true;
-    }
+    bool insert(const BufferRange& value);
     
     /// Used to mark a BufferRange as free for reuse.
     ///
@@ -176,62 +121,7 @@ public:
     /// \warning This method does not check if the BufferRange being inserted overlaps with others.
     /// It is assumed that no overlap exists. Inserting overlapping BufferRanges results in undefinded
     /// behaviour.
-    inline bool insert(const BufferRange&& value) {
-        if (value.offset + value.size > totalSpace) {
-            return false;
-        }
-        
-        auto beginning = data.begin();
-        auto ending = data.end();
-        
-        auto it = std::lower_bound(beginning, ending, value, CompareType());
-        
-        freeSpace += value.size;
-        
-        if (it != beginning && it != ending) { // Safe to check both
-            BufferRange& previous = *(std::prev(it));
-            BufferRange& next = *it;
-            
-            bool resizePrevious = (previous.offset + previous.size) == value.offset;
-            bool resizeNext = value.offset + value.size == next.offset;
-            
-            if (resizePrevious && resizeNext) {
-                previous.size += (value.size + next.size);
-                data.erase(it);
-            } else if (resizePrevious) {
-                previous.size += value.size;
-            } else if (resizeNext) {
-                next.offset -= value.size;
-                next.size += value.size;
-            } else {
-                data.insert(it, std::move(value));
-            }
-            
-            
-        } else if (it == ending && it != beginning) { // Safe to check the previous one
-            BufferRange& previous = *(std::prev(it));
-            
-            if (previous.offset + previous.size == value.offset) {
-                previous.size += value.size;
-            } else {
-                data.insert(it, std::move(value));
-            }
-            
-        } else if (it == beginning && it != ending) { // Safe to check the next one
-            BufferRange& next = *it;
-            
-            if (value.offset + value.size == next.offset) {
-                next.offset -= value.size;
-                next.size += value.size;
-            } else {
-                data.insert(it, std::move(value));
-            }
-        } else { // Just insert and that's it
-            data.insert(it, std::move(value));
-        }
-        
-        return true;
-    }
+    bool insert(const BufferRange&& value);
     
     /// Request a free BufferRange. Please read the docs of BufferRangeSet::FreeRange in order to know how to interpret
     /// the returned data.
@@ -239,57 +129,15 @@ public:
     /// \param[in] size Total required size in Bytes
     /// \param[in] alignment Typically, the size of a single object. Used to compute padding when storing objects of
     /// diffrent sizes in a single data buffer.
-    inline FreeRange getFreeRange(Bytes size, Bytes alignment) {
-        if (size % alignment != 0) {
-            throw std::logic_error("size must be a multiple of alignment");
-        }
-        
-        if (size > totalSpace) {
-            return {BufferRange(), 0, false};
-        }
-        
-        for (auto it = data.begin(); it < data.end(); ++it) {
-            BufferRange& r = *it;
-            
-            if (r.size >= size) {
-                Bytes offset = r.offset;
-                
-                std::uint32_t padding = 0;
-                // The offset is not aligned to what we need. We'll have to add some padding
-                if (offset % alignment != 0) {
-                    padding = alignment - (offset % alignment);
-                    
-                    // We will also need to increase the size of the allocation and this may render it invalid
-                    size += Bytes(padding);
-                    
-                    if (r.size < size) {
-                        continue;
-                    }
-                }
-                
-                r.size -= size;
-                r.offset += size;
-                freeSpace -= size;
-                
-                if (r.size == Bytes(0)) {
-                    // This should be safe since we're returning immediately
-                    data.erase(it);
-                }
-                
-                return {BufferRange(offset, size), padding, true};
-            }
-        }
-        
-        return {BufferRange(), 0, false};
-    }
+    FreeRange getFreeRange(Bytes size, Bytes alignment);
     
     /// Get the amount of remaining free space
-    Bytes getFreeSpace() const {
+    inline Bytes getFreeSpace() const {
         return freeSpace;
     }
     
     /// Get the total amount of space
-    Bytes getTotalSpace() const {
+    inline Bytes getTotalSpace() const {
         return totalSpace;
     }
 private:

@@ -138,6 +138,7 @@ sound/SoundAPI.cpp
 #------- threading directory
 threading/Implementation.cpp
 #------- utilities folder
+utilities/BufferRangeSet.cpp
 utilities/Compression.cpp
 utilities/stbImpl.cpp
 utilities/ReadWholeFile.cpp
