@@ -1956,6 +1956,8 @@ bool VulkanAPI::createBuffer(const BufferCreateInfo& info, Buffer& outBuffer) {
     
     VmaAllocationCreateInfo aci = {};
     
+    // TODO start using  info.frequentHostAccess;
+    
     // VMA_ALLOCATION_CREATE_MAPPED_BIT will be ignored if the device memory cannot be mapped. Do not disable. The VulkanDeviceMemoryManager
     // checks the allocationInfo.pMappedData to determine if a staging buffer is needed or not. If VMA_ALLOCATION_CREATE_MAPPED_BIT flag isn't
     // present, pMappedData will always be null and that will confuse the VulkanDeviceMemoryManager.
@@ -2016,36 +2018,6 @@ bool VulkanAPI::destroyBuffer(const Buffer& buffer) {
     return true;
 }
 
-bool VulkanAPI::updateHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) {
-    assert(buffer.memoryUsage() == MemoryUsage::CPUOnly);
-    
-    auto allocationAndInfo = bufferToMemory.find(buffer.handle().toNative<VkBuffer>());
-    assert(allocationAndInfo != bufferToMemory.end());
-    
-    void* p = allocationAndInfo->second.info.pMappedData;
-    
-    for (const auto& c : copies) {
-        const char* source = static_cast<const char*>(data);
-        source += c.srcOffset;
-        
-        char* destination = static_cast<char*>(p);
-        destination += c.dstOffset;
-        
-        std::memcpy(destination, source, c.size);
-    }
-    
-    // If not coherent
-//    VkMappedMemoryRange fr;
-//    fr.sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-//    fr.pNext  = nullptr;
-//    fr.memory = memory;
-//    fr.offset = buffer.offset();
-//    fr.size   = buffer.size();
-//    vkFlushMappedMemoryRanges(logicalDevice.handle, 1, &fr);
-    
-    return true;
-}
-
 bool VulkanAPI::readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) {
     assert(buffer.memoryUsage() == MemoryUsage::CPUOnly);
     
@@ -2066,77 +2038,6 @@ bool VulkanAPI::readHostVisibleBuffer(const Buffer& buffer, const std::vector<Bu
     }
     
     return true;
-}
-
-void VulkanAPI::updateDeviceVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) {
-    assert(buffer.memoryUsage() == MemoryUsage::GPUOnly);
-    assert(buffer.bufferUsageFlags() & BufferUsageFlagBits::TransferDestination);
-    
-    // Creating a huge temp buffer with gaps would make no sense. Instead, we compute the total required size
-    // and allocate a smaller buffer.
-    std::uint64_t size = 0;
-    for (const auto& c : copies) {
-        size = c.size;
-    }
-    
-    // Because of our "optimization", we have to pass a nullptr and copy the data ourselves
-    const auto stagingResult = createTemporaryBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, size, nullptr);
-    
-    void* p;
-    checkResult(vkMapMemory(logicalDevice.handle, stagingResult.second, 0, size, 0, &p), "Failed to map memory.");
-    
-    std::uint64_t offset = 0;
-    for (const auto& c : copies) {
-        const char* source = static_cast<const char*>(data);
-        source += c.srcOffset;
-        
-        char* destination = static_cast<char*>(p);
-        destination += offset;
-        offset += c.size;
-        
-        std::memcpy(destination, source, c.size);
-    }
-
-    vkUnmapMemory(logicalDevice.handle, stagingResult.second);
-    
-    VkCommandBuffer copyBuff = allocateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, true);
-    
-    std::vector<VkBufferCopy> stagingCopies;
-    stagingCopies.reserve(copies.size());
-    
-    offset = 0;
-    for (const auto& c : copies) {
-        VkBufferCopy bc;
-        bc.srcOffset = offset;
-        offset += c.size;
-        
-        bc.dstOffset = c.dstOffset;
-        bc.size = c.size;
-        
-        stagingCopies.push_back(std::move(bc));
-    }
-    
-    vkCmdCopyBuffer(copyBuff, stagingResult.first, buffer.handle().toNative<VkBuffer>(), stagingCopies.size(), stagingCopies.data());
-    checkResult(vkEndCommandBuffer(copyBuff), "Failed to end a command buffer.");
-
-    VkSubmitInfo si;
-    si.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    si.pNext                = nullptr;
-    si.waitSemaphoreCount   = 0;
-    si.pWaitSemaphores      = nullptr;
-    si.pWaitDstStageMask    = nullptr;
-    si.commandBufferCount   = 1;
-    si.pCommandBuffers      = &copyBuff;
-    si.signalSemaphoreCount = 0;
-    si.pSignalSemaphores    = nullptr;
-
-    checkResult(vkQueueSubmit(logicalDevice.mainQueue, 1, &si, VK_NULL_HANDLE), "Failed to submit a queue.");
-    checkResult(vkQueueWaitIdle(logicalDevice.mainQueue), "Failed to wait on a queue");
-
-    vkDestroyBuffer(logicalDevice.handle, stagingResult.first, nullptr);
-    vkFreeMemory(logicalDevice.handle, stagingResult.second, nullptr);
-    
-    vkFreeCommandBuffers(logicalDevice.handle, commandPool, 1, &copyBuff);
 }
 
 CommandPool* VulkanAPI::createCommandPool(QueueType type, std::uint32_t queueId) {

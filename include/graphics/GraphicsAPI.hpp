@@ -932,17 +932,6 @@ public:
     
     virtual bool readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) = 0;
     
-    /// Updates data in a host visible buffer. To update buffers that reside in device memory, use a DeviceMemoryUpdateBatcher or
-    /// a blocking function called updateDeviceVisibleBuffer()
-    ///
-    /// \warning Bad things will happen if this function is used to update buffers that reside in device memory (buffer.memoryType() == MemoryType::Device).
-    virtual bool updateHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) = 0;
-    
-    /// Updates data in a device visible buffer, using a temporary staging buffer
-    ///
-    /// \warning This is a blocking function. It will wait until the data ends up in GPU memory. You should use a DeviceMemoryUpdateBatcher instead.
-    virtual void updateDeviceVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) = 0;
-    
     virtual SemaphoreHnd createSemaphore() = 0;
     virtual void destroySemaphore(SemaphoreHnd hnd) = 0;
     

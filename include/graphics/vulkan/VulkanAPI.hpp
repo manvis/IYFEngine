@@ -164,30 +164,8 @@ public:
     
     virtual bool createBuffer(const BufferCreateInfo& info, Buffer& outBuffer) final override;
     virtual bool destroyBuffer(const Buffer& buffer) final override;
-    
-    virtual bool updateHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) override;
-    virtual void updateDeviceVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) override;
+
     virtual bool readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) final override;
-    
-//     virtual UniformBufferSlice createUniformBuffer(std::uint64_t size, BufferUpdateFrequency flag, const void* data = nullptr) override;
-//     virtual bool setUniformBufferData(const UniformBufferSlice& slice, const void* data) override;
-//     virtual bool updateUniformBufferData(const UniformBufferSlice& slice, const BufferSubSlice& subSlice, const void* data) override;
-//     virtual bool destroyUniformBuffer(const UniformBufferSlice& slice) override;
-//     
-//     virtual VertexBufferSlice createVertexBuffer(std::uint64_t size, BufferUpdateFrequency flag, const void* data = nullptr) override;
-//     virtual bool setVertexBufferData(const VertexBufferSlice& slice, const void* data) override;
-//     virtual bool updateVertexBufferData(const VertexBufferSlice& slice, const BufferSubSlice& subSlice, const void* data) override;
-//     virtual bool destroyVertexBuffer(const VertexBufferSlice& slice) override;
-//     
-//     virtual IndexBufferSlice createIndexBuffer(std::uint64_t size, IndexType type, BufferUpdateFrequency flag, const void* data = nullptr) override;
-//     virtual bool setIndexBufferData(const IndexBufferSlice& slice, const void* data) override;
-//     virtual bool updateIndexBufferData(const IndexBufferSlice& slice, const BufferSubSlice& subSlice, const void* data) override;
-//     virtual bool destroyIndexBuffer(const IndexBufferSlice& slice) override;
-//     
-//     virtual StorageBufferSlice createStorageBuffer(std::uint64_t size, BufferUpdateFrequency flag, const void* data = nullptr) override;
-//     virtual bool setStorageBufferData(const StorageBufferSlice& slice, const void* data) override;
-//     virtual bool updateStorageBufferData(const StorageBufferSlice& slice, const BufferSubSlice& subSlice, const void* data) override;
-//     virtual bool destroyStorageBuffer(const StorageBufferSlice& slice) override;
     
     virtual SemaphoreHnd createSemaphore() override;
     virtual void destroySemaphore(SemaphoreHnd hnd) override;

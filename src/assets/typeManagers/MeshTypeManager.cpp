@@ -346,6 +346,7 @@ TypeManagerBase::AssetsToEnableResult MeshTypeManager::hasAssetsToEnable() const
 //         if (manager->canBatchFitData()) {
 //             return AssetsToEnableResult::Busy;
 //         } else {
+        LOG_D("FINISH ME")
             return AssetsToEnableResult::HasAssetsToEnable;
 //         }
     } else {

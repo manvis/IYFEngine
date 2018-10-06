@@ -48,7 +48,7 @@ void DebugRenderer::initialize() {
     std::uint32_t totalVertices = MaxDebugLineVertices + MaxDebugPontVertices;
     vertices.resize(totalVertices);
     
-    GraphicsAPI* api = renderer->getGraphicsAPI();
+    GraphicsAPI* gfx = renderer->getGraphicsAPI();
     
     const VertexDataLayoutDefinition& vertexLayout = con::GetVertexDataLayoutDefinition(VertexDataLayout::ColoredDebugVertex);
     
@@ -56,16 +56,16 @@ void DebugRenderer::initialize() {
     
     BufferCreateInfo bci(BufferUsageFlagBits::VertexBuffer | BufferUsageFlagBits::TransferDestination,
                          Bytes(vertexLayout.getSize() * totalVertices),
-                         MemoryUsage::GPUOnly,
-                         false,
+                         MemoryUsage::CPUToGPU,
+                         true,
                          "Physics debug buffer");
     
     LOG_D("Physics debug buffer size: " << Mebibytes(bci.size) << " MiB")
     
-    api->createBuffer(bci, vbo);
+    gfx->createBuffer(bci, vbo);
     
     PipelineLayoutCreateInfo plci{{}, {{ShaderStageFlagBits::Vertex, 0, sizeof(DebugPushBuffer)}}};
-    pipelineLayout = api->createPipelineLayout(plci);
+    pipelineLayout = gfx->createPipelineLayout(plci);
     
     PipelineCreateInfo pci;
     
@@ -86,7 +86,7 @@ void DebugRenderer::initialize() {
     pci.subpass = renderer->getSkyboxRenderPassAndSubPass().second;
     pci.vertexInputState = vertexLayout.createVertexInputStateCreateInfo(0);
 
-    physicsDebugPipeline = api->createPipeline(pci);
+    physicsDebugPipeline = gfx->createPipeline(pci);
     
     lineVertexCount = 0;
     contactPointVertexCount = MaxDebugLineVertices;
@@ -97,12 +97,12 @@ void DebugRenderer::initialize() {
 void DebugRenderer::dispose() {
     isInit = false;
     
-    GraphicsAPI* api = renderer->getGraphicsAPI();
-    api->destroyPipeline(physicsDebugPipeline);
+    GraphicsAPI* gfx = renderer->getGraphicsAPI();
+    gfx->destroyPipeline(physicsDebugPipeline);
     vs.release();
     fs.release();
-    api->destroyPipelineLayout(pipelineLayout);
-    api->destroyBuffers({vbo});
+    gfx->destroyPipelineLayout(pipelineLayout);
+    gfx->destroyBuffers({vbo});
 }
 
 // No need for delta.
@@ -122,8 +122,15 @@ void DebugRenderer::draw(CommandBuffer* commandBuffer, const Camera* camera) con
     
     // TODO This causes horrible performance in large scenes when wireframe is enabled. Unfortunately, partial updates aren't
     // easy when you're given data line by line. Is there anything that can be done?
-    GraphicsAPI* api = renderer->getGraphicsAPI();
-    api->updateDeviceVisibleBuffer(vbo, {{0, 0, lineVertexCount * vertexLayout.getSize()}}, vertices.data());
+    GraphicsAPI* gfx = renderer->getGraphicsAPI();
+    DeviceMemoryManager* memoryManager = gfx->getDeviceMemoryManager();
+    
+    std::vector<BufferCopy> bufferCopies = {{0, 0, lineVertexCount * vertexLayout.getSize()}};
+    if (memoryManager->isStagingBufferNeeded(vbo) && !memoryManager->canBatchFitData(MemoryBatch::PerFrameData, bufferCopies)) {
+        throw std::runtime_error("Physics debug data won't fit in memory");
+    }
+    
+    memoryManager->updateBuffer(MemoryBatch::PerFrameData, vbo, bufferCopies, vertices.data());
     
     commandBuffer->bindPipeline(physicsDebugPipeline);
     commandBuffer->bindVertexBuffers(0, vbo);
