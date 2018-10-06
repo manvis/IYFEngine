@@ -122,6 +122,7 @@ graphics/shaderGeneration/VulkanGLSLShaderGenerator.cpp
 #--------------------- Vulkan graphics backend
 graphics/vulkan/VulkanAPI.cpp
 graphics/vulkan/VulkanDebug.cpp
+graphics/vulkan/VulkanDeviceMemoryManager.cpp
 graphics/vulkan/VulkanInitializationAndSwapchain.cpp
 graphics/vulkan/VulkanMemoryAllocatorImpl.cpp
 #------- localization directory

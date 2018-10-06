@@ -102,7 +102,7 @@ protected:
     void initializeMainRenderpassComponents();
     
     friend class Engine;
-    ClusteredRenderer(Engine* engine, GraphicsAPI* api);
+    ClusteredRenderer(Engine* engine, GraphicsAPI* gfx);
     
     enum class CommandBufferID {
         World = 0, Picking = 1, COUNT = 2

@@ -123,7 +123,7 @@ public:
     }
     
     GraphicsAPI* getGraphicsAPI() const {
-        return api;
+        return gfx;
     }
     
     /// If isPickingEnabled() is true, this function fetches the data from the ID buffer and pushes it to
@@ -180,10 +180,10 @@ protected:
     virtual void drawSky(const World* world) = 0;
     virtual void drawDebugAndHelperMeshes(const World* world, const DebugRenderer* renderer) = 0;
     
-    Renderer(Engine* engine, GraphicsAPI* api);
+    Renderer(Engine* engine, GraphicsAPI* gfx);
     
     Engine* engine;
-    GraphicsAPI* api;
+    GraphicsAPI* gfx;
     bool imGuiSubmissionRequired;
     bool drawingWorldThisFrame;
     bool pickingEnabled;

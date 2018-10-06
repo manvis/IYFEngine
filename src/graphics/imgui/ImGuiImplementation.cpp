@@ -305,10 +305,11 @@ void ImGuiImplementation::initializeAssets() {
     
     std::vector<Buffer> vboibo;
     std::vector<BufferCreateInfo> bci;
-    bci.emplace_back(BufferUsageFlagBits::VertexBuffer, Bytes(MAX_IMGUI_VBO));
-    bci.emplace_back(BufferUsageFlagBits::IndexBuffer,  Bytes(MAX_IMGUI_IBO));
+    // TODO MemoryUsage::CPUToGPU
+    bci.emplace_back(BufferUsageFlagBits::VertexBuffer, Bytes(MAX_IMGUI_VBO), MemoryUsage::CPUOnly, false, "ImGui VBO");
+    bci.emplace_back(BufferUsageFlagBits::IndexBuffer,  Bytes(MAX_IMGUI_IBO), MemoryUsage::CPUOnly, false, "ImGui IBO");
     
-    gfxAPI->createBuffers(bci, MemoryType::HostVisible, vboibo);
+    gfxAPI->createBuffers(bci, vboibo);
     
     VBOs.push_back(vboibo[0]);
     IBO = vboibo[1];

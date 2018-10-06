@@ -428,14 +428,34 @@ void AssetManager::collectGarbage() {
 }
 
 void AssetManager::enableLoadedAssets() {
+    const std::chrono::nanoseconds window = asyncLoadWindow;
     const auto start = std::chrono::steady_clock::now();
     auto now = start;
 
     for (auto& tm : typeManagers) {
         if (tm != nullptr) {
-            while ((tm->hasAssetsToEnable() == TypeManagerBase::AssetsToEnableResult::HasAssetsToEnable) && (now - start < asyncLoadWindow)) {
-                tm->enableAsyncLoadedAsset();
-                
+            const bool canBatch = tm->canBatchAsyncLoadedAssets();
+            
+            if (canBatch) {
+                while ((tm->hasAssetsToEnable() == TypeManagerBase::AssetsToEnableResult::HasAssetsToEnable) &&
+                       ((now + tm->estimateBatchOperationDuration()) - start < window)) {
+                    tm->enableAsyncLoadedAsset(true);
+                    
+                    now = std::chrono::steady_clock::now();
+                }
+            } else {
+                while ((tm->hasAssetsToEnable() == TypeManagerBase::AssetsToEnableResult::HasAssetsToEnable) &&
+                       (now - start < window)) {
+                    tm->enableAsyncLoadedAsset(false);
+                    
+                    now = std::chrono::steady_clock::now();
+                }
+            }
+            
+            if (canBatch) {
+                // This should always happen. If nothing was added, the TypeManager should avoid any expensive 
+                // operations.
+                tm->executeBatchOperations();
                 now = std::chrono::steady_clock::now();
             }
         }

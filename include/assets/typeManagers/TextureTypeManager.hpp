@@ -47,8 +47,13 @@ protected:
     virtual void initMissingAssetHandle() final override;
     
     virtual std::unique_ptr<LoadedAssetData> readFile(hash32_t nameHash, const fs::path& path, const Metadata& meta, Texture& assetData) final override;
-    virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) final override;
+    virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool canBatch) final override;
     virtual void performFree(Texture& assetData) final override;
+    virtual void executeBatchOperations() final override;
+    
+    virtual bool canBatchAsyncLoadedAssets() const final override {
+        return true;
+    }
 private:
     GraphicsAPI* gfx;
     Engine* engine;

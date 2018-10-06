@@ -105,6 +105,15 @@ protected:
     VkCommandBuffer cmdBuff;
 };
 
+struct AllocationAndInfo {
+    AllocationAndInfo(VmaAllocation allocation, VmaAllocationInfo info, VkMemoryPropertyFlags memoryFlags)
+        : allocation(allocation), info(std::move(info)), memoryFlags(memoryFlags) {}
+    
+    VmaAllocation allocation;
+    VmaAllocationInfo info;
+    VkMemoryPropertyFlags memoryFlags;
+};
+
 class VulkanAPI : public GraphicsAPI {
 public:
     friend class VulkanCommandPool;
@@ -153,10 +162,11 @@ public:
     virtual ImageViewHnd createImageView(const ImageViewCreateInfo& info) override;
     virtual bool destroyImageView(ImageViewHnd handle) override;
     
-    virtual bool createBuffers(const std::vector<BufferCreateInfo>& info, MemoryType memoryType, std::vector<Buffer>& outBuffers) override;
+    virtual bool createBuffer(const BufferCreateInfo& info, Buffer& outBuffer) final override;
+    virtual bool destroyBuffer(const Buffer& buffer) final override;
+    
     virtual bool updateHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) override;
     virtual void updateDeviceVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) override;
-    virtual bool destroyBuffers(const std::vector<Buffer>& buffers) override;
     virtual bool readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) final override;
     
 //     virtual UniformBufferSlice createUniformBuffer(std::uint64_t size, BufferUpdateFrequency flag, const void* data = nullptr) override;
@@ -238,6 +248,7 @@ public:
     virtual ~VulkanAPI() { }
 protected:
     friend class Engine;
+    friend class VulkanDeviceMemoryManager;
     
     VulkanAPI(Engine* engine, bool useDebugAndValidation, Configuration* config) : GraphicsAPI(engine, useDebugAndValidation, config) {
         // TODO out'a'here
@@ -373,7 +384,7 @@ protected:
     VkDebugReportCallbackEXT debugReportCallback;
     
     void findLayers(LayerType mode, const std::vector<const char*>& expectedLayers);
-    virtual BackendType getBackendType() {
+    virtual BackendType getBackendType() override {
         return BackendType::Vulkan;
     }
     
@@ -401,9 +412,6 @@ protected:
     
     //std::pair<VkBuffer, VkDeviceMemory> createBuffer(BufferType bufferType, std::uint64_t size, BufferUpdateFrequency flag, const void* data);
     std::pair<VkBuffer, VkDeviceMemory> createTemporaryBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryFlags, std::uint64_t size, const void* data);
-    bool updateBuffer(std::uint64_t handle, std::uint64_t offset, std::uint64_t size, const void* data);
-    bool partialUpdateBuffer(std::uint64_t handle, std::uint64_t offset, std::uint64_t size, std::uint64_t subOffset, std::uint64_t subSize, const void* data);
-    bool destroyBuffer(VkBuffer buffer);
     
     VkCommandBuffer allocateCommandBuffer(VkCommandBufferLevel bufferLevel, std::uint32_t bufferCount, bool beginBuffer);
     void freeCommandBuffer(const VkCommandBuffer& commandBuffer);
@@ -413,11 +421,8 @@ protected:
     
     bool checkResult(VkResult result, const std::string& whatFailed, bool throwIfFailed = true);
     
-    /// Allows to retrieve the backing memory object based on a buffer's handle
-    std::unordered_map<VkBuffer, VkDeviceMemory> bufferToMemory;
-    
-    /// Used to store the number of buffers using each memory allocation. Once this gets to 0, the memory is freed
-    std::unordered_map<VkDeviceMemory, std::uint64_t> memoryToBufferCount;
+    /// Allows us to retrieve various info about backing memory based on a buffer's handle
+    std::unordered_map<VkBuffer, AllocationAndInfo> bufferToMemory;
     
     std::unordered_map<VkImage, VkDeviceMemory> imageToMemory;
     // Temporaries for conversions

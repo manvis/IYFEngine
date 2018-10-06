@@ -53,24 +53,41 @@ namespace iyf {
 /// \todo What about queue families?
 class BufferCreateInfo {
 public:
-    BufferCreateInfo() : flags(), size(0) {}
-    BufferCreateInfo(BufferUsageFlags flags, Bytes size) : flags(flags), size(size) {}
+    BufferCreateInfo() :  size(0), flags(), memoryUsage(MemoryUsage::CPUOnly), frequentHostAccess(false) {}
+    BufferCreateInfo(BufferUsageFlags flags, Bytes size, MemoryUsage memoryUsage, bool frequentHostAccess, std::string debugName = std::string())
+        : size(size), flags(flags), memoryUsage(memoryUsage), frequentHostAccess(frequentHostAccess), debugName(std::move(debugName)) {}
     
-    BufferUsageFlags flags;
     Bytes size;
+    BufferUsageFlags flags;
+    MemoryUsage memoryUsage;
+private:
+    bool padding;
+public:
+    /// If memoryUsage is MemoryUsage::GPUOnly and this bool is set, the GraphicsAPI will try to search for a memory heap that's both
+    /// on device and CPU mappable. E.g., AMD GPUs have a 256 MB heap of such memory. It's quite useful for storing per-frame data
+    /// because it avoids staging buffer copies.
+    bool frequentHostAccess;
+    
+    /// Optional name to use when debugging issues
+    std::string debugName;
 };
 
 class Buffer {// MEMORY TYPE? Memory handle?
 public:
-    Buffer() : bufferHandle(nullptr), bufferUsageFlags(), backingMemoryType(MemoryType::HostVisible), bufferSize(0), memoryOffset(0) {}
-    Buffer(BufferHnd handle, BufferUsageFlags flags, MemoryType memoryType, Bytes size, Bytes offset) : bufferHandle(handle), bufferUsageFlags(flags), backingMemoryType(memoryType), bufferSize(size), memoryOffset(offset) {}
+    Buffer() : bufferHandle(nullptr), bufferSize(0), info(nullptr), bufferUsage(), memUsage(MemoryUsage::CPUOnly) {}
+    Buffer(BufferHnd handle, BufferUsageFlags flags, MemoryUsage memoryUsage, Bytes size, void* allocationInfo) 
+        : bufferHandle(handle), bufferSize(size), info(allocationInfo), bufferUsage(flags), memUsage(memoryUsage) {}
     
     inline BufferHnd handle() const {
         return bufferHandle;
     }
     
-    inline BufferUsageFlags usageFlags() const {
-        return bufferUsageFlags;
+    inline BufferUsageFlags bufferUsageFlags() const {
+        return bufferUsage;
+    }
+    
+    inline MemoryUsage memoryUsage() const {
+        return memUsage;
     }
     
     /// Returns the actual size of the buffer.
@@ -78,22 +95,17 @@ public:
     inline Bytes size() const {
         return bufferSize;
     }
-    
-    inline MemoryType memoryType() const {
-        return backingMemoryType;
+
+    /// Returns a pointer to GraphicsAPI specific allocation info. Used internally.
+    inline const void* allocationInfo() const {
+        return info;
     }
-    
-    /// Returns the offset of this buffer in the allocation that's backing it.
-    inline Bytes offset() const {
-        return memoryOffset;
-    }
-    
 protected:
     BufferHnd bufferHandle;
-    BufferUsageFlags bufferUsageFlags;
-    MemoryType backingMemoryType;
     Bytes bufferSize;
-    Bytes memoryOffset;
+    void* info;
+    BufferUsageFlags bufferUsage;
+    MemoryUsage memUsage;
 };
 
 class ImageSubresourceLayers {
@@ -143,6 +155,59 @@ public:
 private:
     std::uint64_t dataOffset;
     std::uint64_t dataSize;
+};
+
+enum class MemoryBatch {
+    MeshAssetData = 0, ///< Used to upload asynchronously loaded mesh asset data.
+    TextureAssetData = 1, ///< Used to upload asynchronously loaded texture asset data.
+    PerFrameData = 2, ///< Used to upload per frame data, e.g., uniform buffers storing matrices.
+    COUNT,
+    Instant = COUNT, ///< Not batched, executes the upload immediately. If needed, this will create a temporary staging buffer.
+};
+
+/// Handles all data uploads to the GPU
+///
+/// \remark The DeviceMemoryManager is NOT thread safe an should only be called from the main thread.
+class DeviceMemoryManager {
+public:
+    /// \brief Creates a new DeviceMemoryManager
+    ///
+    /// \param stagingBufferSizes The initial sizes of the staging buffers. Each element corresponds to a MemoryBatch enum value. All values must be
+    /// set and > 0. The implementation is allowed to combine MemoryBatch::MeshAssetData and MemoryBatch::extureAssetData staging buffers into one.
+    DeviceMemoryManager(std::vector<Bytes> stagingBufferSizes) 
+        : stagingBufferSizes(std::move(stagingBufferSizes)) {}
+    
+    virtual ~DeviceMemoryManager() {}
+    
+    /// Mark the start of a new frame.
+    virtual void beginFrame() = 0;
+    
+    /// Checks if updateBuffer() will need to use a staging buffer in order to upload data to the device.
+    virtual bool isStagingBufferNeeded(const Buffer& destinationBuffer) = 0;
+    
+    /// Checks if the staging buffer assigned to the batch can fit the data you want to upload.
+    ///
+    /// \todo In some cases, e.g., inside the MeshTypeManager, I can't know the destination buffer in advance. Because of that reason, I can't call
+    /// isStagingBufferNeeded() to figure out if one is needed or not. This may cause this function to return false negatives. I need to measure
+    /// the inpact and fix it if it's big enough.
+    virtual bool canBatchFitData(MemoryBatch batch, const std::vector<BufferCopy>& copies) = 0;
+    
+    /// Updates the data in the specified buffer. Transparently handles staging and batches data uploads.
+    ///
+    /// \warning For performance reasons, this function assumes canBatchFitData() has already been called and returned true.
+    virtual bool updateBuffer(MemoryBatch batch, const Buffer& destinationBuffer, const std::vector<BufferCopy>& copies, const void* data) = 0;
+    
+    /// Starts any pending uploads.
+    ///
+    /// \warning A MemoryBatch can only be used once per frame. MemoryBatch::Instant must never be used when calling this function.
+    virtual bool beginBatchUpload(MemoryBatch batch) = 0;
+    
+    inline const std::vector<Bytes>& getStagingBufferSizes() const {
+        return stagingBufferSizes;
+    }
+    
+protected:
+    std::vector<Bytes> stagingBufferSizes;
 };
 
 class Image {
@@ -734,7 +799,7 @@ public:
     
     virtual void dispatch(std::uint32_t x, std::uint32_t y, std::uint32_t z) = 0;
     
-    virtual void bindVertexBuffers(std::uint32_t firstBinding, std::uint32_t bindingCount, const std::vector<Buffer>& buffers) = 0;//TODO offset'ai?
+    virtual void bindVertexBuffers(std::uint32_t firstBinding, std::uint32_t bindingCount, const std::vector<Buffer>& buffers) = 0;//TODO offsets
     virtual void bindVertexBuffers(std::uint32_t firstBinding, const Buffer& buffer) = 0;
     virtual void bindIndexBuffer(const Buffer& buffer, IndexType indexType) = 0;
     
@@ -798,6 +863,10 @@ public:
     bool isInitialized() {
         return isInit;
     }
+    
+    virtual DeviceMemoryManager* getDeviceMemoryManager() const {
+        return deviceMemoryManager.get();
+    }
 
     virtual RenderPassHnd createRenderPass(const RenderPassCreateInfo& info) = 0;
     virtual bool destroyRenderPass(RenderPassHnd handle) = 0;
@@ -856,11 +925,11 @@ public:
     virtual ImageViewHnd createImageView(const ImageViewCreateInfo& info) = 0;
     virtual bool destroyImageView(ImageViewHnd handle) = 0;
     
-    /// This function tries to make sure that all buffers that are being created end up using the same allocation
-    virtual bool createBuffers(const std::vector<BufferCreateInfo>& info, MemoryType memoryType, std::vector<Buffer>& outBuffers) = 0;
-    virtual bool destroyBuffers(const std::vector<Buffer>& buffers) = 0;
+    virtual bool createBuffer(const BufferCreateInfo& info, Buffer& outBuffer) = 0;
+    virtual bool destroyBuffer(const Buffer& buffer) = 0;
+    virtual bool createBuffers(const std::vector<BufferCreateInfo>& infos, std::vector<Buffer>& outBuffers);
+    virtual bool destroyBuffers(const std::vector<Buffer>& buffers);
     
-    // TODO stop unmapping buffers
     virtual bool readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) = 0;
     
     /// Updates data in a host visible buffer. To update buffers that reside in device memory, use a DeviceMemoryUpdateBatcher or
@@ -920,6 +989,7 @@ public:
     virtual ~GraphicsAPI() { }
 protected:
     Engine* engine;
+    std::unique_ptr<DeviceMemoryManager> deviceMemoryManager;
     SDL_Window* window;
     glm::uvec2 windowSize;
     

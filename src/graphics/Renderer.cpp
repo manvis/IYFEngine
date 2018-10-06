@@ -35,8 +35,8 @@
 #include "threading/ThreadProfiler.hpp"
 
 namespace iyf {
-Renderer::Renderer(Engine* engine, GraphicsAPI* api) : engine(engine), api(api), imGuiSubmissionRequired(false), drawingWorldThisFrame(false), initialized(false) {
-    assert(engine != nullptr && api != nullptr);
+Renderer::Renderer(Engine* engine, GraphicsAPI* gfx) : engine(engine), gfx(gfx), imGuiSubmissionRequired(false), drawingWorldThisFrame(false), initialized(false) {
+    assert(engine != nullptr && gfx != nullptr);
     
     pickingEnabled = engine->isEditorMode();
 }

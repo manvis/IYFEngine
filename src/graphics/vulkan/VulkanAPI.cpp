@@ -676,6 +676,8 @@ void VulkanAPI::freeCommandBuffer(const VkCommandBuffer& commandBuffer) {
 }
 
 void VulkanAPI::dispose() {
+    deviceMemoryManager = nullptr;
+    
     freePresentationBarrierCommandBuffers();
     physicalDevice.queueFamilyProperties.clear();
     
@@ -1833,84 +1835,6 @@ bool VulkanAPI::destroyImageView(ImageViewHnd handle) {
     return true;
 }
 
-// UniformBufferSlice VulkanAPI::createUniformBuffer(std::uint64_t size, BufferUpdateFrequency flag, const void* data) {
-//     auto result = createBuffer(BufferType::Uniform, size, flag, data);
-//     bufferToMemory[result.first] = result.second;
-//     
-//     return UniformBufferSlice(reinterpret_cast<UniformBufferHnd>(result.first), 0, size, flag);
-// }
-// 
-// bool VulkanAPI::setUniformBufferData(const UniformBufferSlice& slice, const void* data) {
-//     return updateBuffer(slice.handle(), slice.offset(), slice.size(), data);
-// }
-// 
-// bool VulkanAPI::updateUniformBufferData(const UniformBufferSlice& slice, const BufferSubSlice& subSlice, const void* data) {
-//     return partialUpdateBuffer(slice.handle(), slice.offset(), slice.size(), subSlice.offset(), subSlice.size(), data);
-// }
-// 
-// bool VulkanAPI::destroyUniformBuffer(const UniformBufferSlice& slice) {
-//     return destroyBuffer(reinterpret_cast<VkBuffer>(slice.handle()));
-// }
-// 
-// StorageBufferSlice VulkanAPI::createStorageBuffer(std::uint64_t size, BufferUpdateFrequency flag, const void* data) {
-//     auto result = createBuffer(BufferType::Storage, size, flag, data);
-//     bufferToMemory[result.first] = result.second;
-//     
-//     return StorageBufferSlice(reinterpret_cast<StorageBufferHnd>(result.first), 0, size, flag);
-// }
-// 
-// bool VulkanAPI::setStorageBufferData(const StorageBufferSlice& slice, const void* data) {
-//     return updateBuffer(slice.handle(), slice.offset(), slice.size(), data);
-// }
-// 
-// bool VulkanAPI::updateStorageBufferData(const StorageBufferSlice& slice, const BufferSubSlice& subSlice, const void* data) {
-//     return partialUpdateBuffer(slice.handle(), slice.offset(), slice.size(), subSlice.offset(), subSlice.size(), data);
-// }
-// 
-// bool VulkanAPI::destroyStorageBuffer(const StorageBufferSlice& slice) {
-//     return destroyBuffer(reinterpret_cast<VkBuffer>(slice.handle()));
-// }
-// 
-// 
-// VertexBufferSlice VulkanAPI::createVertexBuffer(std::uint64_t size, BufferUpdateFrequency flag, const void* data) {
-//     auto result = createBuffer(BufferType::Uniform, size, flag, data);
-//     bufferToMemory[result.first] = result.second;
-//     
-//     return VertexBufferSlice(reinterpret_cast<UniformBufferHnd>(result.first), 0, size, flag);
-// }
-// 
-// bool VulkanAPI::setVertexBufferData(const VertexBufferSlice& slice, const void* data) {
-//     return updateBuffer(slice.handle(), slice.offset(), slice.size(), data);
-// }
-// 
-// bool VulkanAPI::updateVertexBufferData(const VertexBufferSlice& slice, const BufferSubSlice& subSlice, const void* data) {
-//     return partialUpdateBuffer(slice.handle(), slice.offset(), slice.size(), subSlice.offset(), subSlice.size(), data);
-// }
-// 
-// bool VulkanAPI::destroyVertexBuffer(const VertexBufferSlice& slice) {
-//     return destroyBuffer(reinterpret_cast<VkBuffer>(slice.handle()));
-// }
-// 
-// 
-// IndexBufferSlice VulkanAPI::createIndexBuffer(std::uint64_t size, IndexType type, BufferUpdateFrequency flag, const void* data) {
-//     auto result = createBuffer(BufferType::Uniform, size, flag, data);
-//     bufferToMemory[result.first] = result.second;
-//     
-//     return IndexBufferSlice(reinterpret_cast<UniformBufferHnd>(result.first), 0, size, flag, type);
-// }
-// 
-// bool VulkanAPI::setIndexBufferData(const IndexBufferSlice& slice, const void* data) {
-//     return updateBuffer(slice.handle(), slice.offset(), slice.size(), data);
-// }
-// 
-// bool VulkanAPI::updateIndexBufferData(const IndexBufferSlice& slice, const BufferSubSlice& subSlice, const void* data) {
-//     return partialUpdateBuffer(slice.handle(), slice.offset(), slice.size(), subSlice.offset(), subSlice.size(), data);
-// }
-// 
-// bool VulkanAPI::destroyIndexBuffer(const IndexBufferSlice& slice) {
-//     return destroyBuffer(reinterpret_cast<VkBuffer>(slice.handle()));
-// }
-
 VkBufferUsageFlagBits VulkanAPI::mapBufferType(BufferType bufferType) const {
     switch (bufferType) {
     case BufferType::Vertex:
@@ -2019,108 +1943,86 @@ std::pair<VkBuffer, VkDeviceMemory> VulkanAPI::createTemporaryBuffer(VkBufferUsa
     return {handle, memory};
 }
 
-bool VulkanAPI::createBuffers(const std::vector<BufferCreateInfo>& info, MemoryType memoryType, std::vector<Buffer>& outBuffers) {
-    outBuffers.clear();
-    outBuffers.reserve(info.size());
+bool VulkanAPI::createBuffer(const BufferCreateInfo& info, Buffer& outBuffer) {
+    VkBufferCreateInfo bci;
+    bci.sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bci.pNext                 = nullptr;
+    bci.flags                 = 0;
+    bci.size                  = info.size.count();
+    bci.usage                 = vk::bufferUsage(info.flags);
+    bci.sharingMode           = VK_SHARING_MODE_EXCLUSIVE; // TODO use a transfer queue (if available)
+    bci.queueFamilyIndexCount = 0;
+    bci.pQueueFamilyIndices   = nullptr;
     
-    VkMemoryRequirements mr;
-    std::uint64_t totalAllocationSize = 0;
+    VmaAllocationCreateInfo aci = {};
     
-    for (std::size_t j = 0; j < info.size(); ++j) {
-        const auto& bciv = info[j];
-        
-        VkBuffer handle;
-        
-        VkBufferCreateInfo bci;
-        bci.sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bci.pNext                 = nullptr;
-        bci.flags                 = 0;
-        bci.size                  = bciv.size.count();
-        bci.usage                 = vk::bufferUsage(bciv.flags);
-        bci.sharingMode           = VK_SHARING_MODE_EXCLUSIVE;
-        bci.queueFamilyIndexCount = 0;
-        bci.pQueueFamilyIndices   = nullptr;
-        
-        checkResult(vkCreateBuffer(logicalDevice.handle, &bci, nullptr, &handle), "Failed to create a buffer.");
-        
-        vkGetBufferMemoryRequirements(logicalDevice.handle, handle, &mr);
-        
-        outBuffers.emplace_back(BufferHnd(handle), bciv.flags, memoryType, Bytes(mr.size), Bytes(totalAllocationSize));
-        
-        totalAllocationSize += mr.size;
+    // VMA_ALLOCATION_CREATE_MAPPED_BIT will be ignored if the device memory cannot be mapped. Do not disable. The VulkanDeviceMemoryManager
+    // checks the allocationInfo.pMappedData to determine if a staging buffer is needed or not. If VMA_ALLOCATION_CREATE_MAPPED_BIT flag isn't
+    // present, pMappedData will always be null and that will confuse the VulkanDeviceMemoryManager.
+    aci.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
+    
+    // TODO for now, it's either CPU (visible and coherent) or GPU. Only enable the rest once proper flushing and invalidation
+    // during memory uploads or reads is implemented.
+    switch (info.memoryUsage) {
+        case MemoryUsage::GPUOnly:
+            aci.usage = VMA_MEMORY_USAGE_GPU_ONLY; // May end up being HOST_VISIBLE in some cases.
+            break;
+        case MemoryUsage::CPUToGPU:
+            aci.usage = VMA_MEMORY_USAGE_CPU_TO_GPU; // Guarantees host visible. Usually uncached.
+            break;
+        case MemoryUsage::GPUToCPU:
+            aci.usage = VMA_MEMORY_USAGE_GPU_TO_CPU; // Guarantees host visible and cached.
+            break;
+        case MemoryUsage::CPUOnly:
+            aci.usage = VMA_MEMORY_USAGE_CPU_ONLY; // Guarantees HOST_VISIBLE and HOST_COHERENT
+            break;
     }
     
-    VkFlags memoryFlags = (memoryType == MemoryType::DeviceLocal) ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    // | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-    
-    // According to the spec. (11.6. Resource Memory Association):
-    // • The memoryTypeBits member always contains at least one bit set corresponding to a VkMemoryType
-    //   with a propertyFlags that has the VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT bit set.
-    // and
-    // • If buffer is a VkBuffer not created with the VK_BUFFER_CREATE_SPARSE_BINDING_BIT bit set, or if
-    //  image is a VkImage that was created with a VK_IMAGE_TILING_LINEAR value in the tiling member of
-    //  the VkImageCreateInfo structure passed to vkCreateImage, then the memoryTypeBits member
-    //  always contains at least one bit set corresponding to a VkMemoryType with a propertyFlags that
-    //  has both the VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT bit and the VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    //  bit set. In other words, mappable coherent memory can always be attached to these objects.
-    //
-    // Since we ALWAYS use either VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT or VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    // for all the buffers we're creating and we do not create sparse buffers, it is safe to create a single allocation with a memoryTypeIndex
-    // retrieved based on the last mr value
-            
-    VkMemoryAllocateInfo mai;
-    mai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    mai.pNext           = nullptr;
-    mai.allocationSize  = totalAllocationSize;
-    mai.memoryTypeIndex = getMemoryType(mr.memoryTypeBits, memoryFlags);
-    
-    VkDeviceMemory memory;
-    checkResult(vkAllocateMemory(logicalDevice.handle, &mai, nullptr, &memory), "Failed to allocate memory.");
-    
-    std::size_t offset = 0;
-    for (std::size_t i = 0; i < info.size(); ++i) {
-        VkBuffer handle = outBuffers[i].handle().toNative<VkBuffer>();
-        checkResult(vkBindBufferMemory(logicalDevice.handle, handle, memory, offset), "Failed to bind memory.");
-        
-        bufferToMemory[handle] = memory;
-        
-        offset += outBuffers[i].size();
+    if (!info.debugName.empty()) {
+        std::string temp = info.debugName;
+        aci.pUserData = &temp[0];
     }
     
-    memoryToBufferCount[memory] = outBuffers.size();
+    VkBuffer handle;
+    VmaAllocation allocation;
+    VmaAllocationInfo allocationInfo;
+    checkResult(vmaCreateBuffer(allocator, &bci, &aci, &handle, &allocation, &allocationInfo), "Failed to create a buffer");
+    
+    if (aci.usage != VMA_MEMORY_USAGE_GPU_ONLY && allocationInfo.pMappedData == nullptr) {
+        throw std::runtime_error("Was expecting a mapped buffer.");
+    }
+    
+    const Bytes finalSize = Bytes(allocationInfo.size);
+    VkMemoryPropertyFlags flags = 0;
+    vmaGetMemoryTypeProperties(allocator, allocationInfo.memoryType, &flags);
+    
+    auto iter = bufferToMemory.emplace(std::make_pair(handle, AllocationAndInfo(allocation, allocationInfo, flags)));
+    
+    outBuffer = Buffer(BufferHnd(handle), info.flags, info.memoryUsage, finalSize, &(iter.first->second));
     
     return true;
 }
 
-bool VulkanAPI::destroyBuffers(const std::vector<Buffer>& buffers) {
-    for (const auto& b : buffers) {
-        VkBuffer handle = b.handle().toNative<VkBuffer>();
-        vkDestroyBuffer(logicalDevice.handle, handle, nullptr);
-        
-        VkDeviceMemory memory = bufferToMemory[handle];
-        std::uint64_t count = memoryToBufferCount[memory] - 1;
-        
-        bufferToMemory.erase(handle);
-        
-        if (count == 0) {
-            vkFreeMemory(logicalDevice.handle, memory, nullptr);
-            
-            memoryToBufferCount.erase(memory);
-        } else {
-            memoryToBufferCount[memory] = count;
-        }
-    }
+bool VulkanAPI::destroyBuffer(const Buffer& buffer) {
+    VkBuffer handle = buffer.handle().toNative<VkBuffer>();
+    auto result = bufferToMemory.find(handle);
+    
+    assert(result != bufferToMemory.end());
+    
+    vmaDestroyBuffer(allocator, handle, result->second.allocation);
+    
+    bufferToMemory.erase(result);
     
     return true;
 }
 
 bool VulkanAPI::updateHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) {
-    assert(buffer.memoryType() == MemoryType::HostVisible);
+    assert(buffer.memoryUsage() == MemoryUsage::CPUOnly);
     
-    VkDeviceMemory memory = bufferToMemory[buffer.handle().toNative<VkBuffer>()];
-    void* p;
-    // TODO stop unmapping buffers
-    checkResult(vkMapMemory(logicalDevice.handle, memory, buffer.offset(), buffer.size(), 0, &p), "Failed to map memory.");
+    auto allocationAndInfo = bufferToMemory.find(buffer.handle().toNative<VkBuffer>());
+    assert(allocationAndInfo != bufferToMemory.end());
+    
+    void* p = allocationAndInfo->second.info.pMappedData;
     
     for (const auto& c : copies) {
         const char* source = static_cast<const char*>(data);
@@ -2140,20 +2042,18 @@ bool VulkanAPI::updateHostVisibleBuffer(const Buffer& buffer, const std::vector<
 //    fr.offset = buffer.offset();
 //    fr.size   = buffer.size();
 //    vkFlushMappedMemoryRanges(logicalDevice.handle, 1, &fr);
-
-    vkUnmapMemory(logicalDevice.handle, memory);
     
     return true;
 }
 
 bool VulkanAPI::readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) {
-    assert(buffer.memoryType() == MemoryType::HostVisible);
+    assert(buffer.memoryUsage() == MemoryUsage::CPUOnly);
     
-    VkDeviceMemory memory = bufferToMemory[buffer.handle().toNative<VkBuffer>()];
-    void* p;
+    auto allocationAndInfo = bufferToMemory.find(buffer.handle().toNative<VkBuffer>());
+    assert(allocationAndInfo != bufferToMemory.end());
+    
+    void* p = allocationAndInfo->second.info.pMappedData;
     // TODO non-coherent
-    // TODO stop unmapping buffers
-    checkResult(vkMapMemory(logicalDevice.handle, memory, buffer.offset(), buffer.size(), 0, &p), "Failed to map memory.");
     
     for (const auto& c : copies) {
         const char* source = static_cast<const char*>(p);
@@ -2164,15 +2064,13 @@ bool VulkanAPI::readHostVisibleBuffer(const Buffer& buffer, const std::vector<Bu
         
         std::memcpy(destination, source, c.size);
     }
-
-    vkUnmapMemory(logicalDevice.handle, memory);
     
     return true;
 }
 
 void VulkanAPI::updateDeviceVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, const void* data) {
-    assert(buffer.memoryType() == MemoryType::DeviceLocal);
-    assert(buffer.usageFlags() & BufferUsageFlagBits::TransferDestination);
+    assert(buffer.memoryUsage() == MemoryUsage::GPUOnly);
+    assert(buffer.bufferUsageFlags() & BufferUsageFlagBits::TransferDestination);
     
     // Creating a huge temp buffer with gaps would make no sense. Instead, we compute the total required size
     // and allocate a smaller buffer.
@@ -2239,40 +2137,6 @@ void VulkanAPI::updateDeviceVisibleBuffer(const Buffer& buffer, const std::vecto
     vkFreeMemory(logicalDevice.handle, stagingResult.second, nullptr);
     
     vkFreeCommandBuffers(logicalDevice.handle, commandPool, 1, &copyBuff);
-}
-
-bool VulkanAPI::updateBuffer(std::uint64_t handle, std::uint64_t offset, std::uint64_t size, const void* data) {
-    return partialUpdateBuffer(handle, offset, size, 0, size, data);
-}
-
-bool VulkanAPI::destroyBuffer(VkBuffer buffer) {
-    VkDeviceMemory memory = bufferToMemory[buffer];
-    
-    vkDestroyBuffer(logicalDevice.handle, buffer, nullptr);
-    vkFreeMemory(logicalDevice.handle, memory, nullptr);
-    
-    bufferToMemory.erase(buffer);
-    
-    return true;
-}
-
-bool VulkanAPI::partialUpdateBuffer(std::uint64_t handle, std::uint64_t offset, std::uint64_t size, std::uint64_t subOffset, std::uint64_t subSize, const void* data) {
-    VkDeviceMemory memory = bufferToMemory[reinterpret_cast<VkBuffer>(handle)];
-    void* p;
-    checkResult(vkMapMemory(logicalDevice.handle, memory, offset + subOffset, subSize, 0, &p), "Failed to map memory.");
-    std::memcpy(p, data, subSize);
-    
-    VkMappedMemoryRange fr;
-    fr.sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    fr.pNext  = nullptr;
-    fr.memory = memory;
-    fr.offset = offset + subOffset;
-    fr.size   = subSize;
-    vkFlushMappedMemoryRanges(logicalDevice.handle, 1, &fr);
-
-    vkUnmapMemory(logicalDevice.handle, memory);
-    
-    return true;
 }
 
 CommandPool* VulkanAPI::createCommandPool(QueueType type, std::uint32_t queueId) {

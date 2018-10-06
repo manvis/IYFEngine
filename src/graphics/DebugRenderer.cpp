@@ -54,15 +54,15 @@ void DebugRenderer::initialize() {
     
     std::vector<Buffer> vbos;
     
-    BufferCreateInfo bci;
-    bci.flags = BufferUsageFlagBits::VertexBuffer | BufferUsageFlagBits::TransferDestination;
-    bci.size = Bytes(vertexLayout.getSize() * totalVertices);
+    BufferCreateInfo bci(BufferUsageFlagBits::VertexBuffer | BufferUsageFlagBits::TransferDestination,
+                         Bytes(vertexLayout.getSize() * totalVertices),
+                         MemoryUsage::GPUOnly,
+                         false,
+                         "Physics debug buffer");
     
     LOG_D("Physics debug buffer size: " << Mebibytes(bci.size) << " MiB")
     
-    api->createBuffers({bci}, MemoryType::DeviceLocal, vbos);
-    
-    vbo = vbos[0];
+    api->createBuffer(bci, vbo);
     
     PipelineLayoutCreateInfo plci{{}, {{ShaderStageFlagBits::Vertex, 0, sizeof(DebugPushBuffer)}}};
     pipelineLayout = api->createPipelineLayout(plci);

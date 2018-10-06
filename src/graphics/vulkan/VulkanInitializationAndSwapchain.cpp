@@ -27,6 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "graphics/vulkan/VulkanAPI.hpp"
+#include "graphics/vulkan/VulkanDeviceMemoryManager.hpp"
 
 #include "../VERSION.hpp"
 
@@ -113,6 +114,16 @@ bool VulkanAPI::initialize() {
     
     vkCreateSemaphore(logicalDevice.handle, &sci, nullptr, &presentationComplete);
     vkCreateSemaphore(logicalDevice.handle, &sci, nullptr, &renderingComplete);
+    
+    // TODO make configurable
+    std::vector<Bytes> stagingBufferSizes = {
+        Mebibytes(16), // MeshAssetData
+        Mebibytes(16), // TextureAssetData
+        Mebibytes(16), // PerFrameData
+        Mebibytes(32),  // Instant
+    };
+    
+    deviceMemoryManager = std::make_unique<VulkanDeviceMemoryManager>(this, stagingBufferSizes);
     
     return true;
 }

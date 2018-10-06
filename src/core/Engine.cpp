@@ -354,6 +354,7 @@ void Engine::executeMainLoop() {
         }
         
         inputState->pollInput(); //TODO really here?
+        graphicsAPI->getDeviceMemoryManager()->beginFrame();
         assetManager->collectGarbage(); // TODO really here? TODO Make it smarter. Iterating through all assets every frame is NOT smart
         assetManager->enableLoadedAssets();
         

@@ -49,7 +49,7 @@ std::unique_ptr<LoadedAssetData> ShaderTypeManager::readFile(hash32_t, const fs:
     return std::make_unique<LoadedAssetData>(meta, assetData, file.readWholeFile());
 }
 
-void ShaderTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) {
+void ShaderTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool) {
     const ShaderMetadata& shaderMeta = std::get<ShaderMetadata>(loadedAssetData->metadata);
     Shader& assetData = static_cast<Shader&>(loadedAssetData->assetData);
     

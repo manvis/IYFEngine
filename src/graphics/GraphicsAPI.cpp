@@ -458,5 +458,26 @@ std::string GraphicsAPI::getFormatName(Format format) const {
     return formatName(format);
 }
 
+bool GraphicsAPI::createBuffers(const std::vector<BufferCreateInfo>& info, std::vector<Buffer>& outBuffers) {
+    outBuffers.clear();
+    outBuffers.resize(info.size());
+    
+    bool result = true;
+    for (std::size_t i = 0; i < info.size(); ++i) {
+        result &= createBuffer(info[i], outBuffers[i]);
+    }
+    
+    return result;
+}
+
+bool GraphicsAPI::destroyBuffers(const std::vector<Buffer>& buffers) {
+    bool result = true;
+    for (const Buffer& b : buffers) {
+        result &= destroyBuffer(b);
+    }
+    
+    return result;
+}
+
 
 }

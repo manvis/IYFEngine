@@ -82,10 +82,28 @@ protected:
         Busy /// < The TypeManager has assets that need to be enabled, but can't do it. E.g., a GPU upload buffer for this frame has been filled.
     };
     
-    /// \brief Enable a single asset that has been loaded asynchronously.
-    virtual void enableAsyncLoadedAsset() = 0;
+    /// Tells the AssetManager that this TypeManager batches async loaded assets and executeBatchOperations() needs to be called on it
+    /// to perform actual data uploads or processing.
+    virtual bool canBatchAsyncLoadedAssets() const {
+        return false;
+    }
     
-    /// \returns True if there are any asynchronously loaded assets to enable and false if not.
+    /// Used by some classes derived from the TypeManager to process all asynchronously loaded data in one go. E.g., to avoid multiple expensive synchronization 
+    /// or data upload operations.
+    ///
+    /// This call happens every frame. If nothing was added into the batch, the TypeManager should be smart enough to avoid any expensive operations.
+    virtual void executeBatchOperations() {}
+    
+    /// If canBatchAsyncLoadedAssets() returns true and executeBatchOperations() may take a while, this function should return the expected run
+    /// duration of the executeBatchOperations() function.
+    virtual std::chrono::nanoseconds estimateBatchOperationDuration() {
+        return std::chrono::nanoseconds(0);
+    }
+    
+    /// \brief Enable a single asset that has been loaded asynchronously.
+    virtual void enableAsyncLoadedAsset(bool canBatch) = 0;
+    
+    /// \brief Checks if the TypeManager can enable any Assets.
     virtual AssetsToEnableResult hasAssetsToEnable() const = 0;
     
     /// Our friend AssetManager calls this function once it finishes building the manifest. The "missing" assets
@@ -199,9 +217,12 @@ protected:
     
     /// A concrete implementation of this function should "enable" a loaded asset by finishing all preparations (e.g., uploading data 
     /// to the GPU) and setting Asset::setLoaded() to true. Always called on the main thread.
-    virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) = 0;
+    ///
+    /// \param canBatch If true, the TypeManager is allowed to use a batcher and delay the actual upload operation until executeBatchOperations()
+    /// is called
+    virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool canBatch) = 0;
     
-    virtual void enableAsyncLoadedAsset() final override {
+    virtual void enableAsyncLoadedAsset(bool canBatch) final override {
         // This should only be called after hasAssetsToEnable
         assert(!toEnable.empty());
         assert(toEnable.front().valid());
@@ -212,7 +233,7 @@ protected:
         Asset& assetData = data->assetData;
         assert(assetData.isLoaded());
         
-        enableAsset(std::move(data));
+        enableAsset(std::move(data), canBatch);
         
         toEnable.pop_front();
     }
@@ -272,13 +293,12 @@ AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const fs::path
         counts.emplace_back(0);
         
         assets[id].setNameHash(nameHash);
-        LOG_D("xx" << &assets[id])
         
         if (isAsync) {
             toEnable.emplace_back(longTermWorkerPool->addTaskWithResult(&TypeManager<T, chunkSize>::readFile, this, nameHash, path, meta, assets[id]));
         } else {
             std::unique_ptr<LoadedAssetData> loadedFile = readFile(nameHash, path, meta, assets[id]);
-            enableAsset(std::move(loadedFile));
+            enableAsset(std::move(loadedFile), false);
             assert(assets[id].isLoaded());
         }
         
@@ -295,7 +315,7 @@ AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const fs::path
             toEnable.emplace_back(longTermWorkerPool->addTaskWithResult(&TypeManager<T, chunkSize>::readFile, this, nameHash, path, meta, assets[id]));
         } else {
             std::unique_ptr<LoadedAssetData> loadedFile = readFile(nameHash, path, meta, assets[id]);
-            enableAsset(std::move(loadedFile));
+            enableAsset(std::move(loadedFile), false);
             assert(assets[id].isLoaded());
         }
         
@@ -688,7 +708,7 @@ inline bool TypeManager<T, chunkSize>::refreshImpl(hash32_t nameHash, const fs::
     // Everything must happen synchronously
     performFree(assets[id]);
     std::unique_ptr<LoadedAssetData> loadedFile = readFile(nameHash, path, meta, assets[id]);
-    enableAsset(std::move(loadedFile));
+    enableAsset(std::move(loadedFile), false);
     assets[id].setNameHash(nameHash);
     
     return true;

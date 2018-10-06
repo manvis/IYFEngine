@@ -47,7 +47,7 @@ protected:
     virtual void initMissingAssetHandle() final override;
     
     virtual std::unique_ptr<LoadedAssetData> readFile(hash32_t nameHash, const fs::path& path, const Metadata& meta, Font& assetData) final override;
-    virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) final override;
+    virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool canBatch) final override;
     virtual void performFree(Font& assetData) final override;
 private:
     GraphicsAPI* api;

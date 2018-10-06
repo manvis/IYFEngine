@@ -57,14 +57,14 @@ MeshTypeManager::MeshTypeManager(AssetManager* manager, Bytes VBOSize, Bytes IBO
     gfx = engine->getGraphicsAPI();
     
     std::vector<BufferCreateInfo> bci = {
-        {VBOUsageFlags, VBOSize},
-        {IBOUsageFlags, IBOSize}
+        {VBOUsageFlags, VBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager VBO"},
+        {IBOUsageFlags, IBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager IBO"}
     };
     
     std::vector<Buffer> output;
     output.reserve(2);
     
-    gfx->createBuffers(bci, MemoryType::DeviceLocal, output);
+    gfx->createBuffers(bci, output);
     
     // The actual size of a buffer may be different (bigger) because of alignment requirements.
     char* vboData = new char[VBOSize.count()];
@@ -164,7 +164,7 @@ MeshTypeManager::RangeDataResult MeshTypeManager::findRange(Bytes size, Bytes al
     return {BufferRange(0_B, size), nullptr, false, 0};
 }
 
-std::unique_ptr<LoadedAssetData> MeshTypeManager::readFile(hash32_t nameHash, const fs::path& path, const Metadata& meta, Mesh& assetData) {
+std::unique_ptr<LoadedAssetData> MeshTypeManager::readFile(hash32_t, const fs::path& path, const Metadata& meta, Mesh& assetData) {
     const MeshLoader loader(engine);
     MeshLoader::MemoryRequirements requirements = loader.getMeshMemoryRequirements(meta);
     
@@ -183,7 +183,7 @@ std::unique_ptr<LoadedAssetData> MeshTypeManager::readFile(hash32_t nameHash, co
     return std::make_unique<LoadedMeshAssetData>(meta, assetData, std::move(requirements), std::move(lmd), std::move(vbo), std::move(ibo));
 }
 
-void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) {
+void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool canBatch) {
     LoadedMeshAssetData* loadedData = static_cast<LoadedMeshAssetData*>(loadedAssetData.get());
     
     Mesh& assetData = static_cast<Mesh&>(loadedAssetData->assetData);
@@ -204,14 +204,14 @@ void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetDa
         Bytes newIBOSize = std::max(IBOSize, requirements.indexSize);
         
         std::vector<BufferCreateInfo> bci = {
-            {VBOUsageFlags, newVBOSize},
-            {IBOUsageFlags, newIBOSize}
+            {VBOUsageFlags, newVBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager VBO"},
+            {IBOUsageFlags, newIBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager IBO"}
         };
         
         std::vector<Buffer> output;
         output.reserve(2);
         
-        gfx->createBuffers(bci, MemoryType::DeviceLocal, output);
+        gfx->createBuffers(bci, output);
         
         // The actual size of a buffer may be different (bigger) because of alignment requirements.
         char* vboData = new char[newVBOSize.count()];
@@ -237,13 +237,13 @@ void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetDa
         Bytes newIBOSize = std::max(IBOSize, requirements.indexSize);
         
         std::vector<BufferCreateInfo> bci = {
-            {IBOUsageFlags, newIBOSize}
+            {IBOUsageFlags, newIBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager IBO"}
         };
         
         std::vector<Buffer> output;
         output.reserve(1);
         
-        gfx->createBuffers(bci, MemoryType::DeviceLocal, output);
+        gfx->createBuffers(bci, output);
         
         char* iboData = new char[newIBOSize.count()];
         indexDataBuffers.emplace_back(output[0], output[0].size(), iboData);
@@ -260,13 +260,13 @@ void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetDa
         Bytes newVBOSize = std::max(VBOSize, requirements.vertexSize);
         
         std::vector<BufferCreateInfo> bci = {
-            {VBOUsageFlags, newVBOSize}
+            {VBOUsageFlags, newVBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager VBO"}
         };
         
         std::vector<Buffer> output;
         output.reserve(1);
         
-        gfx->createBuffers(bci, MemoryType::DeviceLocal, output);
+        gfx->createBuffers(bci, output);
         
         char* vboData = new char[newVBOSize.count()];
         vertexDataBuffers.emplace_back(output[0], output[0].size(), vboData);
@@ -314,10 +314,43 @@ void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetDa
         assetData.meshData = data;
     }
     
-    gfx->updateDeviceVisibleBuffer(vertexDataBuffers[vboRangeResult.bufferID].buffer, {{0, vboRangeResult.range.offset, vboRangeResult.range.size}}, vboRangeResult.data);
-    gfx->updateDeviceVisibleBuffer(indexDataBuffers[iboRangeResult.bufferID].buffer, {{0, iboRangeResult.range.offset, iboRangeResult.range.size}}, iboRangeResult.data);
+    DeviceMemoryManager* manager = gfx->getDeviceMemoryManager();
+    if (canBatch) {
+        manager->updateBuffer(MemoryBatch::MeshAssetData, vertexDataBuffers[vboRangeResult.bufferID].buffer, {{0, vboRangeResult.range.offset, vboRangeResult.range.size}}, vboRangeResult.data);
+        manager->updateBuffer(MemoryBatch::MeshAssetData, indexDataBuffers[iboRangeResult.bufferID].buffer, {{0, iboRangeResult.range.offset, iboRangeResult.range.size}}, iboRangeResult.data);
+    } else {
+        manager->updateBuffer(MemoryBatch::Instant, vertexDataBuffers[vboRangeResult.bufferID].buffer, {{0, vboRangeResult.range.offset, vboRangeResult.range.size}}, vboRangeResult.data);
+        manager->updateBuffer(MemoryBatch::Instant, indexDataBuffers[iboRangeResult.bufferID].buffer, {{0, iboRangeResult.range.offset, iboRangeResult.range.size}}, iboRangeResult.data);
+        
+//         gfx->updateDeviceVisibleBuffer(vertexDataBuffers[vboRangeResult.bufferID].buffer, {{0, vboRangeResult.range.offset, vboRangeResult.range.size}}, vboRangeResult.data);
+//         gfx->updateDeviceVisibleBuffer(indexDataBuffers[iboRangeResult.bufferID].buffer, {{0, iboRangeResult.range.offset, iboRangeResult.range.size}}, iboRangeResult.data);
+    }
     
     assetData.setLoaded(true);
+}
+
+void MeshTypeManager::executeBatchOperations() {
+    gfx->getDeviceMemoryManager()->beginBatchUpload(MemoryBatch::MeshAssetData);
+}
+
+TypeManagerBase::AssetsToEnableResult MeshTypeManager::hasAssetsToEnable() const {
+    if (toEnable.empty()) {
+        return AssetsToEnableResult::NoAssetsToEnable;
+    }
+    
+    assert(toEnable.front().valid());
+    if (toEnable.front().wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        DeviceMemoryManager* manager = gfx->getDeviceMemoryManager();
+        
+        //
+//         if (manager->canBatchFitData()) {
+//             return AssetsToEnableResult::Busy;
+//         } else {
+            return AssetsToEnableResult::HasAssetsToEnable;
+//         }
+    } else {
+        return AssetsToEnableResult::NoAssetsToEnable;
+    }
 }
 
 }

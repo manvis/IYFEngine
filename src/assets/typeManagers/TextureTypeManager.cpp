@@ -49,17 +49,25 @@ std::unique_ptr<LoadedAssetData> TextureTypeManager::readFile(hash32_t nameHash,
     return std::make_unique<LoadedAssetData>(meta, assetData, file.readWholeFile());
 }
 
-void TextureTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) {
+void TextureTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool canBatch) {
     const TextureMetadata& textureMeta = std::get<TextureMetadata>(loadedAssetData->metadata);
     Texture& assetData = static_cast<Texture&>(loadedAssetData->assetData);
     
-    assetData.image = gfx->createCompressedImage(loadedAssetData->rawData.first.get(), loadedAssetData->rawData.second);
+    if (canBatch) {
+        throw std::runtime_error("Batching not yet implemented");
+    } else {
+        assetData.image = gfx->createCompressedImage(loadedAssetData->rawData.first.get(), loadedAssetData->rawData.second);
+    }
     
     assert(assetData.image.height == textureMeta.getHeight());
     assert(assetData.image.width == textureMeta.getWidth());
     assert(assetData.image.layers == textureMeta.getLayers());
     assert(assetData.image.levels == textureMeta.getLevels());
     assetData.setLoaded(true);
+}
+
+void TextureTypeManager::executeBatchOperations() {
+    gfx->getDeviceMemoryManager()->beginBatchUpload(MemoryBatch::TextureAssetData);
 }
 
 void TextureTypeManager::initMissingAssetHandle() {

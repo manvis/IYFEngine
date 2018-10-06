@@ -511,9 +511,11 @@ enum class LogicOp {
     COUNT
 };
 
-enum class MemoryType {
-    DeviceLocal,
-    HostVisible
+enum class MemoryUsage : std::uint16_t {
+    GPUOnly,
+    CPUOnly,
+    CPUToGPU,
+    GPUToCPU
 };
 
 enum class MultithreadingSupport {

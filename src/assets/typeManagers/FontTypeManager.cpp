@@ -43,7 +43,7 @@ std::unique_ptr<LoadedAssetData> FontTypeManager::readFile(hash32_t, const fs::p
     return std::make_unique<LoadedAssetData>(metadata, assetData, file.readWholeFile());
 }
 
-void FontTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData) {
+void FontTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool) {
     Font& assetData = static_cast<Font&>(loadedAssetData->assetData);
 
     assetData.data = loadedAssetData->rawData.first.release();
