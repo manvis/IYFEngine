@@ -29,12 +29,57 @@
 #ifndef IYF_TEXTURE_LOADER_HPP
 #define IYF_TEXTURE_LOADER_HPP
 
-#include "core/filesystem/cppFilesystem.hpp"
 #include "core/Constants.hpp"
-
 #include "glm/vec3.hpp"
 
 namespace iyf {
+/// \brief Must always be filled by TextureLoader::Load();
+struct TextureData {
+    TextureData() : loaded(false) {}
+    
+    std::uint32_t version;
+    std::uint32_t faceCount;
+    std::uint32_t channelCount;
+    std::uint32_t mipmapLevelCount;
+    
+    std::uint32_t width;
+    std::uint32_t height;
+    std::uint32_t depth;
+    std::uint32_t layers;
+    
+    TextureCompressionFormat format;
+    bool sRGB;
+private:
+    bool loaded;
+public:
+    const char* data;
+    std::size_t size;
+    
+    /// Computes the size (in bytes) of the specified mipmap level.
+    std::size_t getLevelSize(std::size_t level) const;
+    std::size_t getLevelOffset(std::size_t level) const;
+    std::size_t getMipmapChainSize() const;
+    
+    const glm::uvec3& getLevelExtents(std::size_t level) const;
+    
+    const void* getData(std::size_t layer, std::size_t face, std::size_t level) const;
+    
+    inline bool isLoaded() const {
+        return loaded;
+    }
+    
+private:
+    friend class TextureLoader;
+
+    struct SizeAndOffset {
+        std::size_t size;
+        std::size_t offset;
+    };
+    
+    std::array<SizeAndOffset, 16> sizesAndOffsets;
+    std::array<glm::uvec3, 16> extents;
+};
+
 class TextureLoader {
 public:
     enum class Result {
@@ -43,44 +88,7 @@ public:
         LoadSuccessful
     };
     
-    struct Data {
-        std::uint32_t version;
-        std::uint32_t faceCount;
-        std::uint32_t channelCount;
-        std::uint32_t mipmapLevelCount;
-        
-        std::uint32_t width;
-        std::uint32_t height;
-        std::uint32_t depth;
-        std::uint32_t layers;
-        
-        TextureCompressionFormat format;
-        bool sRGB;
-        
-        const char* data;
-        std::size_t size;
-        
-        /// Computes the size (in bytes) of the specified mipmap level.
-        std::size_t getLevelSize(std::size_t level) const;
-        std::size_t getLevelOffset(std::size_t level) const;
-        std::size_t getMipmapChainSize() const;
-        
-        const glm::uvec3& getLevelExtents(std::size_t level) const;
-        
-        const void* getData(std::size_t layer, std::size_t face, std::size_t level) const;
-    private:
-        friend class TextureLoader;
-        
-        struct SizeAndOffset {
-            std::size_t size;
-            std::size_t offset;
-        };
-        
-        std::array<SizeAndOffset, 16> sizesAndOffsets;
-        std::array<glm::uvec3, 16> extents;
-    };
-    
-    Result load(const void* inputData, std::size_t byteCount, Data& data) const;
+    Result load(const void* inputData, std::size_t byteCount, TextureData& data) const;
 };
 }
 

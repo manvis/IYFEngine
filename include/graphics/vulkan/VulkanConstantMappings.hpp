@@ -39,18 +39,18 @@ namespace iyf {
 namespace vk {
 // WARNING: try to keep the ConstantMapper objects alphabetical
     
-ConstantMapper<AttachmentLoadOp, VkAttachmentLoadOp, static_cast<size_t>(AttachmentLoadOp::COUNT)> attachmentLoadOp = {
+inline ConstantMapper<AttachmentLoadOp, VkAttachmentLoadOp, static_cast<size_t>(AttachmentLoadOp::COUNT)> attachmentLoadOp = {
     VK_ATTACHMENT_LOAD_OP_LOAD,
     VK_ATTACHMENT_LOAD_OP_CLEAR,
     VK_ATTACHMENT_LOAD_OP_DONT_CARE
 };
 
-ConstantMapper<AttachmentStoreOp, VkAttachmentStoreOp, static_cast<size_t>(AttachmentStoreOp::COUNT)> attachmentStoreOp = {
+inline ConstantMapper<AttachmentStoreOp, VkAttachmentStoreOp, static_cast<size_t>(AttachmentStoreOp::COUNT)> attachmentStoreOp = {
     VK_ATTACHMENT_STORE_OP_STORE,
     VK_ATTACHMENT_STORE_OP_DONT_CARE
 };
             
-ConstantMapper<BlendFactor, VkBlendFactor, static_cast<size_t>(BlendFactor::COUNT)> blendFactor = {
+inline ConstantMapper<BlendFactor, VkBlendFactor, static_cast<size_t>(BlendFactor::COUNT)> blendFactor = {
     VK_BLEND_FACTOR_ZERO,                     //BlendFactor::Zero
     VK_BLEND_FACTOR_ONE,                      //BlendFactor::One
     VK_BLEND_FACTOR_SRC_COLOR,                //BlendFactor::SrcColor
@@ -72,7 +72,7 @@ ConstantMapper<BlendFactor, VkBlendFactor, static_cast<size_t>(BlendFactor::COUN
     VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,      //BlendFactor::OneMinusSrc1Alpha
 };
 
-ConstantMapper<BlendOp, VkBlendOp, static_cast<size_t>(BlendOp::COUNT)> blendOp = {
+inline ConstantMapper<BlendOp, VkBlendOp, static_cast<size_t>(BlendOp::COUNT)> blendOp = {
     VK_BLEND_OP_ADD,              //BlendOp::Add
     VK_BLEND_OP_SUBTRACT,         //BlendOp::Subtract
     VK_BLEND_OP_REVERSE_SUBTRACT, //BlendOp::ReverseSubtract
@@ -80,7 +80,7 @@ ConstantMapper<BlendOp, VkBlendOp, static_cast<size_t>(BlendOp::COUNT)> blendOp 
     VK_BLEND_OP_MAX,              //BlendOp::Max
 };
 
-ConstantMapper<BorderColor, VkBorderColor, static_cast<size_t>(BorderColor::COUNT)> borderColor = {
+inline ConstantMapper<BorderColor, VkBorderColor, static_cast<size_t>(BorderColor::COUNT)> borderColor = {
     VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK, //BorderColor::FloatTransparentBlack
     VK_BORDER_COLOR_INT_TRANSPARENT_BLACK,   //BorderColor::IntTransparentBlack
     VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,      //BorderColor::FloatOpaqueBlack
@@ -89,9 +89,10 @@ ConstantMapper<BorderColor, VkBorderColor, static_cast<size_t>(BorderColor::COUN
     VK_BORDER_COLOR_INT_OPAQUE_WHITE,        //BorderColor::IntOpaqueWhite
 };
 
-IdentityFlagMapper<BufferUsageFlags, VkBufferUsageFlags> bufferUsage;
+inline IdentityFlagMapper<BufferUsageFlags, VkBufferUsageFlags> bufferUsage;
+inline IdentityFlagMapper<ImageUsageFlags, VkImageUsageFlags> imageUsage;
 
-ConstantMapper<CompareOp, VkCompareOp, static_cast<size_t>(CompareOp::COUNT)> compareOp = {
+inline ConstantMapper<CompareOp, VkCompareOp, static_cast<size_t>(CompareOp::COUNT)> compareOp = {
     VK_COMPARE_OP_NEVER,            //CompareOp::Never
     VK_COMPARE_OP_LESS,             //CompareOp::Less
     VK_COMPARE_OP_LESS_OR_EQUAL,    //CompareOp::LessEqual
@@ -102,7 +103,7 @@ ConstantMapper<CompareOp, VkCompareOp, static_cast<size_t>(CompareOp::COUNT)> co
     VK_COMPARE_OP_NOT_EQUAL,        //CompareOp::NotEqual
 };
 
-ConstantMapper<ComponentSwizzle, VkComponentSwizzle, static_cast<size_t>(ComponentSwizzle::COUNT)> componentSwizzle = {
+inline ConstantMapper<ComponentSwizzle, VkComponentSwizzle, static_cast<size_t>(ComponentSwizzle::COUNT)> componentSwizzle = {
     VK_COMPONENT_SWIZZLE_IDENTITY, //ComponentSwizzle::Identity
     VK_COMPONENT_SWIZZLE_ZERO,     //ComponentSwizzle::Zero
     VK_COMPONENT_SWIZZLE_ONE,      //ComponentSwizzle::One
@@ -112,13 +113,13 @@ ConstantMapper<ComponentSwizzle, VkComponentSwizzle, static_cast<size_t>(Compone
     VK_COMPONENT_SWIZZLE_A,        //ComponentSwizzle::A
 };
 
-FlagMapper<CullModeFlags, VkCullModeFlags, static_cast<size_t>(CullModeFlagBits::COUNT)> cullMode = {
+inline FlagMapper<CullModeFlags, VkCullModeFlags, static_cast<size_t>(CullModeFlagBits::COUNT)> cullMode = {
     VK_CULL_MODE_NONE,      //CullModeFlagBits::None
     VK_CULL_MODE_FRONT_BIT, //CullModeFlagBits::Front
     VK_CULL_MODE_BACK_BIT   //CullModeFlagBits::Back
 };
 
-ConstantMapper<DynamicState, VkDynamicState, static_cast<size_t>(DynamicState::COUNT)> dynamicState = {
+inline ConstantMapper<DynamicState, VkDynamicState, static_cast<size_t>(DynamicState::COUNT)> dynamicState = {
     VK_DYNAMIC_STATE_VIEWPORT,             //DynamicState::Viewport
     VK_DYNAMIC_STATE_SCISSOR,              //DynamicState::Scissor
     VK_DYNAMIC_STATE_LINE_WIDTH,           //DynamicState::LineWidth
@@ -130,7 +131,7 @@ ConstantMapper<DynamicState, VkDynamicState, static_cast<size_t>(DynamicState::C
     VK_DYNAMIC_STATE_STENCIL_REFERENCE,    //DynamicState::StencilReference
 };
 
-ConstantMapper<Format, VkFormat, static_cast<size_t>(Format::COUNT)> format = {
+inline ConstantMapper<Format, VkFormat, static_cast<size_t>(Format::COUNT)> format = {
     VK_FORMAT_UNDEFINED,                   //Format::Undefined
     VK_FORMAT_R4G4_UNORM_PACK8,            //Format::R4_G4_uNorm_pack8
     VK_FORMAT_R4G4B4A4_UNORM_PACK16,       //Format::R4_G4_B4_A4_uNorm_pack16
@@ -326,12 +327,12 @@ ConstantMapper<Format, VkFormat, static_cast<size_t>(Format::COUNT)> format = {
     VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG,  //Format::PVRTC2_4BPP_sRGB_block
 };
 
-ConstantMapper<FrontFace, VkFrontFace, static_cast<size_t>(FrontFace::COUNT)> frontFace = {
+inline ConstantMapper<FrontFace, VkFrontFace, static_cast<size_t>(FrontFace::COUNT)> frontFace = {
     VK_FRONT_FACE_CLOCKWISE,         //FrontFace::Clockwise
     VK_FRONT_FACE_COUNTER_CLOCKWISE, //FrontFace::CounterClockwise
 };
 
-ConstantMapper<ImageLayout, VkImageLayout, static_cast<size_t>(ImageLayout::COUNT)> imageLayout = {
+inline ConstantMapper<ImageLayout, VkImageLayout, static_cast<size_t>(ImageLayout::COUNT)> imageLayout = {
     VK_IMAGE_LAYOUT_UNDEFINED,                        //ImageLayout::Undefined
     VK_IMAGE_LAYOUT_GENERAL,                          //ImageLayout::General
     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,         //ImageLayout::ColorAttachmentOptimal
@@ -344,7 +345,7 @@ ConstantMapper<ImageLayout, VkImageLayout, static_cast<size_t>(ImageLayout::COUN
     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,                  //ImageLayout::PresentSource
 };
 
-ConstantMapper<LogicOp, VkLogicOp, static_cast<size_t>(LogicOp::COUNT)> logicOp = {
+inline ConstantMapper<LogicOp, VkLogicOp, static_cast<size_t>(LogicOp::COUNT)> logicOp = {
     VK_LOGIC_OP_CLEAR,         //LogicOp::Clear
     VK_LOGIC_OP_AND,           //LogicOp::And
     VK_LOGIC_OP_AND_REVERSE,   //LogicOp::AndReverse
@@ -363,13 +364,13 @@ ConstantMapper<LogicOp, VkLogicOp, static_cast<size_t>(LogicOp::COUNT)> logicOp 
     VK_LOGIC_OP_SET,           //LogicOp::Set
 };
 
-ConstantMapper<PolygonMode, VkPolygonMode, static_cast<size_t>(PolygonMode::COUNT)> polygonMode = {
+inline ConstantMapper<PolygonMode, VkPolygonMode, static_cast<size_t>(PolygonMode::COUNT)> polygonMode = {
     VK_POLYGON_MODE_FILL,  //PolygonMode::Fill
     VK_POLYGON_MODE_LINE,  //PolygonMode::Line
     VK_POLYGON_MODE_POINT, //PolygonMode::Point
 };
 
-ConstantMapper<PrimitiveTopology, VkPrimitiveTopology, static_cast<size_t>(PrimitiveTopology::COUNT)> primitiveTopology = {
+inline ConstantMapper<PrimitiveTopology, VkPrimitiveTopology, static_cast<size_t>(PrimitiveTopology::COUNT)> primitiveTopology = {
     VK_PRIMITIVE_TOPOLOGY_POINT_LIST,                    //PrimitiveTopology::PointList
     VK_PRIMITIVE_TOPOLOGY_LINE_LIST,                     //PrimitiveTopology::LineList
     VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,                    //PrimitiveTopology::LineStrip
@@ -383,7 +384,7 @@ ConstantMapper<PrimitiveTopology, VkPrimitiveTopology, static_cast<size_t>(Primi
     VK_PRIMITIVE_TOPOLOGY_PATCH_LIST,                    //PrimitiveTopology::PatchList
 };
 
-FlagMapper<SampleCountFlags, VkSampleCountFlags, static_cast<size_t>(SampleCountFlagBits::COUNT)> sampleCount = {
+inline FlagMapper<SampleCountFlags, VkSampleCountFlags, static_cast<size_t>(SampleCountFlagBits::COUNT)> sampleCount = {
     0,                      //NONE
     VK_SAMPLE_COUNT_1_BIT,  //SampleCountFlagBits::X1
     VK_SAMPLE_COUNT_2_BIT,  //SampleCountFlagBits::X2
@@ -394,9 +395,9 @@ FlagMapper<SampleCountFlags, VkSampleCountFlags, static_cast<size_t>(SampleCount
     VK_SAMPLE_COUNT_64_BIT, //SampleCountFlagBits::X64
 };
 
-IdentityFlagMapper<ShaderStageFlags, VkShaderStageFlags> shaderStage;
+inline IdentityFlagMapper<ShaderStageFlags, VkShaderStageFlags> shaderStage;
 
-ConstantMapper<StencilOp, VkStencilOp, static_cast<size_t>(StencilOp::COUNT)> stencilOp = {
+inline ConstantMapper<StencilOp, VkStencilOp, static_cast<size_t>(StencilOp::COUNT)> stencilOp = {
     VK_STENCIL_OP_KEEP,                //StencilOp::Keep
     VK_STENCIL_OP_ZERO,                //StencilOp::Zero
     VK_STENCIL_OP_REPLACE,             //StencilOp::Replace
@@ -407,7 +408,7 @@ ConstantMapper<StencilOp, VkStencilOp, static_cast<size_t>(StencilOp::COUNT)> st
     VK_STENCIL_OP_DECREMENT_AND_WRAP,  //StencilOp::DecrementAndWrap
 };
 
-ConstantMapper<ImageViewType, VkImageViewType, static_cast<size_t>(ImageViewType::COUNT)> imageViewType = {
+inline ConstantMapper<ImageViewType, VkImageViewType, static_cast<size_t>(ImageViewType::COUNT)> imageViewType = {
     VK_IMAGE_VIEW_TYPE_1D,         //ImageViewType::Im1D
     VK_IMAGE_VIEW_TYPE_2D,         //ImageViewType::Im2D
     VK_IMAGE_VIEW_TYPE_3D,         //ImageViewType::Im3D

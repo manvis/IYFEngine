@@ -53,11 +53,12 @@ public:
                            TextureTilingMethod tileY,
                            std::uint8_t anisotropy,
                            TextureCompressionFormat compressionFormat,
-                           bool issRGBVal) 
+                           bool issRGBVal,
+                           std::uint64_t size) 
         : MetadataBase(AssetType::Texture, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true), 
           compressionFormat(compressionFormat), issRGBVal(issRGBVal), faces(faces), channels(channels),
           levels(levels), filter(filter), tileX(tileX), tileY(tileY), width(width), height(height),
-          depth(depth), layers(layers), anisotropy(anisotropy) {}
+          depth(depth), layers(layers), size(size), anisotropy(anisotropy) {}
     
     inline TextureCompressionFormat getCompressionFormat() const {
         return compressionFormat;
@@ -146,6 +147,11 @@ public:
         return anisotropy;
     }
     
+    /// Get size in bytes
+    inline std::uint64_t getSize() const{
+        return size;
+    }
+    
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
     
     virtual void displayInImGui() const final override;
@@ -169,6 +175,8 @@ private:
     std::uint32_t height;
     std::uint32_t depth;
     std::uint32_t layers;
+    
+    std::uint64_t size;
     
     std::uint8_t anisotropy;
 };

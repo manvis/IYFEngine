@@ -119,6 +119,8 @@ protected:
         return true;
     }
     
+    virtual std::uint64_t estimateUploadSize(const Metadata& meta) const final override;
+    
     struct RangeDataResult {
         BufferRange range;
         void* data;

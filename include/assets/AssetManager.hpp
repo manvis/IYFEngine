@@ -130,6 +130,17 @@ struct LoadedAssetData {
     virtual ~LoadedAssetData() {}
 };
 
+struct AsyncLoadInfo {
+    AsyncLoadInfo(std::future<std::unique_ptr<LoadedAssetData>> future, std::uint64_t estimatedSize) 
+        : future(std::move(future)), estimatedSize(estimatedSize) {}
+    /// The actual future of the asynchronously performed load operation
+    std::future<std::unique_ptr<LoadedAssetData>> future;
+    
+    /// Used to determine if the TypeManager should try to upload more data or not (e.g., Mesh and Texture type managers
+    /// use this value to check if the data will fit into the staging buffer this frame).
+    std::uint64_t estimatedSize;
+};
+
 /// TypeManager handles the actual loading and unloading of //
 /// \todo is the default chunk size ok?
 template <typename T, size_t chunkSize = 8192>
@@ -222,13 +233,18 @@ protected:
     /// is called
     virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool canBatch) = 0;
     
+    /// Used by TypeManagers that perform batching. Must return a value that's equal to the final data upload size.
+    virtual std::uint64_t estimateUploadSize(const Metadata&) const {
+        return 0;
+    }
+    
     virtual void enableAsyncLoadedAsset(bool canBatch) final override {
         // This should only be called after hasAssetsToEnable
         assert(!toEnable.empty());
-        assert(toEnable.front().valid());
-        assert(toEnable.front().wait_for(std::chrono::seconds(0)) == std::future_status::ready);
+        assert(toEnable.front().future.valid());
+        assert(toEnable.front().future.wait_for(std::chrono::seconds(0)) == std::future_status::ready);
         
-        std::unique_ptr<LoadedAssetData> data = toEnable.front().get();
+        std::unique_ptr<LoadedAssetData> data = toEnable.front().future.get();
         
         Asset& assetData = data->assetData;
         assert(assetData.isLoaded());
@@ -250,8 +266,8 @@ protected:
         // when loading a World) doesn't seem to be a particularly good idea as well. If this proves to be a problem, I'll 
         // need to look for a smarter solution, e.g., use a syncronized queue that receives a LoadedAssetData object whenever
         // readFile() finishes. However, the current solution seems to be good enough for now.
-        assert(toEnable.front().valid());
-        if (toEnable.front().wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        assert(toEnable.front().future.valid());
+        if (toEnable.front().future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
             return AssetsToEnableResult::HasAssetsToEnable;
         } else {
             return AssetsToEnableResult::NoAssetsToEnable;
@@ -275,7 +291,7 @@ protected:
     ChunkedVector<std::atomic<std::uint32_t>, chunkSize> counts;
     ChunkedVector<T, chunkSize> assets;
     
-    std::deque<std::future<std::unique_ptr<LoadedAssetData>>> toEnable;
+    std::deque<AsyncLoadInfo> toEnable;
     
     /// A value that can safely be used for missing assets.
     AssetHandle<T> missingAssetHandle;
@@ -295,7 +311,7 @@ AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const fs::path
         assets[id].setNameHash(nameHash);
         
         if (isAsync) {
-            toEnable.emplace_back(longTermWorkerPool->addTaskWithResult(&TypeManager<T, chunkSize>::readFile, this, nameHash, path, meta, assets[id]));
+            toEnable.emplace_back(longTermWorkerPool->addTaskWithResult(&TypeManager<T, chunkSize>::readFile, this, nameHash, path, meta, assets[id]), estimateUploadSize(meta));
         } else {
             std::unique_ptr<LoadedAssetData> loadedFile = readFile(nameHash, path, meta, assets[id]);
             enableAsset(std::move(loadedFile), false);
@@ -312,7 +328,7 @@ AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const fs::path
         assets[id].setNameHash(nameHash);
         
         if (isAsync) {
-            toEnable.emplace_back(longTermWorkerPool->addTaskWithResult(&TypeManager<T, chunkSize>::readFile, this, nameHash, path, meta, assets[id]));
+            toEnable.emplace_back(longTermWorkerPool->addTaskWithResult(&TypeManager<T, chunkSize>::readFile, this, nameHash, path, meta, assets[id]), estimateUploadSize(meta));
         } else {
             std::unique_ptr<LoadedAssetData> loadedFile = readFile(nameHash, path, meta, assets[id]);
             enableAsset(std::move(loadedFile), false);

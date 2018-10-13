@@ -1195,6 +1195,7 @@ void VulkanAPI::createSwapchain() {
     sci.imageExtent           = swapchainExtent;
     sci.imageArrayLayers      = 1;
     sci.imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;// | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    const ImageUsageFlags usage = ImageUsageFlagBits::ColorAtachment;// | TransferDestination;
     
     std::array<std::uint32_t, 2> queueFamilyIndices = {
         physicalDevice.chosenMainQueueFamilyId,
@@ -1230,7 +1231,7 @@ void VulkanAPI::createSwapchain() {
     checkResult(vkGetSwapchainImages(logicalDevice.handle, swapchain.handle, &swapchainImageCount, swapchain.images.data()), "Failed to enumerate swapchain images.");
     
     for (VkImage image : swapchain.images) {
-        swapchain.engineImages.emplace_back(ImageHnd(image), determinedSize.x, determinedSize.y, 1, 1, ImageViewType::Im2D, getSurfaceFormat());
+        swapchain.engineImages.emplace_back(ImageHnd(image), glm::uvec3(determinedSize.x, determinedSize.y, 0), 1, 1, usage, getSurfaceFormat(), ImageViewType::Im2D, nullptr);
     }
     
     swapchain.version += 1;

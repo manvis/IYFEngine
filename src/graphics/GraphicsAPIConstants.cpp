@@ -27,6 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "graphics/GraphicsAPIConstants.hpp"
+#include "core/Constants.hpp"
 
 #include <string>
 #include <unordered_map>
@@ -50,6 +51,49 @@ ShaderStageFlags ExtensionToShaderStage(const std::string& extension) {
     } else {
         return ShaderStageFlags();
     }
+}
+
+Format CompressionFormatToEngineFormat(const TextureCompressionFormat& tcf, bool sRGB) {
+    Format engineFormat = Format::Undefined;
+    switch (tcf) {
+        case TextureCompressionFormat::NotCompressed:
+            throw std::runtime_error("This function only supports compressed formats.");
+        case TextureCompressionFormat::BC1:
+            engineFormat = sRGB ? Format::BC1_RGB_sRGB_block : Format::BC1_RGB_uNorm_block;
+            break;
+        case TextureCompressionFormat::BC2:
+            engineFormat = sRGB ? Format::BC2_sRGB_block : Format::BC2_uNorm_block;
+            break;
+        case TextureCompressionFormat::BC3:
+            engineFormat = sRGB ? Format::BC3_sRGB_block : Format::BC3_uNorm_block;
+            break;
+        case TextureCompressionFormat::BC4:
+            engineFormat = Format::BC4_uNorm_block;
+            break;
+        case TextureCompressionFormat::BC5:
+            engineFormat = Format::BC5_uNorm_block;
+            break;
+        case TextureCompressionFormat::BC6:
+            engineFormat = Format::BC6H_uFloat_block;
+            break;
+        case TextureCompressionFormat::BC7:
+            engineFormat = sRGB ? Format::BC7_sRGB_block : Format::BC7_uNorm_block;
+            break;
+        case TextureCompressionFormat::ETC1:
+            throw std::runtime_error("Not implemented yet");
+            break;
+        case TextureCompressionFormat::ETC2:
+            throw std::runtime_error("Not implemented yet");
+            break;
+        case TextureCompressionFormat::COUNT:
+            throw std::runtime_error("COUNT is not a format.");
+    }
+    
+    if (engineFormat == Format::Undefined) {
+        throw std::runtime_error("An invalid TextureCompressionFormat was provided.");
+    }
+    
+    return engineFormat;
 }
 }
 }

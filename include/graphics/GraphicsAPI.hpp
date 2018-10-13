@@ -50,6 +50,8 @@
 struct SDL_Window;
 
 namespace iyf {
+class TextureData;
+
 /// \todo What about queue families?
 class BufferCreateInfo {
 public:
@@ -157,6 +159,64 @@ private:
     std::uint64_t dataSize;
 };
 
+class Image {
+public:
+    Image() : handle(nullptr), extent(0, 0, 0), mipLevels(0), arrayLayers(0), info(nullptr), format(Format::Undefined), type(ImageViewType::Im1D) {}
+    Image(ImageHnd handle, glm::uvec3 extent, std::uint32_t mipLevels, std::uint32_t arrayLayers, ImageUsageFlags usage, Format format, ImageViewType type, void* info) 
+        : handle(handle), extent(std::move(extent)), mipLevels(mipLevels), arrayLayers(arrayLayers), usage(usage), info(info), format(format), type(type) {}
+    
+    bool isValid() const {
+        return (handle.isValid()) && (format != Format::Undefined);
+    }
+    
+    inline const glm::uvec3& getExtent() const {
+        return extent;
+    }
+    
+    inline std::uint32_t getMipLevels() const {
+        return mipLevels;
+    }
+    
+    inline std::uint32_t getArrayLayers() const {
+        return arrayLayers;
+    }
+    
+    inline ImageUsageFlags getUsage() const {
+        return usage;
+    }
+    
+    inline Format getFormat() const {
+        return format;
+    }
+    
+    inline ImageViewType getType() const {
+        return type;
+    }
+    
+    inline ImageHnd getHandle() const {
+        return handle;
+    }
+    
+    /// Returns a pointer to GraphicsAPI specific allocation info. Used internally.
+    inline const void* allocationInfo() const {
+        return info;
+    }
+private:
+    ImageHnd handle;
+    glm::uvec3 extent;
+    std::uint32_t mipLevels;
+    std::uint32_t arrayLayers;
+    
+    ImageUsageFlags usage;
+    
+    void* info;
+    
+    /// The data format of the Image you want to create.
+    Format format;
+    
+    ImageViewType type;
+};
+
 enum class MemoryBatch {
     MeshAssetData = 0, ///< Used to upload asynchronously loaded mesh asset data.
     TextureAssetData = 1, ///< Used to upload asynchronously loaded texture asset data.
@@ -185,12 +245,24 @@ public:
     /// Checks if updateBuffer() will need to use a staging buffer in order to upload data to the device.
     virtual bool isStagingBufferNeeded(const Buffer& destinationBuffer) = 0;
     
+    virtual Bytes computeUploadSize(const std::vector<BufferCopy>& copies) const {
+        Bytes totalSize(0);
+        
+        for (const BufferCopy& bc : copies) {
+            totalSize += Bytes(bc.size);
+        }
+        
+        return totalSize;
+    }
+    
     /// Checks if the staging buffer assigned to the batch can fit the data you want to upload.
     ///
     /// \todo In some cases, e.g., inside the MeshTypeManager, I can't know the destination buffer in advance. Because of that reason, I can't call
     /// isStagingBufferNeeded() to figure out if one is needed or not. This may cause this function to return false negatives. I need to measure
     /// the inpact and fix it if it's big enough.
-    virtual bool canBatchFitData(MemoryBatch batch, const std::vector<BufferCopy>& copies) = 0;
+    ///
+    /// \remark You should use computeUploadSize() to compute the totalSize parameter
+    virtual bool canBatchFitData(MemoryBatch batch, Bytes totalSize) = 0;
     
     /// Updates the data in the specified buffer. Transparently handles staging and batches data uploads.
     ///
@@ -206,24 +278,13 @@ public:
         return stagingBufferSizes;
     }
     
+    /// Send new Image data to device memory from the provided TextureData object that should have been filled with data by the TextureLoader.
+    ///
+    /// Transparently handles staging and batches data uploads.
+    virtual bool updateImage(MemoryBatch batch, const Image& image, const TextureData& data) = 0;
+    
 protected:
     std::vector<Bytes> stagingBufferSizes;
-};
-
-class Image {
-public:
-    Image() : handle(nullptr), format(Format::Undefined) {}
-    Image(ImageHnd handle, std::uint64_t width, std::uint64_t height, std::uint64_t levels, std::uint64_t layers, ImageViewType type, Format format) 
-        : handle(handle), width(width), height(height), levels(levels), layers(layers), type(type), format(format) {}
-    
-    bool isValid() const {
-        return (handle.isValid()) && (format != Format::Undefined);
-    }
-    
-    ImageHnd handle;
-    std::uint64_t width, height, levels, layers;
-    ImageViewType type;
-    Format format;
 };
 
 class Viewport {
@@ -732,6 +793,28 @@ public:
     std::vector<SubpassDependency> dependencies;
 };
 
+class ImageCreateInfo {
+public:
+    ImageCreateInfo() : extent(0, 0, 0), mipLevels(0), arrayLayers(0), format(Format::Undefined), isCube(false) {}
+    ImageCreateInfo(glm::uvec3 extent, std::uint32_t mipLevels, std::uint32_t arrayLayers, ImageUsageFlags usage, Format format, bool isCube, std::string debugName = std::string())
+        : extent(std::move(extent)), mipLevels(mipLevels), arrayLayers(arrayLayers), usage(usage), format(format), isCube(isCube), debugName(std::move(debugName)) {}
+    
+    glm::uvec3 extent;
+    std::uint32_t mipLevels;
+    std::uint32_t arrayLayers;
+    
+    ImageUsageFlags usage;
+    
+    /// The data format of the Image you want to create.
+    Format format;
+    
+    /// If this is true, the Image will be a cubemap. If false, it's going to be a regular 2D Image.
+    bool isCube;
+    
+    /// Optional name to use when debugging issues
+    std::string debugName;
+};
+
 class UncompressedImageCreateInfo {
 public:
     UncompressedImageCreateInfo() 
@@ -903,16 +986,12 @@ public:
     //virtual Framebuffer createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<FramebufferAttachmentCreateInfo>& info) = 0;
     virtual Framebuffer createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<std::variant<Image, FramebufferAttachmentCreateInfo>>& info) = 0;
     virtual void destroyFramebufferWithAttachments(const Framebuffer& framebuffer) = 0;
-    /// Creates a compressed image from the provided memory buffer. The memory buffer is expected to contain a texture in
-    /// the IYFEngine's native compression format (including all headers).
-    ///
-    /// To put it simply, read an **entire** file that was created by the TextureConverter into a buffer, pass it here and
-    /// you'll get your Image.
-    ///
-    /// This function transfers the processed data to the GPU immediately.
-    ///
-    /// \todo Implement async/delayed loading.
-    virtual Image createCompressedImage(const void* data, std::size_t size) = 0;
+    
+    /// Build an ImageCreateInfo for a compressed texture from a TextureData instance loaded by the TextureLoader
+    virtual ImageCreateInfo buildImageCreateInfo(const TextureData& textureData);
+    
+    virtual Image createImage(const ImageCreateInfo& info) = 0;
+    
     /// Creates an uncompressed Image from the provided memory buffer. This function creates a 2D image (ImageViewType::Im2D) with 1 layer and 1 level.
     ///
     /// This is used for some internal and debug stuff, e.g., ImGui's font atlas, empty textures used as framebuffer images, etc. Use createCompressedImage() for in-game textures.
@@ -925,9 +1004,9 @@ public:
     virtual ImageViewHnd createImageView(const ImageViewCreateInfo& info) = 0;
     virtual bool destroyImageView(ImageViewHnd handle) = 0;
     
-    virtual bool createBuffer(const BufferCreateInfo& info, Buffer& outBuffer) = 0;
+    virtual Buffer createBuffer(const BufferCreateInfo& info) = 0;
     virtual bool destroyBuffer(const Buffer& buffer) = 0;
-    virtual bool createBuffers(const std::vector<BufferCreateInfo>& infos, std::vector<Buffer>& outBuffers);
+    virtual std::vector<Buffer> createBuffers(const std::vector<BufferCreateInfo>& infos);
     virtual bool destroyBuffers(const std::vector<Buffer>& buffers);
     
     virtual bool readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) = 0;

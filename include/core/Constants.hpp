@@ -34,6 +34,8 @@
 
 #include "core/filesystem/cppFilesystem.hpp"
 
+#undef None
+
 /// \file
 /// This file stores constants commonly used by many of the engine's classes
 namespace iyf {

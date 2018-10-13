@@ -806,6 +806,8 @@ bool TextureConverter::convert(ConverterState& state) const {
     fw.writeUInt8(textureState.sRGBSource);
     fw.writeUInt8(0); // Reserved
     
+    std::uint64_t headerSize = fw.size();
+    
     // For each face. Unless we're processing a cubemap, this will always run once.
     for (std::size_t face = 0; face < faceCount; ++face) {
         std::vector<MipmapLevelData> mipMapLevelData;
@@ -879,6 +881,9 @@ bool TextureConverter::convert(ConverterState& state) const {
     
     const fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
     
+    std::uint64_t fullSize = fw.size();
+    std::uint64_t dataSize = fullSize - headerSize;
+    
     File textureFile(outputPath, File::OpenMode::Write);
     textureFile.writeBytes(fw.data(), fw.size());
     textureFile.close();
@@ -886,7 +891,7 @@ bool TextureConverter::convert(ConverterState& state) const {
     hash64_t fileHash = HF(fw.data(), fw.size());
     TextureMetadata textureMetadata(fileHash, textureState.getSourceFilePath(), textureState.getSourceFileHash(), state.isSystemAsset(), state.getTags(), topLevelWidth, topLevelHeight, 1, faceCount, 1,
                                     mipmapLevels, textureState.channels, textureState.filteringMethod, textureState.xTiling, textureState.yTiling, textureState.preferredAnisotropy,
-                                    compressionFormat, textureState.sRGBSource);
+                                    compressionFormat, textureState.sRGBSource, dataSize);
     ImportedAssetData iadTexture(AssetType::Texture, textureMetadata, outputPath);
     state.getImportedAssets().push_back(iadTexture);
     

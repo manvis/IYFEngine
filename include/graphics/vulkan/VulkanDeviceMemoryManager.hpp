@@ -36,8 +36,9 @@ public:
     
     virtual void beginFrame() final override;
     virtual bool isStagingBufferNeeded(const Buffer& destinationBuffer) final override;
-    virtual bool canBatchFitData(MemoryBatch batch, const std::vector<BufferCopy>& copies) final override;
+    virtual bool canBatchFitData(MemoryBatch batch, Bytes totalSize) final override;
     virtual bool updateBuffer(MemoryBatch batch, const Buffer& destinationBuffer, const std::vector<BufferCopy>& copies, const void* data) final override;
+    virtual bool updateImage(MemoryBatch batch, const Image& image, const TextureData& data) final override;
     virtual bool beginBatchUpload(MemoryBatch batch) final override;
 private:
     struct StagingBufferData {
@@ -79,6 +80,7 @@ private:
     CommandPool* commandPool;
     FenceHnd uploadCompleteFence;
     std::array<StagingBufferData, StagingBufferCount> stagingBuffers;
+    bool firstFrame;
 };
 }
 

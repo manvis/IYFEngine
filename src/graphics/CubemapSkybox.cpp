@@ -58,7 +58,7 @@ void CubemapSkybox::initialize() {
     // TODO asynchronous loading? Pass texture directly instead of a name hash?
     skyCubemap = assetManager->load<Texture>(textureNameHash, false);
     skyCubemapView = api->createDefaultImageView(skyCubemap->image);
-    skyCubemapSampler = api->createPresetSampler(SamplerPreset::SkyBox, static_cast<float>(skyCubemap->image.levels));
+    skyCubemapSampler = api->createPresetSampler(SamplerPreset::SkyBox, static_cast<float>(skyCubemap->image.getMipLevels()));
     
     DescriptorPoolCreateInfo dpci{1, {{DescriptorType::CombinedImageSampler, 1}}};
     descriptorPool = api->createDescriptorPool(dpci);

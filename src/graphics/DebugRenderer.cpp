@@ -62,7 +62,7 @@ void DebugRenderer::initialize() {
     
     LOG_D("Physics debug buffer size: " << Mebibytes(bci.size) << " MiB")
     
-    gfx->createBuffer(bci, vbo);
+    vbo = gfx->createBuffer(bci);
     
     PipelineLayoutCreateInfo plci{{}, {{ShaderStageFlagBits::Vertex, 0, sizeof(DebugPushBuffer)}}};
     pipelineLayout = gfx->createPipelineLayout(plci);
@@ -126,7 +126,8 @@ void DebugRenderer::draw(CommandBuffer* commandBuffer, const Camera* camera) con
     DeviceMemoryManager* memoryManager = gfx->getDeviceMemoryManager();
     
     std::vector<BufferCopy> bufferCopies = {{0, 0, lineVertexCount * vertexLayout.getSize()}};
-    if (memoryManager->isStagingBufferNeeded(vbo) && !memoryManager->canBatchFitData(MemoryBatch::PerFrameData, bufferCopies)) {
+    const Bytes totalSize = memoryManager->computeUploadSize(bufferCopies);
+    if (memoryManager->isStagingBufferNeeded(vbo) && !memoryManager->canBatchFitData(MemoryBatch::PerFrameData, totalSize)) {
         throw std::runtime_error("Physics debug data won't fit in memory");
     }
     

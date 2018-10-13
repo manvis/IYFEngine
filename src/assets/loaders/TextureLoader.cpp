@@ -33,7 +33,7 @@
 namespace iyf {
 static const std::array<char, 4> MAGIC_NUMBER = {'I', 'Y', 'F', 'T'};
 
-TextureLoader::Result TextureLoader::load(const void* inputData, std::size_t byteCount, Data& data) const {
+TextureLoader::Result TextureLoader::load(const void* inputData, std::size_t byteCount, TextureData& data) const {
     MemorySerializer ms(static_cast<const char*>(inputData), byteCount);
     
     std::array<char, 4> readMagicNumber;
@@ -43,7 +43,7 @@ TextureLoader::Result TextureLoader::load(const void* inputData, std::size_t byt
         return Result::InvalidMagicNumber;
     }
 
-    Data tempData = {};
+    TextureData tempData = {};
     tempData.version = ms.readUInt8();
     if (tempData.version != 1) {
         return Result::InvalidVersionNumber;
@@ -95,6 +95,8 @@ TextureLoader::Result TextureLoader::load(const void* inputData, std::size_t byt
     tempData.sizesAndOffsets[tempData.mipmapLevelCount].offset = currentOffset;
     tempData.sizesAndOffsets[tempData.mipmapLevelCount].size = 0;
     
+    tempData.loaded = true;
+    
     assert((tempData.sizesAndOffsets[tempData.mipmapLevelCount].offset * 6) == tempData.size);
 
     data = std::move(tempData);
@@ -102,26 +104,26 @@ TextureLoader::Result TextureLoader::load(const void* inputData, std::size_t byt
     return Result::LoadSuccessful;
 }
 
-std::size_t TextureLoader::Data::getLevelSize(std::size_t level) const {
+std::size_t TextureData::getLevelSize(std::size_t level) const {
     assert(level < mipmapLevelCount);
     return sizesAndOffsets[level].size;
 }
 
-std::size_t TextureLoader::Data::getLevelOffset(std::size_t level) const {
+std::size_t TextureData::getLevelOffset(std::size_t level) const {
     assert(level < mipmapLevelCount);
     return sizesAndOffsets[level].offset;
 }
 
-std::size_t TextureLoader::Data::getMipmapChainSize() const {
+std::size_t TextureData::getMipmapChainSize() const {
     return sizesAndOffsets[mipmapLevelCount].offset;
 }
 
-const glm::uvec3& TextureLoader::Data::getLevelExtents(std::size_t level) const {
+const glm::uvec3& TextureData::getLevelExtents(std::size_t level) const {
     assert(level < mipmapLevelCount);
     return extents[level];
 }
 
-const void* TextureLoader::Data::getData(std::size_t layer, std::size_t face, std::size_t level) const {
+const void* TextureData::getData(std::size_t layer, std::size_t face, std::size_t level) const {
     // TODO this isn't ready for layers or depth, however, I don't use textures like that for the time being
     assert(version == 1);
     assert(layer == 0);

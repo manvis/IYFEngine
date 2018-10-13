@@ -472,9 +472,7 @@ void ClusteredRenderer::initializePickingPipeline() {
     
     BufferCreateInfo bci(BufferUsageFlagBits::TransferDestination, Bytes(128), MemoryUsage::CPUOnly, false, "PickResultBuffer");
     
-    if (!gfx->createBuffer(bci, pickResultBuffer)) {
-        throw std::runtime_error("Failed to create the picking result buffer");
-    }
+    pickResultBuffer = gfx->createBuffer(bci);
 }
 
 void ClusteredRenderer::initializeTonemappingAndAdjustmentPipeline() {

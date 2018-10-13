@@ -36,6 +36,9 @@
 #include <string>
 
 namespace iyf {
+// Forward declare an enum
+enum class TextureCompressionFormat : std::uint16_t;
+
 namespace renderingConstants {
     const auto ExternalSubpass = ~0U;
 }
@@ -152,6 +155,20 @@ enum class BufferUsageFlagBits : std::uint32_t {
 
 using BufferUsageFlags = Flags<BufferUsageFlagBits>;
 DEFINE_ENUM_FLAG_OPS(BufferUsageFlagBits)
+
+enum class ImageUsageFlagBits : std::uint32_t {
+    TransferSource         = 0x001,
+    TransferDestination    = 0x002,
+    Sampled                = 0x004,
+    Storage                = 0x008,
+    ColorAtachment         = 0x010,
+    DepthStencilAttachment = 0x020,
+    TransientAttachment    = 0x040,
+    InputAttachment        = 0x080,
+};
+
+using ImageUsageFlags = Flags<ImageUsageFlagBits>;
+DEFINE_ENUM_FLAG_OPS(ImageUsageFlagBits)
 
 enum class CommandBufferUsageFlagBits : std::uint32_t  {
     OneTimeSubmit      = 0x01,
@@ -437,6 +454,10 @@ enum class Format {
     PVRTC2_4BPP_sRGB_block,
     COUNT,
 };
+
+namespace con {
+    Format CompressionFormatToEngineFormat(const TextureCompressionFormat& tcf, bool sRGB);
+}
 
 enum class FrontFace {
     Clockwise,

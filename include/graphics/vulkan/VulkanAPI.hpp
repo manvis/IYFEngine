@@ -154,7 +154,8 @@ public:
 //    virtual Framebuffer createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<FramebufferAttachmentCreateInfo>& info) override;
     virtual Framebuffer createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<std::variant<Image, FramebufferAttachmentCreateInfo>>& info) override;
     virtual void destroyFramebufferWithAttachments(const Framebuffer& framebuffer) override;
-    virtual Image createCompressedImage(const void* data, std::size_t size) override;
+    
+    virtual Image createImage(const ImageCreateInfo& info) final override;
     virtual Image createUncompressedImage(const UncompressedImageCreateInfo& info) override;
     virtual bool destroyImage(const Image& image) override;
     virtual SamplerHnd createSampler(const SamplerCreateInfo& info) override;
@@ -162,7 +163,7 @@ public:
     virtual ImageViewHnd createImageView(const ImageViewCreateInfo& info) override;
     virtual bool destroyImageView(ImageViewHnd handle) override;
     
-    virtual bool createBuffer(const BufferCreateInfo& info, Buffer& outBuffer) final override;
+    virtual Buffer createBuffer(const BufferCreateInfo& info) final override;
     virtual bool destroyBuffer(const Buffer& buffer) final override;
 
     virtual bool readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) final override;
@@ -402,7 +403,7 @@ protected:
     /// Allows us to retrieve various info about backing memory based on a buffer's handle
     std::unordered_map<VkBuffer, AllocationAndInfo> bufferToMemory;
     
-    std::unordered_map<VkImage, VkDeviceMemory> imageToMemory;
+    std::unordered_map<VkImage, AllocationAndInfo> imageToMemory;
     // Temporaries for conversions
     
     VkBufferUsageFlagBits mapBufferType(BufferType bufferType) const;

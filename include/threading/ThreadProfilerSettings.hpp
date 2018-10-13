@@ -166,7 +166,7 @@ ScopeColor GetTagColor(ProfilerTag tag) {
     case ProfilerTag::Sleep:
         return ScopeColor(128, 128, 128, 255);
     case ProfilerTag::LogicGraph:
-        return ScopeColor(256, 128, 0, 255);
+        return ScopeColor(255, 128, 0, 255);
     }
     
     return ScopeColor(0, 0, 0, 255);

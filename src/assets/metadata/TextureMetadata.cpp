@@ -44,6 +44,7 @@ static const char* HEIGHT_FIELD_NAME = "height";
 static const char* DEPTH_FIELD_NAME = "depth";
 static const char* LAYERS_FIELD_NAME = "layers";
 static const char* ANISOTROPY_FIELD_NAME = "anisotropy";
+static const char* SIZE_FIELD_NAME = "size";
 
 
 std::uint16_t TextureMetadata::getLatestSerializedDataVersion() const {
@@ -66,6 +67,7 @@ void TextureMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const
     fw.writeUInt32(depth);
     fw.writeUInt32(layers);
     fw.writeUInt8(anisotropy);
+    fw.writeUInt64(size);
 }
 
 void TextureMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
@@ -84,6 +86,7 @@ void TextureMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
     depth = fr.readUInt32();
     layers = fr.readUInt32();
     anisotropy = fr.readUInt8();
+    size = fr.readUInt64();
 }
 
 void TextureMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
@@ -127,6 +130,9 @@ void TextureMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t ve
     
     pw.String(ANISOTROPY_FIELD_NAME);
     pw.Uint(anisotropy);
+    
+    pw.String(SIZE_FIELD_NAME);
+    pw.Uint64(size);
 }
 
 void TextureMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
@@ -145,6 +151,7 @@ void TextureMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version)
     depth = jo[DEPTH_FIELD_NAME].GetUint();
     layers = jo[LAYERS_FIELD_NAME].GetUint();
     anisotropy = jo[ANISOTROPY_FIELD_NAME].GetUint();
+    size = jo[SIZE_FIELD_NAME].GetUint64();
 }
 
 void TextureMetadata::displayInImGui() const {

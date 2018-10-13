@@ -54,6 +54,8 @@ protected:
     virtual bool canBatchAsyncLoadedAssets() const final override {
         return true;
     }
+    
+    virtual std::uint64_t estimateUploadSize(const Metadata&) const final override;
 private:
     GraphicsAPI* gfx;
     Engine* engine;

@@ -30,6 +30,7 @@
 #include "core/Engine.hpp"
 #include "core/filesystem/File.hpp"
 #include "core/Logger.hpp"
+#include "assets/loaders/TextureLoader.hpp"
 #include "graphics/GraphicsAPI.hpp"
 
 namespace iyf {
@@ -53,16 +54,29 @@ void TextureTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAsse
     const TextureMetadata& textureMeta = std::get<TextureMetadata>(loadedAssetData->metadata);
     Texture& assetData = static_cast<Texture&>(loadedAssetData->assetData);
     
-    if (canBatch) {
-        throw std::runtime_error("Batching not yet implemented");
-    } else {
-        assetData.image = gfx->createCompressedImage(loadedAssetData->rawData.first.get(), loadedAssetData->rawData.second);
+    DeviceMemoryManager* memoryManager = gfx->getDeviceMemoryManager();
+    
+    const TextureLoader loader;
+    TextureData textureData;
+    
+    TextureLoader::Result result = loader.load(loadedAssetData->rawData.first.get(), loadedAssetData->rawData.second, textureData);
+    if (result != TextureLoader::Result::LoadSuccessful) {
+        throw std::runtime_error("Failed to load a texture");
     }
     
-    assert(assetData.image.height == textureMeta.getHeight());
-    assert(assetData.image.width == textureMeta.getWidth());
-    assert(assetData.image.layers == textureMeta.getLayers());
-    assert(assetData.image.levels == textureMeta.getLevels());
+    ImageCreateInfo ici = gfx->buildImageCreateInfo(textureData);
+    assetData.image = gfx->createImage(ici);
+    if (canBatch) {
+        memoryManager->updateImage(MemoryBatch::TextureAssetData, assetData.image, textureData);
+    } else {
+        memoryManager->updateImage(MemoryBatch::Instant, assetData.image, textureData);
+    }
+    
+    assert(assetData.image.getExtent().x == textureMeta.getHeight());
+    assert(assetData.image.getExtent().y == textureMeta.getWidth());
+    assert(assetData.image.getMipLevels() == textureMeta.getLevels());
+    assert(textureData.size == textureMeta.getSize());
+    
     assetData.setLoaded(true);
 }
 
@@ -73,5 +87,10 @@ void TextureTypeManager::executeBatchOperations() {
 void TextureTypeManager::initMissingAssetHandle() {
     // TODO load a missing texture
     missingAssetHandle = AssetHandle<Texture>();
+}
+
+std::uint64_t TextureTypeManager::estimateUploadSize(const Metadata& meta) const {
+    const TextureMetadata& textureMeta = std::get<TextureMetadata>(meta);
+    return textureMeta.getSize();
 }
 }

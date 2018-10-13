@@ -64,7 +64,7 @@ MeshTypeManager::MeshTypeManager(AssetManager* manager, Bytes VBOSize, Bytes IBO
     std::vector<Buffer> output;
     output.reserve(2);
     
-    gfx->createBuffers(bci, output);
+    output = gfx->createBuffers(bci);
     
     // The actual size of a buffer may be different (bigger) because of alignment requirements.
     char* vboData = new char[VBOSize.count()];
@@ -211,7 +211,7 @@ void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetDa
         std::vector<Buffer> output;
         output.reserve(2);
         
-        gfx->createBuffers(bci, output);
+        output = gfx->createBuffers(bci);
         
         // The actual size of a buffer may be different (bigger) because of alignment requirements.
         char* vboData = new char[newVBOSize.count()];
@@ -236,17 +236,12 @@ void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetDa
     } else if (!iboRangeResult.result) {
         Bytes newIBOSize = std::max(IBOSize, requirements.indexSize);
         
-        std::vector<BufferCreateInfo> bci = {
-            {IBOUsageFlags, newIBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager IBO"}
-        };
+        BufferCreateInfo bci(IBOUsageFlags, newIBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager IBO");
         
-        std::vector<Buffer> output;
-        output.reserve(1);
-        
-        gfx->createBuffers(bci, output);
+        Buffer output = gfx->createBuffer(bci);
         
         char* iboData = new char[newIBOSize.count()];
-        indexDataBuffers.emplace_back(output[0], output[0].size(), iboData);
+        indexDataBuffers.emplace_back(output, output.size(), iboData);
         
         auto ibo = indexDataBuffers.back().freeRanges.getFreeRange(requirements.indexSize, indexAlignment);
         
@@ -259,17 +254,12 @@ void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetDa
     } else if (!vboRangeResult.result) {
         Bytes newVBOSize = std::max(VBOSize, requirements.vertexSize);
         
-        std::vector<BufferCreateInfo> bci = {
-            {VBOUsageFlags, newVBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager VBO"}
-        };
+        BufferCreateInfo bci(VBOUsageFlags, newVBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager VBO");
         
-        std::vector<Buffer> output;
-        output.reserve(1);
-        
-        gfx->createBuffers(bci, output);
+        Buffer output = gfx->createBuffer(bci);
         
         char* vboData = new char[newVBOSize.count()];
-        vertexDataBuffers.emplace_back(output[0], output[0].size(), vboData);
+        vertexDataBuffers.emplace_back(output, output.size(), vboData);
         
         auto vbo = vertexDataBuffers.back().freeRanges.getFreeRange(requirements.vertexSize, vertexAlignment);
         
@@ -338,20 +328,25 @@ TypeManagerBase::AssetsToEnableResult MeshTypeManager::hasAssetsToEnable() const
         return AssetsToEnableResult::NoAssetsToEnable;
     }
     
-    assert(toEnable.front().valid());
-    if (toEnable.front().wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+    assert(toEnable.front().future.valid());
+    if (toEnable.front().future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
         DeviceMemoryManager* manager = gfx->getDeviceMemoryManager();
         
-        //
-//         if (manager->canBatchFitData()) {
-//             return AssetsToEnableResult::Busy;
-//         } else {
-        LOG_D("FINISH ME")
+        if (!manager->canBatchFitData(MemoryBatch::MeshAssetData, Bytes(toEnable.front().estimatedSize))) {
+            return AssetsToEnableResult::Busy;
+        } else {
             return AssetsToEnableResult::HasAssetsToEnable;
-//         }
+        }
     } else {
         return AssetsToEnableResult::NoAssetsToEnable;
     }
+}
+
+std::uint64_t MeshTypeManager::estimateUploadSize(const Metadata& meta) const {
+    const MeshLoader loader(engine);
+    MeshLoader::MemoryRequirements requirements = loader.getMeshMemoryRequirements(meta);
+    
+    return (requirements.indexSize + requirements.vertexSize).count();
 }
 
 }

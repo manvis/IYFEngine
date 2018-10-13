@@ -309,7 +309,7 @@ void ImGuiImplementation::initializeAssets() {
     bci.emplace_back(BufferUsageFlagBits::VertexBuffer, Bytes(MAX_IMGUI_VBO), MemoryUsage::CPUToGPU, true, "ImGui VBO");
     bci.emplace_back(BufferUsageFlagBits::IndexBuffer,  Bytes(MAX_IMGUI_IBO), MemoryUsage::CPUToGPU, true, "ImGui IBO");
     
-    gfxAPI->createBuffers(bci, vboibo);
+    vboibo = gfxAPI->createBuffers(bci);
     
     VBOs.push_back(vboibo[0]);
     IBO = vboibo[1];
@@ -417,13 +417,16 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
             void* vertexData = cmdList->VtxBuffer.Data;
             void* indexData = cmdList->IdxBuffer.Data;
             
-            if (memoryManager->isStagingBufferNeeded(VBOs[0]) && !memoryManager->canBatchFitData(MemoryBatch::PerFrameData, vertexBufferCopy)) {
+            const Bytes totalVertexSize = memoryManager->computeUploadSize(vertexBufferCopy);
+            if (memoryManager->isStagingBufferNeeded(VBOs[0]) && !memoryManager->canBatchFitData(MemoryBatch::PerFrameData, totalVertexSize)) {
                 throw std::runtime_error("Not enough memory in the staging buffer to transfer ImGui vertex data");
             }
             
             memoryManager->updateBuffer(MemoryBatch::PerFrameData, VBOs[0], vertexBufferCopy, vertexData);
             
-            if (memoryManager->isStagingBufferNeeded(IBO) && !memoryManager->canBatchFitData(MemoryBatch::PerFrameData, indexBufferCopy)) {
+            
+            const Bytes totalIndexSize = memoryManager->computeUploadSize(indexBufferCopy);
+            if (memoryManager->isStagingBufferNeeded(IBO) && !memoryManager->canBatchFitData(MemoryBatch::PerFrameData, totalIndexSize)) {
                 throw std::runtime_error("Not enough memory in the staging buffer to transfer ImGui index data");
             }
             

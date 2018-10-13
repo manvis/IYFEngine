@@ -27,8 +27,11 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "graphics/vulkan/VulkanDeviceMemoryManager.hpp"
+#include "graphics/vulkan/VulkanUtilities.hpp"
 #include "graphics/vulkan/vk_mem_alloc.h"
 #include "core/Logger.hpp"
+#include "threading/ThreadProfiler.hpp"
+#include "assets/loaders/TextureLoader.hpp"
 
 namespace iyf {
 inline Bytes getSize(const std::vector<Bytes>& sizes, MemoryBatch batch) {
@@ -50,7 +53,7 @@ inline std::string getDebugName(MemoryBatch batch) {
 }
 
 VulkanDeviceMemoryManager::VulkanDeviceMemoryManager(VulkanAPI* gfx, std::vector<Bytes> stagingBufferSizes)
-    : DeviceMemoryManager(std::move(stagingBufferSizes)), gfx(gfx) {
+    : DeviceMemoryManager(std::move(stagingBufferSizes)), gfx(gfx), firstFrame(true) {
     const auto& sizes = getStagingBufferSizes();
     
     if (sizes.size() != static_cast<std::size_t>(MemoryBatch::COUNT) + 1) {
@@ -107,17 +110,21 @@ bool VulkanDeviceMemoryManager::initStagingBufferForBatch(MemoryBatch batch, Byt
     }
     
     BufferCreateInfo bci(BufferUsageFlagBits::TransferSource, size, MemoryUsage::CPUOnly, false, getDebugName(batch));
-    const bool created = gfx->createBuffer(bci, stagingBufferData.buffer);
+    stagingBufferData.buffer = gfx->createBuffer(bci);
     
     assert(static_cast<const AllocationAndInfo*>(stagingBufferData.buffer.allocationInfo())->info.pMappedData != nullptr);
     
-    return created;
+    return true;
 }
 
 void VulkanDeviceMemoryManager::beginFrame() {
+    IYFT_PROFILE(beginDeviceMemoryManagerFrame, iyft::ProfilerTag::Graphics)
+    
     for (StagingBufferData& data : stagingBuffers) {
         resetData(data);
     }
+    
+    firstFrame = false;
 }
 
 void VulkanDeviceMemoryManager::resetData(StagingBufferData& data) {
@@ -128,7 +135,7 @@ void VulkanDeviceMemoryManager::resetData(StagingBufferData& data) {
     data.maxRequestLastFrame = 0;
     data.currentOffset = 0;
     
-    if (data.batch != MemoryBatch::Instant && data.uploadCalls == 0) {
+    if (!firstFrame && data.batch != MemoryBatch::Instant && data.uploadCalls == 0) {
         LOG_W("beginBatchUpload() wasn't called last frame for MemoryBatch with ID " << static_cast<std::uint32_t>(data.batch));
     }
     
@@ -141,24 +148,22 @@ bool VulkanDeviceMemoryManager::isStagingBufferNeeded(const Buffer& destinationB
     return allocationInfo->info.pMappedData == nullptr;
 }
 
-bool VulkanDeviceMemoryManager::canBatchFitData(MemoryBatch batch, const std::vector<BufferCopy>& copies) {
-    std::uint64_t total = 0;
-    for (const BufferCopy& copy : copies) {
-        total += copy.size;
-    }
+bool VulkanDeviceMemoryManager::canBatchFitData(MemoryBatch batch, Bytes totalSize) {
     
     StagingBufferData& sbData = getStagingBufferForBatch(batch);
-    sbData.maxRequestLastFrame = std::max(total, sbData.maxRequestLastFrame);
+    sbData.maxRequestLastFrame = std::max(totalSize.count(), sbData.maxRequestLastFrame);
     
-    return (total + sbData.currentOffset) <= sbData.buffer.size();
+    return (totalSize.count() + sbData.currentOffset) <= sbData.buffer.size();
 }
 
 bool VulkanDeviceMemoryManager::updateBuffer(MemoryBatch batch, const Buffer& destinationBuffer, const std::vector<BufferCopy>& copies, const void* data) {
+    IYFT_PROFILE(updateBuffer, iyft::ProfilerTag::Graphics)
+    
     if (copies.empty() || data == nullptr) {
         return true;
     }
-    
-    assert(canBatchFitData(batch, copies));
+
+    assert(canBatchFitData(batch, computeUploadSize(copies)));
     
     const AllocationAndInfo* destinationAllocationInfo = static_cast<const AllocationAndInfo*>(destinationBuffer.allocationInfo());
     
@@ -233,6 +238,8 @@ bool VulkanDeviceMemoryManager::updateBuffer(MemoryBatch batch, const Buffer& de
 }
 
 bool VulkanDeviceMemoryManager::beginBatchUpload(MemoryBatch batch) {
+    IYFT_PROFILE(beginBatchUpload, iyft::ProfilerTag::Graphics)
+    
     StagingBufferData& stagingBufferData = getStagingBufferForBatch(batch);
     stagingBufferData.uploadCalls++;
     
@@ -266,7 +273,89 @@ bool VulkanDeviceMemoryManager::beginBatchUpload(MemoryBatch batch) {
     return true;
 }
 
+bool VulkanDeviceMemoryManager::updateImage(MemoryBatch batch, const Image& image, const TextureData& data) {
+    assert(canBatchFitData(batch, Bytes(data.size)));
+    
+    StagingBufferData& stagingBufferData = getStagingBufferForBatch(batch);
+    const AllocationAndInfo* stagingAllocationInfo = static_cast<const AllocationAndInfo*>(stagingBufferData.buffer.allocationInfo());
+    
+    std::vector<VkBufferImageCopy> bics;
+    std::size_t layerId = 0;
+    std::size_t offset = stagingBufferData.currentOffset;
+    
+    for (std::size_t face = 0; face < data.faceCount; ++face) {
+        for (std::size_t level = 0; level < data.mipmapLevelCount; ++level) {
+            const glm::uvec3& extents = data.getLevelExtents(level);
+            
+            VkBufferImageCopy bic;
+            bic.bufferOffset      = offset;
+            bic.bufferRowLength   = 0;
+            bic.bufferImageHeight = 0;
+            
+            bic.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+            bic.imageSubresource.mipLevel       = level;
+            bic.imageSubresource.baseArrayLayer = layerId;
+            bic.imageSubresource.layerCount     = 1;
+            
+            bic.imageOffset.x = 0;
+            bic.imageOffset.y = 0;
+            bic.imageOffset.z = 0;
+            
+            bic.imageExtent.width  = extents.x;
+            bic.imageExtent.height = extents.y;
+            bic.imageExtent.depth  = extents.z;
+            
+            bics.push_back(bic);
+            
+            offset += data.getLevelSize(level);
+        }
+        
+        layerId++;
+    }
+    
+    const bool needsFlushing = !(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT & stagingAllocationInfo->memoryFlags);
+    void* destinationMemory = stagingAllocationInfo->info.pMappedData;
+    
+    char* destination = static_cast<char*>(destinationMemory);
+    destination += stagingBufferData.currentOffset;
+        
+    std::memcpy(destination, data.data, data.size);
+    
+    if (needsFlushing) {
+        vmaFlushAllocation(gfx->allocator, stagingAllocationInfo->allocation, stagingBufferData.currentOffset, data.size);
+    }
+    
+    stagingBufferData.currentOffset = offset;
+    
+    VkImage vulkanImage = image.getHandle().toNative<VkImage>();
+    
+    VkImageSubresourceRange sr;
+    sr.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    sr.baseMipLevel   = 0;
+    sr.levelCount     = data.mipmapLevelCount;
+    sr.baseArrayLayer = 0;
+    sr.layerCount     = (data.faceCount == 6) ? 6 : data.layers;
+    
+    VkCommandBuffer uploadBuffer = stagingBufferData.commandBuffer->getHandle().toNative<VkCommandBuffer>();
+    
+    stagingBufferData.currentOffset = offset;
+
+    gfx->setImageLayout(uploadBuffer, vulkanImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, sr);
+    vkCmdCopyBufferToImage(uploadBuffer, stagingBufferData.buffer.handle().toNative<VkBuffer>(), vulkanImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bics.size(), bics.data());
+    gfx->setImageLayout(uploadBuffer, vulkanImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sr);
+    
+    if (batch == MemoryBatch::Instant) {
+        executeUpload(stagingBufferData.commandBuffer);
+        resetData(stagingBufferData);
+    }
+    
+    return true;
+}
+
+
 void VulkanDeviceMemoryManager::executeUpload(CommandBuffer* commandBuffer) {
+    IYFT_PROFILE(executeUpload, iyft::ProfilerTag::Graphics)
+    
     commandBuffer->end();
     
     // TODO start using pipeline barriers instead of waiting for operations to complete.

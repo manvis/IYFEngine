@@ -43,438 +43,13 @@
 #include "core/Engine.hpp"
 #include "core/Logger.hpp"
 #include "graphics/Renderer.hpp"
+#include "graphics/vulkan/VulkanUtilities.hpp"
 #include "threading/ThreadProfiler.hpp"
 
 #include "libshaderc/shaderc.hpp"
 #include "stb_image.h"
-#include "assets/loaders/TextureLoader.hpp"
 
 namespace iyf {
-
-namespace vkutil {
-enum class SupportedTiling {
-    Linear,
-    Optimal,
-    NotSupported
-};
-
-inline SupportedTiling getSupportedTiling(const VkFormatProperties& formatProperties, VkFormatFeatureFlagBits bitsToCheck) {
-    if (formatProperties.optimalTilingFeatures & bitsToCheck) {
-        return SupportedTiling::Optimal;
-    } else if (formatProperties.linearTilingFeatures & bitsToCheck) {
-        return SupportedTiling::Linear;
-    } else {
-        return SupportedTiling::NotSupported;
-    }
-}
-inline std::vector<VkDynamicState> mapDynamicState(const std::vector<DynamicState>& states) {
-    std::vector<VkDynamicState> vkStates;
-    vkStates.reserve(states.size());
-    
-    for (auto &s : states) {
-        VkDynamicState temp = vk::dynamicState(s);
-        vkStates.push_back(temp);
-    }
-    
-    return vkStates;
-}
-
-inline VkColorComponentFlags mapColorWriteMask(ColorWriteMaskFlags mask) {
-    VkColorComponentFlags temp = 0;
-    
-    if (static_cast<bool>(mask & ColorWriteMaskFlagBits::Red)) {
-        temp |= VK_COLOR_COMPONENT_R_BIT;
-    }
-    
-    if (static_cast<bool>(mask & ColorWriteMaskFlagBits::Green)) {
-        temp |= VK_COLOR_COMPONENT_G_BIT;
-    }
-    
-    if (static_cast<bool>(mask & ColorWriteMaskFlagBits::Blue)) {
-        temp |= VK_COLOR_COMPONENT_B_BIT;
-    }
-    
-    if (static_cast<bool>(mask & ColorWriteMaskFlagBits::Alpha)) {
-        temp |= VK_COLOR_COMPONENT_A_BIT;
-    }
-    
-    return temp;
-}
-
-inline VkPipelineBindPoint mapPipelineBindPoint(PipelineBindPoint point) {
-    if (point == PipelineBindPoint::Graphics) {
-        return VK_PIPELINE_BIND_POINT_GRAPHICS;
-    } else {
-        return VK_PIPELINE_BIND_POINT_COMPUTE;
-    }
-}
-
-inline VkVertexInputRate mapInputRate(VertexInputRate rate) {
-    switch (rate) {
-    case VertexInputRate::Vertex:
-        return VK_VERTEX_INPUT_RATE_VERTEX;
-    case VertexInputRate::Instance:
-        return VK_VERTEX_INPUT_RATE_INSTANCE;
-    default:
-        throw std::runtime_error("Invalid input rate");
-    }
-}
-
-inline std::pair<VkFormat, Format> compressionFormatToEngineFormat(TextureCompressionFormat tcf, bool sRGB) {
-    Format engineFormat = Format::Undefined;
-    switch (tcf) {
-        case TextureCompressionFormat::NotCompressed:
-            throw std::runtime_error("This function only supports compressed formats.");
-        case TextureCompressionFormat::BC1:
-            engineFormat = sRGB ? Format::BC1_RGB_sRGB_block : Format::BC1_RGB_uNorm_block;
-            break;
-        case TextureCompressionFormat::BC2:
-            engineFormat = sRGB ? Format::BC2_sRGB_block : Format::BC2_uNorm_block;
-            break;
-        case TextureCompressionFormat::BC3:
-            engineFormat = sRGB ? Format::BC3_sRGB_block : Format::BC3_uNorm_block;
-            break;
-        case TextureCompressionFormat::BC4:
-            engineFormat = Format::BC4_uNorm_block;
-            break;
-        case TextureCompressionFormat::BC5:
-            engineFormat = Format::BC5_uNorm_block;
-            break;
-        case TextureCompressionFormat::BC6:
-            engineFormat = Format::BC6H_uFloat_block;
-            break;
-        case TextureCompressionFormat::BC7:
-            engineFormat = sRGB ? Format::BC7_sRGB_block : Format::BC7_uNorm_block;
-            break;
-        case TextureCompressionFormat::ETC1:
-            throw std::runtime_error("Not implemented yet");
-            break;
-        case TextureCompressionFormat::ETC2:
-            throw std::runtime_error("Not implemented yet");
-            break;
-        case TextureCompressionFormat::COUNT:
-            throw std::runtime_error("COUNT is not a format.");
-    }
-    
-    if (engineFormat == Format::Undefined) {
-        throw std::runtime_error("An invalid TextureCompressionFormat was provided.");
-    }
-    
-    return {vk::format(engineFormat), engineFormat};
-}
-
-inline bool isDepthStencilFormat(Format format) {
-    switch (format) {
-        case Format::D16_uNorm_S8_uInt:
-        case Format::D24_uNorm_S8_uInt:
-        case Format::D32_sFloat_S8_uInt:
-            return true;
-        default:
-            return false;
-    }
-}
-
-inline std::vector<VkPipelineColorBlendAttachmentState> mapAttachments(const std::vector<ColorBlendAttachmentState>& states) {
-    std::vector<VkPipelineColorBlendAttachmentState> vkStates;
-    vkStates.reserve(states.size());
-    
-    for (auto &s : states) {
-        VkPipelineColorBlendAttachmentState temp;
-        temp.blendEnable         = s.blendEnable ? VK_TRUE : VK_FALSE;
-        temp.srcColorBlendFactor = vk::blendFactor(s.srcColorBlendFactor);
-        temp.dstColorBlendFactor = vk::blendFactor(s.dstColorBlendFactor);
-        temp.colorBlendOp        = vk::blendOp(s.colorBlendOp);
-        temp.srcAlphaBlendFactor = vk::blendFactor(s.srcAlphaBlendFactor);
-        temp.dstAlphaBlendFactor = vk::blendFactor(s.dstAlphaBlendFactor);
-        temp.alphaBlendOp        = vk::blendOp(s.alphaBlendOp);
-        temp.colorWriteMask      = mapColorWriteMask(s.colorWriteMask);
-        
-        vkStates.push_back(temp);
-    }
-    
-    return vkStates;
-}
-
-inline VkIndexType mapIndexType(IndexType type) {
-    switch (type) {
-    case IndexType::UInt16:
-        return VK_INDEX_TYPE_UINT16;
-    case IndexType::UInt32:
-        return VK_INDEX_TYPE_UINT32;
-    default:
-        throw std::invalid_argument("Invalid index type");
-    }
-}
-
-inline VkComponentMapping mapComponents(ComponentMapping mapping) {
-    VkComponentMapping cm;
-    cm.r = vk::componentSwizzle(mapping.r);
-    cm.g = vk::componentSwizzle(mapping.g);
-    cm.b = vk::componentSwizzle(mapping.b);
-    cm.a = vk::componentSwizzle(mapping.a);
-    
-    return cm;
-}
-
-inline VkCommandBufferUsageFlags mapBufferUsageFlags(CommandBufferUsageFlags flags) {
-    VkCommandBufferUsageFlags temp = 0;
-    
-    if (static_cast<bool>(flags & CommandBufferUsageFlagBits::OneTimeSubmit)) {
-        temp |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    }
-    
-    if (static_cast<bool>(flags & CommandBufferUsageFlagBits::RenderPassContinue)) {
-        temp |= VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
-    }
-    
-    if (static_cast<bool>(flags & CommandBufferUsageFlagBits::SimultaneousUse)) {
-        temp |= VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-    }
-    
-    return temp;
-}
-
-inline VkCommandBufferInheritanceInfo mapInheritanceInfo(CommandBufferInheritanceInfo cbii) {
-    VkCommandBufferInheritanceInfo vkcbii;
-    vkcbii.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    vkcbii.pNext = nullptr;
-    vkcbii.renderPass = cbii.renderPass.toNative<VkRenderPass>();
-    vkcbii.subpass = cbii.subpass;
-    vkcbii.framebuffer = cbii.framebuffer.toNative<VkFramebuffer>();
-    // TODO
-    vkcbii.occlusionQueryEnable = false;
-    vkcbii.queryFlags = 0;
-    vkcbii.pipelineStatistics = 0;
-    return vkcbii;
-}
-
-inline std::vector<VkClearValue> mapClearValues(const std::vector<ClearValue> clearValues) {
-    std::vector<VkClearValue> mapped;
-    mapped.reserve(clearValues.size());
-    
-    for (auto& val : clearValues) {
-        VkClearValue vkcv;
-        
-        if (val.getType() == ClearValue::Type::Color) {
-            ClearColorValue ccv = val.getValue().color;
-            
-            if (ccv.getType() == ClearColorValue::Type::Float) {
-                vkcv.color.float32[0] = ccv.getValue().float32[0];
-                vkcv.color.float32[1] = ccv.getValue().float32[1];
-                vkcv.color.float32[2] = ccv.getValue().float32[2];
-                vkcv.color.float32[3] = ccv.getValue().float32[3];
-            } else if (ccv.getType() == ClearColorValue::Type::Int32) {
-                vkcv.color.int32[0] = ccv.getValue().int32[0];
-                vkcv.color.int32[1] = ccv.getValue().int32[1];
-                vkcv.color.int32[2] = ccv.getValue().int32[2];
-                vkcv.color.int32[3] = ccv.getValue().int32[3];
-            } else {
-                vkcv.color.uint32[0] = ccv.getValue().uint32[0];
-                vkcv.color.uint32[1] = ccv.getValue().uint32[1];
-                vkcv.color.uint32[2] = ccv.getValue().uint32[2];
-                vkcv.color.uint32[3] = ccv.getValue().uint32[3];
-            }
-            
-        } else {
-            vkcv.depthStencil.depth = val.getValue().depthStencil.depth;
-            vkcv.depthStencil.stencil = val.getValue().depthStencil.stencil;
-        }
-        
-        mapped.push_back(vkcv);
-    }
-    
-    return mapped;
-}
-
-inline VkImageAspectFlags mapAspectMask(ImageAspectFlags flags) {
-    VkImageAspectFlags temp = 0;
-    
-    if (static_cast<bool>(flags & ImageAspectFlagBits::Color)) {
-        temp |= VK_IMAGE_ASPECT_COLOR_BIT;
-    }
-    
-    if (static_cast<bool>(flags & ImageAspectFlagBits::Depth)) {
-        temp |= VK_IMAGE_ASPECT_DEPTH_BIT;
-    }
-    
-    if (static_cast<bool>(flags & ImageAspectFlagBits::Stencil)) {
-        temp |= VK_IMAGE_ASPECT_STENCIL_BIT;
-    }
-    
-    if (static_cast<bool>(flags & ImageAspectFlagBits::Metadata)) {
-        temp |= VK_IMAGE_ASPECT_METADATA_BIT;
-    }
-    
-    return temp;
-}
-
-inline VkImageSubresourceRange mapSubresourceRange(ImageSubresourceRange range) {
-    VkImageSubresourceRange isr;
-    isr.aspectMask     = mapAspectMask(range.aspectMask);
-    isr.baseMipLevel   = range.baseMipLevel;
-    isr.levelCount     = range.levelCount;
-    isr.baseArrayLayer = range.baseArrayLayer;
-    isr.layerCount     = range.layerCount;
-    
-    return isr;
-}
-
-inline VkCommandBufferLevel mapBufferLevel(BufferLevel level) {
-    if (level == BufferLevel::Primary) {
-        return VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    } else {
-        return VK_COMMAND_BUFFER_LEVEL_SECONDARY;
-    }
-}
-    
-inline std::vector<VkDescriptorSetLayout> mapSetLayouts(const std::vector<DescriptorSetLayoutHnd>& layouts) {
-    std::vector<VkDescriptorSetLayout> result;
-    
-    for (auto& l : layouts) {
-        result.push_back(l.toNative<VkDescriptorSetLayout>());
-    }
-    
-    return result;
-}
-
-
-inline std::vector<VkPushConstantRange> mapPushConstantRanges(const std::vector<PushConstantRange>& ranges) {
-    std::vector<VkPushConstantRange> result;
-    
-    for (auto& r : ranges) {
-        VkPushConstantRange pcr;
-        pcr.stageFlags = vk::shaderStage(r.stageFlags);
-        pcr.offset = r.offset;
-        pcr.size = r.size;
-        
-        result.push_back(pcr);
-    }
-    
-    return result;
-}
-
-inline VkDescriptorType mapDescriptorType(DescriptorType descriptor) {
-    switch (descriptor) {
-    case DescriptorType::Sampler:
-        return VK_DESCRIPTOR_TYPE_SAMPLER;
-    case DescriptorType::CombinedImageSampler:
-        return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    case DescriptorType::SampledImage:
-        return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    case DescriptorType::StorageImage:
-        return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    case DescriptorType::UniformTexelBuffer:
-        return VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-    case DescriptorType::StorageTexelBuffer:
-        return VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
-    case DescriptorType::UniformBuffer:
-        return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    case DescriptorType::StorageBuffer:
-        return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    case DescriptorType::UniformBufferDynamic:
-        return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-    case DescriptorType::StorageBufferDynamic:
-        return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
-    case DescriptorType::InputAttachment:
-        return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-    default:
-        throw std::invalid_argument("Invalid descriptor type");
-    }
-}
-    
-inline std::vector<VkDescriptorSetLayoutBinding> mapBindings(const std::vector<DescriptorSetLayoutBinding>& bindings) {
-    std::vector<VkDescriptorSetLayoutBinding> result;
-    
-    for (auto& b : bindings) {
-        VkDescriptorSetLayoutBinding dslb;
-        dslb.binding            = b.binding;
-        dslb.descriptorType     = mapDescriptorType(b.descriptorType);
-        dslb.descriptorCount    = b.descriptorCount;
-        dslb.stageFlags         = vk::shaderStage(b.stageFlags);
-        dslb.pImmutableSamplers = reinterpret_cast<VkSampler*>(const_cast<SamplerHnd*>(b.immutableSamplers.data()));
-        
-        result.push_back(dslb);
-    }
-    
-    return result;
-}
-
-inline std::vector<VkDescriptorPoolSize> mapPoolSizes(const std::vector<DescriptorPoolSize>& size) {
-    std::vector<VkDescriptorPoolSize> result;
-    
-    for (auto& s : size) {
-        VkDescriptorPoolSize dps;
-        dps.type            = mapDescriptorType(s.type);
-        dps.descriptorCount = s.descriptorCount;
-        
-        result.push_back(dps);
-    }
-    
-    return result;
-}
-
-inline std::vector<VkWriteDescriptorSet> mapWriteDescriptorSet(const std::vector<WriteDescriptorSet>& set) {
-    std::vector<VkWriteDescriptorSet> result;
-    
-    for (auto& s : set) {
-        VkWriteDescriptorSet wds;
-        wds.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        wds.pNext            = nullptr;
-        wds.dstSet           = s.dstSet.toNative<VkDescriptorSet>();
-        wds.dstBinding       = s.dstBinding;
-        wds.dstArrayElement  = s.dstArrayElement;
-        wds.descriptorCount  = s.descriptorCount;
-        wds.descriptorType   = mapDescriptorType(s.descriptorType);
-        wds.pImageInfo       = VK_NULL_HANDLE;
-        wds.pBufferInfo      = VK_NULL_HANDLE;
-        wds.pTexelBufferView = VK_NULL_HANDLE;
-        
-        result.push_back(wds);
-    }
-    
-    return result;
-}
-
-inline VkFilter mapFilter(Filter filter) {
-    switch (filter) {
-    case Filter::Nearest:
-        return VK_FILTER_NEAREST;
-    case Filter::Linear:
-        return VK_FILTER_LINEAR;
-    default:
-        throw std::invalid_argument("Invalid filter type");
-    }
-}
-
-inline VkSamplerMipmapMode mapMipmapMode(SamplerMipmapMode mode) {
-    switch (mode) {
-    case SamplerMipmapMode::Nearest:
-        return VK_SAMPLER_MIPMAP_MODE_NEAREST;
-    case SamplerMipmapMode::Linear:
-        return VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    default:
-        throw std::invalid_argument("Invalid sampler mipmap mode");
-    }
-}
-
-inline VkSamplerAddressMode mapAddressMode(SamplerAddressMode mode) {
-    switch (mode) {
-    case SamplerAddressMode::Repeat:
-        return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    case SamplerAddressMode::MirroredRepeat:
-        return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-    case SamplerAddressMode::ClampToEdge:
-        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    case SamplerAddressMode::ClampToBorder:
-        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    case SamplerAddressMode::MirrorClampToEdge:
-        return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
-    default:
-        throw std::invalid_argument("Invalid sampler address mode");
-    }
-}
-}
-
 // TODO move to memory cpp
 std::uint32_t VulkanAPI::getMemoryType(std::uint32_t typeBits, VkFlags propertyFlags) {
     for (std::uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; ++i) {
@@ -1370,154 +945,43 @@ bool VulkanAPI::destroyDescriptorPool(DescriptorPoolHnd handle) {
     return true;
 }
 
-Image VulkanAPI::createCompressedImage(const void* inputData, std::size_t byteCount) {
-    //TODO START USING THE ALLOCATOR HERE. USE A MUTEX ON THE IMAGE TRANSFER BUFFER OR A FENCE?
-    TextureLoader loader;
-    TextureLoader::Data textureData;
-    TextureLoader::Result result = loader.load(inputData, byteCount, textureData);
-    
-    if (result != TextureLoader::Result::LoadSuccessful) {
-        throw std::runtime_error("Failed to load a texture");
-    }
-    
-    auto formatMapping = vkutil::compressionFormatToEngineFormat(textureData.format, textureData.sRGB);
-    VkFormat format = formatMapping.first;
-    Format engineFormat = formatMapping.second;
-    
-    ImageViewType imViewType;
-    VkImageType imageType;
-    
-    // For now, I only support a subset of image types
-    if (textureData.faceCount == 1) {
-        imageType = VK_IMAGE_TYPE_2D;
-        imViewType = ImageViewType::Im2D;
-    } else if (textureData.faceCount == 6) {
-        imageType = VK_IMAGE_TYPE_2D;
-        imViewType = ImageViewType::ImCube;
-    } else {
-        throw std::runtime_error("A texture must have 1 or 6 faces.");
-    }
-    
-    auto stagingData = createTemporaryBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, textureData.size, textureData.data);
-    
-    std::vector<VkBufferImageCopy> bics;
-    size_t layerId = 0;
-    size_t offset = 0;
-    
-    for (std::size_t face = 0; face < textureData.faceCount; ++face) {
-        for (std::size_t level = 0; level < textureData.mipmapLevelCount; ++level) {
-            const glm::uvec3& extents = textureData.getLevelExtents(level);
-            
-            VkBufferImageCopy bic;
-            bic.bufferOffset      = offset;
-            bic.bufferRowLength   = 0;
-            bic.bufferImageHeight = 0;
-            
-            bic.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-            bic.imageSubresource.mipLevel       = level;
-            bic.imageSubresource.baseArrayLayer = layerId;
-            bic.imageSubresource.layerCount     = 1;
-            
-            bic.imageOffset.x = 0;
-            bic.imageOffset.y = 0;
-            bic.imageOffset.z = 0;
-            
-            bic.imageExtent.width  = extents.x;
-            bic.imageExtent.height = extents.y;
-            bic.imageExtent.depth  = extents.z;
-            
-            bics.push_back(bic);
-            
-            offset += textureData.getLevelSize(level);
-        }
-        
-        layerId++;
-    }
-    
+Image VulkanAPI::createImage(const ImageCreateInfo& info) {
     VkImageCreateInfo ici;
     ici.sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     ici.pNext                 = nullptr;
-    ici.flags                 = (imViewType == ImageViewType::ImCube) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0; //TODO CUBEMAP flags
-    ici.imageType             = imageType;
-    ici.format                = format;
-    ici.extent                = {textureData.width, textureData.height, textureData.depth};
-    ici.mipLevels             = textureData.mipmapLevelCount;
-    ici.arrayLayers           = (textureData.faceCount == 6) ? 6 : textureData.layers;
+    ici.flags                 = (info.isCube) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0; //TODO CUBEMAP flags
+    ici.imageType             = VK_IMAGE_TYPE_2D;
+    ici.format                = vk::format(info.format);
+    ici.extent                = {info.extent.x, info.extent.y, info.extent.z};
+    ici.mipLevels             = info.mipLevels;
+    ici.arrayLayers           = info.arrayLayers;
     ici.samples               = VK_SAMPLE_COUNT_1_BIT;
-    ici.tiling                = VK_IMAGE_TILING_OPTIMAL;
-    ici.usage                 = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    ici.tiling                = VK_IMAGE_TILING_OPTIMAL; // TODO determine if it can be optimally tiled
+    ici.usage                 = vk::imageUsage(info.usage);
     ici.sharingMode           = VK_SHARING_MODE_EXCLUSIVE;
     ici.queueFamilyIndexCount = 0;
     ici.pQueueFamilyIndices   = nullptr;
     ici.initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED;
-
+    
+    VmaAllocationCreateInfo aci = {};
+    aci.flags = VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
+    aci.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    
+    if (!info.debugName.empty()) {
+        std::string temp = info.debugName;
+        aci.pUserData = &temp[0];
+    }
+    
     VkImage image;
-    checkResult(vkCreateImage(logicalDevice.handle, &ici, nullptr, &image), "Failed to create an image.");
-
-    VkMemoryRequirements mrDev;
-    vkGetImageMemoryRequirements(logicalDevice.handle, image, &mrDev);
+    VmaAllocation allocation;
+    VmaAllocationInfo allocationInfo;
+    checkResult(vmaCreateImage(allocator, &ici, &aci, &image, &allocation, &allocationInfo), "Failed to create an image");
     
-    VkMemoryAllocateInfo maiDev;
-    maiDev.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    maiDev.pNext           = nullptr;
-    maiDev.allocationSize  = mrDev.size;
-    maiDev.memoryTypeIndex = getMemoryType(mrDev.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    VkDeviceMemory imageMemory;
-    checkResult(vkAllocateMemory(logicalDevice.handle, &maiDev, nullptr, &imageMemory), "Failed to allocate memory.");
+    VkMemoryPropertyFlags flags = 0;
+    vmaGetMemoryTypeProperties(allocator, allocationInfo.memoryType, &flags);
     
-    checkResult(vkBindImageMemory(logicalDevice.handle, image, imageMemory, 0), "Failed to bind memory.");
-    
-    imageToMemory[image] = imageMemory;
-
-    VkCommandBufferBeginInfo cbbi;
-    cbbi.sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    cbbi.pNext            = nullptr;
-    cbbi.flags            = 0;//TODO?
-    cbbi.pInheritanceInfo = nullptr;
-    
-    checkResult(vkBeginCommandBuffer(imageUploadCommandBuffer, &cbbi), "Failed to begin a command buffer.");
-
-    VkImageSubresourceRange sr;
-    sr.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-    sr.baseMipLevel   = 0;
-    sr.levelCount     = textureData.mipmapLevelCount;
-    sr.baseArrayLayer = 0;
-    sr.layerCount     = (textureData.faceCount == 6) ? 6 : textureData.layers;
-
-    setImageLayout(imageUploadCommandBuffer, image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, sr);
-    vkCmdCopyBufferToImage(imageUploadCommandBuffer, stagingData.first, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bics.size(), bics.data());
-    setImageLayout(imageUploadCommandBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sr);
-
-    checkResult(vkEndCommandBuffer(imageUploadCommandBuffer), "Failed to end a command buffer.");
-
-    VkFenceCreateInfo fci;
-    fci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fci.pNext = nullptr;
-    fci.flags = 0;
-    
-    VkFence imageCopyFence;
-    checkResult(vkCreateFence(logicalDevice.handle, &fci, nullptr, &imageCopyFence), "Failed to create a fence."); //TODO reset?
-
-    VkSubmitInfo si;
-    si.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    si.pNext                = nullptr;
-    si.waitSemaphoreCount   = 0;
-    si.pWaitSemaphores      = nullptr;
-    si.pWaitDstStageMask    = nullptr;
-    si.commandBufferCount   = 1;
-    si.pCommandBuffers      = &imageUploadCommandBuffer;
-    si.signalSemaphoreCount = 0;
-    si.pSignalSemaphores    = nullptr;
-
-    checkResult(vkQueueSubmit(logicalDevice.mainQueue, 1, &si, imageCopyFence), "Failed to submmit a queue.");
-    checkResult(vkWaitForFences(logicalDevice.handle, 1, &imageCopyFence, VK_TRUE, 50000000000), "Failed to wait on a fence."); //TODO good timeout value?
-
-    vkDestroyFence(logicalDevice.handle, imageCopyFence, nullptr);
-    
-    vkFreeMemory(logicalDevice.handle, stagingData.second, nullptr);
-    vkDestroyBuffer(logicalDevice.handle, stagingData.first, nullptr);
-    return {ImageHnd(image), textureData.width, textureData.height, textureData.mipmapLevelCount, textureData.layers, imViewType, engineFormat};
+    auto iter = imageToMemory.emplace(std::make_pair(image, AllocationAndInfo(allocation, allocationInfo, flags)));
+    return Image(ImageHnd(image), info.extent, info.mipLevels, info.arrayLayers, info.usage, info.format, info.isCube ? ImageViewType::ImCube : ImageViewType::Im2D, &(iter.first->second));
 }
 
 Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info) {
@@ -1566,12 +1030,15 @@ Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info
     vkGetPhysicalDeviceFormatProperties(physicalDevice.handle, format, &formatProperties);
     
     VkImageUsageFlags iuf = VK_IMAGE_USAGE_SAMPLED_BIT;
+    ImageUsageFlags iufEng = ImageUsageFlagBits::Sampled;
+    
     bool linearTilingRequired = false;
     
     // TODO what if some features are only supported in linear mode and some in optimal mode?
     if (usedAsColorOrDepthAttachment) {
         if (isDepthStencil) {
             iuf |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            iufEng |= ImageUsageFlagBits::DepthStencilAttachment;
             
             vkutil::SupportedTiling st = vkutil::getSupportedTiling(formatProperties, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
             if (st == vkutil::SupportedTiling::NotSupported) {
@@ -1582,6 +1049,7 @@ Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info
             }
         } else {
             iuf |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            iufEng |= ImageUsageFlagBits::ColorAtachment;
             
             vkutil::SupportedTiling st = vkutil::getSupportedTiling(formatProperties, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
             if (st == vkutil::SupportedTiling::NotSupported) {
@@ -1595,6 +1063,7 @@ Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info
     
     if (usedAsTransferSource) {
         iuf |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        iufEng |= ImageUsageFlagBits::TransferSource;
         
         vkutil::SupportedTiling st = vkutil::getSupportedTiling(formatProperties, VK_FORMAT_FEATURE_TRANSFER_SRC_BIT);
         if (st == vkutil::SupportedTiling::NotSupported) {
@@ -1607,54 +1076,23 @@ Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info
     
     if (usedAsInputAttachment) {
         iuf |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+        iufEng |= ImageUsageFlagBits::InputAttachment;
         
         // TODO do I need a check here?
     }
     
     if (needsMemoryUpload) {
         iuf |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        iufEng |= ImageUsageFlagBits::TransferDestination;
     }
     
     if (isWritable) {
         iuf |= VK_IMAGE_USAGE_STORAGE_BIT;
+        iufEng |= ImageUsageFlagBits::Storage;
     }
     
-    // Create an image and allocate memory for it
-    VkImageCreateInfo ici;
-    ici.sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    ici.pNext                 = nullptr;
-    ici.flags                 = 0;
-    ici.imageType             = VK_IMAGE_TYPE_2D;
-    ici.format                = format;
-    ici.extent                = {static_cast<std::uint32_t>(dimensions.x), static_cast<std::uint32_t>(dimensions.y), 1};
-    ici.mipLevels             = 1;
-    ici.arrayLayers           = 1;
-    ici.samples               = VK_SAMPLE_COUNT_1_BIT;
-    ici.tiling                = linearTilingRequired ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
-    ici.usage                 = iuf;
-    ici.sharingMode           = VK_SHARING_MODE_EXCLUSIVE;
-    ici.queueFamilyIndexCount = 0;
-    ici.pQueueFamilyIndices   = nullptr;
-    ici.initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    VkImage image;
-    checkResult(vkCreateImage(logicalDevice.handle, &ici, nullptr, &image), "Failed to create an image.");
-
-    VkMemoryRequirements mrDev;
-    vkGetImageMemoryRequirements(logicalDevice.handle, image, &mrDev);
-    
-    VkMemoryAllocateInfo maiDev;
-    maiDev.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    maiDev.pNext           = nullptr;
-    maiDev.allocationSize  = mrDev.size;
-    maiDev.memoryTypeIndex = getMemoryType(mrDev.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    VkDeviceMemory imageMemory;
-    checkResult(vkAllocateMemory(logicalDevice.handle, &maiDev, nullptr, &imageMemory), "Failed to allocate memory.");
-    
-    checkResult(vkBindImageMemory(logicalDevice.handle, image, imageMemory, 0), "Failed to bind memory.");
-    
-    imageToMemory[image] = imageMemory;
+    ImageCreateInfo ici(glm::uvec3(dimensions.x, dimensions.y, 1), 1, 1, iufEng, engineFormat, false, "UncompressedImage");
+    Image image = createImage(ici);
     
     if (!needsMemoryUpload) {
         VkCommandBufferBeginInfo cbbi;
@@ -1672,7 +1110,7 @@ Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info
         sr.baseArrayLayer = 0;
         sr.layerCount     = 1;
         
-        setImageLayout(imageUploadCommandBuffer, image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, sr);
+        setImageLayout(imageUploadCommandBuffer, image.getHandle().toNative<VkImage>(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, sr);
 
         checkResult(vkEndCommandBuffer(imageUploadCommandBuffer), "Failed to end a command buffer.");
         
@@ -1727,9 +1165,9 @@ Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info
         sr.baseArrayLayer = 0;
         sr.layerCount     = 1;
 
-        setImageLayout(imageUploadCommandBuffer, image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, sr);
-        vkCmdCopyBufferToImage(imageUploadCommandBuffer, stagingData.first, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bics.size(), bics.data());
-        setImageLayout(imageUploadCommandBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sr);
+        setImageLayout(imageUploadCommandBuffer, image.getHandle().toNative<VkImage>(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, sr);
+        vkCmdCopyBufferToImage(imageUploadCommandBuffer, stagingData.first, image.getHandle().toNative<VkImage>(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bics.size(), bics.data());
+        setImageLayout(imageUploadCommandBuffer, image.getHandle().toNative<VkImage>(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sr);
 
         checkResult(vkEndCommandBuffer(imageUploadCommandBuffer), "Failed to end a command buffer.");
 
@@ -1766,18 +1204,21 @@ Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info
           "\n\t\tFormat: " << getFormatName(engineFormat) <<
           "\n\t\tOptimal tiling: " << (linearTilingRequired ? "false" : "true"));
     
-    return {ImageHnd(image), static_cast<std::uint64_t>(dimensions.x), static_cast<std::uint64_t>(dimensions.y), 1, 1, ImageViewType::Im2D, engineFormat};
+    return image;
 }
 
 bool VulkanAPI::destroyImage(const Image& image) {
-    VkImage handle = image.handle.toNative<VkImage>();
+    VkImage handle = image.getHandle().toNative<VkImage>();
     
-    VkDeviceMemory memory = imageToMemory[handle];
+    auto iter = imageToMemory.find(handle);
     
-    vkDestroyImage(logicalDevice.handle, handle, nullptr);
-    vkFreeMemory(logicalDevice.handle, memory, nullptr);
+    if (iter == imageToMemory.end()) {
+        throw std::runtime_error("Can't destoy a non existing image");
+    }
     
-    imageToMemory.erase(handle);
+    vmaDestroyImage(allocator, image.getHandle().toNative<VkImage>(), iter->second.allocation);
+    
+    imageToMemory.erase(iter);
     
     return true;
 }
@@ -1850,49 +1291,6 @@ VkBufferUsageFlagBits VulkanAPI::mapBufferType(BufferType bufferType) const {
     }
 }
 
-// std::pair<VkBuffer, VkDeviceMemory> VulkanAPI::createBuffer(BufferType bufferType, std::uint64_t size, BufferUpdateFrequency flag, const void* data) {
-//     std::pair<VkBuffer, VkDeviceMemory> result;
-//     bool deviceLocal = (BufferUpdateFrequency::Never == flag);
-//     
-//     //TODO sparse? su flags
-//     if (deviceLocal) {
-//         const auto stagingResult = createTemporaryBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, size, data);
-//         result = createTemporaryBuffer(mapBufferType(bufferType) | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, size, nullptr);
-//         
-//         VkCommandBuffer copyBuff = allocateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, true);
-//         VkBufferCopy bc;
-//         bc.srcOffset = 0;
-//         bc.dstOffset = 0;
-//         bc.size = size;
-//         
-//         vkCmdCopyBuffer(copyBuff, stagingResult.first, result.first, 1, &bc);
-//         checkResult(vkEndCommandBuffer(copyBuff), "com_buffer_end_fail");
-// 
-//         VkSubmitInfo si;
-//         si.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-//         si.pNext                = nullptr;
-//         si.waitSemaphoreCount   = 0;
-//         si.pWaitSemaphores      = nullptr;
-//         si.pWaitDstStageMask    = nullptr;
-//         si.commandBufferCount   = 1;
-//         si.pCommandBuffers      = &copyBuff;
-//         si.signalSemaphoreCount = 0;
-//         si.pSignalSemaphores    = nullptr;
-// 
-//         checkResult(vkQueueSubmit(logicalDevice.mainQueue, 1, &si, VK_NULL_HANDLE), "queue_submit_fail");
-//         checkResult(vkQueueWaitIdle(logicalDevice.mainQueue), "queue_wait_fail");
-// 
-//         vkDestroyBuffer(logicalDevice.handle, stagingResult.first, nullptr);
-//         vkFreeMemory(logicalDevice.handle, stagingResult.second, nullptr);
-//         
-//         vkFreeCommandBuffers(logicalDevice.handle, commandPool, 1, &copyBuff);
-//     } else {
-//         result = createTemporaryBuffer(mapBufferType(bufferType), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, size, data);
-//     }
-//     
-//     return result;
-// }
-
 std::pair<VkBuffer, VkDeviceMemory> VulkanAPI::createTemporaryBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryFlags, std::uint64_t size, const void* data) {
     VkBuffer handle;
     VkDeviceMemory memory;
@@ -1943,7 +1341,7 @@ std::pair<VkBuffer, VkDeviceMemory> VulkanAPI::createTemporaryBuffer(VkBufferUsa
     return {handle, memory};
 }
 
-bool VulkanAPI::createBuffer(const BufferCreateInfo& info, Buffer& outBuffer) {
+Buffer VulkanAPI::createBuffer(const BufferCreateInfo& info) {
     VkBufferCreateInfo bci;
     bci.sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bci.pNext                 = nullptr;
@@ -2000,16 +1398,16 @@ bool VulkanAPI::createBuffer(const BufferCreateInfo& info, Buffer& outBuffer) {
     
     auto iter = bufferToMemory.emplace(std::make_pair(handle, AllocationAndInfo(allocation, allocationInfo, flags)));
     
-    outBuffer = Buffer(BufferHnd(handle), info.flags, info.memoryUsage, finalSize, &(iter.first->second));
-    
-    return true;
+    return Buffer(BufferHnd(handle), info.flags, info.memoryUsage, finalSize, &(iter.first->second));
 }
 
 bool VulkanAPI::destroyBuffer(const Buffer& buffer) {
     VkBuffer handle = buffer.handle().toNative<VkBuffer>();
     auto result = bufferToMemory.find(handle);
     
-    assert(result != bufferToMemory.end());
+    if (result == bufferToMemory.end()) {
+        throw std::runtime_error("Can't destoy a non existing buffer");
+    }
     
     vmaDestroyBuffer(allocator, handle, result->second.allocation);
     
@@ -2287,7 +1685,7 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
             
             VkImageAspectFlags af;
 
-            bool isDepthStencil = vkutil::isDepthStencilFormat(img.format);
+            bool isDepthStencil = vkutil::isDepthStencilFormat(img.getFormat());
             if (isDepthStencil) {
                 af = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
             } else {
@@ -2305,9 +1703,9 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
             ivci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             ivci.pNext            = nullptr;
             ivci.flags            = 0;
-            ivci.image            = img.handle.toNative<VkImage>();
+            ivci.image            = img.getHandle().toNative<VkImage>();
             ivci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
-            ivci.format           = vk::format(img.format);
+            ivci.format           = vk::format(img.getFormat());
             ivci.components       = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
             ivci.subresourceRange = isr;
 
@@ -2324,53 +1722,21 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
         } else { // FramebufferAttachmentCreateInfo
             const FramebufferAttachmentCreateInfo& i = std::get<FramebufferAttachmentCreateInfo>(ci);
             //VkImageUsageFlags uf = VK_IMAGE_USAGE_SAMPLED_BIT;
-            VkImageUsageFlags uf = i.isAttachment ? VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT : VK_IMAGE_USAGE_SAMPLED_BIT;
+            ImageUsageFlags iuf = i.isAttachment ? ImageUsageFlagBits::InputAttachment : ImageUsageFlagBits::Sampled;
+            
             VkImageAspectFlags af;
 
             bool isDepthStencil = vkutil::isDepthStencilFormat(i.format);
             if (isDepthStencil) {
-                uf |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+                iuf |= ImageUsageFlagBits::DepthStencilAttachment;
                 af = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
             } else {
-                uf |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+                iuf |= ImageUsageFlagBits::ColorAtachment;
                 af = VK_IMAGE_ASPECT_COLOR_BIT;
             }
 
-            VkImageCreateInfo ici;
-            ici.sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            ici.pNext                 = nullptr;
-            ici.flags                 = 0;
-            ici.imageType             = VK_IMAGE_TYPE_2D;
-            ici.format                = vk::format(i.format);
-            ici.extent                = {extent.x, extent.y, 1};
-            ici.mipLevels             = 1;
-            ici.arrayLayers           = 1;
-            ici.samples               = VK_SAMPLE_COUNT_1_BIT;
-            ici.tiling                = VK_IMAGE_TILING_OPTIMAL;
-            ici.usage                 = uf;
-            ici.sharingMode           = VK_SHARING_MODE_EXCLUSIVE;
-            ici.queueFamilyIndexCount = 0;
-            ici.pQueueFamilyIndices   = nullptr;
-            ici.initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED;
-
-            VkImage image;
-            checkResult(vkCreateImage(logicalDevice.handle, &ici, nullptr, &image), "Failed to create an image.");
-
-            VkMemoryRequirements mrDev;
-            vkGetImageMemoryRequirements(logicalDevice.handle, image, &mrDev);
-
-            VkMemoryAllocateInfo maiDev;
-            maiDev.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            maiDev.pNext           = nullptr;
-            maiDev.allocationSize  = mrDev.size;
-            maiDev.memoryTypeIndex = getMemoryType(mrDev.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-            VkDeviceMemory imageMemory;
-            checkResult(vkAllocateMemory(logicalDevice.handle, &maiDev, nullptr, &imageMemory), "Failed to allocate memory.");
-
-            checkResult(vkBindImageMemory(logicalDevice.handle, image, imageMemory, 0), "Failed to bind memory.");
-
-            imageToMemory[image] = imageMemory;
+            ImageCreateInfo ici(glm::uvec3(extent, 1), 1, 1, iuf, i.format, false, "FramebufferImage");
+            Image image = createImage(ici);
 
             VkImageSubresourceRange isr;
             isr.aspectMask     = af;
@@ -2383,7 +1749,7 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
             ivci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             ivci.pNext            = nullptr;
             ivci.flags            = 0;
-            ivci.image            = image;
+            ivci.image            = image.getHandle().toNative<VkImage>();
             ivci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
             ivci.format           = vk::format(i.format);
             ivci.components       = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
@@ -2392,16 +1758,7 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
             VkImageView imageView;
             checkResult(vkCreateImageView(logicalDevice.handle, &ivci, nullptr, &imageView), "Failed to create an image view.");
 
-            Image img;
-            img.handle = ImageHnd(image);
-            img.format = i.format;
-            img.width  = extent.x;
-            img.height = extent.y;
-            img.levels = 1;
-            img.layers = 1;
-            img.type   = ImageViewType::Im2D;
-
-            fbo.images.push_back(std::move(img));
+            fbo.images.push_back(std::move(image));
             fbo.imageViews.push_back(ImageViewHnd(imageView));
             fbo.isImageOwned.push_back(true);
         }
@@ -2457,13 +1814,8 @@ void VulkanAPI::destroyFramebufferWithAttachments(const Framebuffer& framebuffer
     for (std::size_t j = 0; j < framebuffer.images.size(); ++j) {
         const auto& i = framebuffer.images[j];
         
-        if (framebuffer.isImageOwned[j]) { // Jei ne - reikšia šitas view mums buvo perduotas ir už jo naikinimą atsakingas vartotojas
-            VkDeviceMemory memory = imageToMemory[i.handle.toNative<VkImage>()];
-    
-            vkDestroyImage(logicalDevice.handle, i.handle.toNative<VkImage>(), nullptr);
-            vkFreeMemory(logicalDevice.handle, memory, nullptr);
-
-            imageToMemory.erase(i.handle.toNative<VkImage>());
+        if (framebuffer.isImageOwned[j]) {
+            destroyImage(i);
         }
         
         ImageViewHnd v = framebuffer.imageViews[j];
@@ -2646,7 +1998,7 @@ void VulkanCommandBuffer::copyImageToBuffer(const Image& srcImage, ImageLayout l
         convertedRegions.push_back(std::move(bic));
     }
     
-    vkCmdCopyImageToBuffer(cmdBuff, srcImage.handle.toNative<VkImage>(), vk::imageLayout(layout), dstBuffer.handle().toNative<VkBuffer>(), regions.size(), convertedRegions.data());
+    vkCmdCopyImageToBuffer(cmdBuff, srcImage.getHandle().toNative<VkImage>(), vk::imageLayout(layout), dstBuffer.handle().toNative<VkBuffer>(), regions.size(), convertedRegions.data());
 }
 
 // --------------------------------- Command pool

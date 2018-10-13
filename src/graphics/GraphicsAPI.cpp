@@ -29,6 +29,7 @@
 #include "graphics/GraphicsAPI.hpp"
 
 #include "utilities/ConstantMapper.hpp"
+#include "assets/loaders/TextureLoader.hpp"
 #include "core/Engine.hpp"
 #include "core/Logger.hpp"
 // Needed to fetch the localized window name
@@ -441,11 +442,11 @@ SamplerHnd GraphicsAPI::createPresetSampler(SamplerPreset preset, float maxLod) 
 
 ImageViewHnd GraphicsAPI::createDefaultImageView(const Image& image) {
     ImageViewCreateInfo ivci;
-    ivci.image = image.handle;
-    ivci.viewType = image.type;
-    ivci.format = image.format;
-    ivci.subresourceRange.levelCount = image.levels;
-    ivci.subresourceRange.layerCount = (image.type == ImageViewType::ImCube) ? 6 : image.layers;
+    ivci.image = image.getHandle();
+    ivci.viewType = image.getType();
+    ivci.format = image.getFormat();
+    ivci.subresourceRange.levelCount = image.getMipLevels();
+    ivci.subresourceRange.layerCount = (image.getType() == ImageViewType::ImCube) ? 6 : image.getArrayLayers();
 
     return createImageView(ivci);
 }
@@ -458,16 +459,15 @@ std::string GraphicsAPI::getFormatName(Format format) const {
     return formatName(format);
 }
 
-bool GraphicsAPI::createBuffers(const std::vector<BufferCreateInfo>& info, std::vector<Buffer>& outBuffers) {
-    outBuffers.clear();
-    outBuffers.resize(info.size());
+std::vector<Buffer> GraphicsAPI::createBuffers(const std::vector<BufferCreateInfo>& infos) {
+    std::vector<Buffer> outBuffers;
+    outBuffers.reserve(infos.size());
     
-    bool result = true;
-    for (std::size_t i = 0; i < info.size(); ++i) {
-        result &= createBuffer(info[i], outBuffers[i]);
+    for (std::size_t i = 0; i < infos.size(); ++i) {
+        outBuffers.push_back(createBuffer(infos[i]));
     }
     
-    return result;
+    return outBuffers;
 }
 
 bool GraphicsAPI::destroyBuffers(const std::vector<Buffer>& buffers) {
@@ -477,6 +477,25 @@ bool GraphicsAPI::destroyBuffers(const std::vector<Buffer>& buffers) {
     }
     
     return result;
+}
+
+ImageCreateInfo GraphicsAPI::buildImageCreateInfo(const TextureData& textureData) {
+    ImageCreateInfo ici;
+    ici.extent = {textureData.width, textureData.height, textureData.depth};
+    ici.format = con::CompressionFormatToEngineFormat(textureData.format, textureData.sRGB);
+    ici.mipLevels = textureData.mipmapLevelCount;
+    ici.arrayLayers = (textureData.faceCount == 6) ? 6 : textureData.layers;
+    ici.usage = ImageUsageFlagBits::TransferDestination | ImageUsageFlagBits::Sampled;
+    
+    if (textureData.faceCount == 1) {
+        ici.isCube = false;
+    } else if (textureData.faceCount == 6) {
+        ici.isCube = true;
+    } else {
+        throw std::runtime_error("A texture must have 1 or 6 faces.");
+    }
+    
+    return ici;
 }
 
 
