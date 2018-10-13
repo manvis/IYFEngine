@@ -45,7 +45,7 @@ void TextureTypeManager::performFree(Texture& assetData) {
     }
 }
 
-std::unique_ptr<LoadedAssetData> TextureTypeManager::readFile(hash32_t nameHash, const fs::path& path, const Metadata& meta, Texture& assetData) {
+std::unique_ptr<LoadedAssetData> TextureTypeManager::readFile(hash32_t, const fs::path& path, const Metadata& meta, Texture& assetData) {
     File file(path, File::OpenMode::Read);
     return std::make_unique<LoadedAssetData>(meta, assetData, file.readWholeFile());
 }
@@ -87,6 +87,25 @@ void TextureTypeManager::executeBatchOperations() {
 void TextureTypeManager::initMissingAssetHandle() {
     // TODO load a missing texture
     missingAssetHandle = AssetHandle<Texture>();
+}
+
+AssetsToEnableResult TextureTypeManager::hasAssetsToEnable() const {
+    if (toEnable.empty()) {
+        return AssetsToEnableResult::NoAssetsToEnable;
+    }
+    
+    assert(toEnable.front().future.valid());
+    if (toEnable.front().future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        DeviceMemoryManager* manager = gfx->getDeviceMemoryManager();
+        
+        if (!manager->canBatchFitData(MemoryBatch::MeshAssetData, Bytes(toEnable.front().estimatedSize))) {
+            return AssetsToEnableResult::Busy;
+        } else {
+            return AssetsToEnableResult::HasAssetsToEnable;
+        }
+    } else {
+        return AssetsToEnableResult::NoAssetsToEnable;
+    }
 }
 
 std::uint64_t TextureTypeManager::estimateUploadSize(const Metadata& meta) const {

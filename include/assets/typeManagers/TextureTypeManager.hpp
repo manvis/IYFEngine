@@ -51,6 +51,7 @@ protected:
     virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool canBatch) final override;
     virtual void performFree(Texture& assetData) final override;
     virtual void executeBatchOperations() final override;
+    virtual AssetsToEnableResult hasAssetsToEnable() const final override;
     
     virtual bool canBatchAsyncLoadedAssets() const final override {
         return true;
