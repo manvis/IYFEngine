@@ -38,6 +38,7 @@ endif()
 
 set (BUILD_FILES 
 #------- assets directory
+assets/AssetConstants.cpp
 assets/AssetManager.cpp
 #------- loader directory
 assets/loaders/MeshLoader.cpp
@@ -59,6 +60,7 @@ assets/typeManagers/FontTypeManager.cpp
 assets/typeManagers/MeshTypeManager.cpp
 assets/typeManagers/ShaderTypeManager.cpp
 assets/typeManagers/TextureTypeManager.cpp
+assets/typeManagers/TypeManager.cpp
 #------- core directory
 core/configuration/Configuration.cpp
 core/interfaces/Configurable.cpp

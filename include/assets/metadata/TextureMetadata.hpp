@@ -29,6 +29,7 @@
 #ifndef TEXTUREMETADATA_HPP
 #define TEXTUREMETADATA_HPP
 
+#include "core/Constants.hpp"
 #include "assets/metadata/MetadataBase.hpp"
 
 namespace iyf {

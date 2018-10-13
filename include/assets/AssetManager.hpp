@@ -26,333 +26,31 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef ASSETMANAGER_HPP
-#define ASSETMANAGER_HPP
+#ifndef IYF_ASSET_MANAGER_HPP
+#define IYF_ASSET_MANAGER_HPP
 
-#include "core/Constants.hpp"
-#include "core/Logger.hpp"
-#include "core/interfaces/GarbageCollecting.hpp"
-#include "utilities/hashing/Hashing.hpp"
-#include "utilities/NonCopyable.hpp"
-#include "utilities/ChunkedVector.hpp"
-#include "assets/metadata/Metadata.hpp"
 #include "assets/Asset.hpp"
 #include "assets/AssetHandle.hpp"
-#include "graphics/MaterialPipelineDefinition.hpp"
-#include "threading/ThreadPool.hpp"
+#include "assets/metadata/Metadata.hpp"
+#include "assets/typeManagers/TypeManager.hpp"
+#include "utilities/NonCopyable.hpp"
 
-#include <unordered_map>
 #include <array>
+#include <chrono>
 #include <memory>
-#include <atomic>
-#include <thread>
 #include <mutex>
-#include <future>
+#include <unordered_map>
 
 namespace iyf {
 class Engine;
 class MeshLoader;
 
 class AssetManager;
+class TypeManager;
 
 namespace con {
 extern const std::chrono::milliseconds MinAsyncLoadWindow;
 extern const std::chrono::milliseconds MaxAsyncLoadWindow;
-}
-
-class TypeManagerBase : public GarbageCollecting {
-public:
-    TypeManagerBase(AssetManager* manager);
-    
-    virtual AssetType getType() = 0;
-    virtual ~TypeManagerBase() {}
-    
-    /// \brief Reload the specified asset from disk.
-    ///
-    /// \warning This function can only be used if the Engine is running in editor mode.
-    ///
-    /// \throws std::logic_error if the engine is running in game mode.
-    virtual bool refresh(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) = 0;
-protected:
-    friend class AssetManager;
-    
-    enum class AssetsToEnableResult {
-        HasAssetsToEnable, /// < The TypeManager has assets that are ready to be enabled
-        NoAssetsToEnable, /// < The TypeManager doesn't have any assets that need to be enabled
-        Busy /// < The TypeManager has assets that need to be enabled, but can't do it. E.g., a GPU upload buffer for this frame has been filled.
-    };
-    
-    /// Tells the AssetManager that this TypeManager batches async loaded assets and executeBatchOperations() needs to be called on it
-    /// to perform actual data uploads or processing.
-    virtual bool canBatchAsyncLoadedAssets() const {
-        return false;
-    }
-    
-    /// Used by some classes derived from the TypeManager to process all asynchronously loaded data in one go. E.g., to avoid multiple expensive synchronization 
-    /// or data upload operations.
-    ///
-    /// This call happens every frame. If nothing was added into the batch, the TypeManager should be smart enough to avoid any expensive operations.
-    virtual void executeBatchOperations() {}
-    
-    /// If canBatchAsyncLoadedAssets() returns true and executeBatchOperations() may take a while, this function should return the expected run
-    /// duration of the executeBatchOperations() function.
-    virtual std::chrono::nanoseconds estimateBatchOperationDuration() {
-        return std::chrono::nanoseconds(0);
-    }
-    
-    /// \brief Enable a single asset that has been loaded asynchronously.
-    virtual void enableAsyncLoadedAsset(bool canBatch) = 0;
-    
-    /// \brief Checks if the TypeManager can enable any Assets.
-    virtual AssetsToEnableResult hasAssetsToEnable() const = 0;
-    
-    /// Our friend AssetManager calls this function once it finishes building the manifest. The "missing" assets
-    /// are treated like any other assets and require the presence of a manifest to be loaded.
-    virtual void initMissingAssetHandle() = 0;
-    
-    void logLeakedAsset(std::size_t id, hash32_t nameHash, std::uint32_t count);
-    void notifyRemoval(hash32_t nameHash);
-    
-    virtual void notifyMove(std::uint32_t id, hash32_t sourceNameHash, hash32_t destinationNameHash) = 0;
-    
-    AssetManager* manager;
-    iyft::ThreadPool* longTermWorkerPool;
-};
-
-struct LoadedAssetData {
-    LoadedAssetData(const Metadata& metadata, Asset& assetData, std::pair<std::unique_ptr<char[]>, std::int64_t> rawData) 
-        : assetData(assetData), metadata(metadata), rawData(std::move(rawData)) {}
-    
-    Asset& assetData;
-    const Metadata& metadata;
-    std::pair<std::unique_ptr<char[]>, std::int64_t> rawData;
-    
-    virtual ~LoadedAssetData() {}
-};
-
-struct AsyncLoadInfo {
-    AsyncLoadInfo(std::future<std::unique_ptr<LoadedAssetData>> future, std::uint64_t estimatedSize) 
-        : future(std::move(future)), estimatedSize(estimatedSize) {}
-    /// The actual future of the asynchronously performed load operation
-    std::future<std::unique_ptr<LoadedAssetData>> future;
-    
-    /// Used to determine if the TypeManager should try to upload more data or not (e.g., Mesh and Texture type managers
-    /// use this value to check if the data will fit into the staging buffer this frame).
-    std::uint64_t estimatedSize;
-};
-
-/// TypeManager handles the actual loading and unloading of //
-/// \todo is the default chunk size ok?
-template <typename T, size_t chunkSize = 8192>
-class TypeManager : public TypeManagerBase {
-protected:
-    static const std::uint32_t ClearedAsset = std::numeric_limits<std::uint32_t>::max();
-    
-public:
-    static_assert(std::is_base_of<Asset, T>::value, "All assets need to be derived from the Asset base class");
-    static_assert(std::is_default_constructible<T>::value, "All assets need to be default constructible");
-    
-    TypeManager(AssetManager* manager, std::size_t initialFreeListSize = 1024) : TypeManagerBase(manager) {
-        freeList.reserve(initialFreeListSize);
-    }
-    
-    virtual ~TypeManager() { }
-    
-    /// Load an asset that has not been loaded yet
-    inline AssetHandle<T> load(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut, bool isAsync);
-    /// Fetch a handle to an asset that has already been loaded
-    inline AssetHandle<T> fetch(std::uint32_t id);
-    /// Return a handle that corresponds to a "missing" asset
-    inline AssetHandle<T> getMissingAssetHandle();
-    
-    virtual void collectGarbage(GarbageCollectionRunPolicy policy = GarbageCollectionRunPolicy::FullCollection) override {
-        // Pointer increments are signifficantly faster than lookups via [] operator. We can't
-        // use the iterator here because we need to know the ids of the elements that need to be freed
-        std::size_t chunkCount = counts.getChunkCount();
-        std::size_t id = 0;
-        
-        for (std::size_t c = 0; c < chunkCount; ++c) {
-            std::atomic<std::uint32_t>* current = counts.getChunkStart(c);
-            std::atomic<std::uint32_t>* end = (c + 1 == chunkCount) ? (&counts[counts.size() - 1] + 1) : counts.getChunkEnd(c);
-            
-            // Free all assets with reference count equal to 0 and notify the parent AssetManager that
-            // these assets should no longer be in lookup map
-            if (policy == GarbageCollectionRunPolicy::FullCollection) {
-                while (current != end) {
-                    if ((*current) == 0) {
-                        notifyRemoval(assets[id].getNameHash());
-                        
-                        freeList.push_back(id);
-                        performFree(assets[id]);
-                        assets[id].setLoaded(false);
-                        
-                        // Set this to a special value in order to prevent repeated clearing
-                        *current = ClearedAsset;
-                    }
-                    
-                    current++;
-                    id++;
-                }
-            // Free all assets and log those that got leaked (still have live references)
-            } else if (policy == GarbageCollectionRunPolicy::FullCollectionDuringDestruction) {
-                while (current != end) {
-                    T& asset = assets[id];
-                    
-                    if ((*current) != 0 && (*current) != ClearedAsset) {
-                        logLeakedAsset(id, asset.getNameHash(), *current);
-                    }
-                    
-                    // No need to clear already cleared values
-                    if ((*current) != ClearedAsset) {
-                        performFree(asset);
-                    }
-                    
-                    current++;
-                    id++;
-                }
-            }
-        }
-    }
-protected:
-    virtual void performFree(T& assetData) = 0;
-    
-    /// A concrete implementation of this function should read the file from disk into memory and perform any processing that 
-    /// can be done without (or with minimal) synchronization. The second part is especially important because this function may be
-    /// called at almost any time, from almost any thread.
-    ///
-    /// Assigning to assetData is considered safe because assets aren't supposed to be touched by other code while Asset::isLoaded()
-    /// is false.
-    ///
-    /// \return everything that is required by enableAsset();
-    virtual std::unique_ptr<LoadedAssetData> readFile(hash32_t nameHash, const fs::path& path, const Metadata& meta, T& assetData) = 0;
-    
-    /// A concrete implementation of this function should "enable" a loaded asset by finishing all preparations (e.g., uploading data 
-    /// to the GPU) and setting Asset::setLoaded() to true. Always called on the main thread.
-    ///
-    /// \param canBatch If true, the TypeManager is allowed to use a batcher and delay the actual upload operation until executeBatchOperations()
-    /// is called
-    virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool canBatch) = 0;
-    
-    /// Used by TypeManagers that perform batching. Must return a value that's equal to the final data upload size.
-    virtual std::uint64_t estimateUploadSize(const Metadata&) const {
-        return 0;
-    }
-    
-    virtual void enableAsyncLoadedAsset(bool canBatch) final override {
-        // This should only be called after hasAssetsToEnable
-        assert(!toEnable.empty());
-        assert(toEnable.front().future.valid());
-        assert(toEnable.front().future.wait_for(std::chrono::seconds(0)) == std::future_status::ready);
-        
-        std::unique_ptr<LoadedAssetData> data = toEnable.front().future.get();
-        
-        Asset& assetData = data->assetData;
-        assert(assetData.isLoaded());
-        
-        enableAsset(std::move(data), canBatch);
-        
-        toEnable.pop_front();
-    }
-    
-    /// \remark This default implementation doesn't handle the AssetsToEnableResult::Busy case because every TypeManager defines
-    /// "busy" in a different way and some can't be busy at all.
-    virtual AssetsToEnableResult hasAssetsToEnable() const override {
-        if (toEnable.empty()) {
-            return AssetsToEnableResult::NoAssetsToEnable;
-        }
-        
-        // TODO Technically, depending on the size of the files and how work gets assigned to threads, it's possible that
-        // a later operation will finish before an earlier one. Iterating over and checking many elements every frame  (e.g.,
-        // when loading a World) doesn't seem to be a particularly good idea as well. If this proves to be a problem, I'll 
-        // need to look for a smarter solution, e.g., use a syncronized queue that receives a LoadedAssetData object whenever
-        // readFile() finishes. However, the current solution seems to be good enough for now.
-        assert(toEnable.front().future.valid());
-        if (toEnable.front().future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-            return AssetsToEnableResult::HasAssetsToEnable;
-        } else {
-            return AssetsToEnableResult::NoAssetsToEnable;
-        }
-    }
-    
-    virtual bool refresh(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) final override {
-        return refreshImpl(nameHash, path, meta, id);
-    }
-    
-    inline bool refreshImpl(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id);
-    
-    virtual void notifyMove(std::uint32_t id, [[maybe_unused]] hash32_t sourceNameHash, hash32_t destinationNameHash) override {
-        T& asset = assets[id];
-        assert(asset.getNameHash() == sourceNameHash);
-        
-        asset.setNameHash(destinationNameHash);
-    }
-    
-    std::vector<std::uint32_t> freeList;
-    ChunkedVector<std::atomic<std::uint32_t>, chunkSize> counts;
-    ChunkedVector<T, chunkSize> assets;
-    
-    std::deque<AsyncLoadInfo> toEnable;
-    
-    /// A value that can safely be used for missing assets.
-    AssetHandle<T> missingAssetHandle;
-};
-
-template <typename T, size_t chunkSize>
-AssetHandle<T> TypeManager<T, chunkSize>::load(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut, bool isAsync) {
-    // Find a free slot in the freeList or start using a new slot at the end
-    std::uint32_t id;
-    
-    if (freeList.empty()) {
-        assets.emplace_back();
-        
-        id = assets.size() - 1;
-        counts.emplace_back(0);
-        
-        assets[id].setNameHash(nameHash);
-        
-        if (isAsync) {
-            toEnable.emplace_back(longTermWorkerPool->addTaskWithResult(&TypeManager<T, chunkSize>::readFile, this, nameHash, path, meta, assets[id]), estimateUploadSize(meta));
-        } else {
-            std::unique_ptr<LoadedAssetData> loadedFile = readFile(nameHash, path, meta, assets[id]);
-            enableAsset(std::move(loadedFile), false);
-            assert(assets[id].isLoaded());
-        }
-        
-        idOut = id;
-        
-        return AssetHandle<T>(&assets[id], &counts[id]);
-    } else {
-        id = freeList.back();
-        freeList.pop_back();
-        
-        assets[id].setNameHash(nameHash);
-        
-        if (isAsync) {
-            toEnable.emplace_back(longTermWorkerPool->addTaskWithResult(&TypeManager<T, chunkSize>::readFile, this, nameHash, path, meta, assets[id]), estimateUploadSize(meta));
-        } else {
-            std::unique_ptr<LoadedAssetData> loadedFile = readFile(nameHash, path, meta, assets[id]);
-            enableAsset(std::move(loadedFile), false);
-            assert(assets[id].isLoaded());
-        }
-        
-        // Check if the asset has been cleared successfully
-        assert(counts[id] == ClearedAsset);
-        counts[id] = 0;
-        
-        idOut = id;
-        
-        return AssetHandle<T>(&assets[id], &counts[id]);
-    }
-}
-
-template <typename T, size_t chunkSize>
-AssetHandle<T> TypeManager<T, chunkSize>::fetch(std::uint32_t id) {
-    return AssetHandle<T>(&assets[id], &counts[id]);
-}
-
-template <typename T, size_t chunkSize>
-AssetHandle<T> TypeManager<T, chunkSize>::getMissingAssetHandle() {
-    return missingAssetHandle;
 }
 
 /// The AssetManager is an intermediary between asset users, such as Entity component objects, and TypeManager objects
@@ -434,17 +132,39 @@ public:
     /// \return An AssetHandle
     template <typename T>
     inline AssetHandle<T> load(hash32_t nameHash, bool async) {
-        return loadImpl<T>(nameHash, async);
+        auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
+        std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
+        
+        const auto assetReference = loadedAssets.find(nameHash);
+        
+        assert(manifest.find(nameHash) != manifest.end());
+        const ManifestElement& asset = manifest[nameHash];
+        
+        TypeManager* typeManager = typeManagers[static_cast<std::size_t>(asset.type)].get();
+        assert(typeManager != nullptr);
+        assert(typeManager->getType() == asset.type);
+        
+        if (assetReference == loadedAssets.end()) {
+            std::uint32_t id;
+            
+            auto result = typeManager->load(nameHash, asset.path, asset.metadata, id, async);
+            loadedAssets[nameHash] = {asset.type, id};
+            return AssetHandle<T>(static_cast<T*>(result.first), result.second);
+        } else {
+            auto result = typeManager->fetch(assetReference->second.second);
+            return AssetHandle<T>(static_cast<T*>(result.first), result.second);
+        }
     }
     
     template <typename T>
     inline AssetHandle<T> getMissingAsset(AssetType type) {
-        TypeManager<T>* typeManager = dynamic_cast<TypeManager<T>*>(typeManagers[static_cast<std::size_t>(type)].get());
+        TypeManager* typeManager = typeManagers[static_cast<std::size_t>(type)].get();
         
         assert(typeManager != nullptr);
         assert(typeManager->getType() == type);
         
-        return typeManager->getMissingAssetHandle();
+        auto result = typeManager->getMissingAssetHandle();
+        return AssetHandle<T>(static_cast<T*>(result.first), result.second);
     }
     
     template <typename T>
@@ -561,11 +281,11 @@ public:
         return loadedAssets.size();
     }
     
-    /// Obtain a const observer pointer to a specific TypeManagerBase object. This method is typically used
+    /// Obtain a const observer pointer to a specific TypeManager object. This method is typically used
     /// to retrieve debug data directly from type managers.
     ///
     /// The returned pointer is guaranteed to stay valid until Engine::quit() is called.
-    inline const TypeManagerBase* getTypeManager(AssetType type) const {
+    inline const TypeManager* getTypeManager(AssetType type) const {
         return typeManagers[static_cast<std::size_t>(type)].get();
     }
 //--------------- Editor API Start
@@ -600,30 +320,6 @@ public:
         Metadata metadata;
     };
 private:
-    /// \todo an empty handle would be nicer than an assert
-    template <typename T>
-    inline AssetHandle<T> loadImpl(hash32_t nameHash, bool isAsync) {
-        auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
-        std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
-        
-        const auto assetReference = loadedAssets.find(nameHash);
-        
-        assert(manifest.find(nameHash) != manifest.end());
-        const ManifestElement& asset = manifest[nameHash];
-        
-        TypeManager<T>* typeManager = dynamic_cast<TypeManager<T>*>(typeManagers[static_cast<std::size_t>(asset.type)].get());
-        
-        if (assetReference == loadedAssets.end()) {
-            std::uint32_t id;
-            
-            AssetHandle<T> loadedHandle = typeManager->load(nameHash, asset.path, asset.metadata, id, isAsync);
-            loadedAssets[nameHash] = {asset.type, id};
-            return loadedHandle;
-        } else {
-            return typeManager->fetch(assetReference->second.second);
-        }
-    }
-    
     /// Called by checkForHashCollision(). Needed to avoid a deadlock when checking for hash collisions during asset move.
     std::optional<fs::path> checkForHashCollisionImpl(hash32_t nameHash, const fs::path& checkPath) const;
     
@@ -659,7 +355,7 @@ private:
     /// Builds the manifest from all converted assets that reside in the asset folder for the current platform and have corresponding metadata.
     void buildManifestFromFilesystem();
     
-    friend class TypeManagerBase;
+    friend class TypeManager;
     void notifyRemoval(hash32_t handle) {
         std::lock_guard<std::mutex> lock(loadedAssetListMutex);
         std::size_t count = loadedAssets.erase(handle);
@@ -697,15 +393,7 @@ private:
     /// Maps hashed paths of loaded Asset objects to AssetTypeID pairs
     std::unordered_map<hash32_t, AssetTypeID> loadedAssets;
     
-    std::array<std::unique_ptr<TypeManagerBase>, static_cast<std::size_t>(AssetType::ANY)> typeManagers;
-    
-    /// A vector of MaterialPipelineDefinition objects that correspond to all pipeline families that can be used
-    /// by the Meshes
-    std::unordered_map<hash32_t, MaterialPipelineDefinition> availablePipelines;
-    
-    /// Used only when running in editor mode. This thread regularly polls the FileSystemWatcher and performs
-    /// imports of new or modified assets
-    std::thread importManagementThread;
+    std::array<std::unique_ptr<TypeManager>, static_cast<std::size_t>(AssetType::ANY)> typeManagers;
     
     std::chrono::milliseconds asyncLoadWindow;
     
@@ -714,28 +402,8 @@ private:
     
     static const std::unordered_map<std::string, AssetType> ExtensionToType;
 };
-
-template <typename T, size_t chunkSize>
-inline bool TypeManager<T, chunkSize>::refreshImpl(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) {
-    if (manager->isGameMode()) {
-        throw std::logic_error("This method can't be used when the engine is running in game mode.");
-    }
-    
-    // Everything must happen synchronously
-    performFree(assets[id]);
-    std::unique_ptr<LoadedAssetData> loadedFile = readFile(nameHash, path, meta, assets[id]);
-    enableAsset(std::move(loadedFile), false);
-    assets[id].setNameHash(nameHash);
-    
-    return true;
-}
-
-inline void TypeManagerBase::notifyRemoval(hash32_t nameHash) {
-    manager->notifyRemoval(nameHash);
-}
-
 }
 
 
-#endif /* ASSETMANAGER_HPP */
+#endif // IYF_ASSET_MANAGER_HPP
 

@@ -33,24 +33,6 @@
 namespace iyf {
 namespace con {
 
-const fs::path AssetPath = u8"assets";
-const fs::path SystemAssetPath = AssetPath / u8"system";
-const fs::path ImportPath = u8"imports";
-const fs::path AnimationPath = AssetPath / u8"animations";
-const fs::path MeshPath = AssetPath / u8"meshes";
-const fs::path TexturePath = AssetPath / u8"textures";
-const fs::path FontPath = AssetPath / u8"fonts";
-const fs::path AudioPath = AssetPath / u8"audio";
-const fs::path VideoPath = AssetPath / u8"video";
-const fs::path WorldPath = AssetPath / u8"worlds";
-const fs::path ScriptPath = AssetPath / u8"scripts";
-const fs::path ShaderPath = AssetPath / u8"shaders";
-const fs::path PipelinePath = AssetPath / u8"pipelines";
-const fs::path StringPath = AssetPath / u8"strings";
-const fs::path CustomPath = AssetPath / u8"custom";
-const fs::path MaterialPath = AssetPath / u8"materials";
-const fs::path SystemStringPath = AssetPath / u8"systemStrings";
-
 const std::string MaterialFormatExtension = u8".iyfm";
 const std::string ProjectFileExtension = u8".iyfp";
 const std::string MetadataExtension = u8".iyfd";
@@ -65,41 +47,6 @@ const std::string DefaultReleasePackName = u8"assets" + PackFileExtension;
 const std::string DefaultWorldFile = u8"DefaultEmptyWorld" + WorldFileExtension;
 const std::string ProjectFile = u8"Project" + ProjectFileExtension;
 const std::string EngineBaseConfigFile = u8"EngineBaseConfig.lua";
-
-static const std::array<fs::path, static_cast<std::size_t>(AssetType::COUNT)> AssetTypeToPathMap = {
-    AnimationPath, // 0
-    MeshPath,      // 1
-    TexturePath,   // 2
-    FontPath,      // 3
-    AudioPath,     // 4
-    VideoPath,     // 5
-    ScriptPath,    // 6
-    ShaderPath,    // 7
-    StringPath,    // 8
-    CustomPath,    // 9
-};
-
-const fs::path& AssetTypeToPath(AssetType type) {
-    return AssetTypeToPathMap[static_cast<std::size_t>(type)];
-}
-
-static const std::array<std::string, static_cast<std::size_t>(AssetType::COUNT) + 1> AssetTypeToTranslationStringMap = {
-    "animation", // 0
-    "mesh",      // 1
-    "texture",   // 2
-    "font",      // 3
-    "audio",     // 4
-    "video",     // 5
-    "script",    // 6
-    "shader",    // 7
-    "string",    // 8
-    "custom",    // 9
-    "any",       // COUNT/ANY
-};
-
-const std::string& AssetTypeToTranslationString(AssetType type) {
-    return AssetTypeToTranslationStringMap[static_cast<std::size_t>(type)];
-}
 
 inline std::size_t CalculateMipmapLevelSizeHalfBytePerPixel(std::size_t width, std::size_t height) {
     const std::size_t blockSize = 8;

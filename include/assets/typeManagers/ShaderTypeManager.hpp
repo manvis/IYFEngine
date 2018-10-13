@@ -31,12 +31,13 @@
 
 #include "assets/AssetManager.hpp"
 #include "assets/assetTypes/Shader.hpp"
+#include "assets/typeManagers/ChunkedVectorTypeManager.hpp"
 
 namespace iyf {
 class Engine;
 class GraphicsAPI;
 
-class ShaderTypeManager : public TypeManager<Shader> {
+class ShaderTypeManager : public ChunkedVectorTypeManager<Shader> {
 public:
     ShaderTypeManager(AssetManager* manager);
     

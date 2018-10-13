@@ -30,6 +30,7 @@
 #define ASSET_HPP
 
 #include "utilities/hashing/Hashing.hpp"
+#include "assets/AssetConstants.hpp"
 #include <bitset>
 
 namespace iyf {
@@ -73,6 +74,8 @@ public:
     inline bool isLoaded() const {
         return loaded;
     }
+    
+    virtual AssetType getType() const = 0;
 protected:
     Asset() : loaded(false) {}
 private:

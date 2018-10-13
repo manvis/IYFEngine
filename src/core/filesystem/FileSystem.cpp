@@ -26,6 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+#include "assets/AssetConstants.hpp"
 #include "core/filesystem/FileSystem.hpp"
 #include "core/filesystem/cppFilesystem.hpp"
 #include "core/filesystem/File.hpp"

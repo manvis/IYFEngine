@@ -52,7 +52,7 @@ const BufferUsageFlags VBOUsageFlags = BufferUsageFlagBits::VertexBuffer | Buffe
 const BufferUsageFlags IBOUsageFlags = BufferUsageFlagBits::IndexBuffer  | BufferUsageFlagBits::TransferDestination;
 const BufferUsageFlags CombinedUsageFlags = BufferUsageFlagBits::VertexBuffer | BufferUsageFlagBits::IndexBuffer | BufferUsageFlagBits::TransferDestination;
 
-MeshTypeManager::MeshTypeManager(AssetManager* manager, Bytes VBOSize, Bytes IBOSize) : TypeManager(manager), VBOSize(VBOSize), IBOSize(IBOSize) {
+MeshTypeManager::MeshTypeManager(AssetManager* manager, Bytes VBOSize, Bytes IBOSize) : ChunkedVectorTypeManager(manager), VBOSize(VBOSize), IBOSize(IBOSize) {
     engine = manager->getEngine();
     gfx = engine->getGraphicsAPI();
     
@@ -323,7 +323,7 @@ void MeshTypeManager::executeBatchOperations() {
     gfx->getDeviceMemoryManager()->beginBatchUpload(MemoryBatch::MeshAssetData);
 }
 
-TypeManagerBase::AssetsToEnableResult MeshTypeManager::hasAssetsToEnable() const {
+AssetsToEnableResult MeshTypeManager::hasAssetsToEnable() const {
     if (toEnable.empty()) {
         return AssetsToEnableResult::NoAssetsToEnable;
     }

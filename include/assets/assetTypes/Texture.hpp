@@ -38,6 +38,10 @@ namespace iyf {
 /// This wraps the GraphicsAPI handle
 class Texture : public Asset {
 public:
+    virtual AssetType getType() const final override {
+        return AssetType::Texture;
+    }
+    
     Image image;
 };
 }

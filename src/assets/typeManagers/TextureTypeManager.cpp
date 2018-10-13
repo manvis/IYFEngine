@@ -34,7 +34,7 @@
 #include "graphics/GraphicsAPI.hpp"
 
 namespace iyf {
-TextureTypeManager::TextureTypeManager(AssetManager* manager) : TypeManager(manager) {
+TextureTypeManager::TextureTypeManager(AssetManager* manager) : ChunkedVectorTypeManager(manager) {
     engine = manager->getEngine();
     gfx = engine->getGraphicsAPI();
 }

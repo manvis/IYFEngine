@@ -31,12 +31,13 @@
 
 #include "assets/AssetManager.hpp"
 #include "assets/assetTypes/Font.hpp"
+#include "assets/typeManagers/ChunkedVectorTypeManager.hpp"
 
 namespace iyf {
 class Engine;
 class GraphicsAPI;
 
-class FontTypeManager : public TypeManager<Font> {
+class FontTypeManager : public ChunkedVectorTypeManager<Font> {
 public:
     FontTypeManager(AssetManager* manager);
     

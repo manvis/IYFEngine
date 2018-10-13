@@ -31,12 +31,13 @@
 
 #include "assets/AssetManager.hpp"
 #include "assets/assetTypes/Texture.hpp"
+#include "assets/typeManagers/ChunkedVectorTypeManager.hpp"
 
 namespace iyf {
 class Engine;
 class GraphicsAPI;
 
-class TextureTypeManager : public TypeManager<Texture> {
+class TextureTypeManager : public ChunkedVectorTypeManager<Texture> {
 public:
     TextureTypeManager(AssetManager* manager);
     

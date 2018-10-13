@@ -26,18 +26,22 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_ASSET_HANDLE_HPP
-#define IYF_ASSET_HANDLE_HPP
-
-#include <atomic>
-
-#include "utilities/ReferenceCountedHandle.hpp"
+#include "core/Engine.hpp"
+#include "core/Logger.hpp"
+#include "assets/AssetManager.hpp"
+#include "assets/typeManagers/TypeManager.hpp"
 
 namespace iyf {
-using AssetHandleRefCounter = std::atomic<std::uint32_t>;
-
-template <typename T>
-using AssetHandle = ReferenceCountedHandle<T, AssetHandleRefCounter>;
+TypeManager::TypeManager(AssetManager* manager) : manager(manager) {
+    longTermWorkerPool = manager->getEngine()->getLongTermWorkerPool();
 }
 
-#endif // IYF_ASSET_HANDLE_HPP
+void TypeManager::logLeakedAsset(std::size_t id, hash32_t nameHash, std::uint32_t count) {
+    LOG_W("Asset with id " << id << " loaded from path " << manager->getAssetPath(nameHash) << " still has " << count << " live references. ")
+}
+
+void TypeManager::notifyRemoval(hash32_t nameHash) {
+    manager->notifyRemoval(nameHash);
+}
+
+}

@@ -67,6 +67,11 @@ private:
 
 class Mesh : public Asset {
 public:
+    
+    virtual AssetType getType() const final override {
+        return AssetType::Mesh;
+    }
+    
     std::uint8_t vboID;
     std::uint8_t iboID;
     std::uint8_t submeshCount;

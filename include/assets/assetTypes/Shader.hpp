@@ -38,6 +38,10 @@ namespace iyf {
 /// This wraps the GraphicsAPI handle and a few metadata items that are reuired to use the shader
 class Shader : public Asset {
 public:
+    virtual AssetType getType() const final override {
+        return AssetType::Shader;
+    }
+    
     ShaderHnd handle;
     ShaderStageFlags stage;
     ShaderPurpose purpose;

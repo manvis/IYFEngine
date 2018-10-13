@@ -37,8 +37,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
-// TODO split constants file into several so that we would only need to include parts of it. Massive re-compiles every time you change some variable are not fun
-#include "core/Constants.hpp"
+#include "assets/AssetConstants.hpp"
 
 //---- Define assertion handler. Defaults to calling assert().
 //#define IM_ASSERT(_EXPR)  MyAssert(_EXPR)

@@ -32,7 +32,7 @@
 #include "core/Logger.hpp"
 
 namespace iyf {
-FontTypeManager::FontTypeManager(AssetManager* manager) : TypeManager(manager) {
+FontTypeManager::FontTypeManager(AssetManager* manager) : ChunkedVectorTypeManager(manager) {
     engine = manager->getEngine();
     api = engine->getGraphicsAPI();
 }

@@ -35,6 +35,7 @@
 #include "physics/GraphicsToPhysicsDataMapping.hpp"
 #include "assets/AssetManager.hpp"
 #include "assets/assetTypes/Mesh.hpp"
+#include "assets/typeManagers/ChunkedVectorTypeManager.hpp"
 #include "utilities/BufferRangeSet.hpp"
 #include "utilities/DataSizes.hpp"
 
@@ -42,7 +43,7 @@ namespace iyf {
 class Engine;
 /// \todo https://developer.nvidia.com/vulkan-memory-management Maybe I need to merge vertex and index buffers into
 /// a single one and layout the memory of objects like this: obj1Vert,obj1Ind,obj2Vert,obj2Ind,...
-class MeshTypeManager : public TypeManager<Mesh> {
+class MeshTypeManager : public ChunkedVectorTypeManager<Mesh> {
 public:
     struct BufferWithRanges {
         BufferWithRanges(Buffer buffer, Bytes size, void* data) : buffer(buffer), freeRanges(size), data(data) {}
@@ -113,7 +114,7 @@ protected:
     virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool canBatch) final override;
     virtual void performFree(Mesh& assetData) final override;
     virtual void executeBatchOperations() final override;
-    virtual TypeManagerBase::AssetsToEnableResult hasAssetsToEnable() const final override;
+    virtual AssetsToEnableResult hasAssetsToEnable() const final override;
     
     virtual bool canBatchAsyncLoadedAssets() const final override {
         return true;

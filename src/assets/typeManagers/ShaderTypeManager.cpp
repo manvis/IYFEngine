@@ -33,7 +33,7 @@
 #include "graphics/GraphicsAPI.hpp"
 
 namespace iyf {
-ShaderTypeManager::ShaderTypeManager(AssetManager* manager) : TypeManager(manager) {
+ShaderTypeManager::ShaderTypeManager(AssetManager* manager) : ChunkedVectorTypeManager(manager) {
     engine = manager->getEngine();
     api = engine->getGraphicsAPI();
 }

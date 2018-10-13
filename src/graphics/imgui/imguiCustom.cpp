@@ -36,6 +36,7 @@
 #include <array>
 #include <iostream>
 
+#include "core/Constants.hpp"
 #include "core/filesystem/FileSystem.hpp"
 #include "core/filesystem/File.hpp"
 #include "core/interfaces/Serializable.hpp"

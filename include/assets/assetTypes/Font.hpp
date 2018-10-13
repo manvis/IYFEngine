@@ -37,6 +37,10 @@ class Font : public Asset {
 public:
     const char* data;
     std::size_t size;
+    
+    virtual AssetType getType() const final override {
+        return AssetType::Font;
+    }
 };
 }
 

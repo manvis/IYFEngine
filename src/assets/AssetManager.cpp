@@ -35,6 +35,7 @@
 #include "core/Engine.hpp"
 #include "core/filesystem/FileSystem.hpp"
 #include "core/serialization/VirtualFileSystemSerializer.hpp"
+#include "assets/typeManagers/TypeManager.hpp"
 #include "assets/typeManagers/FontTypeManager.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
 #include "assets/typeManagers/ShaderTypeManager.hpp"
@@ -49,13 +50,6 @@ const std::chrono::milliseconds MaxAsyncLoadWindow = std::chrono::milliseconds(6
 }
 
 using namespace iyf::literals;
-TypeManagerBase::TypeManagerBase(AssetManager* manager) : manager(manager) {
-    longTermWorkerPool = manager->getEngine()->getLongTermWorkerPool();
-}
-
-void TypeManagerBase::logLeakedAsset(std::size_t id, hash32_t nameHash, std::uint32_t count) {
-    LOG_W("Asset with id " << id << " loaded from path " << manager->getAssetPath(nameHash) << " still has " << count << " live references. ")
-}
 
 const std::unordered_map<std::string, AssetType> AssetManager::ExtensionToType = {
     {".ttf", AssetType::Font},
@@ -437,14 +431,14 @@ void AssetManager::enableLoadedAssets() {
             const bool canBatch = tm->canBatchAsyncLoadedAssets();
             
             if (canBatch) {
-                while ((tm->hasAssetsToEnable() == TypeManagerBase::AssetsToEnableResult::HasAssetsToEnable) &&
+                while ((tm->hasAssetsToEnable() == AssetsToEnableResult::HasAssetsToEnable) &&
                        ((now + tm->estimateBatchOperationDuration()) - start < window)) {
                     tm->enableAsyncLoadedAsset(true);
                     
                     now = std::chrono::steady_clock::now();
                 }
             } else {
-                while ((tm->hasAssetsToEnable() == TypeManagerBase::AssetsToEnableResult::HasAssetsToEnable) &&
+                while ((tm->hasAssetsToEnable() == AssetsToEnableResult::HasAssetsToEnable) &&
                        (now - start < window)) {
                     tm->enableAsyncLoadedAsset(false);
                     

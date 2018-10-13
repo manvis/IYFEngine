@@ -32,6 +32,7 @@
 #include "graphics/Skybox.hpp"
 #include "graphics/Camera.hpp"
 
+#include "assets/AssetConstants.hpp"
 #include "assets/AssetManager.hpp"
 #include "assets/assetTypes/Shader.hpp"
 #include "assets/assetTypes/Texture.hpp"
