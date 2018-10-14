@@ -75,7 +75,7 @@ inline std::string MakeVulkanGLSLHeader(ShaderStageFlagBits stage) {
     return ss.str();
 }
 
-inline std::string WriteMacroDefinitions(const MaterialPipelineDefinition& definition) {
+inline std::string WriteMacroDefinitions(const MaterialFamilyDefinition& definition) {
     bool anyDefinitions = false;
     
     std::stringstream ss;
@@ -93,7 +93,7 @@ inline std::string WriteMacroDefinitions(const MaterialPipelineDefinition& defin
     
     if (anyDefinitions) {
         ss << "\n";
-        return "// Macros that depend on the MaterialPipelineDefinition go here\n" + ss.str();
+        return "// Macros that depend on the MaterialFamilyDefinition go here\n" + ss.str();
     } else {
         return "";
     }
@@ -264,7 +264,7 @@ fs::path VulkanGLSLShaderGenerator::getShaderStageFileExtension(ShaderStageFlagB
     throw std::logic_error("Invalid ShaderStageFlagBit");
 }
 
-ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(const MaterialPipelineDefinition& definition) const {
+ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(const MaterialFamilyDefinition& definition) const {
     std::size_t codeID = 0;
     for (std::size_t i = 0; i < definition.getSupportedLanguages().size(); ++i) {
         if (definition.getSupportedLanguages()[i] == getShaderLanguage()) {
@@ -313,7 +313,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(const Mat
     ss << "    vec4 gl_Position;\n";
     ss << "};\n\n";
     
-    ss << "// Per vertex output to other shaders in the pipeline\n";
+    ss << "// Per vertex output to other shaders\n";
     ss << "layout (location = 0) out VertexOutput {\n";
     
     if (definition.isWorldSpacePositionRequired()) {
@@ -380,7 +380,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(const Mat
     // TODO this should probably happen earlier
     const std::string& vertProcessingCode = definition.getAdditionalVertexProcessingCode()[codeID];
     if (!vertProcessingCode.empty()) {
-        ss << "    // Additional vertex processing. This part uses code (if any) written by the author of the material pipeline definition\n";
+        ss << "    // Additional vertex processing. This part uses code (if any) written by the author of the material family definition\n";
         ss << vertProcessingCode << "\n";
     }
     
@@ -418,8 +418,8 @@ inline std::string formatVectorDataForOutput(const std::string& dataTypeName, co
     return ss.str();
 }
 
-ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(const MaterialPipelineDefinition& definition) const {
-    validatePipelineDefinition(definition);
+ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(const MaterialFamilyDefinition& definition) const {
+    validateFamilyDefinition(definition);
     
     std::size_t codeID = 0;
     for (std::size_t i = 0; i < definition.getSupportedLanguages().size(); ++i) {
@@ -664,7 +664,7 @@ std::string VulkanGLSLShaderGenerator::generatePerFrameData(const ShaderDataSets
     return ss.str();
 }
 
-std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionSignature(const MaterialPipelineDefinition& definition) const {
+std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionSignature(const MaterialFamilyDefinition& definition) const {
     std::vector<std::string> parameters;
     parameters.reserve(30);
     
@@ -727,7 +727,7 @@ std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionSignature(
     return ss.str();
 }
 
-std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionCall(const MaterialPipelineDefinition& definition) const {
+std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionCall(const MaterialFamilyDefinition& definition) const {
     std::vector<std::string> parameters;
     parameters.reserve(30);
     
@@ -770,7 +770,7 @@ std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionCall(const
     return ss.str();
 }
 
-// std::string VulkanGLSLShaderGenerator::generateMaterialDataUnpacker(const ComponentsReadFromTexture& readFromTexture, const MaterialPipelineDefinition& definition) const {
+// std::string VulkanGLSLShaderGenerator::generateMaterialDataUnpacker(const ComponentsReadFromTexture& readFromTexture, const MaterialFamilyDefinitionMaterialFamilyDefinition& definition) const {
 //     if (definition.getMaterialComponents().size() == 0) {
 //         return "";
 //     }

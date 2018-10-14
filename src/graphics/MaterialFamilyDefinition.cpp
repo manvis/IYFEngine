@@ -26,7 +26,7 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "graphics/MaterialPipelineDefinition.hpp"
+#include "graphics/MaterialFamilyDefinition.hpp"
 #include "core/filesystem/File.hpp"
 #include "core/serialization/MemorySerializer.hpp"
 #include "core/Logger.hpp"
@@ -48,11 +48,11 @@ namespace std {
 }
 
 namespace iyf {
-static const std::array<char, 5> PipelineDefinitionMagicNumber = {'I', 'Y', 'F', 'P', 'R'};
+static const std::array<char, 5> FamilyDefinitionMagicNumber = {'I', 'Y', 'F', 'P', 'R'};
 
 void ShaderVariable::serialize(Serializer& fw) const {
-    if (name.length() > con::MaxPipelineNameLength) {
-        throw std::length_error("The length of the shader input variable name can't be longer than con::MaxPipelineNameLength");
+    if (name.length() > con::MaxMaterialFamilyNameLength) {
+        throw std::length_error("The length of the shader input variable name can't be longer than con::MaxMaterialFamilyNameLength");
     }
     
     fw.writeString(name, StringLengthIndicator::UInt8);
@@ -69,8 +69,8 @@ void ShaderVariable::deserialize(Serializer& fr) {
 }
 
 void MaterialComponent::serialize(Serializer& fw) const {
-    if (name.length() > con::MaxPipelineNameLength) {
-        throw std::length_error("The length of the material component name can't be longer than con::MaxPipelineNameLength");
+    if (name.length() > con::MaxMaterialFamilyNameLength) {
+        throw std::length_error("The length of the material component name can't be longer than con::MaxMaterialFamilyNameLength");
     }
     
     fw.writeString(name, StringLengthIndicator::UInt8);
@@ -120,8 +120,8 @@ void LightProcessingFunctionInput::deserialize(Serializer& fr) {
     defaultValue.w = fr.readFloat();
 }
 
-MaterialPipelineDefinition::MaterialPipelineDefinition() {
-    const std::string defaultName = "EmptyPipeline";
+MaterialFamilyDefinition::MaterialFamilyDefinition() {
+    const std::string defaultName = "EmptyFamily";
     assert(validateName(defaultName));
     setName(defaultName);
     
@@ -140,7 +140,7 @@ MaterialPipelineDefinition::MaterialPipelineDefinition() {
     setFragmentShaderDataSet(PerFrameDataSet::TextureData, true);
 }
 
-void MaterialPipelineDefinition::setName(std::string name) {
+void MaterialFamilyDefinition::setName(std::string name) {
     if (!validateName(name)) {
         throw std::invalid_argument("The name did not match the validation regex");
     }
@@ -148,7 +148,7 @@ void MaterialPipelineDefinition::setName(std::string name) {
     this->name = std::move(name);
 }
 
-void MaterialPipelineDefinition::setSupportedLanguages(std::vector<ShaderLanguage> supportedLanguages) {
+void MaterialFamilyDefinition::setSupportedLanguages(std::vector<ShaderLanguage> supportedLanguages) {
     if (supportedLanguages.empty()) {
         throw std::invalid_argument("Must support at least one language");
     }
@@ -171,15 +171,15 @@ void MaterialPipelineDefinition::setSupportedLanguages(std::vector<ShaderLanguag
     lightProcessingCode.resize(newSize);
 }
 
-bool MaterialPipelineDefinition::validateName(const std::string& name) const {
-    if (name.empty() || (name.length() > con::MaxPipelineNameLength)) {
+bool MaterialFamilyDefinition::validateName(const std::string& name) const {
+    if (name.empty() || (name.length() > con::MaxMaterialFamilyNameLength)) {
         return false;
     }
     
     return std::regex_match(name, SystemRegexes().FunctionAndFileNameRegex);
 }
 
-bool MaterialPipelineDefinition::validateAdditionalVertexShaderOutputs(const std::vector<ShaderVariable>& additionalVertexOutputs) const {
+bool MaterialFamilyDefinition::validateAdditionalVertexShaderOutputs(const std::vector<ShaderVariable>& additionalVertexOutputs) const {
     std::unordered_set<std::string> uniqueNames;
     
     for (const auto& avo : additionalVertexOutputs) {
@@ -192,8 +192,8 @@ bool MaterialPipelineDefinition::validateAdditionalVertexShaderOutputs(const std
     return true;
 }
 
-void MaterialPipelineDefinition::serialize(Serializer& fw) const {
-    fw.writeBytes(PipelineDefinitionMagicNumber.data(), PipelineDefinitionMagicNumber.size());
+void MaterialFamilyDefinition::serialize(Serializer& fw) const {
+    fw.writeBytes(FamilyDefinitionMagicNumber.data(), FamilyDefinitionMagicNumber.size());
     fw.writeUInt16(VERSION);
     
     fw.writeString(name, StringLengthIndicator::UInt8);
@@ -240,19 +240,19 @@ void MaterialPipelineDefinition::serialize(Serializer& fw) const {
 //     fw.writeUInt64(geometryShaderDataSets.to_ullong());
 }
 
-void MaterialPipelineDefinition::deserialize(Serializer& fr) {
+void MaterialFamilyDefinition::deserialize(Serializer& fr) {
     std::array<char, 5> magic;
     fr.readBytes(magic.data(), magic.size());
     
-    if (magic != PipelineDefinitionMagicNumber) {
-        throw std::runtime_error("An invalid MaterialPipelineDefinition file was provided (magic number mismatch)");
+    if (magic != FamilyDefinitionMagicNumber) {
+        throw std::runtime_error("An invalid MaterialFamilyDefinition file was provided (magic number mismatch)");
     }
     
     std::uint16_t version = fr.readUInt16();
     
     // At the moment we only support one version
     if (version != VERSION) {
-        throw std::runtime_error(fmt::format("An invalid MaterialPipelineDefinition file was provided (unknown version {})", version));
+        throw std::runtime_error(fmt::format("An invalid MaterialFamilyDefinition file was provided (unknown version {})", version));
     }
     
     name.clear();
@@ -320,7 +320,7 @@ void MaterialPipelineDefinition::deserialize(Serializer& fr) {
 //     fw.writeUInt64(geometryShaderDataSets.to_ullong());
 }
 
-hash64_t MaterialPipelineDefinition::computeHash() const {
+hash64_t MaterialFamilyDefinition::computeHash() const {
     MemorySerializer ms(1024);
     serialize(ms);
     
@@ -328,7 +328,7 @@ hash64_t MaterialPipelineDefinition::computeHash() const {
 }
 
 /// TODO move these to compilation
-// std::pair<bool, std::string> MaterialPipelineDefinition::setMaterialComponents(const std::vector<MaterialComponent>& componentList) {
+// std::pair<bool, std::string> MaterialFamilyDefinition::setMaterialComponents(const std::vector<MaterialComponent>& componentList) {
 //     std::unordered_set<MaterialComponent> uniqueNames;
 //     
 //     for (const auto& c : componentList) {
@@ -368,7 +368,7 @@ hash64_t MaterialPipelineDefinition::computeHash() const {
 //     return {true, ""};
 // }
 // 
-// std::pair<bool, std::string> MaterialPipelineDefinition::packMaterialData(std::vector<MaterialComponent>& components) const {
+// std::pair<bool, std::string> MaterialFamilyDefinition::packMaterialData(std::vector<MaterialComponent>& components) const {
 //     // Nothing to pack
 //     if (components.size() == 0) {
 //         return {true, ""};
@@ -430,8 +430,8 @@ hash64_t MaterialPipelineDefinition::computeHash() const {
 //     }
 // }
 
-static MaterialPipelineDefinition createToonPipelineDefinition() {
-    MaterialPipelineDefinition definition;
+static MaterialFamilyDefinition createToonFamilyDefinition() {
+    MaterialFamilyDefinition definition;
     assert(definition.getSupportedLanguages().size() == 1);
     assert(definition.getSupportedLanguages()[0] == ShaderLanguage::GLSLVulkan);
     definition.setName("CellShaded");
@@ -464,13 +464,13 @@ R"glsl(    float toonStep = step(1.0f - vertColor.x, dot(normal, lightDirection)
 
 namespace con {
 
-const MaterialPipelineDefinition& GetDefaultMaterialPipelineDefinition(DefaultMaterialPipeline pipeline) {
-    using DefaultMaterialPipelineDefinitionArray = std::array<MaterialPipelineDefinition, static_cast<std::size_t>(DefaultMaterialPipeline::COUNT)>;
-    static const DefaultMaterialPipelineDefinitionArray DefaultMaterialPipelineDefinitions = {
-        createToonPipelineDefinition(),
+const MaterialFamilyDefinition& GetMaterialFamilyDefinition(MaterialFamily family) {
+    using DefaultMaterialFamilyDefinitionArray = std::array<MaterialFamilyDefinition, static_cast<std::size_t>(MaterialFamily::COUNT)>;
+    static const DefaultMaterialFamilyDefinitionArray DefaultMaterialFamilyDefinitions = {
+        createToonFamilyDefinition(),
     };
     
-    return DefaultMaterialPipelineDefinitions[static_cast<std::size_t>(pipeline)];
+    return DefaultMaterialFamilyDefinitions[static_cast<std::size_t>(family)];
 }
 
 }

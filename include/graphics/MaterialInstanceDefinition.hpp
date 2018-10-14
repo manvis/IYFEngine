@@ -51,8 +51,6 @@ extern const std::array<LocalizationHandle, static_cast<std::size_t>(MaterialRen
 
 /// This class stores material data and metadata for editing, serializes it into files and is used by the World objects to 
 /// instantiate Material objects that contain data used by the GPU during rendering.
-///
-/// \todo this class uses the word pipeline many times in documentation, but it's an INCORRECT use of this term. Fix it
 class MaterialInstanceDefinition : public Serializable {
 public:
     enum class DataType : std::uint8_t {
@@ -61,7 +59,7 @@ public:
     };
     
     /// Default constructor that initializes all hashes to 0
-    MaterialInstanceDefinition() : pipelineID(0), pipelineVariant(0), renderMode(MaterialRenderMode::Opaque), name("NewMaterial"), id(0), idNeedsRecompute(true) {}
+    MaterialInstanceDefinition() : familyID(0), familyVariant(0), renderMode(MaterialRenderMode::Opaque), name("NewMaterial"), id(0), idNeedsRecompute(true) {}
     
     /// \brief Compute and retrieve a hash that uniquely identifies this MaterialInstanceDefinition.
     ///
@@ -89,29 +87,29 @@ public:
         name = newName;
     }
 
-    /// \brief Get an ID of a pipeline that's currently associated with this MaterialInstanceDefinition
-    inline hash32_t getPipelineID() const {
-        return pipelineID;
+    /// \brief Get an ID of a family that's currently associated with this MaterialInstanceDefinition
+    inline hash32_t getFamilyID() const {
+        return familyID;
     }
 
-    /// \brief Associate a new pipeline with this MaterialInstanceDefinition
+    /// \brief Associate a new family with this MaterialInstanceDefinition
     ///
     /// \warning Calling this will invalidate and potentially change the ID. It will be recomputed the next time getID() is called.
-    inline void setPipelineID(hash32_t newPipelineID) {
-        pipelineID = newPipelineID;
+    inline void setFamilyID(hash32_t newFamilyID) {
+        familyID = newFamilyID;
         idNeedsRecompute = true;
     }
 
-    /// \brief Get a pipeline variant that is associated with this MaterialInstanceDefinition
-    inline hash32_t getPipelineVariant() const {
-        return pipelineVariant;
+    /// \brief Get a family variant that is associated with this MaterialInstanceDefinition
+    inline hash32_t getFamilyVariant() const {
+        return familyVariant;
     }
 
-    /// \brief Associate a new pipeline variant with this Material definition
+    /// \brief Associate a new family variant with this Material definition
     ///
     /// \warning Calling this will invalidate and potentially change the ID. It will be recomputed the next time getID() is called.
-    inline void setPipelineVariant(hash32_t newPipelineVariant) {
-        pipelineVariant = newPipelineVariant;
+    inline void setFamilyVariant(hash32_t newFamilyVariant) {
+        familyVariant = newFamilyVariant;
         idNeedsRecompute = true;
     }
 
@@ -124,7 +122,7 @@ public:
     ///
     /// \warning Calling this will invalidate and potentially change the ID. It will be recomputed the next time getID() is called.
     ///
-    /// \todo since I'm planning to make pipelineVariant carry more data, the render mode should PROBABLY be a part of it
+    /// \todo since I'm planning to make familyVariant carry more data, the render mode should PROBABLY be a part of it
     inline void setRenderMode(MaterialRenderMode newRenderMode) {
         renderMode = newRenderMode;
         idNeedsRecompute = true;
@@ -155,22 +153,22 @@ public:
 protected:
     void recomputeID();
     
-    /// ID of a Pipeline that's used by this material
-    hash32_t pipelineID;
+    /// ID of a material family that's used by this material
+    hash32_t familyID;
     
-    /// ID of a variant of the said Pipeline. These typically indicate permutations of shaders (e.g. one may use a flat color albedo while another uses a texture) or their
+    /// ID of a variant of the said material family. These typically indicate permutations of shaders (e.g. one may use a flat color albedo while another uses a texture) or their
     /// combinations (e.g. one has a tessellation shader while another does not)
     /// \todo replace with something that carries more information about the variant
-    hash32_t pipelineVariant;
+    hash32_t familyVariant;
     
     /// Used to determine if an Entity object that uses a Material created from this definition should be stored in "opaque objects" draw list or in "transparent objects" draw list
     MaterialRenderMode renderMode;
     
     /// This vector stores material components. The first element indicates if a color (packed into std::uint32_t) or a texture ID is stored in the second element. The required size 
-    /// of this vector, the order of its elements and requirements for them (e.g., the number of color channels) depend on the associated pipeline and its variant. The 
-    /// appropriate pipeline also stores the human readable names for these elements.
+    /// of this vector, the order of its elements and requirements for them (e.g., the number of color channels) depend on the associated family and its variant. The 
+    /// appropriate family also stores the human readable names for these elements.
     ///
-    /// \warning Make sure to always have exactly as many material components as the pipeline requires and NEVER create a MaterialInstanceDefinition with more than MaxMaterialComponents 
+    /// \warning Make sure to always have exactly as many material components as the family requires and NEVER create a MaterialInstanceDefinition with more than MaxMaterialComponents 
     /// components or exceptions will be thrown at various different stages
     std::vector<std::pair<DataType, std::uint32_t>> components;
     

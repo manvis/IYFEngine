@@ -79,7 +79,7 @@ enum class ShaderDataType : std::uint8_t {
 };
 
 /// \warning Do not remove or reorder existing values. Moreover, make sure to never have more than 64 different
-/// data sets specified in this enumerator. Disregarding this warning will break import of pipeline requirements.
+/// data sets specified in this enumerator. Disregarding this warning will break import of render family requirements.
 enum class PerFrameDataSet {
     /// V, P and VP matrices; camera position; counts for all light types and per-light data
     LightsAndCamera = 0,
@@ -87,9 +87,9 @@ enum class PerFrameDataSet {
     ObjectTransformations = 1,
     /// Depends on the renderer
     RendererData = 2,
-    /// Depends on the pipeline
+    /// Depends on the family
     MaterialData = 3,
-    /// Depends on the pipeline
+    /// Depends on the family
     TextureData = 4,
     COUNT
 };
@@ -179,7 +179,7 @@ const std::string MaxMaterialsConstName = "MAX_MATERIALS";
 /// \warning You will need your regenerate the shaders after changing this value
 const std::string MaxTransformationsConstName = "MAX_TRANSFORMATIONS";
 
-const std::size_t MaxPipelineNameLength = 64;
+const std::size_t MaxMaterialFamilyNameLength = 64;
 const std::size_t MaxShaderVariableNameLength = 64;
 
 /// \warning This array should not be used directly. Each renderer should make a copy

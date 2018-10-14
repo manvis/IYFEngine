@@ -51,8 +51,8 @@ void MaterialInstanceDefinition::serialize(Serializer& fw) const {
     }
     
     fw.writeUInt32(id);
-    fw.writeUInt32(pipelineID.value());
-    fw.writeUInt32(pipelineVariant.value());
+    fw.writeUInt32(familyID.value());
+    fw.writeUInt32(familyVariant.value());
     fw.writeUInt8(static_cast<std::uint8_t>(renderMode));
     fw.writeUInt8(components.size());
     
@@ -66,8 +66,8 @@ void MaterialInstanceDefinition::deserialize(Serializer& fr) {
     id = hash32_t(fr.readUInt32());
     idNeedsRecompute = false;
     
-    pipelineID = hash32_t(fr.readUInt32());
-    pipelineVariant = hash32_t(fr.readUInt32());
+    familyID = hash32_t(fr.readUInt32());
+    familyVariant = hash32_t(fr.readUInt32());
     renderMode = static_cast<MaterialRenderMode>(fr.readUInt8());
     
     std::size_t elementCount = fr.readUInt8();
@@ -104,8 +104,8 @@ void MaterialInstanceDefinition::recomputeID() {
     
     hash32_t seed(0);
     
-    util::HashCombine(seed, pipelineID);
-    util::HashCombine(seed, pipelineVariant);
+    util::HashCombine(seed, familyID);
+    util::HashCombine(seed, familyVariant);
     util::HashCombine(seed, hash32_t(static_cast<std::uint32_t>(renderMode))); // Is this OK?
     
     for (const auto& d : components) {

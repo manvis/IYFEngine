@@ -26,8 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef SHADINGPIPELINEEDITOR_HPP
-#define SHADINGPIPELINEEDITOR_HPP
+#ifndef IYF_MATERIAL_FAMILY_EDITOR_HPP
+#define IYF_MATERIAL_FAMILY_EDITOR_HPP
 
 #include <string>
 #include <vector>
@@ -43,32 +43,32 @@ namespace iyf {
 namespace iyf::editor {
 class EditorState;
 
-class ShadingPipelineEditor {
+class MaterialFamilyEditor {
 public:
-    ShadingPipelineEditor(const Engine* engine, const Renderer* renderer, EditorState* editorState);
+    MaterialFamilyEditor(const Engine* engine, const Renderer* renderer, EditorState* editorState);
     
     void show(bool* open);
 private:
     void generate();
     
-    char pipelineNameBuf[con::MaxPipelineNameLength];
-    char newPipelineNameBuf[con::MaxPipelineNameLength];
+    char familyNameBuf[con::MaxMaterialFamilyNameLength];
+    char newFamilyNameBuf[con::MaxMaterialFamilyNameLength];
     
     std::string currentErrorText;
     
     std::vector<std::string> humanReadableBindingNames;
     std::vector<std::string> humanReadableAttributeNames;
     
-    std::vector<std::string> pipelineNames;
+    std::vector<std::string> familyNames;
     
     EditorState* editorState;
     const Renderer* renderer;
     const Engine* engine;
-    int currentPipeline;
+    int currentFamily;
     int chosenTemplate;
     bool complete;
     bool wasShownLastTime;
 };
 }
-#endif /* SHADINGPIPELINEEDITOR_HPP */
+#endif // IYF_MATERIAL_FAMILY_EDITOR_HPP
 

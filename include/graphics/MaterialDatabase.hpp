@@ -29,7 +29,7 @@
 #ifndef IYF_MATERIAL_DATABASE_HPP
 #define IYF_MATERIAL_DATABASE_HPP
 
-#include "graphics/MaterialPipelineDefinition.hpp"
+#include "graphics/MaterialFamilyDefinition.hpp"
 #include "graphics/MaterialInstanceDefinition.hpp"
 #include "utilities/hashing/Hashing.hpp"
 

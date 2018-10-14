@@ -145,7 +145,7 @@ class MaterialOutputNode : public MaterialNodeBase {
 public:
     /// The MaterialOutputNode must always have a key equal to 0. Moreover, exactly 1 
     /// MaterialOutputNode has to exist in the LogicGraph.
-    MaterialOutputNode(const MaterialPipelineDefinition& definition, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(0, position, zIndex) {
+    MaterialOutputNode(const MaterialFamilyDefinition& definition, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(0, position, zIndex) {
         assert(getKey() == 0);
         assert(definition.getLightProcessingFunctionInputs().size() <= std::numeric_limits<LogicGraphConnectorID>::max());
         
@@ -505,7 +505,7 @@ IYF_MAKE_GEN_TYPE_FLOAT_NODE(Refract, 2, 1, 1, {"I", "N", "x", "refract_node"});
 IYF_MAKE_GEN_TYPE_NODE(DfDx, 1, 1, {"p", "dfdx_node"});
 IYF_MAKE_GEN_TYPE_NODE(DfDy, 1, 1, {"p", "dfdy_node"});
 
-MaterialLogicGraph::MaterialLogicGraph(MaterialPipelineDefinition definition) : definition(std::move(definition)) {
+MaterialLogicGraph::MaterialLogicGraph(MaterialFamilyDefinition definition) : definition(std::move(definition)) {
     const char* ns = MaterialNodeLocalizationNamespace;
     
     addNodeTypeInfo(MaterialNodeType::Output, "material_output_node", "material_output_node_doc", ns, MaterialNodeGroup::Output, false, false);
@@ -738,7 +738,7 @@ MaterialEditor::MaterialEditor(NodeEditorSettings settings) : LogicGraphEditor(s
     nameBuffer.resize(128, '\0');
     
     // TODO - dev only. REMOVE ONCE DONE
-    graph = std::make_unique<MaterialLogicGraph>(con::GetDefaultMaterialPipelineDefinition(DefaultMaterialPipeline::Toon));
+    graph = std::make_unique<MaterialLogicGraph>(con::GetMaterialFamilyDefinition(MaterialFamily::Toon));
     TextureInputNode* nn = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 50.0f)));
     assert(nn != nullptr);
     TextureInputNode* nn2 = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 150.0f)));
@@ -748,7 +748,7 @@ MaterialEditor::MaterialEditor(NodeEditorSettings settings) : LogicGraphEditor(s
     TextureInputNode* nn4 = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 350.0f)));
     assert(nn4 != nullptr);
     
-    con::GetDefaultMaterialPipelineDefinition(DefaultMaterialPipeline::Toon).computeHash();
+    con::GetMaterialFamilyDefinition(MaterialFamily::Toon).computeHash();
     
     graph->addNode(MaterialNodeType::PerFrameData, Vec2(0.0f, 150.0f));
 //     LOG_V("LOCALIZED: " << nn->getLocalizationHandle().getHashValue());
@@ -798,8 +798,8 @@ void MaterialEditor::drawFilePopup(bool isLoadPopup) {
             ImGui::Text("%s", nameFieldName.c_str());
             ImGui::NextColumn();
             
-            std::string pipelineName = LOC_SYS(LH("pipeline", MaterialNodeLocalizationNamespace));
-            ImGui::Text("%s", pipelineName.c_str());
+            std::string familyName = LOC_SYS(LH("family", MaterialNodeLocalizationNamespace));
+            ImGui::Text("%s", familyName.c_str());
             ImGui::NextColumn();
             
             const std::string hashName = LOC_SYS(LH("hash", MaterialNodeLocalizationNamespace));
@@ -831,7 +831,7 @@ void MaterialEditor::drawFilePopup(bool isLoadPopup) {
 MaterialEditor::~MaterialEditor() {}
 
 std::unique_ptr<MaterialLogicGraph> MaterialEditor::makeNewGraph(const NewGraphSettings&) {
-    return std::make_unique<MaterialLogicGraph>(con::GetDefaultMaterialPipelineDefinition(DefaultMaterialPipeline::Toon));
+    return std::make_unique<MaterialLogicGraph>(con::GetMaterialFamilyDefinition(MaterialFamily::Toon));
 }
 
 }

@@ -26,8 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_MATERIAL_PIPELINE_DEFINITION_HPP
-#define IYF_MATERIAL_PIPELINE_DEFINITION_HPP
+#ifndef IYF_MATERIAL_FAMILY_DEFINITION_HPP
+#define IYF_MATERIAL_FAMILY_DEFINITION_HPP
 
 #include <cstdint>
 #include <string>
@@ -155,31 +155,31 @@ private:
 /// A structure that defines all properties and code of a specific material family.
 ///
 /// Uniquely identified by the name property
-class MaterialPipelineDefinition : public Serializable {
+class MaterialFamilyDefinition : public Serializable {
 public:
     /// The current version of this struct. Should be updated whenever the layout changes.
     static const std::uint16_t VERSION = 1;
     
-    MaterialPipelineDefinition();
+    MaterialFamilyDefinition();
     
     virtual void serialize(Serializer& fw) const final;
     virtual void deserialize(Serializer& fr) final;
     
-    /// Computes a hash that uniquely identifies this MaterialPipelineDefinition.
+    /// Computes a hash that uniquely identifies this MaterialFamilyDefinition.
     ///
-    /// \remark This function serializes this MaterialPipelineDefinition to a memory buffer and then computes the 
+    /// \remark This function serializes this MaterialFamilyDefinition to a memory buffer and then computes the 
     /// hash of the said buffer. For performance reasons, you should cache the computed values.
     hash64_t computeHash() const;
     
-    /// Get the name of the material pipeline
+    /// Get the name of the material family
     inline const std::string& getName() const {
         return name;
     }
     
-    /// Get the name of the material pipeline
+    /// Set the name of the material family
     ///
     /// \remark The name must be usable as both a file name and as a function name. That is, it must match this
-    /// regular expression: [a-zA-Z][a-zA-Z0-9]* The length of the name must be between 1 and con::MaxPipelineNameLength
+    /// regular expression: [a-zA-Z][a-zA-Z0-9]* The length of the name must be between 1 and con::MaxMaterialFamilyNameLength
     /// characters.
     ///
     /// \throws std::invalid_argument if the name did not match the regex
@@ -188,7 +188,7 @@ public:
     /// \return true if the name matched the validation regex and length requirements and false if did not
     bool validateName(const std::string& name) const;
     
-    /// Sets the shading languages that this pipeline supports. All additional code snippets used in this 
+    /// Sets the shading languages that this material family supports. All additional code snippets used in this 
     /// struct must be written in these languages.
     ///
     /// \warning Setting this value will resize and clear additionalVertexProcessingCode and lightProcessingCode.
@@ -243,10 +243,10 @@ public:
         return lightProcessingCode;
     }
     
-    /// Does the material pipeline requires normal data (e.g., to compute lighting)?
+    /// Does the material family require normal data (e.g., to compute lighting)?
     ///
     /// \remark Setting this to true will make all VertexDataLayout variants that lack a normal vector incompatible
-    /// with this pipeline.
+    /// with this material family.
     inline void setNormalDataRequired(bool required) {
         setFlagValue(Flag::NormalDataRequired, required);
     }
@@ -266,7 +266,7 @@ public:
         return getFlagValue(Flag::WorldSpacePositionRequired);
     }
     
-    /// Does the material pipeline support lights? If this is false, the light loops won't be generated and the
+    /// Does the material family support lights? If this is false, the light loops won't be generated and the
     /// lightProcessingCode will only be called once (without per-light parameters).
     inline void setLightsSupported(bool supported) {
         setFlagValue(Flag::LightsSupported, supported);
@@ -300,11 +300,11 @@ public:
         return requiredVertexColorChannelCount > 0;
     }
     
-    /// Does the material pipeline require texture data?
+    /// Does the material family require texture data?
     ///
     /// \warning Cases without UV data are not handled well
     ///
-    /// \todo Fix generation of pipelines without UV data
+    /// \todo Fix generation of families without UV data
     inline void setTextureCoordinatesRequired(bool required) {
         setFlagValue(Flag::TextureCoordinatesRequired, required);
     }
@@ -431,15 +431,16 @@ private:
 //     std::pair<bool, std::string> packMaterialData(std::vector<MaterialComponent>& components) const;
 };
 
-enum class DefaultMaterialPipeline {
+/// List of all material families supported by the engine
+enum class MaterialFamily {
     Toon = 0,
     // PBR = 1, // TODO implement PBR rendering
     COUNT
 };
 
 namespace con {
-    const MaterialPipelineDefinition& GetDefaultMaterialPipelineDefinition(DefaultMaterialPipeline pipeline);
+    const MaterialFamilyDefinition& GetMaterialFamilyDefinition(MaterialFamily family);
 }
 }
 
-#endif // IYF_MATERIAL_PIPELINE_DEFINITION_HPP
+#endif // IYF_MATERIAL_FAMILY_DEFINITION_HPP

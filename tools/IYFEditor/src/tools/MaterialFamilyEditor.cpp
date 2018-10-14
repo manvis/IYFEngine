@@ -26,7 +26,7 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "tools/ShadingPipelineEditor.hpp"
+#include "tools/MaterialFamilyEditor.hpp"
 #include "imgui.h"
 #include "graphics/GraphicsAPIConstants.hpp"
 #include "graphics/Renderer.hpp"
@@ -53,14 +53,13 @@ static bool validateNewName(const char* name, std::string& currentErrorText) {
     return true;
 }
 
-ShadingPipelineEditor::ShadingPipelineEditor(const Engine* engine, const Renderer* renderer, EditorState* editorState) : pipelineNameBuf(""), newPipelineNameBuf(""), editorState(editorState), renderer(renderer), engine(engine), currentPipeline(0), chosenTemplate(0), complete(false), wasShownLastTime(false) {}
+MaterialFamilyEditor::MaterialFamilyEditor(const Engine* engine, const Renderer* renderer, EditorState* editorState) : familyNameBuf(""), newFamilyNameBuf(""), editorState(editorState), renderer(renderer), engine(engine), currentFamily(0), chosenTemplate(0), complete(false), wasShownLastTime(false) {}
 
-void ShadingPipelineEditor::show(bool* open) {
-    // TODO expose all of the MaterialPipelineRequirements fields for editing
-    bool showing = ImGui::Begin("Pipeline editor", open);
+void MaterialFamilyEditor::show(bool* open) {
+    bool showing = ImGui::Begin("Material Family Editor", open);
     if (showing && !wasShownLastTime) {
         wasShownLastTime = true;
-        std::memset(newPipelineNameBuf, 0, sizeof(newPipelineNameBuf));
+        std::memset(newFamilyNameBuf, 0, sizeof(newFamilyNameBuf));
         chosenTemplate = 0;
     }
     
@@ -69,8 +68,8 @@ void ShadingPipelineEditor::show(bool* open) {
     }
     
     if (showing) {
-        ImGui::Text("Edit existing pipeline");
-        ImGui::Combo("Pipeline", &currentPipeline, [](void* in, int idx, const char** out_text){
+        ImGui::Text("Edit existing material family");
+        ImGui::Combo("Family", &currentFamily, [](void* in, int idx, const char** out_text){
                    std::string* strs = static_cast<std::string*>(in);
 
                    // Checking if we're in bounds + silencing the comparison between signed and unsigned warning
@@ -80,36 +79,36 @@ void ShadingPipelineEditor::show(bool* open) {
 
                    *out_text = strs[idx].c_str();
                    return true;
-                }, reinterpret_cast<void*>(&pipelineNames), pipelineNames.size());
+                }, reinterpret_cast<void*>(&familyNames), familyNames.size());
         ImGui::SameLine();
         if (ImGui::Button("Edit")) {
             // TODO implement editor
         }
         
         ImGui::Separator();
-        ImGui::Text("Create a new pipeline");
+        ImGui::Text("Create a new family");
         
-        ImGui::InputText("Name", newPipelineNameBuf, sizeof(newPipelineNameBuf));
+        ImGui::InputText("Name", newFamilyNameBuf, sizeof(newFamilyNameBuf));
         ImGui::Combo("Template", &chosenTemplate, [](void*, int idx, const char** out_text){
                 // Checking if we're in bounds
-                if (idx < 0 || idx >= static_cast<int>(DefaultMaterialPipeline::COUNT)) {
+                if (idx < 0 || idx >= static_cast<int>(MaterialFamily::COUNT)) {
                     return false;
                 }
 
-                *out_text = con::GetDefaultMaterialPipelineDefinition(static_cast<DefaultMaterialPipeline>(idx)).getName().c_str();
+                *out_text = con::GetMaterialFamilyDefinition(static_cast<MaterialFamily>(idx)).getName().c_str();
                 return true;
-            }, nullptr, static_cast<int>(DefaultMaterialPipeline::COUNT));
+            }, nullptr, static_cast<int>(MaterialFamily::COUNT));
         
-        if (ImGui::Button("Generate Pipeline")) {
-            if (validateNewName(newPipelineNameBuf, currentErrorText)) {
+        if (ImGui::Button("Generate Material Family")) {
+            if (validateNewName(newFamilyNameBuf, currentErrorText)) {
                 ImGui::CloseCurrentPopup();
             } else {
-                ImGui::OpenPopup("New Pipeline Error");
+                ImGui::OpenPopup("New Material Family Error");
             }
         }
         
         ImGui::SetNextWindowSize(ImVec2(300, -1), ImGuiCond_Appearing);
-        if (ImGui::BeginPopupModal("New Pipeline Error")) {
+        if (ImGui::BeginPopupModal("New Material Family Error")) {
             ImGui::TextWrapped("%s", currentErrorText.c_str());
             if (ImGui::Button("OK")) {
                 ImGui::CloseCurrentPopup();
@@ -121,10 +120,10 @@ void ShadingPipelineEditor::show(bool* open) {
         ImGui::End();
     }
     
-    //TODO IMPLEMENT ACTUAL EDITING, ADDING AND REMOVAL OF PIPELINES, USING THE FUNCTIONS OF THE PROJECT CLASS
+    //TODO IMPLEMENT ACTUAL EDITING, ADDING AND REMOVAL OF FAMILIES, USING THE FUNCTIONS OF THE PROJECT CLASS
     
-//             if (ImGui::InputText("Name", pipelineNameBuf, sizeof(pipelineNameBuf))) {
-//             LOG_D("Changed" << pipelineNameBuf);
+//             if (ImGui::InputText("Name", familyNameBuf, sizeof(familyNameBuf))) {
+//             LOG_D("Changed" << familyNameBuf);
 //         }
 //     if (ImGui::Begin("Vertex Shader Editor")) {
 //         ImGui::InputText("Name", shaderNameBuf, sizeof(shaderNameBuf));
@@ -178,7 +177,7 @@ void ShadingPipelineEditor::show(bool* open) {
 //     }
 }
 
-void ShadingPipelineEditor::generate() {
+void MaterialFamilyEditor::generate() {
     if (!complete) {
         complete = true;
         

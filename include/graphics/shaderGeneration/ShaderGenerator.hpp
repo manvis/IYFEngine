@@ -38,7 +38,7 @@
 #include "graphics/GraphicsAPIConstants.hpp"
 #include "graphics/VertexDataLayouts.hpp"
 #include "graphics/Lights.hpp"
-#include "graphics/MaterialPipelineDefinition.hpp"
+#include "graphics/MaterialFamilyDefinition.hpp"
 #include "graphics/ShaderMacros.hpp"
 #include "core/interfaces/Serializable.hpp"
 
@@ -50,7 +50,7 @@ class ShaderGenerationResult {
 public:
     enum class Status {
         Success,
-        InvalidPipelineName,
+        InvalidFamilyName,
         InvalidGenerationSettings,
         MissingLightProcessing,
         DuplicateLanguages,
@@ -141,22 +141,22 @@ struct ShaderCompilationSettings {
     std::vector<ShaderMacroWithValue> macros;
 };
 
-/// \brief This class generates shader code based on data provided in MaterialPipelineDefinition objects.
+/// \brief This class generates shader code based on data provided in MaterialFamilyDefinition objects.
 ///
 /// \remark The methods of this class are thread safe for as long as you can ensure that different invocations write to different files.
 ///
 /// \todo Support geometry and tesselation shader generation as well.
 ///
 /// \todo At the moment, vertex shaders are considered to be a part of the material. However, more often
-/// than not, MaterialPipelineDefinition::requiresAdditionalVertexProcessing is false and they can be REUSED by 
+/// than not, MaterialFamilyDefinition::requiresAdditionalVertexProcessing is false and they can be REUSED by 
 /// different materials. Therefore, it would be nice to have a mechanism that would allow us to reuse
 /// existing shaders if they are compatible. 
 class ShaderGenerator {
 public:
     ShaderGenerator(const Engine* engine);
     
-    /// Generate a shader of the specified shader stage based on the provided MaterialPipelineDefinition
-    ShaderGenerationResult generateShader(ShaderStageFlagBits stage, const MaterialPipelineDefinition& definition) const;
+    /// Generate a shader of the specified shader stage based on the provided MaterialFamilyDefinition
+    ShaderGenerationResult generateShader(ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition) const;
     
     /// Compile the generated shader
     virtual ShaderCompilationResult compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) = 0;
@@ -174,22 +174,22 @@ public:
     virtual fs::path getShaderStageFileExtension(ShaderStageFlagBits stage) const = 0;
     
     /// This checks for major errors that would prevent the shader from being generated.
-    ShaderGenerationResult validatePipelineDefinition(const MaterialPipelineDefinition& definition) const;
+    ShaderGenerationResult validateFamilyDefinition(const MaterialFamilyDefinition& definition) const;
     
     /// Checks if the material can use the specified vertex data layout.
-    ShaderGenerationResult checkVertexDataLayoutCompatibility(const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout) const;
+    ShaderGenerationResult checkVertexDataLayoutCompatibility(const MaterialFamilyDefinition& definition, VertexDataLayout vertexDataLayout) const;
 protected:
     /// Generate the vertex shader. Called by generateShader()
-    virtual ShaderGenerationResult generateVertexShader(const MaterialPipelineDefinition& definition) const = 0;
+    virtual ShaderGenerationResult generateVertexShader(const MaterialFamilyDefinition& definition) const = 0;
     
     /// Generate the fragment shader. Called by generateShader()
-    virtual ShaderGenerationResult generateFragmentShader(const MaterialPipelineDefinition& definition) const = 0;
+    virtual ShaderGenerationResult generateFragmentShader(const MaterialFamilyDefinition& definition) const = 0;
     
     /// Generate the per frame data inputs (e.g., camera, light and material data).
     virtual std::string generatePerFrameData(const ShaderDataSets& requiredDataSets) const = 0;
     
-    virtual std::string generateLightProcessingFunctionCall(const MaterialPipelineDefinition& definition) const = 0;
-    virtual std::string generateLightProcessingFunctionSignature(const MaterialPipelineDefinition& definition) const = 0;
+    virtual std::string generateLightProcessingFunctionCall(const MaterialFamilyDefinition& definition) const = 0;
+    virtual std::string generateLightProcessingFunctionSignature(const MaterialFamilyDefinition& definition) const = 0;
     
     ShaderGenerationResult generateAndReportError(ShaderGenerationResult::Status status, const std::string& error) const;
     

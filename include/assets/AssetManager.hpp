@@ -366,10 +366,6 @@ private:
     
     Engine* engine;
     
-//    std::vector<Pipeline> pipelines;
-//    std::vector<SubMeshData> WTH; // DATA ranges??? For defrag and reuse
-//    std::vector<Texture> MLML;
-    
     /// If the Engine is running in editor mode, the manifest may be updated and/or read from multiple threads. In this case,
     /// a mutex is needed prevent data races.
     ///

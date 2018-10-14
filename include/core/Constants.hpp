@@ -202,7 +202,7 @@ const std::size_t MaxAnimations = 64;
 /// \brief Maximum number of vertices that a single mesh (all of its sub-meshes) can have.
 /// \warning Simply increasing this won't be enough. A lot of places in this engine use std::uint16_t for vertex counts. You'll still need to create a custom
 /// binary data format capable of storing meshes with more than 65535 vertices, update the loader, change the data types in
-/// MeshData and modify Pipeline editing classes. It's possible that even more changes may be required.
+/// MeshData and modify Material editing classes. It's possible that even more changes may be required.
 const std::size_t MaxVerticesPerMesh = 65535;
 
 /// \brief The maximum number of floating point inputs a single Material (or MaterialDefinition) can have.

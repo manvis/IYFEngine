@@ -109,7 +109,7 @@ static void SquareConstraint(ImGuiSizeCallbackData* data) {
 
 EditorState::EditorState(iyf::Engine* engine) : GameState(engine),
         newLevelDialogRequested(false), levelName("test_level_name"), levelDescription("test_level_desc"), isPickPlaceMode(false), 
-        pickOrPlaceModeId(0), worldType(0), entityName("a"), cameraMode(CameraMode::Stationary), pipelineEditorOpen(true), materialEditorOpen(true),
+        pickOrPlaceModeId(0), worldType(0), entityName("a"), cameraMode(CameraMode::Stationary), materialFamilyEditorOpen(true), materialEditorOpen(true),
         currentlyPickedAssetType(0), maxClipboardElements(5), logWindow(engine) {
     
     pickPlaceModeDrawFunction = drawNothing;
@@ -135,7 +135,7 @@ void EditorState::initialize() {
     world->addCamera(true);
     world->addCamera(false);
     
-    pipelineEditor = std::make_unique<ShadingPipelineEditor>(engine, engine->getRenderer(), this);
+    materialFamilyEditor = std::make_unique<MaterialFamilyEditor>(engine, engine->getRenderer(), this);
     materialEditor = std::make_unique<MaterialEditor>();
     
     FileSystem* filesystem = engine->getFileSystem();
@@ -145,13 +145,13 @@ void EditorState::initialize() {
     
     // TODO move this to tests
     {
-        MaterialPipelineDefinition def = con::GetDefaultMaterialPipelineDefinition(DefaultMaterialPipeline::Toon);
+        MaterialFamilyDefinition def = con::GetMaterialFamilyDefinition(MaterialFamily::Toon);
         {
             VirtualFileSystemSerializer output("toon.iyfpl", File::OpenMode::Write);
             def.serialize(output);
         }
         
-        MaterialPipelineDefinition empty;
+        MaterialFamilyDefinition empty;
         {
             VirtualFileSystemSerializer input("toon.iyfpl", File::OpenMode::Read);
             empty.deserialize(input);
@@ -510,10 +510,10 @@ void EditorState::frame(float delta) {
     
     assetDirUpdated = assetUpdateManager->update();
     logWindow.show(engine->getLogString());
-    // TODO implement pipeline editor
+    // TODO implement family editor
     
-    if (pipelineEditorOpen) {
-        //pipelineEditor->show(&pipelineEditorOpen);
+    if (materialFamilyEditorOpen) {
+        //materialFamilyEditor->show(&materialFamilyEditorOpen);
     }
     
     if (materialEditorOpen) {
@@ -647,7 +647,7 @@ void EditorState::showUnableToInstanceTooltip(const std::string& tooltip) {
 
 void EditorState::showMaterialEditorWindow() {
     IYFT_PROFILE(MaterialEditorDrawing, iyft::ProfilerTag::Editor)
-    // TODO needs to be GENERATED for each pipeline, but I need to implement the pipeline
+    // TODO needs to be GENERATED for each family, but I need to implement the family
     // editor before I can do that.
     // TODO allow using colors (with color pickers) and (maybe?) sliders (e.g., for roughness and metallic parameters)
     if (materialComponents.size() != 4) {

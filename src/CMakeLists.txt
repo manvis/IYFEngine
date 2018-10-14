@@ -99,7 +99,7 @@ graphics/GraphicsAPIConstants.cpp
 graphics/GraphicsSystem.cpp
 graphics/MaterialDatabase.cpp
 graphics/MaterialInstanceDefinition.cpp
-graphics/MaterialPipelineDefinition.cpp
+graphics/MaterialFamilyDefinition.cpp
 graphics/Renderer.cpp
 graphics/ShaderConstants.cpp
 graphics/ShaderMacros.cpp

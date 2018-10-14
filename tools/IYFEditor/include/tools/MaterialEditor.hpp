@@ -29,14 +29,10 @@
 #ifndef IYF_MATERIAL_EDITOR_HPP
 #define IYF_MATERIAL_EDITOR_HPP
 
-#include "graphics/MaterialPipelineDefinition.hpp"
+#include "graphics/MaterialFamilyDefinition.hpp"
 
 #include "utilities/logicGraph/LogicGraph.hpp"
 #include "utilities/logicGraph/LogicGraphEditor.hpp"
-
-namespace iyf {
-class MaterialPipelineDefinition;
-}
 
 namespace iyf::editor {
 enum class MaterialNodeConnectorType : std::uint8_t {
@@ -132,7 +128,7 @@ using MaterialGraphNodeTypeInfo = LogicGraphNodeTypeInfo<MaterialNode, MaterialN
 
 class MaterialLogicGraph : public LogicGraph<MaterialNode, MaterialGraphNodeTypeInfo> {
 public:
-    MaterialLogicGraph(MaterialPipelineDefinition definition);
+    MaterialLogicGraph(MaterialFamilyDefinition definition);
     virtual ~MaterialLogicGraph();
     
     virtual std::string getConnectorTypeName(MaterialNodeConnectorType type) const final override;
@@ -144,7 +140,7 @@ public:
 protected:
     virtual MaterialNode* addNodeImpl(NodeKey key, MaterialNodeType type, const Vec2& position, bool isDeserializing) final override;
 private:
-    MaterialPipelineDefinition definition;
+    MaterialFamilyDefinition definition;
 };
 
 class MaterialEditor : public LogicGraphEditor<MaterialLogicGraph> {

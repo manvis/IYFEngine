@@ -45,8 +45,8 @@ ShaderGenerationResult ShaderGenerator::generateAndReportError(ShaderGenerationR
     return {status, error};
 }
 
-ShaderGenerationResult ShaderGenerator::generateShader(ShaderStageFlagBits stage, const MaterialPipelineDefinition& definition) const {
-    ShaderGenerationResult result = validatePipelineDefinition(definition);
+ShaderGenerationResult ShaderGenerator::generateShader(ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition) const {
+    ShaderGenerationResult result = validateFamilyDefinition(definition);
     if (result.getStatus() != ShaderGenerationResult::Status::Success) {
         return result;
     }
@@ -61,7 +61,7 @@ ShaderGenerationResult ShaderGenerator::generateShader(ShaderStageFlagBits stage
     }
 }
 
-ShaderGenerationResult ShaderGenerator::validatePipelineDefinition(const MaterialPipelineDefinition& definition) const {
+ShaderGenerationResult ShaderGenerator::validateFamilyDefinition(const MaterialFamilyDefinition& definition) const {
     assert(definition.getSupportedLanguages().size() == definition.getLightProcessingCode().size());
     assert(definition.getSupportedLanguages().size() == definition.getAdditionalVertexProcessingCode().size());
     
@@ -88,22 +88,22 @@ ShaderGenerationResult ShaderGenerator::validatePipelineDefinition(const Materia
     return {ShaderGenerationResult::Status::Success, ""};
 }
 
-ShaderGenerationResult ShaderGenerator::checkVertexDataLayoutCompatibility(const MaterialPipelineDefinition& definition, VertexDataLayout vertexDataLayout) const {
+ShaderGenerationResult ShaderGenerator::checkVertexDataLayoutCompatibility(const MaterialFamilyDefinition& definition, VertexDataLayout vertexDataLayout) const {
     const VertexDataLayoutDefinition& layout = con::GetVertexDataLayoutDefinition(vertexDataLayout);
     
     bool hasNormals = layout.hasAttribute(VertexAttributeType::Normal);
     if (definition.isNormalDataRequired() && !hasNormals) {
-        return generateAndReportError(ShaderGenerationResult::Status::MissingVertexAttribute, "Vertex layout " + layout.getName() + " is incompatible with the material pipeline definition because it lacks normals.");
+        return generateAndReportError(ShaderGenerationResult::Status::MissingVertexAttribute, "Vertex layout " + layout.getName() + " is incompatible with the material family definition because it lacks normals.");
     }
     
     bool hasVertexColors = layout.hasAttribute(VertexAttributeType::Color);
     if (definition.isVertexColorDataRequired() && !hasVertexColors) {
-        return generateAndReportError(ShaderGenerationResult::Status::MissingVertexAttribute, "Vertex layout " + layout.getName() + " is incompatible with the material pipeline definition because it lacks vertex colors.");
+        return generateAndReportError(ShaderGenerationResult::Status::MissingVertexAttribute, "Vertex layout " + layout.getName() + " is incompatible with the material family definition because it lacks vertex colors.");
     }
     
     bool hasUV = layout.hasAttribute(VertexAttributeType::UV);
     if (definition.areTextureCoordinatesRequired() && !hasUV) {
-        return generateAndReportError(ShaderGenerationResult::Status::MissingVertexAttribute, "Vertex layout " + layout.getName() + " is incompatible with the material pipeline definition because it texture coordinates.");
+        return generateAndReportError(ShaderGenerationResult::Status::MissingVertexAttribute, "Vertex layout " + layout.getName() + " is incompatible with the material family definition because it texture coordinates.");
     }
     
     return {ShaderGenerationResult::Status::Success, ""};

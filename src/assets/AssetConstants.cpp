@@ -42,7 +42,6 @@ const fs::path VideoPath = AssetPath / u8"video";
 const fs::path WorldPath = AssetPath / u8"worlds";
 const fs::path ScriptPath = AssetPath / u8"scripts";
 const fs::path ShaderPath = AssetPath / u8"shaders";
-const fs::path PipelinePath = AssetPath / u8"pipelines";
 const fs::path StringPath = AssetPath / u8"strings";
 const fs::path CustomPath = AssetPath / u8"custom";
 const fs::path MaterialPath = AssetPath / u8"materials";

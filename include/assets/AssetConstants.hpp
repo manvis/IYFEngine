@@ -122,10 +122,6 @@ extern const fs::path ScriptPath;
 /// Corresponds to AssetType::Shader
 extern const fs::path ShaderPath;
 
-/// Location where the Engine expects to find all pipeline definitions.
-/// Corresponds to AssetType::Pipeline
-extern const fs::path PipelinePath;
-
 /// Location where the Engine expects to find localized strings for the game.
 /// Corresponds to AssetType::Strings
 extern const fs::path StringPath;

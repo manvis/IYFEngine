@@ -33,7 +33,7 @@
 #include "core/World.hpp"
 #include "graphics/Camera.hpp"
 
-#include "tools/ShadingPipelineEditor.hpp"
+#include "tools/MaterialFamilyEditor.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
 #include "AssetList.hpp"
 #include "core/Constants.hpp"
@@ -203,9 +203,9 @@ protected:
     bool profilerOpen;
     
     void showProfilerWindow();
-// PIPELINE AND SHADER EDITING -------------------------------------------------
-    std::unique_ptr<ShadingPipelineEditor> pipelineEditor;
-    bool pipelineEditorOpen;
+// MATERIAL FAMILY AND SHADER EDITING -------------------------------------------------
+    std::unique_ptr<MaterialFamilyEditor> materialFamilyEditor;
+    bool materialFamilyEditorOpen;
     
     std::unique_ptr<MaterialEditor> materialEditor;
     bool materialEditorOpen;
