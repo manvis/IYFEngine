@@ -152,12 +152,12 @@ private:
     ShaderVariable variable;
 };
 
-/// A structure that defines all properties and code of a specific material family.
-///
-/// Uniquely identified by the name property
+/// Each material family is a set of materials based on a specific light processing function that gives them a certain
+/// look. E.g., the light processing function of a toon material family is designed to give materials derived from it a
+/// cell shaded look.
 class MaterialFamilyDefinition : public Serializable {
 public:
-    /// The current version of this struct. Should be updated whenever the layout changes.
+    /// The current version of this class. Should be updated whenever the layout changes.
     static const std::uint16_t VERSION = 1;
     
     MaterialFamilyDefinition();
