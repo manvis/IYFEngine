@@ -36,9 +36,9 @@ class AnimationMetadata : public MetadataBase {
 public:
     inline AnimationMetadata() : MetadataBase(AssetType::Animation) {}
     
-    inline AnimationMetadata(hash64_t fileHash,
+    inline AnimationMetadata(FileHash fileHash,
                              const fs::path& sourceAsset,
-                             hash64_t sourceFileHash,
+                             FileHash sourceFileHash,
                              bool systemAsset,
                              const std::vector<std::string>& tags,
                              std::uint16_t animationFormatVersion,

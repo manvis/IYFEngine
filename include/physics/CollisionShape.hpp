@@ -174,7 +174,7 @@ struct StaticPlaceCollisionShapeCreateInfo : public CollisionShapeCreateInfo {
 
 /// Uses a tag (typically a hashed name of the 3D mesh) to implement cached data lookup in physical media
 struct TaggedCollisionShapeCreateInfo : public CollisionShapeCreateInfo {
-    TaggedCollisionShapeCreateInfo(hash32_t tag, bool rebuildCachedData = false, bool allowCachedShapeReuse = true) : CollisionShapeCreateInfo(allowCachedShapeReuse), rebuildCachedData(rebuildCachedData), tag(tag) {}
+    TaggedCollisionShapeCreateInfo(StringHash tag, bool rebuildCachedData = false, bool allowCachedShapeReuse = true) : CollisionShapeCreateInfo(allowCachedShapeReuse), rebuildCachedData(rebuildCachedData), tag(tag) {}
     
     CollisionShapeKey makeKey() const {
         return CollisionShapeKey(tag);
@@ -189,7 +189,7 @@ struct TaggedCollisionShapeCreateInfo : public CollisionShapeCreateInfo {
     bool rebuildCachedData;
     /// A tag that must uniquely identify the mesh that's going to be processed. It is also used to find loaded shapes for reuse when
     /// allowCachedShapeReuse is set to true
-    hash32_t tag;
+    StringHash tag;
 };
 
 struct ConvexHullCollisionShapeCreateInfo : public TaggedCollisionShapeCreateInfo {
@@ -198,7 +198,7 @@ struct ConvexHullCollisionShapeCreateInfo : public TaggedCollisionShapeCreateInf
     /// you'll be free to free (heh) the array.
     ///
     /// \todo Sane limit for the number of vertices
-    ConvexHullCollisionShapeCreateInfo(const GraphicsToPhysicsDataMapping& vertexData, hash32_t tag, bool rebuildCachedData = false, bool allowCachedShapeReuse = true) : TaggedCollisionShapeCreateInfo(tag, rebuildCachedData, allowCachedShapeReuse), vertexData(vertexData) {
+    ConvexHullCollisionShapeCreateInfo(const GraphicsToPhysicsDataMapping& vertexData, StringHash tag, bool rebuildCachedData = false, bool allowCachedShapeReuse = true) : TaggedCollisionShapeCreateInfo(tag, rebuildCachedData, allowCachedShapeReuse), vertexData(vertexData) {
         collisionShapeType = CollisionShapeType::ConvexHull;
     }
 
@@ -215,7 +215,7 @@ struct TriangleMeshCollisionShapeCreateInfo : public TaggedCollisionShapeCreateI
     /// \todo Does the data really need to survive?
     ///
     /// \todo Materials
-    TriangleMeshCollisionShapeCreateInfo(const GraphicsToPhysicsDataMapping& vertexData, const GraphicsToPhysicsDataMapping& indexData, hash32_t tag, bool rebuildCachedData = false, bool allowCachedShapeReuse = true) : TaggedCollisionShapeCreateInfo(tag, rebuildCachedData, allowCachedShapeReuse), vertexData(vertexData), indexData(indexData) {
+    TriangleMeshCollisionShapeCreateInfo(const GraphicsToPhysicsDataMapping& vertexData, const GraphicsToPhysicsDataMapping& indexData, StringHash tag, bool rebuildCachedData = false, bool allowCachedShapeReuse = true) : TaggedCollisionShapeCreateInfo(tag, rebuildCachedData, allowCachedShapeReuse), vertexData(vertexData), indexData(indexData) {
         collisionShapeType = CollisionShapeType::TriangleMesh;
     }
     

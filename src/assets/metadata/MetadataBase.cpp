@@ -73,7 +73,7 @@ void MetadataBase::deserialize(Serializer& fr)  {
     systemAsset = fr.readUInt8();
     std::uint16_t version = fr.readUInt16();
     
-    fileHash = hash64_t(fr.readUInt64());
+    fileHash = FileHash(fr.readUInt64());
     
     std::string temp;
     fr.readString(temp, StringLengthIndicator::UInt16, 0);
@@ -138,7 +138,7 @@ void MetadataBase::deserializeJSON(JSONObject& jo) {
         throw std::runtime_error("Tried to deserialize a metadata file of a different AssetType");
     }
     
-    fileHash = hash64_t(jo[FILE_HASH_FIELD_NAME].GetUint64());
+    fileHash = FileHash(jo[FILE_HASH_FIELD_NAME].GetUint64());
     sourceAsset = fs::path(jo[SOURCE_ASSET_FIELD_NAME].GetString());
     
     std::uint16_t version = jo[SERIALIZED_DATA_VERSION_FIELD_NAME].GetInt();

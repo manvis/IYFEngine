@@ -36,9 +36,9 @@ class ScriptMetadata : public MetadataBase {
 public:
     inline ScriptMetadata() : MetadataBase(AssetType::Script) {}
     
-    inline ScriptMetadata(hash64_t fileHash,
+    inline ScriptMetadata(FileHash fileHash,
                           const fs::path& sourceAsset,
-                          hash64_t sourceFileHash,
+                          FileHash sourceFileHash,
                           bool systemAsset,
                           const std::vector<std::string>& tags)
         : MetadataBase(AssetType::Script, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true) {}

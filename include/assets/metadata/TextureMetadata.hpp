@@ -37,9 +37,9 @@ class TextureMetadata : public MetadataBase {
 public:
     inline TextureMetadata() : MetadataBase(AssetType::Texture) {};
     
-    inline TextureMetadata(hash64_t fileHash,
+    inline TextureMetadata(FileHash fileHash,
                            const fs::path& sourceAsset,
-                           hash64_t sourceFileHash,
+                           FileHash sourceFileHash,
                            bool systemAsset,
                            const std::vector<std::string>& tags,
                            std::uint32_t width,

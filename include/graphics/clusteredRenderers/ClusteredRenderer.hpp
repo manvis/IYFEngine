@@ -59,7 +59,7 @@ public:
         return true;
     }
     
-    virtual hash32_t getNameLocalizationHandle() const final override {
+    virtual StringHash getNameLocalizationHandle() const final override {
         // TODO insert this into string database
         return HS("forward_clustered_renderer");
     }

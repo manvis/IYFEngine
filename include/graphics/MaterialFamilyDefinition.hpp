@@ -169,7 +169,7 @@ public:
     ///
     /// \remark This function serializes this MaterialFamilyDefinition to a memory buffer and then computes the 
     /// hash of the said buffer. For performance reasons, you should cache the computed values.
-    hash64_t computeHash() const;
+    FileHash computeHash() const;
     
     /// Get the name of the material family
     inline const std::string& getName() const {

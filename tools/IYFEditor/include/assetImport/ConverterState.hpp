@@ -60,7 +60,7 @@ inline InternalConverterState::~InternalConverterState() {}
 
 class ConverterState : private NonCopyable, public TextSerializable {
 public:
-    ConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, hash64_t sourceFileHash)
+    ConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash)
         : sourcePath(sourcePath), sourceFileHash(sourceFileHash), conversionComplete(false), debugOutputRequested(false), systemAsset(false),
           platformID(platformID), internalState(std::move(internalState)) {}
     
@@ -124,7 +124,7 @@ public:
         return importedAssets;
     }
     
-    inline hash64_t getSourceFileHash() const {
+    inline FileHash getSourceFileHash() const {
         return sourceFileHash;
     }
     
@@ -149,7 +149,7 @@ private:
     std::vector<ImportedAssetData> importedAssets;
     std::vector<std::string> tags;
     fs::path sourcePath;
-    hash64_t sourceFileHash;
+    FileHash sourceFileHash;
     
     bool conversionComplete;
     bool debugOutputRequested;
@@ -189,7 +189,7 @@ private:
     virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
     
-    MeshConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, hash64_t sourceFileHash)
+    MeshConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash)
         : ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash), convertAnimations(true), scale(1.0f) {}
 };
 
@@ -239,7 +239,7 @@ private:
     virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
     
-    TextureConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, hash64_t sourceFileHash)
+    TextureConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash)
         : ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash), premultiplyAlpha(true), sRGBSource(true), noMipMaps(false),
           importMode(TextureImportMode::Regular), filteringMethod(TextureFilteringMethod::Trilinear), xTiling(TextureTilingMethod::Repeat), 
           yTiling(TextureTilingMethod::Repeat), quality(0.05f), preferredAnisotropy(0), cubemap(false), sourceDataHDR(false), width(0), height(0), channels(0) {}
@@ -258,7 +258,7 @@ private:
     virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
     
-    FontConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, hash64_t sourceFileHash) :
+    FontConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash) :
         ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash) {}
 };
 
@@ -282,7 +282,7 @@ private:
     virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
     
-    ShaderConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, hash64_t sourceFileHash) :
+    ShaderConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash) :
         ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash) {}
 };
 
@@ -312,7 +312,7 @@ private:
     virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
     
-    LocalizationStringConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, hash64_t sourceFileHash) :
+    LocalizationStringConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash) :
         ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash), priority(0), systemTranslations(false) {}
 };
 

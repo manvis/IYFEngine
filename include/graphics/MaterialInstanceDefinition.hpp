@@ -69,7 +69,7 @@ public:
     /// This function is fairly cheap to call since the class keeps track of changes and only re-computes the ID if any setters or non-const ???
     /// 
     /// \return Unique identifier for this MaterialInstanceDefinition
-    inline hash32_t getID() {
+    inline StringHash getID() {
         if (idNeedsRecompute) {
             recomputeID();
         }
@@ -88,27 +88,27 @@ public:
     }
 
     /// \brief Get an ID of a family that's currently associated with this MaterialInstanceDefinition
-    inline hash32_t getFamilyID() const {
+    inline StringHash getFamilyID() const {
         return familyID;
     }
 
     /// \brief Associate a new family with this MaterialInstanceDefinition
     ///
     /// \warning Calling this will invalidate and potentially change the ID. It will be recomputed the next time getID() is called.
-    inline void setFamilyID(hash32_t newFamilyID) {
+    inline void setFamilyID(StringHash newFamilyID) {
         familyID = newFamilyID;
         idNeedsRecompute = true;
     }
 
     /// \brief Get a family variant that is associated with this MaterialInstanceDefinition
-    inline hash32_t getFamilyVariant() const {
+    inline StringHash getFamilyVariant() const {
         return familyVariant;
     }
 
     /// \brief Associate a new family variant with this Material definition
     ///
     /// \warning Calling this will invalidate and potentially change the ID. It will be recomputed the next time getID() is called.
-    inline void setFamilyVariant(hash32_t newFamilyVariant) {
+    inline void setFamilyVariant(StringHash newFamilyVariant) {
         familyVariant = newFamilyVariant;
         idNeedsRecompute = true;
     }
@@ -154,12 +154,12 @@ protected:
     void recomputeID();
     
     /// ID of a material family that's used by this material
-    hash32_t familyID;
+    StringHash familyID;
     
     /// ID of a variant of the said material family. These typically indicate permutations of shaders (e.g. one may use a flat color albedo while another uses a texture) or their
     /// combinations (e.g. one has a tessellation shader while another does not)
     /// \todo replace with something that carries more information about the variant
-    hash32_t familyVariant;
+    StringHash familyVariant;
     
     /// Used to determine if an Entity object that uses a Material created from this definition should be stored in "opaque objects" draw list or in "transparent objects" draw list
     MaterialRenderMode renderMode;
@@ -175,7 +175,7 @@ protected:
     /// Human readable name of the material. Stored separately (check serializeName()) so that it could be stripped from release builds
     std::string name;
     
-    hash32_t id;
+    StringHash id;
     bool idNeedsRecompute;
 };
 }

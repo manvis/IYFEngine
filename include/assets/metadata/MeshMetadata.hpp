@@ -36,9 +36,9 @@ class MeshMetadata : public MetadataBase {
 public:
     inline MeshMetadata() : MetadataBase(AssetType::Mesh) {}
     
-    inline MeshMetadata(hash64_t fileHash,
+    inline MeshMetadata(FileHash fileHash,
                         const fs::path& sourceAsset,
-                        hash64_t sourceFileHash,
+                        FileHash sourceFileHash,
                         bool systemAsset,
                         const std::vector<std::string>& tags,
                         std::uint16_t meshFormatVersion,

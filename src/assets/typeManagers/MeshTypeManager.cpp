@@ -164,7 +164,7 @@ MeshTypeManager::RangeDataResult MeshTypeManager::findRange(Bytes size, Bytes al
     return {BufferRange(0_B, size), nullptr, false, 0};
 }
 
-std::unique_ptr<LoadedAssetData> MeshTypeManager::readFile(hash32_t, const fs::path& path, const Metadata& meta, Mesh& assetData) {
+std::unique_ptr<LoadedAssetData> MeshTypeManager::readFile(StringHash, const fs::path& path, const Metadata& meta, Mesh& assetData) {
     const MeshLoader loader(engine);
     MeshLoader::MemoryRequirements requirements = loader.getMeshMemoryRequirements(meta);
     

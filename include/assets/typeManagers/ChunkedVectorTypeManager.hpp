@@ -64,7 +64,7 @@ public:
     
     virtual ~ChunkedVectorTypeManager() { }
     
-    virtual std::pair<Asset*, AssetHandleRefCounter*> load(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut, bool isAsync) final override {
+    virtual std::pair<Asset*, AssetHandleRefCounter*> load(StringHash nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut, bool isAsync) final override {
         // Find a free slot in the freeList or start using a new slot at the end
         std::uint32_t id;
         
@@ -120,10 +120,6 @@ public:
         //return missingAssetHandle;
     }
     
-//     inline AssetHandle<T> load(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut, bool isAsync);
-//     inline AssetHandle<T> fetch(std::uint32_t id);
-//     inline AssetHandle<T> getMissingAssetHandle();
-    
     /// A concrete implementation of this function should read the file from disk into memory and perform any processing that 
     /// can be done without (or with minimal) synchronization. The second part is especially important because this function may be
     /// called at almost any time, from almost any thread.
@@ -132,7 +128,7 @@ public:
     /// is false.
     ///
     /// \return everything that is required by enableAsset();
-    virtual std::unique_ptr<LoadedAssetData> readFile(hash32_t nameHash, const fs::path& path, const Metadata& meta, T& assetData) = 0;
+    virtual std::unique_ptr<LoadedAssetData> readFile(StringHash nameHash, const fs::path& path, const Metadata& meta, T& assetData) = 0;
     
     /// A concrete implementation of this function should "enable" a loaded asset by finishing all preparations (e.g., uploading data 
     /// to the GPU) and setting Asset::setLoaded() to true. Always called on the main thread.
@@ -234,7 +230,7 @@ protected:
         }
     }
     
-    virtual bool refresh(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) final override {
+    virtual bool refresh(StringHash nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) final override {
         if (manager->isGameMode()) {
             throw std::logic_error("This method can't be used when the engine is running in game mode.");
         }
@@ -248,7 +244,7 @@ protected:
         return true;
     }
     
-    virtual void notifyMove(std::uint32_t id, [[maybe_unused]] hash32_t sourceNameHash, hash32_t destinationNameHash) override {
+    virtual void notifyMove(std::uint32_t id, [[maybe_unused]] StringHash sourceNameHash, StringHash destinationNameHash) override {
         T& asset = assets[id];
         assert(asset.getNameHash() == sourceNameHash);
         

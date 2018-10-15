@@ -53,7 +53,7 @@ public:
         return hasMaterial(HS(name));
     }
     
-    inline bool hasMaterial(hash32_t nameHash) const {
+    inline bool hasMaterial(StringHash nameHash) const {
         auto manifestLock = editorMode ? std::unique_lock<std::mutex>(materialMapMutex) : std::unique_lock<std::mutex>();
         
         return (materials.find(nameHash) != materials.end());
@@ -68,7 +68,7 @@ public:
 private:
     Engine* engine;
     
-    std::unordered_map<hash32_t, MaterialInstanceDefinition> materials;
+    std::unordered_map<StringHash, MaterialInstanceDefinition> materials;
     std::map<std::string, MaterialInstanceDefinition> orderedMaterials;
     
     mutable std::mutex materialMapMutex;

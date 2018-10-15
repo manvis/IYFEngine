@@ -68,7 +68,7 @@ std::unique_ptr<ConverterState> FontConverter::initializeConverter(const fs::pat
         return nullptr;
     }
     
-    const hash64_t sourceFileHash = HF(reinterpret_cast<const char*>(internalState->data.get()), internalState->size);
+    const FileHash sourceFileHash = HF(reinterpret_cast<const char*>(internalState->data.get()), internalState->size);
     
     return std::unique_ptr<FontConverterState>(new FontConverterState(platformID, std::move(internalState), inPath, sourceFileHash));
 }
@@ -79,7 +79,7 @@ bool FontConverter::convert(ConverterState& state) const {
     
     fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
     
-    hash64_t hash = HF(reinterpret_cast<const char*>(internalState->data.get()), internalState->size);
+    FileHash hash = HF(reinterpret_cast<const char*>(internalState->data.get()), internalState->size);
     FontMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags());
     ImportedAssetData iad(state.getType(), metadata, outputPath);
     state.getImportedAssets().push_back(std::move(iad));

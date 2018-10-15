@@ -287,7 +287,7 @@ bool MeshLoader::loadMeshV1(File& fr, LoadedMeshData& meshData, void* vertexBuff
 //         submeshData.boundingSphere.center.z = fr.readFloat();
 //         submeshData.boundingSphere.radius = fr.readFloat();
         
-//         submeshData.defaultTexture = hash32_t(fr.readUInt32());
+//         submeshData.defaultTexture = StringHash(fr.readUInt64());
     }
         
     meshData.aabb.vertices[static_cast<int>(AABB::Vertex::Minimum)].x = fr.readFloat();
@@ -324,7 +324,7 @@ bool MeshLoader::loadMeshV1(File& fr, LoadedMeshData& meshData, void* vertexBuff
     
     //LOG_D("ANIMATIONS: " << numAnimations << "; BONES: " << numBones << "; " << totalVerticesDeclared << " " << totalIndicesDeclared)
     for (std::size_t a = 0; a < numAnimations; ++a) {
-        meshData.animations[a] = hash32_t(fr.readUInt32());
+        meshData.animations[a] = StringHash(fr.readUInt64());
     }
     
     assert(fr.isEOF());

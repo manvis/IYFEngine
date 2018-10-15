@@ -44,7 +44,7 @@ void ShaderTypeManager::performFree(Shader& assetData) {
     }
 }
 
-std::unique_ptr<LoadedAssetData> ShaderTypeManager::readFile(hash32_t, const fs::path& path, const Metadata& meta, Shader& assetData) {
+std::unique_ptr<LoadedAssetData> ShaderTypeManager::readFile(StringHash, const fs::path& path, const Metadata& meta, Shader& assetData) {
     File file(path, File::OpenMode::Read);
     return std::make_unique<LoadedAssetData>(meta, assetData, file.readWholeFile());
 }

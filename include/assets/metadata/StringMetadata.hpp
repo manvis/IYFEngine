@@ -36,9 +36,9 @@ class StringMetadata : public MetadataBase {
 public:
     inline StringMetadata() : MetadataBase(AssetType::Strings) {}
     
-    inline StringMetadata(hash64_t fileHash,
+    inline StringMetadata(FileHash fileHash,
                           const fs::path& sourceAsset,
-                          hash64_t sourceFileHash,
+                          FileHash sourceFileHash,
                           bool systemAsset,
                           const std::vector<std::string>& tags,
                           std::string locale,

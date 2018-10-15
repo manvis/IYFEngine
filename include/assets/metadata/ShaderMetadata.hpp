@@ -38,9 +38,9 @@ class ShaderMetadata : public MetadataBase {
 public:
     inline ShaderMetadata() : MetadataBase(AssetType::Shader) {}
     
-    inline ShaderMetadata(hash64_t fileHash,
+    inline ShaderMetadata(FileHash fileHash,
                           const fs::path& sourceAsset,
-                          hash64_t sourceFileHash,
+                          FileHash sourceFileHash,
                           bool systemAsset,
                           const std::vector<std::string>& tags,
                           ShaderStageFlags stage,

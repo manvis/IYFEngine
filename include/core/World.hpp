@@ -125,8 +125,8 @@ public:
     /// \warning Do not call this method if this World has no physics or render systems registered
     void setPhysicsDebugDrawn(bool newValue);
     
-    void addStaticMesh(hash32_t nameHash);
-    void addDynamicMesh(hash32_t nameHash);
+    void addStaticMesh(StringHash nameHash);
+    void addDynamicMesh(StringHash nameHash);
     void addCamera(bool setAsDefault);
     
     virtual ~World();
@@ -157,7 +157,7 @@ protected:
 //     std::map<std::string, std::pair<EntityKey, bool>> entities;
     
     /// Maps an ID of a material definition to a position in the materials vector
-    std::unordered_map<hash32_t, std::size_t> definitionToMaterial;
+    std::unordered_map<StringHash, std::size_t> definitionToMaterial;
     
     bool physicsDebugDrawn;
 };

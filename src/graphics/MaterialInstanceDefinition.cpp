@@ -50,9 +50,9 @@ void MaterialInstanceDefinition::serialize(Serializer& fw) const {
         throw std::runtime_error("Can't have more than con::MaxMaterialComponents in a MaterialInstanceDefinition called " + name);
     }
     
-    fw.writeUInt32(id);
-    fw.writeUInt32(familyID.value());
-    fw.writeUInt32(familyVariant.value());
+    fw.writeUInt64(id);
+    fw.writeUInt64(familyID.value());
+    fw.writeUInt64(familyVariant.value());
     fw.writeUInt8(static_cast<std::uint8_t>(renderMode));
     fw.writeUInt8(components.size());
     
@@ -63,11 +63,11 @@ void MaterialInstanceDefinition::serialize(Serializer& fw) const {
 }
 
 void MaterialInstanceDefinition::deserialize(Serializer& fr) {
-    id = hash32_t(fr.readUInt32());
+    id = StringHash(fr.readUInt64());
     idNeedsRecompute = false;
     
-    familyID = hash32_t(fr.readUInt32());
-    familyVariant = hash32_t(fr.readUInt32());
+    familyID = StringHash(fr.readUInt64());
+    familyVariant = StringHash(fr.readUInt64());
     renderMode = static_cast<MaterialRenderMode>(fr.readUInt8());
     
     std::size_t elementCount = fr.readUInt8();
@@ -102,14 +102,14 @@ void MaterialInstanceDefinition::recomputeID() {
         throw std::runtime_error("Can't have more than con::MaxMaterialComponents in a MaterialInstanceDefinition called " + name);
     }
     
-    hash32_t seed(0);
+    StringHash seed(0);
     
     util::HashCombine(seed, familyID);
     util::HashCombine(seed, familyVariant);
-    util::HashCombine(seed, hash32_t(static_cast<std::uint32_t>(renderMode))); // Is this OK?
+    util::HashCombine(seed, StringHash(static_cast<std::uint64_t>(renderMode))); // Is this OK?
     
     for (const auto& d : components) {
-        util::HashCombine(seed, hash32_t(d.second));
+        util::HashCombine(seed, StringHash(d.second));
     }
     
     id = seed;

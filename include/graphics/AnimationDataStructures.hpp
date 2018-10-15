@@ -40,9 +40,9 @@
 namespace iyf {
 struct Bone {
     std::string name;
-    hash32_t nameHash;
-    std::uint8_t parent;
     glm::mat4 transform;
+    StringHash nameHash;
+    std::uint8_t parent;
 };
 
 struct LocationKey {

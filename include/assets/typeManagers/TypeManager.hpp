@@ -69,10 +69,10 @@ protected:
     /// \warning This function can only be used if the Engine is running in editor mode.
     ///
     /// \throws std::logic_error if the engine is running in game mode.
-    virtual bool refresh(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) = 0;
+    virtual bool refresh(StringHash nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) = 0;
     
     /// Load an asset that has not been loaded yet
-    virtual std::pair<Asset*, AssetHandleRefCounter*> load(hash32_t nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut, bool isAsync) = 0;
+    virtual std::pair<Asset*, AssetHandleRefCounter*> load(StringHash nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut, bool isAsync) = 0;
     
     /// Fetch a handle to an asset that has already been loaded
     virtual std::pair<Asset*, AssetHandleRefCounter*> fetch(std::uint32_t id) = 0;
@@ -110,10 +110,10 @@ protected:
     /// are treated like any other assets and require the presence of a manifest to be loaded.
     virtual void initMissingAssetHandle() = 0;
     
-    virtual void notifyMove(std::uint32_t id, hash32_t sourceNameHash, hash32_t destinationNameHash) = 0;
+    virtual void notifyMove(std::uint32_t id, StringHash sourceNameHash, StringHash destinationNameHash) = 0;
     
-    void notifyRemoval(hash32_t nameHash);
-    void logLeakedAsset(std::size_t id, hash32_t nameHash, std::uint32_t count);
+    void notifyRemoval(StringHash nameHash);
+    void logLeakedAsset(std::size_t id, StringHash nameHash, std::uint32_t count);
     
     AssetManager* manager;
     iyft::ThreadPool* longTermWorkerPool;

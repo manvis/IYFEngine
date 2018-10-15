@@ -92,7 +92,7 @@ public:
     /// name of this renderer
     /// 
     /// \return hashed localization handle
-    virtual hash32_t getNameLocalizationHandle() const = 0;
+    virtual StringHash getNameLocalizationHandle() const = 0;
     
     /// Returns a simple, filename friendly string (no spaces or special characters) that can be used by the shader generator or in logs.
     virtual std::string getName() const = 0;

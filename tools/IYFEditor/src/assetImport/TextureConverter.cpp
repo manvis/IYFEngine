@@ -663,7 +663,7 @@ std::unique_ptr<ConverterState> TextureConverter::initializeConverter(const fs::
     internalState->size = data.second;
     
     stbi_uc* ucData = reinterpret_cast<stbi_uc*>(internalState->rawData.get());
-    const hash64_t sourceFileHash = HF(internalState->rawData.get(), internalState->size);
+    const FileHash sourceFileHash = HF(internalState->rawData.get(), internalState->size);
     
     int x = 0;
     int y = 0;
@@ -888,7 +888,7 @@ bool TextureConverter::convert(ConverterState& state) const {
     textureFile.writeBytes(fw.data(), fw.size());
     textureFile.close();
     
-    hash64_t fileHash = HF(fw.data(), fw.size());
+    FileHash fileHash = HF(fw.data(), fw.size());
     TextureMetadata textureMetadata(fileHash, textureState.getSourceFilePath(), textureState.getSourceFileHash(), state.isSystemAsset(), state.getTags(), topLevelWidth, topLevelHeight, 1, faceCount, 1,
                                     mipmapLevels, textureState.channels, textureState.filteringMethod, textureState.xTiling, textureState.yTiling, textureState.preferredAnisotropy,
                                     compressionFormat, textureState.sRGBSource, dataSize);

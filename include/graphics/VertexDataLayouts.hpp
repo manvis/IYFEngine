@@ -98,7 +98,7 @@ enum class VertexAttributeType {
 
 namespace con {
 /// Translation strings for vertex attribute names
-hash32_t GetVertexAttributeNameHash(VertexAttributeType type);
+StringHash GetVertexAttributeNameHash(VertexAttributeType type);
 
 /// Obtain vertex input variable names. The shader generator uses these when creating the vertex shader.
 ///

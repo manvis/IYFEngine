@@ -43,6 +43,8 @@
 #include "utilities/DataSizes.hpp"
 #include "utilities/FileInDir.hpp"
 
+#include <climits>
+
 namespace iyf {
 namespace con {
 const std::chrono::milliseconds MinAsyncLoadWindow = std::chrono::milliseconds(2);
@@ -171,7 +173,7 @@ struct FileDiscoveryResults {
     };
     
     inline FileDiscoveryResults() : nameHash(0) {}
-    inline FileDiscoveryResults(hash32_t nameHash) : nameHash(nameHash) {}
+    inline FileDiscoveryResults(StringHash nameHash) : nameHash(nameHash) {}
     
     inline bool isComplete() const {
         return (!filePath.empty()) && wasMetadataFound();
@@ -183,13 +185,13 @@ struct FileDiscoveryResults {
         return (textMetadataPath.empty() && !binaryMetadataPath.empty()) || (!textMetadataPath.empty() && binaryMetadataPath.empty());
     }
     
-    hash32_t nameHash;
+    StringHash nameHash;
     fs::path filePath;
     fs::path textMetadataPath;
     fs::path binaryMetadataPath;
 };
 
-inline void findAndSetFileDiscoveryResults(std::unordered_map<hash32_t, FileDiscoveryResults>& results, hash32_t nameHash, FileDiscoveryResults::Field field, const fs::path& path) {
+inline void findAndSetFileDiscoveryResults(std::unordered_map<StringHash, FileDiscoveryResults>& results, StringHash nameHash, FileDiscoveryResults::Field field, const fs::path& path) {
     auto result = results.find(nameHash);
     
     if (result == results.end()) {
@@ -310,14 +312,14 @@ inline AssetManager::ManifestElement buildManifestElement(AssetType type, bool i
 /// Adds all assets of the specified type to the provided manifest
 ///
 /// \warning Make sure this is always protected by a mutex
-inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unordered_map<hash32_t, AssetManager::ManifestElement>& manifest) {
+inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unordered_map<StringHash, AssetManager::ManifestElement>& manifest) {
     const fs::path& baseDir = con::AssetTypeToPath(type);
     LOG_V("Examining contents of \"" << baseDir.generic_string() << "\"");
     const auto contents = filesystem->getDirectoryContents(baseDir);
     
     // Used to detect errors.
     // TODO Return this as well. It may be useful for debugging
-    std::unordered_map<hash32_t, FileDiscoveryResults> results;
+    std::unordered_map<StringHash, FileDiscoveryResults> results;
     
     for (const auto& p : contents) {
         const fs::path fullPath = baseDir / p;
@@ -329,18 +331,16 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
             continue;
         }
         
-        // Can't check for other errors here. I'm quite certain that both 0 and ULLONG_MAX can be valid hash values.
-        // I wish this had an error_code parameter, just like filesystem stuff.
-        //
-        // WARNING: Don't replace this with stoull. It won't solve the problem because it simply wraps strtoull.
-        // Source: http://en.cppreference.com/w/cpp/string/basic_string/stoul
         const std::uint64_t parsedNumber = std::strtoull(stem.c_str(), nullptr, 10);
-        if (parsedNumber > std::numeric_limits<std::uint32_t>::max()) {
-            LOG_W("When converted to an unsigned integer, the numeric filename of " << fullPath << " does not fit in hash32_t. Skipping it.");
+        
+        if (parsedNumber == 0 || parsedNumber == ULLONG_MAX) {
+            LOG_W("strtoull encountered an error when processing " << fullPath << ". Skipping it.\n\tIt's also "
+                  "possible you won a \"jackpot\" and have an asset that hashes to 0 or ULLONG_MAX. If so, try "
+                  "renaming it and deleting this mess from the assets folder.");
             continue;
         }
         
-        hash32_t nameHash(parsedNumber);
+        StringHash nameHash(parsedNumber);
         //LOG_V("FOUND file: " << parsedNumber << " " << fullPath);
         
         // We found an asset file, however, we only care about the metadata at the moment.
@@ -398,7 +398,7 @@ void AssetManager::buildManifestFromFilesystem() {
     }
 }
 
-bool AssetManager::serializeMetadata(hash32_t nameHash, Serializer& file) {
+bool AssetManager::serializeMetadata(StringHash nameHash, Serializer& file) {
     std::lock_guard<std::mutex> manifestLock(manifestMutex);
     
     auto result = manifest.find(nameHash);
@@ -485,7 +485,7 @@ static inline fs::path MakeMetadataPathName(const fs::path& filePath, bool binar
     return result;
 }
 
-static inline std::optional<hash32_t> ValidateAndHashPath(const FileSystem* fs, const fs::path& path) {
+static inline std::optional<StringHash> ValidateAndHashPath(const FileSystem* fs, const fs::path& path) {
     if (path.empty()) {
         LOG_W("Couldn't process the file because an empty path was provided.");
         return std::nullopt;
@@ -508,18 +508,16 @@ static inline std::optional<hash32_t> ValidateAndHashPath(const FileSystem* fs, 
         return std::nullopt;
     }
     
-    // Can't check for other errors here. I'm quite certain that both 0 and ULLONG_MAX can be valid hash values.
-    // I wish this had an error_code parameter, just like filesystem stuff.
-    //
-    // WARNING: Don't replace this with stoull. It won't solve the problem because it simply wraps strtoull.
-    // Source: http://en.cppreference.com/w/cpp/string/basic_string/stoul
+
     const std::uint64_t parsedNumber = std::strtoull(stem.c_str(), nullptr, 10);
-    if (parsedNumber > std::numeric_limits<std::uint32_t>::max()) {
-        LOG_W("Couldn't process \"" << path << "\". When converted to an unsigned integer, its numeric filename does not fit in hash32_t.");
+    if (parsedNumber == 0 || parsedNumber == ULLONG_MAX) {
+        LOG_W("strtoull encountered an error when processing " << path << ". Skipping it.\n\tIt's also "
+                "possible you won a \"jackpot\" and have an asset that hashes to 0 or ULLONG_MAX. If so, try "
+                "renaming it and deleting this mess from the assets folder.");
         return std::nullopt;
     }
     
-    return hash32_t(parsedNumber);
+    return StringHash(parsedNumber);
 }
 
 void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
@@ -534,7 +532,7 @@ void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
         return;
     }
     
-    const hash32_t nameHash = *validationResult;
+    const StringHash nameHash = *validationResult;
     
     const fs::path binaryMetadataPath = MakeMetadataPathName(path, true);
     const fs::path textMetadataPath = MakeMetadataPathName(path, false);
@@ -615,7 +613,7 @@ void AssetManager::requestAssetDeletion(const fs::path& path, [[maybe_unused]] b
             return;
         }
         
-        const hash32_t nameHash = *validationResult;
+        const StringHash nameHash = *validationResult;
         
         const auto& loadedAsset = loadedAssets.find(nameHash);
         if (loadedAsset != loadedAssets.end()) {
@@ -652,7 +650,7 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
     LOG_D("Beginning asset data move for " << (isDir ? "directory" : "file") << ". Moving from " << sourcePath << " to " << destinationPath);
     
     // Can't change the key immediately. It would mess up the iteration order.
-    std::vector<std::pair<hash32_t, hash32_t>> fileMoves;
+    std::vector<std::pair<StringHash, StringHash>> fileMoves;
     fileMoves.reserve(64);
     
     for (auto& me : manifest) {
@@ -673,8 +671,8 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
             const FileSystem* fs = engine->getFileSystem();
             const fs::path fullNewPath = destinationPath / fs::path(currentSourceAssetPathString.substr(sourceDirectoryString.length()));
             
-            const hash32_t currentSourceHash = ComputeNameHash(currentSourceAssetPath);
-            const hash32_t newPathHash = ComputeNameHash(fullNewPath);
+            const StringHash currentSourceHash = ComputeNameHash(currentSourceAssetPath);
+            const StringHash newPathHash = ComputeNameHash(fullNewPath);
             
             assert(currentSourceHash == me.first);
             
@@ -785,7 +783,7 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
     }
 }
 
-void AssetManager::appendAssetToManifest(hash32_t nameHash, const fs::path& path, const Metadata& metadata) {
+void AssetManager::appendAssetToManifest(StringHash nameHash, const fs::path& path, const Metadata& metadata) {
     if (!editorMode) {
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
@@ -794,7 +792,7 @@ void AssetManager::appendAssetToManifest(hash32_t nameHash, const fs::path& path
     manifest[nameHash] = {path, static_cast<AssetType>(metadata.index()), false, metadata};
 }
 
-void AssetManager::removeAssetFromManifest(hash32_t nameHash) {
+void AssetManager::removeAssetFromManifest(StringHash nameHash) {
     if (!editorMode) {
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
@@ -837,7 +835,7 @@ void AssetManager::removeNonSystemAssetsFromManifest() {
     }
 }
 
-std::optional<fs::path> AssetManager::checkForHashCollision(hash32_t nameHash, const fs::path& checkPath) const {
+std::optional<fs::path> AssetManager::checkForHashCollision(StringHash nameHash, const fs::path& checkPath) const {
     if (!editorMode) {
         throw std::logic_error("This method can only be used when the engine is running in editor mode.");
     }
@@ -847,7 +845,7 @@ std::optional<fs::path> AssetManager::checkForHashCollision(hash32_t nameHash, c
     return checkForHashCollisionImpl(nameHash, checkPath);
 }
 
-std::optional<fs::path> AssetManager::checkForHashCollisionImpl(hash32_t nameHash, const fs::path& checkPath) const {
+std::optional<fs::path> AssetManager::checkForHashCollisionImpl(StringHash nameHash, const fs::path& checkPath) const {
     auto result = manifest.find(nameHash);
     if (result != manifest.end()) {
         const fs::path foundPath = std::visit([](auto&& arg){return arg.getSourceAssetPath();}, result->second.metadata);

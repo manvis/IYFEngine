@@ -36,11 +36,11 @@ TypeManager::TypeManager(AssetManager* manager) : manager(manager) {
     longTermWorkerPool = manager->getEngine()->getLongTermWorkerPool();
 }
 
-void TypeManager::logLeakedAsset(std::size_t id, hash32_t nameHash, std::uint32_t count) {
+void TypeManager::logLeakedAsset(std::size_t id, StringHash nameHash, std::uint32_t count) {
     LOG_W("Asset with id " << id << " loaded from path " << manager->getAssetPath(nameHash) << " still has " << count << " live references. ")
 }
 
-void TypeManager::notifyRemoval(hash32_t nameHash) {
+void TypeManager::notifyRemoval(StringHash nameHash) {
     manager->notifyRemoval(nameHash);
 }
 

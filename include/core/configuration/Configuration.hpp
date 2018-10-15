@@ -81,9 +81,9 @@ extern const std::array<std::string, static_cast<std::size_t>(ConfigurationValue
 
 /// A key used for lookups in the iyf::ConfigurationValueMap 
 struct ConfigurationValueHandle {
-    constexpr ConfigurationValueHandle(hash32_t nameHash, ConfigurationValueFamily family) : nameHash(nameHash), family(family) {}
+    constexpr ConfigurationValueHandle(StringHash nameHash, ConfigurationValueFamily family) : nameHash(nameHash), family(family) {}
     
-    const hash32_t nameHash;
+    const StringHash nameHash;
     const ConfigurationValueFamily family;
     
     friend bool operator==(const ConfigurationValueHandle& a, const ConfigurationValueHandle& b) {
@@ -246,7 +246,7 @@ public:
     ///
     /// \param[in] nameHash A pre-hashed name
     /// \param[in] family The family of configuration values that you want to querying
-    inline ConfigurationValue getValue(const hash32_t nameHash, ConfigurationValueFamily family) const {
+    inline ConfigurationValue getValue(StringHash nameHash, ConfigurationValueFamily family) const {
         ConfigurationValueHandle handle(nameHash, family);
         return getValue(handle);
     }
@@ -362,7 +362,7 @@ public:
     ///
     /// \param [in] nameHash A pre-hashed name
     /// \param [in] family The family of configuration values that you want to querying
-    inline ConfigurationValue getValue(const hash32_t nameHash, ConfigurationValueFamily family) const {
+    inline ConfigurationValue getValue(StringHash nameHash, ConfigurationValueFamily family) const {
         return getValue(ConfigurationValueHandle(nameHash, family));
     }
     

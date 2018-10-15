@@ -49,7 +49,7 @@ class FileSystem : private NonCopyable {
 public:
     ~FileSystem();
     
-    hash64_t computeFileHash(const fs::path& path) const;
+    FileHash computeFileHash(const fs::path& path) const;
     
     /// Obtain the current write directory used by the virtual file system. The path is provided in platform dependent notation.
     ///

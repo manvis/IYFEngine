@@ -320,7 +320,7 @@ void MaterialFamilyDefinition::deserialize(Serializer& fr) {
 //     fw.writeUInt64(geometryShaderDataSets.to_ullong());
 }
 
-hash64_t MaterialFamilyDefinition::computeHash() const {
+FileHash MaterialFamilyDefinition::computeHash() const {
     MemorySerializer ms(1024);
     serialize(ms);
     

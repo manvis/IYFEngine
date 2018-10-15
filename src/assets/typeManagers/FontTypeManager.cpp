@@ -37,7 +37,7 @@ FontTypeManager::FontTypeManager(AssetManager* manager) : ChunkedVectorTypeManag
     api = engine->getGraphicsAPI();
 }
 
-std::unique_ptr<LoadedAssetData> FontTypeManager::readFile(hash32_t, const fs::path& path, const Metadata& metadata, Font& assetData) {
+std::unique_ptr<LoadedAssetData> FontTypeManager::readFile(StringHash, const fs::path& path, const Metadata& metadata, Font& assetData) {
     File file(path, File::OpenMode::Read);
     
     return std::make_unique<LoadedAssetData>(metadata, assetData, file.readWholeFile());

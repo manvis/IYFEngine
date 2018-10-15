@@ -36,9 +36,9 @@ class AudioMetadata : public MetadataBase {
 public:
     inline AudioMetadata() : MetadataBase(AssetType::Audio) {}
     
-    inline AudioMetadata(hash64_t fileHash,
+    inline AudioMetadata(FileHash fileHash,
                          const fs::path& sourceAsset,
-                         hash64_t sourceFileHash,
+                         FileHash sourceFileHash,
                          bool systemAsset,
                          const std::vector<std::string>& tags)
         : MetadataBase(AssetType::Audio, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true) {}

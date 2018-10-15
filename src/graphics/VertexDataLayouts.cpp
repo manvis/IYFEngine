@@ -102,17 +102,17 @@ VertexDataLayoutDefinition::VertexDataLayoutDefinition(std::string name, std::ui
 
 namespace con {
 
-hash32_t GetVertexAttributeNameHash(VertexAttributeType type) {
-    static const std::array<hash32_t, static_cast<std::size_t>(VertexAttributeType::COUNT)> VertexAttributeNameHashes = {
-        hash32_t(HS("position")),
-        hash32_t(HS("normal")),
-        hash32_t(HS("tangent")),
-        hash32_t(HS("bitangent")),
-        hash32_t(HS("uv")),
-        hash32_t(HS("bone_id")),
-        hash32_t(HS("bone_weight")),
-        hash32_t(HS("tangent_and_bias")),
-        hash32_t(HS("color")),// TODO add translations
+StringHash GetVertexAttributeNameHash(VertexAttributeType type) {
+    static const std::array<StringHash, static_cast<std::size_t>(VertexAttributeType::COUNT)> VertexAttributeNameHashes = {
+        StringHash(HS("position")),
+        StringHash(HS("normal")),
+        StringHash(HS("tangent")),
+        StringHash(HS("bitangent")),
+        StringHash(HS("uv")),
+        StringHash(HS("bone_id")),
+        StringHash(HS("bone_weight")),
+        StringHash(HS("tangent_and_bias")),
+        StringHash(HS("color")),// TODO add translations
     };
     
     return VertexAttributeNameHashes[static_cast<std::size_t>(type)];

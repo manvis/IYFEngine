@@ -620,7 +620,7 @@ void EditorState::clearActivePickOrPlaceMode() {
 }
 
 void EditorState::handlePickOrPlaceMode(const char* modeName, bool buttonPressed, bool& buttonReleased, std::function<void()> handleLogic, std::function<void()> handleDraw) {
-    iyf::hash32_t hashedName = HS(modeName);
+    iyf::StringHash hashedName = HS(modeName);
     
     if (buttonPressed) {
         pickOrPlaceModeId = hashedName;

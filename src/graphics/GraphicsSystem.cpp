@@ -127,7 +127,7 @@ void GraphicsSystem::initialize() {
     assetManager = manager->getEngine()->getAssetManager();
     
     // TODO I need to refactor the Skybox so that it would be drawn, instead of drawing itself
-    hash32_t cubemapTextureNameHash = assetManager->getSystemAssetNameHash("skybox.png");
+    StringHash cubemapTextureNameHash = assetManager->getSystemAssetNameHash("skybox.png");
     setSkybox(std::make_unique<CubemapSkybox>(assetManager, renderer, cubemapTextureNameHash));
     if (skybox != nullptr) {
         skybox->initialize();

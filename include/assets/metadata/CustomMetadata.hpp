@@ -36,9 +36,9 @@ class CustomMetadata : public MetadataBase {
 public:
     inline CustomMetadata() : MetadataBase(AssetType::Custom) {}
     
-    inline CustomMetadata(hash64_t fileHash,
+    inline CustomMetadata(FileHash fileHash,
                           const fs::path& sourceAsset,
-                          hash64_t sourceFileHash,
+                          FileHash sourceFileHash,
                           bool systemAsset,
                           const std::vector<std::string>& tags)
         : MetadataBase(AssetType::Custom, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true) {}

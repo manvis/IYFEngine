@@ -51,13 +51,13 @@ public:
         return destinationPath;
     }
     
-    hash32_t getDestinationPathHash() const {
+    StringHash getDestinationPathHash() const {
         return destinationPathHash;
     }
 private:
     AssetType type;
     Metadata metadata;
-    hash32_t destinationPathHash;
+    StringHash destinationPathHash;
     fs::path destinationPath;
 };
 

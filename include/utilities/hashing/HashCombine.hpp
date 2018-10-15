@@ -33,7 +33,7 @@
 #include "utilities/ForceInline.hpp"
 
 /// \file
-/// This file contains hash32_t and std::hash combination functions
+/// This file contains StringHash and std::hash combination functions
 
 namespace iyf {
 namespace util {
@@ -44,12 +44,12 @@ namespace util {
 ///
 /// \warning order of hashCombine calls matters, that is combining A with B will yield different results than combining B with A
 /// 
-/// \param[in,out] seed the results are accumulated into this value. It should typically start as hash32_t(0).
+/// \param[in,out] seed the results are accumulated into this value. It should typically start as StringHash(0).
 /// \param[in] value value of the hash to combine with seed
-IYF_FORCE_INLINE constexpr void HashCombine(hash32_t& seed, hash32_t value) {
+IYF_FORCE_INLINE constexpr void HashCombine(StringHash& seed, StringHash value) {
     std::size_t temp = seed.value();
     temp ^= value.value() + 0x9e3779b9 + (seed.value() << 6) + (seed.value() >> 2);
-    seed = hash32_t(temp);
+    seed = StringHash(temp);
 }
 
 IYF_FORCE_INLINE constexpr void HashCombine(std::size_t& seed, std::size_t value) {

@@ -73,7 +73,7 @@ public:
     ///
     /// \param id The ID MUST match the position of this connector in the input or output vector and has to be less than InvalidID
     inline LogicGraphConnector(std::string name, LogicGraphConnectorID id, bool required, bool enabled, NodeConnectorType type) 
-        : name(std::move(name)), locHandle(hash32_t(0)), id(id), required(required), enabled(enabled), type(type) {
+        : name(std::move(name)), locHandle(StringHash(0)), id(id), required(required), enabled(enabled), type(type) {
         checkID();
     }
     
@@ -422,7 +422,7 @@ struct LogicGraphNodeTypeInfo {
     using NodeType = typename LogicGraphNode::TypeEnum;
     using NodeGroup = GraphNodeGroup;
     
-    LogicGraphNodeTypeInfo() : name(hash32_t()), documentation(hash32_t()), instantiable(false), deletable(false), valid(false) {}
+    LogicGraphNodeTypeInfo() : name(StringHash()), documentation(StringHash()), instantiable(false), deletable(false), valid(false) {}
     
     LogicGraphNodeTypeInfo(NodeType type, LocalizationHandle name, LocalizationHandle documentation, NodeGroup group, bool instantiable, bool deletable)
      : name(name), documentation(documentation), type(type), group(group), instantiable(instantiable), deletable(deletable), valid(true) {}
@@ -543,7 +543,7 @@ public:
     
     inline LogicGraph() : nextKey(0), nextZIndex(0), nodeTypeInfoSetupComplete(false), nodeGroupSetupComplete(false) {
         nodeTypeInfo.resize(static_cast<std::size_t>(NodeTypeEnum::COUNT));
-        nodeGroupNames.resize(static_cast<std::size_t>(NodeTypeInfoEnum::COUNT), LocalizationHandle(hash32_t(0)));
+        nodeGroupNames.resize(static_cast<std::size_t>(NodeTypeInfoEnum::COUNT), LocalizationHandle(StringHash(0)));
     }
     
     virtual ~LogicGraph() {

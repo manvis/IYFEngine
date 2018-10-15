@@ -36,9 +36,9 @@ class FontMetadata : public MetadataBase {
 public:
     inline FontMetadata() : MetadataBase(AssetType::Font) {}
     
-    inline FontMetadata(hash64_t fileHash,
+    inline FontMetadata(FileHash fileHash,
                         const fs::path& sourceAsset,
-                        hash64_t sourceFileHash,
+                        FileHash sourceFileHash,
                         bool systemAsset,
                         const std::vector<std::string>& tags)
         : MetadataBase(AssetType::Font, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true) {}

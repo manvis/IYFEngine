@@ -92,8 +92,8 @@ TextLocalizer::StringCheckResult TextLocalizer::checkForMissingStrings(const Fil
         return StringCheckResult::AIsNotALocale;
     }
     
-    std::unordered_map<hash32_t, std::string> mapA;
-    std::unordered_map<hash32_t, std::string> mapB;
+    std::unordered_map<StringHash, std::string> mapA;
+    std::unordered_map<StringHash, std::string> mapB;
     
     LoadResult resultA = loadToMap(fs, localizationFileDirectory, localeA, mapA);
     if (resultA == LoadResult::Failure) {
@@ -137,7 +137,7 @@ struct FilePriorityCount {
     std::uint32_t count;
 };
 
-TextLocalizer::LoadResult TextLocalizer::loadToMap(const FileSystem* fs, const fs::path& localizationFileDirectory, const std::string& locale, std::unordered_map<hash32_t, std::string>& map) {
+TextLocalizer::LoadResult TextLocalizer::loadToMap(const FileSystem* fs, const fs::path& localizationFileDirectory, const std::string& locale, std::unordered_map<StringHash, std::string>& map) {
     assert(map.empty());
     
     auto fileNames = fs->getDirectoryContents(localizationFileDirectory);
@@ -191,7 +191,7 @@ TextLocalizer::LoadResult TextLocalizer::loadToMap(const FileSystem* fs, const f
         
         //buffer.reserve(1024);
         for (std::size_t i = 0; i < f.count; ++i) {
-            const hash32_t strHash(f.file.readUInt32());
+            const StringHash strHash(f.file.readUInt64());
             
             std::string buffer;
             f.file.readString(buffer, StringLengthIndicator::UInt32);
@@ -230,7 +230,7 @@ std::string TextLocalizer::loadResultToErrorString(LoadResult result) const {
     }
 }
 
-std::string TextLocalizer::logAndReturnMissingKey(hash32_t key) const {
+std::string TextLocalizer::logAndReturnMissingKey(StringHash key) const {
     std::string str = fmt::format("MISSING STRING {}##", key.value());
     
     LOG_W(str);

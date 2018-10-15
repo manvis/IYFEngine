@@ -36,9 +36,9 @@ class VideoMetadata : public MetadataBase {
 public:
     inline VideoMetadata() : MetadataBase(AssetType::Video) {}
     
-    inline VideoMetadata(hash64_t fileHash,
+    inline VideoMetadata(FileHash fileHash,
                          const fs::path& sourceAsset,
-                         hash64_t sourceFileHash,
+                         FileHash sourceFileHash,
                          bool systemAsset,
                          const std::vector<std::string>& tags)
         : MetadataBase(AssetType::Video, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true) {}

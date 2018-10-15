@@ -65,11 +65,11 @@ FileSystem::FileSystem(bool editorMode, char* argv, bool skipSystemPackageMounti
     }
 }
 
-hash64_t FileSystem::computeFileHash(const fs::path& path) const {
+FileHash FileSystem::computeFileHash(const fs::path& path) const {
     File file(path, File::OpenMode::Read);
     const auto data = file.readWholeFile();
     
-    hash64_t hash = HF(data.first.get(), data.second);
+    FileHash hash = HF(data.first.get(), data.second);
     return hash;
 }
 

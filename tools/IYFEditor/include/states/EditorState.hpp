@@ -74,12 +74,12 @@ protected:
 };
 
 struct DragDropAssetPayload {
-    hash32_t nameHash;
+    StringHash nameHash;
     AssetType type;
 };
 
 struct AssetListItem {
-    hash32_t hash;
+    StringHash hash;
     bool isDirectory;
     bool imported;
     fs::path path;
@@ -138,7 +138,7 @@ protected:
 // PICK AND PLACE FUNCTIONALITY-------------------------------------------------
     bool isPickPlaceMode;
     
-    iyf::hash32_t pickOrPlaceModeId;
+    iyf::StringHash pickOrPlaceModeId;
     std::function<void()> drawNothing = [](){};
     std::function<void()> pickPlaceModeDrawFunction;
     void handlePickOrPlaceMode(const char* modeName, bool buttonPressed, bool& buttonReleased, std::function<void()> handleLogic, std::function<void()> handleDraw);

@@ -52,12 +52,12 @@ public:
     ///
     /// \warning This should only be called inside TypeManager::load(). Calling it anyhwere else may cause 
     /// resource leaks, incorrect asset data being passed to various systems and other nasty bugs.
-    inline void setNameHash(hash32_t newNameHash) {
+    inline void setNameHash(StringHash newNameHash) {
         nameHash = newNameHash;
     }
     
     /// \returns The name hash of this Asset
-    inline hash32_t getNameHash() const {
+    inline StringHash getNameHash() const {
         return nameHash;
     }
     
@@ -79,7 +79,7 @@ public:
 protected:
     Asset() : loaded(false) {}
 private:
-    hash32_t nameHash;
+    StringHash nameHash;
     bool loaded;
     // What should I do with the 3 bytes here?
 };

@@ -43,7 +43,7 @@ class Mesh;
 
 class CubemapSkybox : public Skybox {
 public:
-    CubemapSkybox(AssetManager* assetManager, Renderer* renderer, hash32_t textureNameHash) : Skybox(renderer), assetManager(assetManager), textureNameHash(textureNameHash) {}
+    CubemapSkybox(AssetManager* assetManager, Renderer* renderer, StringHash textureNameHash) : Skybox(renderer), assetManager(assetManager), textureNameHash(textureNameHash) {}
     
     virtual void initialize() final;
     virtual void dispose() final;
@@ -52,7 +52,7 @@ public:
     virtual void draw(CommandBuffer* commandBuffer, const Camera* camera) const final;
 protected:
     AssetManager* assetManager;
-    hash32_t textureNameHash;
+    StringHash textureNameHash;
     
     AssetHandle<Texture> skyCubemap;
     AssetHandle<Mesh> sphereMesh;

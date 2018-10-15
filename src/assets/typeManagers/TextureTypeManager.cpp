@@ -45,7 +45,7 @@ void TextureTypeManager::performFree(Texture& assetData) {
     }
 }
 
-std::unique_ptr<LoadedAssetData> TextureTypeManager::readFile(hash32_t, const fs::path& path, const Metadata& meta, Texture& assetData) {
+std::unique_ptr<LoadedAssetData> TextureTypeManager::readFile(StringHash, const fs::path& path, const Metadata& meta, Texture& assetData) {
     File file(path, File::OpenMode::Read);
     return std::make_unique<LoadedAssetData>(meta, assetData, file.readWholeFile());
 }

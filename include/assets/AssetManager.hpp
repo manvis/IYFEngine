@@ -72,7 +72,7 @@ public:
     static AssetType GetAssetTypeFromExtension(const fs::path& pathToFile);
     
     /// Computes the hash of the provided path. If the path starts with con::ImportPath, it is stripped before computing the hash.
-    static inline hash32_t ComputeNameHash(const fs::path& sourcePath) {
+    static inline StringHash ComputeNameHash(const fs::path& sourcePath) {
         if (*sourcePath.begin() == con::ImportPath) {
             return HS(sourcePath.lexically_relative(con::ImportPath).generic_string());
         } else {
@@ -131,7 +131,7 @@ public:
     /// \param nameHash hashed path to an asset
     /// \return An AssetHandle
     template <typename T>
-    inline AssetHandle<T> load(hash32_t nameHash, bool async) {
+    inline AssetHandle<T> load(StringHash nameHash, bool async) {
         auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
         std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
         
@@ -173,7 +173,7 @@ public:
         return load<T>(getSystemAssetNameHash(name), false);
     }
     
-    inline hash32_t getSystemAssetNameHash(const std::string& name) {
+    inline StringHash getSystemAssetNameHash(const std::string& name) {
         return HS("raw/system/" + name);
     }
     
@@ -182,14 +182,14 @@ public:
     /// \warning This function can only be used if the Engine that was passed to the constructor is running in game mode.
     ///
     /// \return A path to the colliding file or a nullopt if no hash collisions have been detected.
-    std::optional<fs::path> checkForHashCollision(hash32_t nameHash, const fs::path& checkPath) const;
+    std::optional<fs::path> checkForHashCollision(StringHash nameHash, const fs::path& checkPath) const;
     
     /// \brief Obtains a copy of a Metadata object that corresponds to the file with the specified nameHash or an std::nullopt if
     /// the nameHash wasn't found in the manifest.
     ///
     /// \remark This method is always thread safe. However, when running in editor mode, it is possible that the Metadata object is
     /// no longer relevant by the time you get to read it (e.g., the file may have been replaced, updated or deleted)
-    inline std::optional<Metadata> getMetadataCopy(hash32_t nameHash) const {
+    inline std::optional<Metadata> getMetadataCopy(StringHash nameHash) const {
         auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
         
         auto result = manifest.find(nameHash);
@@ -205,7 +205,7 @@ public:
     ///
     /// \remark This method is always thread safe. However, when running in editor mode, it is possible that the path is
     /// no longer relevant by the time you get to read it (e.g., the file may have been deleted)
-    inline std::optional<fs::path> getAssetPathCopy(hash32_t nameHash) const {
+    inline std::optional<fs::path> getAssetPathCopy(StringHash nameHash) const {
         auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
         
         auto result = manifest.find(nameHash);
@@ -221,7 +221,7 @@ public:
     /// \warning This function can only be used if the Engine that was passed to the constructor is running in game mode.
     ///
     /// \throws std::logic_error if this AssetManager was constructed using an Engine instance running in editor mode.
-    inline const Metadata* getMetadata(hash32_t nameHash) const {
+    inline const Metadata* getMetadata(StringHash nameHash) const {
         if (editorMode) {
             throw std::logic_error("This method can't be used when the engine is running in editor mode.");
         }
@@ -239,7 +239,7 @@ public:
     /// \warning This function can only be used if the Engine that was passed to the constructor is running in game mode.
     ///
     /// \throws std::logic_error if this AssetManager was constructed using an Engine instance running in editor mode.
-    inline const fs::path* getAssetPath(hash32_t nameHash) const {
+    inline const fs::path* getAssetPath(StringHash nameHash) const {
         if (editorMode) {
             throw std::logic_error("This method can't be used when the engine is running in editor mode.");
         }
@@ -267,7 +267,7 @@ public:
     /// Writes metadata of a single asset to file
     ///
     /// \return true if written successfully, false if not (e.g., when no asset with the specified nameHash exists)
-    bool serializeMetadata(hash32_t nameHash, Serializer& file);
+    bool serializeMetadata(StringHash nameHash, Serializer& file);
     
     /// \return Number of unique assets that are listed in the manifest and can be loaded
     std::size_t getRegisteredAssetCount() const {
@@ -321,7 +321,7 @@ public:
     };
 private:
     /// Called by checkForHashCollision(). Needed to avoid a deadlock when checking for hash collisions during asset move.
-    std::optional<fs::path> checkForHashCollisionImpl(hash32_t nameHash, const fs::path& checkPath) const;
+    std::optional<fs::path> checkForHashCollisionImpl(StringHash nameHash, const fs::path& checkPath) const;
     
     /// \brief Adds a file to the manifest.
     ///
@@ -338,7 +338,7 @@ private:
     /// \param nameHash Hashed path to the file that you want to add to the manifest.
     /// \param path Path to the file that you want to add to the manifest
     /// \param metadata additional metadata
-    void appendAssetToManifest(hash32_t nameHash, const fs::path& path, const Metadata& metadata);
+    void appendAssetToManifest(StringHash nameHash, const fs::path& path, const Metadata& metadata);
     
     /// \brief Removes a file from the manifest. If the asset in question has already been loaded, replaces it with a "missing" one.
     ///
@@ -349,14 +349,14 @@ private:
     /// \throws std::logic_error if this AssetManager was constructed using an Engine instance running in game mode.
     ///
     /// \param nameHash Hash of the path to the file that you want to remove from the manifest
-    void removeAssetFromManifest(hash32_t nameHash);
+    void removeAssetFromManifest(StringHash nameHash);
     
     friend class Engine;
     /// Builds the manifest from all converted assets that reside in the asset folder for the current platform and have corresponding metadata.
     void buildManifestFromFilesystem();
     
     friend class TypeManager;
-    void notifyRemoval(hash32_t handle) {
+    void notifyRemoval(StringHash handle) {
         std::lock_guard<std::mutex> lock(loadedAssetListMutex);
         std::size_t count = loadedAssets.erase(handle);
         assert(count != 0);
@@ -380,14 +380,14 @@ private:
     /// threads.
     mutable std::mutex loadedAssetListMutex;
     
-    /// Manifest maps hash32_t file name hashes to unhashed filenames + metadata that can be useful to know before loading
-    std::unordered_map<hash32_t, ManifestElement> manifest;
+    /// Manifest maps StringHash file name hashes to unhashed filenames + metadata that can be useful to know before loading
+    std::unordered_map<StringHash, ManifestElement> manifest;
     
     /// A pair of an asset type (to choose the appropriate TypeManager) and id in that manager
     using AssetTypeID = std::pair<AssetType, std::uint32_t>;
     
     /// Maps hashed paths of loaded Asset objects to AssetTypeID pairs
-    std::unordered_map<hash32_t, AssetTypeID> loadedAssets;
+    std::unordered_map<StringHash, AssetTypeID> loadedAssets;
     
     std::array<std::unique_ptr<TypeManager>, static_cast<std::size_t>(AssetType::ANY)> typeManagers;
     

@@ -88,7 +88,7 @@ fs::path ConverterManager::makeLocaleStringPath(const fs::path& sourcePath, cons
     }
     
     std::string locale = sourcePath.stem().extension().string().substr(1);
-    const hash32_t nameHash = AssetManager::ComputeNameHash(sourcePath);
+    const StringHash nameHash = AssetManager::ComputeNameHash(sourcePath);
     return getAssetDestinationPath(platformID) / directory / (locale + "." + std::to_string(nameHash));
 }
 
@@ -96,7 +96,7 @@ fs::path ConverterManager::makeFinalPathForAsset(const fs::path& sourcePath, Ass
     if (type == AssetType::Strings) {
         return makeLocaleStringPath(sourcePath, con::AssetTypeToPath(type), platformID);
     } else {
-        const hash32_t nameHash = AssetManager::ComputeNameHash(sourcePath);
+        const StringHash nameHash = AssetManager::ComputeNameHash(sourcePath);
         return getAssetDestinationPath(platformID) / con::AssetTypeToPath(type) / std::to_string(nameHash);
     }
 }

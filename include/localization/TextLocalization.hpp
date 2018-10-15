@@ -160,9 +160,9 @@ public:
     
     std::string loadResultToErrorString(LoadResult result) const; 
 protected:
-    static LoadResult loadToMap(const FileSystem* fs, const fs::path& localizationFileDirectory, const std::string& locale, std::unordered_map<hash32_t, std::string>& map);
+    static LoadResult loadToMap(const FileSystem* fs, const fs::path& localizationFileDirectory, const std::string& locale, std::unordered_map<StringHash, std::string>& map);
     
-    std::string logAndReturnMissingKey(hash32_t hash) const;
+    std::string logAndReturnMissingKey(StringHash hash) const;
     
     friend class Engine;
     bool executePendingSwap() {
@@ -184,12 +184,12 @@ protected:
     }
 
     std::string localeString;
-    std::unordered_map<hash32_t, std::string> stringMap;
+    std::unordered_map<StringHash, std::string> stringMap;
     
     std::mutex mapMutex;
     std::atomic<bool> pendingSwap;
     std::string tempLocaleString;
-    std::unordered_map<hash32_t, std::string> tempStringMap;
+    std::unordered_map<StringHash, std::string> tempStringMap;
 };
 
 TextLocalizer& SystemLocalizer();

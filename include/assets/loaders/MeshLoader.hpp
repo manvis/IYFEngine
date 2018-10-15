@@ -56,7 +56,7 @@ public:
         std::size_t numVertices;
         std::size_t numIndices;
         
-//         hash32_t defaultTexture;
+//         StringHash defaultTexture;
 //         
 //         AABB aabb;
 //         BoundingSphere boundingSphere;
@@ -70,7 +70,7 @@ public:
         BoundingSphere boundingSphere;
         
         std::size_t animationCount;
-        hash32_t animations[con::MaxAnimations];
+        StringHash animations[con::MaxAnimations];
     };
     
     /// Load mesh data and write it to appropriate buffers. Make sure to call getMeshMemoryRequirements before this to know how much space will be needed in each buffer.

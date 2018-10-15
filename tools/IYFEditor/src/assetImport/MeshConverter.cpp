@@ -86,7 +86,7 @@ std::unique_ptr<ConverterState> MeshConverter::initializeConverter(const fs::pat
     std::unique_ptr<MeshConverterInternalState> internalState = std::make_unique<MeshConverterInternalState>(this);
     internalState->importer = std::make_unique<Assimp::Importer>();
     
-    const hash64_t sourceFileHash = manager->getFileSystem()->computeFileHash(inPath);
+    const FileHash sourceFileHash = manager->getFileSystem()->computeFileHash(inPath);
     return std::unique_ptr<MeshConverterState>(new MeshConverterState(platformID, std::move(internalState), inPath, sourceFileHash));
 }
 
@@ -148,14 +148,14 @@ static glm::mat4 aiMatToGLMMat(aiMatrix4x4 aiMat) {
     return glmMat;
 }
 
-static void makeV1Skeleton(const aiNode* node, std::vector<Bone>& bones, std::unordered_map<hash32_t, std::uint8_t>& nameHashToID, std::uint8_t parentID = 0) {
+static void makeV1Skeleton(const aiNode* node, std::vector<Bone>& bones, std::unordered_map<StringHash, std::uint8_t>& nameHashToID, std::uint8_t parentID = 0) {
     std::uint8_t id = bones.size();
     assert(bones.size() <= mf::v1::MaxBones);
 
     glm::mat4 transform = aiMatToGLMMat(node->mTransformation);
 
     std::string name = node->mName.C_Str();
-    hash32_t nameHash = HS(name.c_str());
+    StringHash nameHash = HS(name.c_str());
 
     if (nameHashToID.find(nameHash) != nameHashToID.end()) {
         // TODO localize
@@ -164,7 +164,7 @@ static void makeV1Skeleton(const aiNode* node, std::vector<Bone>& bones, std::un
         nameHashToID[nameHash] = id;
     }
 
-    bones.push_back({name, nameHash, parentID, transform});
+    bones.push_back({name, transform, nameHash, parentID});
 
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
         makeV1Skeleton(node->mChildren[i], bones, nameHashToID, id);
@@ -336,7 +336,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
     }
     
     std::vector<Bone> bones;
-    std::unordered_map<hash32_t, std::uint8_t> nameHashToID;
+    std::unordered_map<StringHash, std::uint8_t> nameHashToID;
     // TODO. IMPORTANT!! INITIAL TRANSFORMATION. E.g., even if we don't have bones, mesh instances DO get transformed by assimp and we need to take care of that.
     
     std::size_t numAnimations = 0;
@@ -654,24 +654,22 @@ bool MeshConverter::convertV1(ConverterState& state) const {
 //            finalNormalPath.insert(formatSeparator, "_normal");
 //            finalNormalPath.insert(0, con::TexturePath);
             
-            hash32_t diffuseHash(HS(finalTexturePath.c_str()));
+            StringHash diffuseHash(HS(finalTexturePath.c_str()));
 //            LOG_D("Texture name: " << textureFileName << "; hash: " << diffuseHash.value())
-            
-            static_assert(sizeof(hash32_t) == 4, "Hashed value is not 32 bit");
             
             // 0 is reserved in this case
             if (diffuseHash == 0) {
-                diffuseHash = hash32_t(1);
+                diffuseHash = StringHash(1);
             }
             
             // NO LONGER WRITE: hashed path to the default diffuse texture which serves as its identifier
-//             fw.writeUInt32(diffuseHash.value());
+//             fw.writeUInt64(diffuseHash.value());
             // Storing metadata instead
             
         } else {
             // No texture to use for default material creation
             // NO LONGER WRITE: 0
-//             fw.writeUInt32(0);
+//             fw.writeUInt64(0);
             // Storing metadata instead
             
         }
@@ -889,7 +887,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
             const fs::path animOut = manager->makeFinalPathForAsset(animIn, AssetType::Animation, state.getPlatformIdentifier());
             
             // WRITE: hashed animation name for finding and loading it later
-            fw.writeUInt32(HS(animOut.c_str()));
+            fw.writeUInt64(HS(animOut.c_str()));
             
             const std::uint16_t animationVersionNumber = 1;
             iyf::MemorySerializer aw(1024*512);
@@ -938,7 +936,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
             animationFile.writeBytes(aw.data(), aw.size());
             animationFile.close();
             
-            hash64_t fileHash = HF(aw.data(), aw.size());
+            FileHash fileHash = HF(aw.data(), aw.size());
             AnimationMetadata animationMeta(fileHash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(),
                                             state.getTags(), animationVersionNumber, animation->mDuration, animation->mTicksPerSecond);
             ImportedAssetData iadAnim(AssetType::Animation, animationMeta, animOut);
@@ -957,7 +955,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
     meshFile.writeBytes(fw.data(), fw.size());
     meshFile.close();
     
-    hash64_t fileHash = HF(fw.data(), fw.size());
+    FileHash fileHash = HF(fw.data(), fw.size());
     MeshMetadata meshMetadata(fileHash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags(),
                               versionNumber, numSubMeshes, hasBones.any(), false, totalVertices, totalIndices, 0, bones.size(), hasVertexColors ? 1 : 0, 1);
     ImportedAssetData iadMesh(AssetType::Mesh, meshMetadata, meshOutputPath);

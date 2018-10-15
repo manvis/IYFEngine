@@ -140,7 +140,7 @@ void AssetUpdateManager::watcherCallback(std::vector<FileSystemEvent> eventList)
             continue;
         }
         
-        const hash32_t hashedName = HS(finalSourcePath.generic_string());
+        const StringHash hashedName = HS(finalSourcePath.generic_string());
         
         const char* t = "InvalidOP";
         switch (e.getType()) {
@@ -198,7 +198,7 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(fs::path path, A
         case AssetOperationType::Created:
         case AssetOperationType::Updated: {
             // No need to prepend con::ImportPath here. The hash does not contain it and computeNameHash would only strip it.
-            const hash32_t nameHash = AssetManager::ComputeNameHash(path);
+            const StringHash nameHash = AssetManager::ComputeNameHash(path);
             
             const fs::path sourcePath = con::ImportPath / path;
             auto collisionCheckResult = assetManager->checkForHashCollision(nameHash, sourcePath);

@@ -36,26 +36,26 @@
 namespace iyf {
 class LocalizationHandle {
 public:
-    explicit IYF_FORCE_INLINE constexpr LocalizationHandle(hash32_t handle) : handle(handle) {}
+    explicit IYF_FORCE_INLINE constexpr LocalizationHandle(StringHash handle) : handle(handle) {}
     
-    IYF_FORCE_INLINE constexpr hash32_t getHashValue() const {
+    IYF_FORCE_INLINE constexpr StringHash getHashValue() const {
         return handle;
     }
 private:
-    hash32_t handle;
+    StringHash handle;
 };
 
 /// Hashes the key and the namespace and builds a LocalizationHandle that can be used for 
 /// localized string lookups
 IYF_FORCE_INLINE LocalizationHandle LH(const char* key, const char* strNamespace) {
-    hash32_t seed(0);
+    StringHash seed(0);
         
-    const hash32_t keyHash = HS(key);
+    const StringHash keyHash = HS(key);
     util::HashCombine(seed, keyHash);
     
     std::size_t namespaceStringLength = ConstexprStrlen(strNamespace);
     if (namespaceStringLength != 0) {
-        const hash32_t namespaceHash = HS(strNamespace, namespaceStringLength);
+        const StringHash namespaceHash = HS(strNamespace, namespaceStringLength);
         util::HashCombine(seed, namespaceHash);
     }
     
@@ -65,9 +65,9 @@ IYF_FORCE_INLINE LocalizationHandle LH(const char* key, const char* strNamespace
 /// Hashes the key and builds a LocalizationHandle that can be used for localized string lookups.
 /// This assumes an empty namespace
 IYF_FORCE_INLINE LocalizationHandle LH(const char* key) {
-    hash32_t seed(0);
+    StringHash seed(0);
         
-    const hash32_t keyHash = HS(key);
+    const StringHash keyHash = HS(key);
     util::HashCombine(seed, keyHash);
     
     return LocalizationHandle(seed);

@@ -47,7 +47,7 @@ class MetadataBase : public Serializable, public TextSerializable {
 public:
     inline MetadataBase(AssetType assetType) : assetType(assetType), metadataSource(MetadataSource::Constructor), complete(false), systemAsset(false), fileHash(0) {}
     
-    inline MetadataBase(AssetType assetType, hash64_t fileHash, const fs::path& sourceAsset, hash64_t sourceFileHash, bool systemAsset, const std::vector<std::string>& tags, bool complete) 
+    inline MetadataBase(AssetType assetType, FileHash fileHash, const fs::path& sourceAsset, FileHash sourceFileHash, bool systemAsset, const std::vector<std::string>& tags, bool complete) 
         : assetType(assetType), metadataSource(MetadataSource::Constructor), complete(complete), systemAsset(systemAsset), tags(tags), fileHash(fileHash), sourceAsset(sourceAsset), sourceFileHash(sourceFileHash) {}
     
     AssetType getAssetType() const {
@@ -64,7 +64,7 @@ public:
         return systemAsset;
     }
     
-    hash64_t getFileHash() const {
+    FileHash getFileHash() const {
         return fileHash;
     }
     
@@ -126,9 +126,9 @@ private:
     bool complete;
     bool systemAsset;
     std::vector<std::string> tags;
-    hash64_t fileHash;
+    FileHash fileHash;
     fs::path sourceAsset;
-    hash64_t sourceFileHash;
+    FileHash sourceFileHash;
 };
 }
 

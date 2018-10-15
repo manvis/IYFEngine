@@ -80,50 +80,59 @@ private:
     T hashValue;
 };
 
-using hash32_t = HashedValue<std::uint32_t>;
-using hash64_t = HashedValue<std::uint64_t>;
+class StringHash : public HashedValue<std::uint64_t> {
+public:
+    IYF_FORCE_INLINE constexpr StringHash() : HashedValue() {}
+    IYF_FORCE_INLINE constexpr explicit StringHash(std::size_t v) : HashedValue(v) {}
+};
+
+class FileHash : public HashedValue<std::uint64_t> {
+public:
+    IYF_FORCE_INLINE constexpr FileHash() : HashedValue() {}
+    IYF_FORCE_INLINE constexpr explicit FileHash(std::size_t v) : HashedValue(v) {}
+};
 
 // String hashing. HS stands for "hash string".
 
-IYF_FORCE_INLINE hash32_t HS(const char* str, std::size_t length, std::uint32_t seed) {
-    return hash32_t(XXH32(str, length, seed));
+IYF_FORCE_INLINE StringHash HS(const char* str, std::size_t length, std::uint32_t seed) {
+    return StringHash(XXH64(str, length, seed));
 }
 
-IYF_FORCE_INLINE hash32_t HS(const char* str, std::size_t length) {
+IYF_FORCE_INLINE StringHash HS(const char* str, std::size_t length) {
     return HS(str, length, 0);
 }
 
-IYF_FORCE_INLINE hash32_t HS(const char* str) {
+IYF_FORCE_INLINE StringHash HS(const char* str) {
     return HS(str, ConstexprStrlen(str), 0);
 }
 
-IYF_FORCE_INLINE hash32_t HS(const std::string& str, std::uint32_t seed) {
+IYF_FORCE_INLINE StringHash HS(const std::string& str, std::uint32_t seed) {
     return HS(str.c_str(), str.length(), seed);
 }
 
-IYF_FORCE_INLINE hash32_t HS(const std::string& str) {
+IYF_FORCE_INLINE StringHash HS(const std::string& str) {
     return HS(str.c_str(), str.length(), 0);
 }
 
 // File (or other long data) hashing. HF stands for "hash file"
 
-IYF_FORCE_INLINE hash64_t HF(const char* str, std::size_t length, std::uint64_t seed) {
-    return hash64_t(XXH64(str, length, seed));
+IYF_FORCE_INLINE FileHash HF(const char* str, std::size_t length, std::uint64_t seed) {
+    return FileHash(XXH64(str, length, seed));
 }
 
-IYF_FORCE_INLINE hash64_t HF(const char* str, std::size_t length) {
+IYF_FORCE_INLINE FileHash HF(const char* str, std::size_t length) {
     return HF(str, length, 0);
 }
 
-IYF_FORCE_INLINE hash64_t HF(const char* str) {
+IYF_FORCE_INLINE FileHash HF(const char* str) {
     return HF(str, ConstexprStrlen(str), 0);
 }
 
-IYF_FORCE_INLINE hash64_t HF(const std::string& str, std::uint64_t seed) {
+IYF_FORCE_INLINE FileHash HF(const std::string& str, std::uint64_t seed) {
     return HF(str.c_str(), str.length(), seed);
 }
 
-IYF_FORCE_INLINE hash64_t HF(const std::string& str) {
+IYF_FORCE_INLINE FileHash HF(const std::string& str) {
     return HF(str.c_str(), str.length(), 0);
 }
 
@@ -131,16 +140,16 @@ IYF_FORCE_INLINE hash64_t HF(const std::string& str) {
 
 namespace std {
     template <>
-    struct hash<iyf::hash32_t> {
-        std::size_t operator()(const iyf::hash32_t& k) const { 
-            return std::hash<iyf::hash32_t::ValueType>{}(k);
+    struct hash<iyf::StringHash> {
+        std::size_t operator()(const iyf::StringHash& k) const { 
+            return std::hash<iyf::StringHash::ValueType>{}(k);
         }
     };
     
     template <>
-    struct hash<iyf::hash64_t> {
-        std::size_t operator()(const iyf::hash64_t& k) const { 
-            return std::hash<iyf::hash64_t::ValueType>{}(k);
+    struct hash<iyf::FileHash> {
+        std::size_t operator()(const iyf::FileHash& k) const { 
+            return std::hash<iyf::FileHash::ValueType>{}(k);
         }
     };
 }

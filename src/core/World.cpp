@@ -93,7 +93,7 @@ void World::update(float delta) {
     EntitySystemManager::update(delta);
 }
 
-void World::addStaticMesh(hash32_t nameHash) {
+void World::addStaticMesh(StringHash nameHash) {
     MeshComponent mc;
     mc.setRenderMode(MaterialRenderMode::Opaque);
     const auto metadata = assetManager->getMetadataCopy(nameHash);
@@ -134,7 +134,7 @@ void World::addStaticMesh(hash32_t nameHash) {
     //attachComponent(entity, ComponentType::RigidBody, physicsSystem->prepareSphereRigidBody(SphereCollisionShapeCreateInfo(1), 3, &(transformation)));
 }
 
-void World::addDynamicMesh(hash32_t nameHash) {
+void World::addDynamicMesh(StringHash nameHash) {
     MeshComponent mc;
     mc.setRenderMode(MaterialRenderMode::Opaque);
     const auto metadata = assetManager->getMetadataCopy(nameHash);

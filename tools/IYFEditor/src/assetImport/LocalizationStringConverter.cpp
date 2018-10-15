@@ -59,7 +59,7 @@ std::unique_ptr<ConverterState> LocalizationStringConverter::initializeConverter
     internalState->data = std::move(data.first);
     internalState->size = data.second;
     
-    const hash64_t sourceFileHash = HF(internalState->data.get(), internalState->size);
+    const FileHash sourceFileHash = HF(internalState->data.get(), internalState->size);
     auto locState = std::unique_ptr<LocalizationStringConverterState>(new LocalizationStringConverterState(platformID, std::move(internalState), inPath, sourceFileHash));
     locState->priority = 0;
     locState->locale = inPath.stem().extension().string().substr(1);
@@ -87,16 +87,16 @@ bool LocalizationStringConverter::convert(ConverterState& state) const {
         LOG_V("Loaded " << result.second << " strings.");
     }
     
-    std::unordered_map<hash32_t, CSVRow> strings;
+    std::unordered_map<StringHash, CSVRow> strings;
     
     for (const CSVRow& row : rows) {
-        hash32_t seed(0);
+        StringHash seed(0);
         
-        const hash32_t keyHash = HS(row.key.data(), row.key.length());
+        const StringHash keyHash = HS(row.key.data(), row.key.length());
         util::HashCombine(seed, keyHash);
         
         if (row.stringNamespace.length() != 0) {
-            const hash32_t namespaceHash = HS(row.stringNamespace.data(), row.stringNamespace.length());
+            const StringHash namespaceHash = HS(row.stringNamespace.data(), row.stringNamespace.length());
             util::HashCombine(seed, namespaceHash);
         }
         
@@ -139,13 +139,13 @@ bool LocalizationStringConverter::convert(ConverterState& state) const {
     ms.writeUInt32(strings.size());
     
     for (const auto& string : strings) {
-        ms.writeUInt32(string.first);
+        ms.writeUInt64(string.first);
         ms.writeString(string.second.getValue(), StringLengthIndicator::UInt32);
     }
     
     LOG_D("OP: " << outputPath << " " << locState.systemTranslations);
     
-    const hash64_t hash = HF(ms.data(), ms.size());
+    const FileHash hash = HF(ms.data(), ms.size());
     StringMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags(), locState.getLocale(), locState.priority);
     ImportedAssetData iad(state.getType(), metadata, outputPath);
     state.getImportedAssets().push_back(std::move(iad));
