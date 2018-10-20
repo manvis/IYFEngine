@@ -130,11 +130,15 @@ find_package(Bullet REQUIRED)
 # Marking bullet as SYSTEM because it has an annoying warning
 include_directories(SYSTEM ${BULLET_INCLUDE_DIRS})
 
-find_package(Boost COMPONENTS system filesystem REQUIRED)
-include_directories(${Boost_FILESYSTEM_DIR})
-# TODO replace when c++17 support is decent enough. std libs should replace boost's variant, optional, filesystem, etc.
-include_directories(${Boost_INCLUDE_DIRS})
-add_definitions(-DUSE_BOOST)
+option(USE_BOOST "Should boost be used for filesystem and some other stuff" OFF)
+
+if (USE_BOOST)
+    find_package(Boost COMPONENTS system filesystem REQUIRED)
+    include_directories(${Boost_FILESYSTEM_DIR})
+    # TODO replace when c++17 support is decent enough. std libs should replace boost's variant, optional, filesystem, etc.
+    include_directories(${Boost_INCLUDE_DIRS})
+    add_definitions(-DIYF_USE_BOOST_FILESYSTEM)
+endif (USE_BOOST)
 
 # Deeply integrated dependencies that are stored inside the source tree
 # imgui

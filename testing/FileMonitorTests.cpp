@@ -30,6 +30,7 @@
 
 #include <fstream>
 #include <random>
+#include <cassert>
 
 #include "core/Logger.hpp"
 #include "core/filesystem/cppFilesystem.hpp"

@@ -70,7 +70,7 @@ void CubemapSkybox::initialize() {
     DescriptorSetAllocateInfo dsai{descriptorPool, {skyDescriptorSetLayout}};
     skyTextureDescriptorSet = api->allocateDescriptorSets(dsai)[0];
     
-    WriteDescriptorSet wds{skyTextureDescriptorSet, 0, 0, 1, DescriptorType::CombinedImageSampler, {{skyCubemapSampler, skyCubemapView, ImageLayout::General}}, {}, {}};
+    WriteDescriptorSet wds{skyTextureDescriptorSet, 0, 0, 1, DescriptorType::CombinedImageSampler, {{skyCubemapSampler, skyCubemapView, ImageLayout::ShaderReadOnlyOptimal}}, {}, {}};
     api->updateDescriptorSets({wds});
     
     PipelineLayoutCreateInfo plci{{skyDescriptorSetLayout}, {{ShaderStageFlagBits::Vertex, 0, sizeof(glm::mat4)}}};

@@ -83,7 +83,7 @@ void FileSystem::setWritePath(fs::path realPath) {
 }
 
 bool FileSystem::rename(const fs::path& source, const fs::path& destination) const {
-    boost::system::error_code ec;
+    ErrorCode ec;
     fs::rename(source, destination, ec);
     
     if (ec) {

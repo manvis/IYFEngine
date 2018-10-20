@@ -36,6 +36,7 @@
 
 #include "core/Constants.hpp"
 #include "core/interfaces/Serializable.hpp"
+#include "graphics/MaterialConstants.hpp"
 #include "graphics/ShaderConstants.hpp"
 #include "utilities/hashing/Hashing.hpp"
 
@@ -431,16 +432,6 @@ private:
 //     std::pair<bool, std::string> packMaterialData(std::vector<MaterialComponent>& components) const;
 };
 
-/// List of all material families supported by the engine
-enum class MaterialFamily {
-    Toon = 0,
-    // PBR = 1, // TODO implement PBR rendering
-    COUNT
-};
-
-namespace con {
-    const MaterialFamilyDefinition& GetMaterialFamilyDefinition(MaterialFamily family);
-}
 }
 
 #endif // IYF_MATERIAL_FAMILY_DEFINITION_HPP

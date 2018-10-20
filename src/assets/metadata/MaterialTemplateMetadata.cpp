@@ -26,24 +26,34 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_CPP_FILESYSTEM_HPP
-#define IYF_CPP_FILESYSTEM_HPP
+#include "assets/metadata/MaterialTemplateMetadata.hpp"
 
-// TODO once std filesystem is supported on all used compilers, deprecate boost support.
-
-#ifdef IYF_USE_BOOST_FILESYSTEM
-#include <boost/filesystem.hpp>
-namespace fs = boost::filesystem;
 namespace iyf {
-    using ErrorCode = boost::system::error_code;
+std::uint16_t MaterialTemplateMetadata::getLatestSerializedDataVersion() const {
+    return 1;
 }
-#else
-#include <filesystem>
-namespace fs = std::filesystem;
-namespace iyf {
-    using ErrorCode = std::error_code;
+
+void MaterialTemplateMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const {
+    assert(version == 1);
+    //throw std::runtime_error("Method not yet implemented");
 }
-#endif
 
+void MaterialTemplateMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
+    assert(version == 1);
+    //throw std::runtime_error("Method not yet implemented");
+}
 
-#endif // IYF_CPP_FILESYSTEM_HPP
+void MaterialTemplateMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
+    assert(version == 1);
+    //throw std::runtime_error("Method not yet implemented");
+}
+
+void MaterialTemplateMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
+    assert(version == 1);
+    //throw std::runtime_error("Method not yet implemented");
+}
+
+void MaterialTemplateMetadata::displayInImGui() const {
+    throw std::runtime_error("Method not yet implemented");
+}
+}

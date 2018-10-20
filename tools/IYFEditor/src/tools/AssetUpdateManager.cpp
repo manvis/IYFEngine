@@ -50,7 +50,7 @@
 const float MIN_STABLE_FILE_SIZE_DURATION_SECONDS = 0.25f;
 
 namespace iyf::editor {
-AssetUpdateManager::AssetUpdateManager(Engine* engine) : engine(engine) {}
+AssetUpdateManager::AssetUpdateManager(Engine* engine) : engine(engine), isInit(false) {}
 AssetUpdateManager::~AssetUpdateManager() {}
 
 void AssetUpdateManager::initialize() {
@@ -75,7 +75,9 @@ void AssetUpdateManager::initialize() {
     
     lastFileSystemUpdate = std::chrono::steady_clock::now();
     fileSystemWatcher = FileSystemWatcher::MakePlatformFilesystemWatcher(fsci);
+        LOG_D("HELLO? AM I ALIVE?")
     fileSystemWatcherThread = std::thread([this](){
+        LOG_D("HELLO? AM I ALIVE?")
         IYFT_PROFILER_NAME_THREAD("FileSystemWatcher");
         
         while (watcherThreadRunning) {
@@ -168,7 +170,7 @@ void AssetUpdateManager::watcherCallback(std::vector<FileSystemEvent> eventList)
     }
 }
 
-std::function<void()> AssetUpdateManager::executeAssetOperation(fs::path path, AssetOperation op) const {
+std::function<void()> AssetUpdateManager::executeAssetOperation(std::string path, AssetOperation op) const {
     AssetManager* assetManager = engine->getAssetManager();
     if (op.isDirectory) {
         switch (op.type) {
@@ -286,7 +288,7 @@ bool AssetUpdateManager::update() {
             if (duration.count() >= MIN_STABLE_FILE_SIZE_DURATION_SECONDS) {
                 iyft::ThreadPool* tp = engine->getLongTermWorkerPool();
                 currentlyProcessedAsset = *it;
-                assetProcessingFuture = tp->addTaskWithResult(&AssetUpdateManager::executeAssetOperation, this, it->first, it->second);
+                assetProcessingFuture = tp->addTaskWithResult(&AssetUpdateManager::executeAssetOperation, this, currentlyProcessedAsset.first, currentlyProcessedAsset.second);
                 
                 assetOperations.erase(it);
                 break;
@@ -320,6 +322,7 @@ bool AssetUpdateManager::update() {
 
 void AssetUpdateManager::dispose() {
     watcherThreadRunning = false;
+    assert(fileSystemWatcherThread.joinable());
     fileSystemWatcherThread.join();
     
     isInit = false;

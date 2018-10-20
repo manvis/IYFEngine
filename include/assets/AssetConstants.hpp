@@ -63,6 +63,7 @@ enum class AssetType : std::uint8_t {
     Shader = 7,
     Strings = 8,
     Custom = 9,
+    MaterialTemplate = 10,
     COUNT,
     /// Any is equal to COUNT
     ANY = COUNT
@@ -131,9 +132,9 @@ extern const fs::path StringPath;
 /// Corresponds to AssetType::Custom
 extern const fs::path CustomPath;
 
-/// Location where the Engine expects to find material deifinitions
-/// Corresponds to AssetType::Material
-extern const fs::path MaterialPath;
+/// Location where the Engine expects to find material templates
+/// Corresponds to AssetType::MaterialTemplate
+extern const fs::path MaterialTemplatePath;
 
 /// Location where the Engine expects to find localized strings for the editor, tools
 /// and internal systems

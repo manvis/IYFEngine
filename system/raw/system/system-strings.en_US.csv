@@ -27,7 +27,7 @@ shader,,Shader
 pipeline,,Pipeline
 string,,String
 custom,,Custom
-material,,Material
+materialTemplate,,Material Template
 any,,Any
 cannot_delete,logic_graph_editor,You cannot delete this node.
 material_editor,material_nodes,Material Instance Definition Editor

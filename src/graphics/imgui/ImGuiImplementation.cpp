@@ -322,7 +322,7 @@ void ImGuiImplementation::initializeAssets() {
     DescriptorSetAllocateInfo dsai{descriptorPool, {descriptorSetLayout}};
     atlasDescriptorSet = gfxAPI->allocateDescriptorSets(dsai)[0];
     
-    WriteDescriptorSet wds{atlasDescriptorSet, 0, 0, 1, DescriptorType::CombinedImageSampler, {{fontSampler, fontView, ImageLayout::General}}, {}, {}};
+    WriteDescriptorSet wds{atlasDescriptorSet, 0, 0, 1, DescriptorType::CombinedImageSampler, {{fontSampler, fontView, ImageLayout::ShaderReadOnlyOptimal}}, {}, {}};
     gfxAPI->updateDescriptorSets({wds});
     
     assetsInitialized = true;

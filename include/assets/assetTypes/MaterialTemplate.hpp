@@ -26,24 +26,21 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_CPP_FILESYSTEM_HPP
-#define IYF_CPP_FILESYSTEM_HPP
+#ifndef IYF_MATERIAL_TEMPLATE_HPP
+#define IYF_MATERIAL_TEMPLATE_HPP
 
-// TODO once std filesystem is supported on all used compilers, deprecate boost support.
+#include "assets/Asset.hpp"
 
-#ifdef IYF_USE_BOOST_FILESYSTEM
-#include <boost/filesystem.hpp>
-namespace fs = boost::filesystem;
 namespace iyf {
-    using ErrorCode = boost::system::error_code;
-}
-#else
-#include <filesystem>
-namespace fs = std::filesystem;
-namespace iyf {
-    using ErrorCode = std::error_code;
-}
-#endif
+/// A MaterialTemplate Asset contains everything that's needed to build actual material instances.
+class MaterialTemplate : public Asset {
+    virtual AssetType getType() const final override {
+        return AssetType::MaterialTemplate;
+    }
+    
+    // Shader, default texture hashes, default variable values
+};
 
+}
 
-#endif // IYF_CPP_FILESYSTEM_HPP
+#endif // IYF_MATERIAL_TEMPLATE_HPP

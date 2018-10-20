@@ -300,6 +300,9 @@ inline AssetManager::ManifestElement buildManifestElement(AssetType type, bool i
         case AssetType::Custom:
             me.metadata = loadMetadata<CustomMetadata>(metadataPath, isJSON);
             break;
+        case AssetType::MaterialTemplate:
+            me.metadata = loadMetadata<MaterialTemplateMetadata>(metadataPath, isJSON);
+            break;
         case AssetType::COUNT:
             throw std::runtime_error("COUNT is not an asset type");
     }

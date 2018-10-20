@@ -130,7 +130,7 @@ bool Project::CreateImportedAssetDirectories(const fs::path& path, PlatformIdent
     for (std::size_t i = 0; i < static_cast<std::size_t>(AssetType::COUNT); ++i) {
         const fs::path assetTypeSubdir = MakeAssetTypeSubdirPath(path, platformID, static_cast<AssetType>(i));
         
-        boost::system::error_code ec;
+        ErrorCode ec;
         fs::create_directories(assetTypeSubdir, ec);
         
         if (ec) {
@@ -139,7 +139,7 @@ bool Project::CreateImportedAssetDirectories(const fs::path& path, PlatformIdent
     }
     
     // Create the system string path
-    boost::system::error_code ec;
+    ErrorCode ec;
     
     if (platformID == con::GetCurrentPlatform()) {
         fs::create_directories(path / con::SystemStringPath, ec);
@@ -155,7 +155,7 @@ bool Project::CreateImportedAssetDirectories(const fs::path& path, PlatformIdent
 }
 
 bool Project::CreateImportsDirectory(const fs::path& path) {
-    boost::system::error_code ec;
+    ErrorCode ec;
     fs::create_directories(path / con::ImportPath, ec);
     
     if (ec) {

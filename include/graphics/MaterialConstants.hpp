@@ -26,24 +26,22 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_CPP_FILESYSTEM_HPP
-#define IYF_CPP_FILESYSTEM_HPP
+#ifndef IYF_MATERIAL_CONSTANTS_HPP
+#define IYF_MATERIAL_CONSTANTS_HPP
 
-// TODO once std filesystem is supported on all used compilers, deprecate boost support.
-
-#ifdef IYF_USE_BOOST_FILESYSTEM
-#include <boost/filesystem.hpp>
-namespace fs = boost::filesystem;
 namespace iyf {
-    using ErrorCode = boost::system::error_code;
-}
-#else
-#include <filesystem>
-namespace fs = std::filesystem;
-namespace iyf {
-    using ErrorCode = std::error_code;
-}
-#endif
+class MaterialFamilyDefinition;
 
+/// List of all material families supported by the engine
+enum class MaterialFamily {
+    Toon = 0,
+    // PBR = 1, // TODO implement PBR rendering
+    COUNT
+};
 
-#endif // IYF_CPP_FILESYSTEM_HPP
+namespace con {
+    const MaterialFamilyDefinition& GetMaterialFamilyDefinition(MaterialFamily family);
+}
+}
+
+#endif // IYF_MATERIAL_CONSTANTS_HPP

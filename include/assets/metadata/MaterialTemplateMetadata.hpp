@@ -26,24 +26,37 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_CPP_FILESYSTEM_HPP
-#define IYF_CPP_FILESYSTEM_HPP
+#ifndef IYF_MATERIAL_TEMPLATE_METADATA_HPP
+#define IYF_MATERIAL_TEMPLATE_METADATA_HPP
 
-// TODO once std filesystem is supported on all used compilers, deprecate boost support.
+#include "assets/metadata/MetadataBase.hpp"
+#include "graphics/MaterialConstants.hpp"
 
-#ifdef IYF_USE_BOOST_FILESYSTEM
-#include <boost/filesystem.hpp>
-namespace fs = boost::filesystem;
 namespace iyf {
-    using ErrorCode = boost::system::error_code;
-}
-#else
-#include <filesystem>
-namespace fs = std::filesystem;
-namespace iyf {
-    using ErrorCode = std::error_code;
-}
-#endif
+class MaterialTemplateMetadata : public MetadataBase {
+public:
+    inline MaterialTemplateMetadata() : MetadataBase(AssetType::MaterialTemplate) {}
+    
+    inline MaterialTemplateMetadata(FileHash fileHash,
+                        const fs::path& sourceAsset,
+                        FileHash sourceFileHash,
+                        bool systemAsset,
+                        const std::vector<std::string>& tags)
+        : MetadataBase(AssetType::MaterialTemplate, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true) {}
+    
+    virtual std::uint16_t getLatestSerializedDataVersion() const final override;
+    
+    virtual void displayInImGui() const final override;
+private:
+    virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
+    virtual void deserializeImpl(Serializer& fr, std::uint16_t version) final override;
+    virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const final override;
+    virtual void deserializeJSONImpl(JSONObject& jo, std::uint16_t version) final override;
+    
+    MaterialFamily family;
+};
 
+}
 
-#endif // IYF_CPP_FILESYSTEM_HPP
+#endif // IYF_MATERIAL_TEMPLATE_METADATA_HPP
+

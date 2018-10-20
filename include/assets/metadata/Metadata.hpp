@@ -39,6 +39,7 @@
 #include "assets/metadata/ShaderMetadata.hpp"
 #include "assets/metadata/StringMetadata.hpp"
 #include "assets/metadata/CustomMetadata.hpp"
+#include "assets/metadata/MaterialTemplateMetadata.hpp"
 #include "utilities/ForceInline.hpp"
 
 #include <variant>
@@ -49,7 +50,7 @@ namespace iyf {
 /// 
 /// \warning The order of metadata elements must match con::AssetType
 using Metadata = std::variant<AnimationMetadata, MeshMetadata, TextureMetadata, FontMetadata, AudioMetadata, VideoMetadata, ScriptMetadata,
-                              ShaderMetadata, StringMetadata, CustomMetadata>;
+                              ShaderMetadata, StringMetadata, CustomMetadata, MaterialTemplateMetadata>;
 
 IYF_FORCE_INLINE bool MetadataCorrespondsToAssetType(const Metadata& metadata, AssetType type) {
     return static_cast<std::size_t>(type) == metadata.index();

@@ -182,11 +182,13 @@ void SystemAssetPacker::pack() {
     std::vector<util::PathToCompress> pathsToCompress;
     pathsToCompress.reserve(100);
     
-    const fs::path pathWithPlatform = pathToCreate / ((processedPlatform == con::GetCurrentPlatform()) ? fs::path() : con::PlatformIdentifierToName(processedPlatform));
+    const fs::path pathWithPlatform = (processedPlatform == con::GetCurrentPlatform()) ? pathToCreate : (pathToCreate / fs::path(con::PlatformIdentifierToName(processedPlatform)));
     for (const auto& d : fs::recursive_directory_iterator(pathWithPlatform)) {
         if (!fs::is_directory(d)) {
             const fs::path relativePath = d.path().lexically_relative(pathWithPlatform);
             pathsToCompress.emplace_back(d, relativePath);
+            
+            //LOG_D("VX:\n\t" << d << "\n\t" << d.path() << "\n\t" << relativePath << "\n\t" << pathWithPlatform);
         }
     }
     
@@ -203,7 +205,11 @@ void SystemAssetPacker::pack() {
     // Copy the files for the current platform next to the executable
     if (processedPlatform == con::GetCurrentPlatform()) {
         LOG_V("Copying the files for current platfom to " << filesystem->getBaseDirectory());
+#ifdef IYF_USE_BOOST_FILESYSTEM
         fs::copy_file(archivePath, filesystem->getBaseDirectory() / systemArchiveName, fs::copy_option::overwrite_if_exists);
+#else // IYF_USE_BOOST_FILESYSTEM
+        fs::copy_file(archivePath, filesystem->getBaseDirectory() / systemArchiveName, fs::copy_options::overwrite_existing);
+#endif // IYF_USE_BOOST_FILESYSTEM
         
         // Create a project file for the editor, otherwise, it won't start.
         if (!Project::CreateProjectFile(filesystem->getBaseDirectory(), "IYFEditor", "The IYFEngine Team", "en_US", con::EditorVersion)) {

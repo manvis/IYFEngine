@@ -137,7 +137,7 @@ protected:
     }
     
     struct ZSortComparator {
-        bool operator()(typename T::NodeType* a, typename T::NodeType* b) {
+        bool operator()(typename T::NodeType* a, typename T::NodeType* b) const {
             return a->getZIndex() < b->getZIndex();
         }
     };

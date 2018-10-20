@@ -47,6 +47,7 @@ assets/loaders/TextureLoader.cpp
 assets/metadata/AnimationMetadata.cpp
 assets/metadata/AudioMetadata.cpp
 assets/metadata/FontMetadata.cpp
+assets/metadata/MaterialTemplateMetadata.cpp
 assets/metadata/MeshMetadata.cpp
 assets/metadata/MetadataBase.cpp
 assets/metadata/CustomMetadata.cpp
@@ -194,20 +195,30 @@ endif()
 
 add_library(IYFEngine STATIC ${BUILD_FILES})
 
+if (USE_BOOST)
+    set(FILE_SYSTEM_LIBS ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
+else (USE_BOOST)
+    if (WIN32)
+        set(FILE_SYSTEM_LIBS)
+    else (WIN32)
+        set(FILE_SYSTEM_LIBS stdc++fs)
+    endif (WIN32)
+endif (USE_BOOST)
+
 if(WIN32)
     add_definitions(-DIMGUI_DISABLE_WIN32_DEFAULT_IME_FUNCS)
     
     #TODO GLEW_BUILD + GLEW_STATIC definitions, Microsoft kompiliatoriams
     
     if (GRAPHICS_BACKEND MATCHES "Vulkan")
-        target_link_libraries(IYFEngine vulkan ${SDL2_LIBRARY} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${CMAKE_DL_LIBS})
+        target_link_libraries(IYFEngine vulkan ${SDL2_LIBRARY} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
     elseif (GRAPHICS_BACKEND MATCHES "OpenGL")
-        target_link_libraries(IYFEngine ${OPENGL_LIBRARIES} ${SDL2_LIBRARY} ${GLEW_LIB_LOC} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${CMAKE_DL_LIBS})
+        target_link_libraries(IYFEngine ${OPENGL_LIBRARIES} ${SDL2_LIBRARY} ${GLEW_LIB_LOC} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
     endif ()
 else(WIN32)
     if (GRAPHICS_BACKEND MATCHES "Vulkan")
-        target_link_libraries(IYFEngine ${X11_LIBRARIES} vulkan libshaderc_combined.a ${SDL2_LIBRARY} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${CMAKE_DL_LIBS})
+        target_link_libraries(IYFEngine ${X11_LIBRARIES} vulkan libshaderc_combined.a ${SDL2_LIBRARY} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
     else (GRAPHICS_BACKEND MATCHES "OpenGL")
-        target_link_libraries(IYFEngine ${OPENGL_LIBRARIES} ${SDL2_LIBRARY} ${GLEW_LIB_LOC} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${CMAKE_DL_LIBS})
+        target_link_libraries(IYFEngine ${OPENGL_LIBRARIES} ${SDL2_LIBRARY} ${GLEW_LIB_LOC} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
     endif ()
 endif(WIN32)
