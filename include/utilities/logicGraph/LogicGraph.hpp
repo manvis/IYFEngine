@@ -299,6 +299,10 @@ public:
         return 1;
     }
     
+    virtual bool makesJSONRoot() const final override {
+        return false;
+    }
+    
     virtual void serializeJSON(PrettyStringWriter& pw) const override {
         pw.String(VERSION_FIELD_NAME);
         pw.Uint(getVersion());
@@ -862,9 +866,11 @@ public:
         connections.clear();
     }
     
+    virtual bool makesJSONRoot() const final override {
+        return false;
+    }
+    
     virtual void serializeJSON(PrettyStringWriter& pw) const override {
-        pw.StartObject();
-        
         pw.String(VERSION_FIELD_NAME);
         pw.Uint(1);
         
@@ -915,8 +921,6 @@ public:
             pw.EndObject();
         }
         pw.EndArray();
-        
-        pw.EndObject();
     }
     
     virtual void deserializeJSON(JSONObject& jo) override {

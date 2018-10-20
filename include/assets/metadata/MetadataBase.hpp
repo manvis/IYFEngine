@@ -108,6 +108,10 @@ public:
     /// This function reads some parameters common to all metadata files and then calls deserializeJSONImpl()
     virtual void deserializeJSON(JSONObject& jo) final override;
     
+    virtual bool makesJSONRoot() const final override {
+        return true;
+    }
+    
     /// Gets the source of the metadata object
     inline MetadataSource getMetadataSource() const {
         return metadataSource;

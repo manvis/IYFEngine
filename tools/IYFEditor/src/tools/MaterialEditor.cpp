@@ -734,6 +734,14 @@ std::uint32_t MaterialLogicGraph::getConnectorTypeColor(ConnectorType type, bool
     throw std::runtime_error("Unhandled node connector type");
 }
 
+void MaterialLogicGraph::serializeJSON(PrettyStringWriter& pw) const {
+    LogicGraph::serializeJSON(pw);
+}
+
+void MaterialLogicGraph::deserializeJSON(JSONObject& jo) {
+    LogicGraph::deserializeJSON(jo);
+}
+
 MaterialEditor::MaterialEditor(NodeEditorSettings settings) : LogicGraphEditor(settings) {
     nameBuffer.resize(128, '\0');
     
@@ -819,6 +827,7 @@ void MaterialEditor::drawFilePopup(bool isLoadPopup) {
         ImGui::EndChild();
         
         if (ImGui::Button(actionName.c_str())) {
+            LOG_V(serializeJSON())
             ImGui::CloseCurrentPopup();
         }
         

@@ -29,13 +29,25 @@
 #include "core/interfaces/TextSerializable.hpp"
 
 namespace iyf {
+bool TextSerializable::makesJSONRoot() const {
+    return true;
+}
 
 std::string TextSerializable::getJSONString() const {
     rj::StringBuffer sb;
     PrettyStringWriter pw(sb);
     
     pw.SetIndent('\t', 1);
+    
+    if (!makesJSONRoot()) {
+        pw.StartObject();
+    }
+    
     serializeJSON(pw);
+    
+    if (!makesJSONRoot()) {
+        pw.EndObject();
+    }
     
     const char* jsonString = sb.GetString();
     const std::size_t jsonByteCount = sb.GetSize();

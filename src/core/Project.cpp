@@ -178,16 +178,7 @@ Project::Project(fs::path root) : Project(std::move(root), true) {}
 Project::~Project() {}
 
 bool Project::serialize() const {
-    rj::StringBuffer sb;
-    PrettyStringWriter pw(sb);
-    
-    pw.SetIndent('\t', 1);
-    pw.StartObject();
-    serializeJSON(pw);
-    pw.EndObject();
-    
-    const char* jsonString = sb.GetString();
-    const std::size_t jsonByteCount = sb.GetSize();
+    std::string jsonString = getJSONString();
     const fs::path finalPath = root / con::ProjectFile;
     
     std::ofstream jsonFile(finalPath.string(), std::ios_base::out|std::ios_base::trunc|std::ios_base::binary);
@@ -198,7 +189,7 @@ bool Project::serialize() const {
         return false;
     }
     
-    jsonFile.write(jsonString, jsonByteCount);
+    jsonFile.write(jsonString.data(), jsonString.length());
     if (!jsonFile.good()) {
         LOG_E("Failed to serialize data to the project file " << finalPath);
         

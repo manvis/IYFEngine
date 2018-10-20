@@ -137,6 +137,9 @@ public:
     /*virtual NodeConnectionResult addConnection(MaterialNode* source, GraphNodeConnectorID outputID, MaterialNode* destination, GraphNodeConnectorID inputID) final override {
         return NodeConnectionResult::Success;
     }*/
+    
+    virtual void serializeJSON(PrettyStringWriter& pw) const final override;
+    virtual void deserializeJSON(JSONObject& jo) final override;
 protected:
     virtual MaterialNode* addNodeImpl(NodeKey key, MaterialNodeType type, const Vec2& position, bool isDeserializing) final override;
 private:

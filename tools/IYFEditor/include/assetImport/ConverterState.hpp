@@ -132,6 +132,11 @@ public:
         return platformID;
     }
     
+    /// Derived classes should not create a root object in serializeJSON()
+    virtual bool makesJSONRoot() const final override {
+        return false;
+    }
+    
     /// Serializes the conversion settings stored in this ConverterState instance.
     virtual void serializeJSON(PrettyStringWriter& pw) const final override;
     

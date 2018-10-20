@@ -99,6 +99,10 @@ public:
     /// automatically deserialize the project file that resides in the root path.
     virtual void deserializeJSON(JSONObject& jo) final override;
     
+    virtual bool makesJSONRoot() const final override {
+        return false;
+    }
+    
     const fs::path& getRootPath() const {
         return root;
     }
