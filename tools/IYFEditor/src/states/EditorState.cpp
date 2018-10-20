@@ -87,6 +87,8 @@ static const char* GetPayloadNameForAssetType(AssetType type) {
             return "pldShaAss";
         case AssetType::Strings:
             return "pldStrAss";
+        case AssetType::MaterialTemplate:
+            return "pldMatTem";
         case AssetType::Custom:
             return "pldCustAss";
         case AssetType::ANY:
@@ -137,8 +139,6 @@ void EditorState::initialize() {
     
     materialFamilyEditor = std::make_unique<MaterialFamilyEditor>(engine, engine->getRenderer(), this);
     materialEditor = std::make_unique<MaterialEditor>();
-    
-    FileSystem* filesystem = engine->getFileSystem();
     
     assetBrowserPathChanged = true;
     assetDirUpdated = false;
@@ -919,7 +919,7 @@ void EditorState::showWorldEditorWindow() {
             DragDropAssetPayload payloadDestination;
             std::memcpy(&payloadDestination, payload->Data, sizeof(DragDropAssetPayload));
             
-            world->addStaticMesh(payloadDestination.nameHash);
+            world->addStaticMesh(payloadDestination.getNameHash());
         }
         ImGui::EndDragDropTarget();
     }
@@ -947,7 +947,7 @@ void EditorState::showWorldEditorWindow() {
             DragDropAssetPayload payloadDestination;
             std::memcpy(&payloadDestination, payload->Data, sizeof(DragDropAssetPayload));
             
-            world->addDynamicMesh(payloadDestination.nameHash);
+            world->addDynamicMesh(payloadDestination.getNameHash());
         }
         ImGui::EndDragDropTarget();
     }
@@ -1564,7 +1564,7 @@ void EditorState::showAssetWindow() {
                 ImGui::Text("Directory");
                 ImGui::NextColumn();
             } else {
-                ImGui::Text("%u", a.hash.value());
+                ImGui::Text("%lu", a.hash.value());
                 ImGui::NextColumn();
                 
                 ImGui::Text(a.imported ? "Yes" : "No");

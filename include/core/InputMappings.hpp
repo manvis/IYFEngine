@@ -75,7 +75,7 @@ enum class KeyModifierFlagBits : std::uint32_t {
 
 namespace iyf {
 using KeyModifierFlags = Flags<KeyModifierFlagBits>;
-DEFINE_ENUM_FLAG_OPS(KeyModifierFlagBits)
+IYF_DEFINE_ENUM_FLAG_OPS(KeyModifierFlagBits)
 }
 
 #endif // INPUTMAPPINGS_H_INCLUDED

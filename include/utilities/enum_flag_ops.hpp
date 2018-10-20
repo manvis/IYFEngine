@@ -28,10 +28,10 @@
 
 #include <type_traits>
 
-#ifndef ENUM_FLAG_OPS_HPP
-#define ENUM_FLAG_OPS_HPP
+#ifndef IYF_ENUM_FLAG_OPS_HPP
+#define IYF_ENUM_FLAG_OPS_HPP
 // TODO. Wrap enums in classes? look at official wrapper
-#define DEFINE_ENUM_FLAG_OPS(EnumType) \
+#define IYF_DEFINE_ENUM_FLAG_OPS(EnumType) \
     using EnumType##_T = std::underlying_type<EnumType>::type; \
     inline EnumType operator|(EnumType a, EnumType b) \
         {return static_cast<EnumType>(static_cast<EnumType##_T>(a) | static_cast<EnumType##_T>(b));} \
@@ -48,4 +48,4 @@
     inline EnumType operator^=(EnumType &a, EnumType b) \
         {return (EnumType&)((EnumType##_T&)(a) ^= static_cast<EnumType##_T>(b));} \
 
-#endif /* ENUM_FLAG_OPS_HPP */
+#endif // IYF_ENUM_FLAG_OPS_HPP

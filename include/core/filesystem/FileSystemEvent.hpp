@@ -81,7 +81,7 @@ enum class FileSystemEventFlags : std::uint32_t {
     All = 0xF
 };
 
-DEFINE_ENUM_FLAG_OPS(FileSystemEventFlags)
+IYF_DEFINE_ENUM_FLAG_OPS(FileSystemEventFlags)
 
 enum class FileSystemEventOrigin : std::uint32_t {
     File,

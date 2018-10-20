@@ -32,6 +32,7 @@
 #include "LogicGraph.hpp"
 #include "core/Logger.hpp"
 #include "utilities/hashing/HashCombine.hpp"
+#include "utilities/Flags.hpp"
 #include "localization/TextLocalization.hpp"
 
 #include <set>
@@ -39,10 +40,18 @@
 #include "imgui.h"
 
 namespace iyf {
+enum class LogicGraphEditorButtonFlagBits : std::uint32_t {
+    Load   = 0x01,
+    Save   = 0x02,
+    SaveAs = 0x04,
+};
+using LogicGraphEditorButtonFlags = Flags<LogicGraphEditorButtonFlagBits>;
+IYF_DEFINE_ENUM_FLAG_OPS(LogicGraphEditorButtonFlagBits)
+
 struct NodeEditorSettings {
     NodeEditorSettings() 
         : canvasSize(2000.0f, 1500.0f), lineDensity(50.0f, 50.0f), zoomMultiplier(0.1f), nodeWidth(150.0f), scrollMultipliers(25.0f, 25.0f),
-        lineThickness(2.0f), showDebugOptions(false) {}
+        lineThickness(2.0f), showDebugOptions(false), shownButtons(LogicGraphEditorButtonFlagBits::Save | LogicGraphEditorButtonFlagBits::SaveAs) {}
     
     ImVec2 canvasSize;
     ImVec2 lineDensity;
@@ -51,6 +60,7 @@ struct NodeEditorSettings {
     ImVec2 scrollMultipliers;
     float lineThickness;
     bool showDebugOptions;
+    LogicGraphEditorButtonFlags shownButtons;
 };
 
 class NewGraphSettings {
@@ -63,11 +73,6 @@ enum class DragMode : std::uint8_t {
     Node,
     Connector,
     Background
-};
-
-enum class LogicGraphEditorButton {
-    Load,
-    Save
 };
 
 template <typename T>
@@ -110,7 +115,7 @@ protected:
     virtual std::unique_ptr<T> makeNewGraph(const NewGraphSettings& settings) = 0;
     /// Called when a button from the button row is clicked. This method is usually used to open a modal dialog that is drawn
     /// and handled in onDrawButtonRow() 
-    virtual void onButtonClick([[maybe_unused]] LogicGraphEditorButton button) {}
+    virtual void onButtonClick([[maybe_unused]] LogicGraphEditorButtonFlagBits button) {}
     
     virtual void onDrawButtonRow() {}
     
@@ -171,6 +176,10 @@ protected:
             return seed;
         }
     };
+    
+    inline bool buttonUsed(LogicGraphEditorButtonFlagBits button) {
+        return bool(settings.shownButtons & button);
+    }
     
     std::unique_ptr<T> graph;
     std::unordered_set<NodeKey> selectedNodes;
@@ -238,8 +247,8 @@ void LogicGraphEditor<T>::show(bool* open) {
         
         ImGui::SameLine();
         
-        if (ImGui::Button("Load")) {
-            onButtonClick(LogicGraphEditorButton::Load);
+        if (buttonUsed(LogicGraphEditorButtonFlagBits::Load) && ImGui::Button("Load")) {
+            onButtonClick(LogicGraphEditorButtonFlagBits::Load);
         }
         
         if (graph == nullptr) {
@@ -248,8 +257,14 @@ void LogicGraphEditor<T>::show(bool* open) {
         } else {
             ImGui::SameLine();
         
-            if (ImGui::Button("Save")) {
-                onButtonClick(LogicGraphEditorButton::Save);
+            if (buttonUsed(LogicGraphEditorButtonFlagBits::Save) && ImGui::Button("Save")) {
+                onButtonClick(LogicGraphEditorButtonFlagBits::Save);
+            }
+            
+            ImGui::SameLine();
+            
+            if (buttonUsed(LogicGraphEditorButtonFlagBits::SaveAs) && ImGui::Button("Save As")) {
+                onButtonClick(LogicGraphEditorButtonFlagBits::SaveAs);
             }
             
             if (settings.showDebugOptions) {

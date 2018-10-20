@@ -74,8 +74,13 @@ protected:
 };
 
 struct DragDropAssetPayload {
-    StringHash nameHash;
+    // Can't use StringHash here because it causes a warning
+    std::uint64_t nameHash;
     AssetType type;
+    
+    inline StringHash getNameHash() const {
+        return StringHash(nameHash);
+    }
 };
 
 struct AssetListItem {

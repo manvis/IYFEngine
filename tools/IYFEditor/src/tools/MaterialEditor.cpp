@@ -758,13 +758,16 @@ std::string MaterialEditor::getWindowName() const {
     return LOC_SYS(LH("material_editor", MaterialNodeLocalizationNamespace));
 }
 
-void MaterialEditor::onButtonClick(LogicGraphEditorButton button) {
+void MaterialEditor::onButtonClick(LogicGraphEditorButtonFlagBits button) {
     switch (button) {
-        case LogicGraphEditorButton::Load:
+        case LogicGraphEditorButtonFlagBits::Load:
             ImGui::OpenPopup(LOC_SYS(LH("load_material_editor", MaterialNodeLocalizationNamespace)).c_str());
             break;
-        case LogicGraphEditorButton::Save:
+        case LogicGraphEditorButtonFlagBits::Save:
             ImGui::OpenPopup(LOC_SYS(LH("save_material_editor", MaterialNodeLocalizationNamespace)).c_str());
+            break;
+        case LogicGraphEditorButtonFlagBits::SaveAs:
+            ImGui::OpenPopup(LOC_SYS(LH("save_as_material_editor", MaterialNodeLocalizationNamespace)).c_str());
             break;
     }
     

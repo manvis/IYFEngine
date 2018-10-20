@@ -63,13 +63,13 @@ enum class AccessFlagBits : std::uint32_t {
     MemoryWrite                 = 0x10000
 };
 using AccessFlags = Flags<AccessFlagBits>;
-DEFINE_ENUM_FLAG_OPS(AccessFlagBits)
+IYF_DEFINE_ENUM_FLAG_OPS(AccessFlagBits)
 
 enum class AttachmentDescriptionFlagBits : std::uint32_t {
     MayAlias = 0x1
 };
 using AttachmentDescriptionFlags = Flags<AttachmentDescriptionFlagBits>;
-DEFINE_ENUM_FLAG_OPS(AttachmentDescriptionFlagBits)
+IYF_DEFINE_ENUM_FLAG_OPS(AttachmentDescriptionFlagBits)
 
 enum class AttachmentLoadOp {
     Load,
@@ -154,7 +154,7 @@ enum class BufferUsageFlagBits : std::uint32_t {
 };
 
 using BufferUsageFlags = Flags<BufferUsageFlagBits>;
-DEFINE_ENUM_FLAG_OPS(BufferUsageFlagBits)
+IYF_DEFINE_ENUM_FLAG_OPS(BufferUsageFlagBits)
 
 enum class ImageUsageFlagBits : std::uint32_t {
     TransferSource         = 0x001,
@@ -168,7 +168,7 @@ enum class ImageUsageFlagBits : std::uint32_t {
 };
 
 using ImageUsageFlags = Flags<ImageUsageFlagBits>;
-DEFINE_ENUM_FLAG_OPS(ImageUsageFlagBits)
+IYF_DEFINE_ENUM_FLAG_OPS(ImageUsageFlagBits)
 
 enum class CommandBufferUsageFlagBits : std::uint32_t  {
     OneTimeSubmit      = 0x01,
@@ -176,7 +176,7 @@ enum class CommandBufferUsageFlagBits : std::uint32_t  {
     SimultaneousUse    = 0x04
 };
 using CommandBufferUsageFlags = Flags<CommandBufferUsageFlagBits>;
-DEFINE_ENUM_FLAG_OPS(CommandBufferUsageFlagBits)
+IYF_DEFINE_ENUM_FLAG_OPS(CommandBufferUsageFlagBits)
 
 enum class CompareOp {                                // X11 defines 'Always', Vulkan pulls X11, things go boom, TODO #undef?
     Never,
@@ -208,7 +208,7 @@ enum class ColorWriteMaskFlagBits : std::uint32_t {
     Alpha = 0x08
 };
 using ColorWriteMaskFlags = Flags<ColorWriteMaskFlagBits>;
-DEFINE_ENUM_FLAG_OPS(ColorWriteMaskFlagBits)
+IYF_DEFINE_ENUM_FLAG_OPS(ColorWriteMaskFlagBits)
 
 enum class CullModeFlagBits : std::uint32_t {
     Front        = 0x01,
@@ -218,13 +218,13 @@ enum class CullModeFlagBits : std::uint32_t {
     FrontAndBack = 0x03
 };
 using CullModeFlags = Flags<CullModeFlagBits>;
-DEFINE_ENUM_FLAG_OPS(CullModeFlagBits)
+IYF_DEFINE_ENUM_FLAG_OPS(CullModeFlagBits)
 
 enum class DependencyFlagBits : std::uint32_t {
     ByRegion = 0x1,
 };
 using DependencyFlags = Flags<DependencyFlagBits>;
-DEFINE_ENUM_FLAG_OPS(DependencyFlagBits)
+IYF_DEFINE_ENUM_FLAG_OPS(DependencyFlagBits)
 
 enum class DescriptorType {
     Sampler,
@@ -472,7 +472,7 @@ enum class ImageAspectFlagBits : std::uint32_t {
     Metadata = 0x08
 };
 using ImageAspectFlags = Flags<ImageAspectFlagBits>;
-DEFINE_ENUM_FLAG_OPS(ImageAspectFlagBits)
+IYF_DEFINE_ENUM_FLAG_OPS(ImageAspectFlagBits)
 
 enum class ImageLayout {
     Undefined,
@@ -569,7 +569,7 @@ enum class PipelineStageFlagBits : std::uint32_t {
     AllCommands           = 0x10000
 };
 using PipelineStageFlags = Flags<PipelineStageFlagBits>;
-DEFINE_ENUM_FLAG_OPS(PipelineStageFlagBits)
+IYF_DEFINE_ENUM_FLAG_OPS(PipelineStageFlagBits)
 
 enum class PolygonMode {
     Fill,
@@ -610,7 +610,7 @@ enum class SampleCountFlagBits : std::uint32_t {
     COUNT = 7
 };
 using SampleCountFlags = Flags<SampleCountFlagBits>;
-DEFINE_ENUM_FLAG_OPS(SampleCountFlagBits)
+IYF_DEFINE_ENUM_FLAG_OPS(SampleCountFlagBits)
 
 enum class SamplerAddressMode {
     Repeat,
@@ -641,7 +641,7 @@ enum class ShaderStageFlagBits : std::uint32_t {
     COUNT          = 6
 };
 using ShaderStageFlags = Flags<ShaderStageFlagBits>;
-DEFINE_ENUM_FLAG_OPS(ShaderStageFlagBits)
+IYF_DEFINE_ENUM_FLAG_OPS(ShaderStageFlagBits)
 
 namespace con {
 /// Returns appropriate ShaderStageFlags when provided an extension. Must be in lowercase and start with
