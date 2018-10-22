@@ -334,12 +334,18 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
             continue;
         }
         
-        const std::uint64_t parsedNumber = std::strtoull(stem.c_str(), nullptr, 10);
+        const char* stemPtr = stem.c_str();
+        char* end;
+        const std::uint64_t parsedNumber = std::strtoull(stemPtr, &end, 10);
+                
+        if (stemPtr == end) {
+            LOG_W("strtoull encountered an error when processing " << fullPath << ". Skipping it.");
+        }
         
-        if (parsedNumber == 0 || parsedNumber == ULLONG_MAX) {
-            LOG_W("strtoull encountered an error when processing " << fullPath << ". Skipping it.\n\tIt's also "
-                  "possible you won a \"jackpot\" and have an asset that hashes to 0 or ULLONG_MAX. If so, try "
-                  "renaming it and deleting this mess from the assets folder.");
+        if (errno == ERANGE) {
+            LOG_W("strtoull encountered an error when processing " << fullPath << ". Skipping it.");
+            
+            errno = 0;
             continue;
         }
         
@@ -512,11 +518,18 @@ static inline std::optional<StringHash> ValidateAndHashPath(const FileSystem* fs
     }
     
 
-    const std::uint64_t parsedNumber = std::strtoull(stem.c_str(), nullptr, 10);
-    if (parsedNumber == 0 || parsedNumber == ULLONG_MAX) {
-        LOG_W("strtoull encountered an error when processing " << path << ". Skipping it.\n\tIt's also "
-                "possible you won a \"jackpot\" and have an asset that hashes to 0 or ULLONG_MAX. If so, try "
-                "renaming it and deleting this mess from the assets folder.");
+    const char* stemPtr = stem.c_str();
+    char* end;
+    const std::uint64_t parsedNumber = std::strtoull(stemPtr, &end, 10);
+    
+    if (stemPtr == end) {
+        LOG_W("strtoull encountered an error when processing " << path << ". Skipping it.");
+    }
+    
+    if (errno == ERANGE) {
+        LOG_W("When parsed the filename " << path << " does not fit in std::uint64_t. Skipping it.");
+        
+        errno = 0;
         return std::nullopt;
     }
     
