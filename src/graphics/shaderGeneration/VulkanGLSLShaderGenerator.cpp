@@ -194,6 +194,8 @@ std::string MakeVulkanGLSLDataType(ShaderDataFormat shaderDataFormat, ShaderData
             return "float";
         case ShaderDataFormat::Double:
             return "double";
+        default:
+            throw std::runtime_error("Unknown ShaderDataFormat");
         }
     case ShaderDataType::Vector2D:
         return MakeVulkanGLSLVectorDataType(shaderDataFormat, 2);

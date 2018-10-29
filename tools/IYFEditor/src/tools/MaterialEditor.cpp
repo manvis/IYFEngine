@@ -29,13 +29,16 @@
 #include "tools/MaterialEditor.hpp"
 
 #include "core/Logger.hpp"
+#include "graphics/GraphicsAPIConstants.hpp"
 #include "localization/TextLocalization.hpp"
 #include "utilities/logicGraph/LogicGraph.hpp"
+#include "utilities/ImGuiUtils.hpp"
 
 #include "imgui.h"
 
 namespace iyf::editor {
 const char* MaterialNodeLocalizationNamespace = "material_nodes";
+const char* GraphicsLocalizationNamespace = "graphics";
 
 inline MaterialNodeConnectorType ShaderDataTypeToMaterialConnectorType(ShaderDataType type) {
     switch (type) {
@@ -141,12 +144,109 @@ public:
     }
 };
 
+const char* CULL_MODE_FIELD_NAME = "cullMode";
+const char* DEPTH_COMPARE_OP_FIELD_NAME = "depthCompareOp";
+const char* DEPTH_WRITE_ENABLED_FIELD_NAME = "depthWriteEnabled";
+const char* DEPTH_TEST_ENABLED_FIELD_NAME = "depthTestEnabled";
+const char* BLEND_ENABLED_FIELD_NAME = "blendEnabled";
+const char* SRC_COLOR_BLEND_FACTOR_FIELD_NAME = "srcColorBlendFac";
+const char* DST_COLOR_BLEND_FACTOR_FIELD_NAME = "dstColorBlendFac";
+const char* SRC_ALPHA_BLEND_FACTOR_FIELD_NAME = "srcAlphaBlendFac";
+const char* DST_ALPHA_BLEND_FACTOR_FIELD_NAME = "dstAlphaBlendFac";
+const char* COLOR_BLEND_OP_FIELD_NAME = "colorBlendOp";
+const char* ALPHA_BLEND_OP_FIELD_NAME = "alphaBlendOp";
+
 class MaterialOutputNode : public MaterialNodeBase {
 public:
     /// The MaterialOutputNode must always have a key equal to 0. Moreover, exactly 1 
     /// MaterialOutputNode has to exist in the LogicGraph.
-    MaterialOutputNode(const MaterialFamilyDefinition& definition, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(0, position, zIndex) {
+    MaterialOutputNode(const MaterialFamilyDefinition& definition, Vec2 position, std::uint32_t zIndex) 
+        : MaterialNodeBase(0, position, zIndex), cullMode(CullModeFlagBits::Back), depthCompareOp(CompareOp::Less), depthWriteEnabled(true), depthTestEnabled(true),
+        blendEnabled(false), srcColorBlendFactor(BlendFactor::One), dstColorBlendFactor(BlendFactor::Zero), srcAlphaBlendFactor(BlendFactor::One), dstAlphaBlendFactor(BlendFactor::Zero),
+        colorBlendOp(BlendOp::Add), alphaBlendOp(BlendOp::Add)
+    {
         assert(getKey() == 0);
+        
+        buildConnectors(definition);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::Output;
+    }
+    
+    void changeMaterialFamily(const MaterialFamilyDefinition& definition) {
+        removeAllConnectors();
+        buildConnectors(definition);
+    }
+    
+    virtual void serializeJSON(PrettyStringWriter& pw) const final override {
+        LogicGraphNode::serializeJSON(pw);
+        
+        pw.String(CULL_MODE_FIELD_NAME);
+        pw.Uint(std::uint32_t(cullMode));
+        
+        pw.String(DEPTH_COMPARE_OP_FIELD_NAME);
+        pw.Uint(static_cast<std::uint32_t>(depthCompareOp));
+        
+        pw.String(DEPTH_WRITE_ENABLED_FIELD_NAME);
+        pw.Bool(depthWriteEnabled);
+        
+        pw.String(DEPTH_TEST_ENABLED_FIELD_NAME);
+        pw.Bool(depthTestEnabled);
+        
+        pw.String(BLEND_ENABLED_FIELD_NAME);
+        pw.Bool(blendEnabled);
+        
+        pw.String(SRC_COLOR_BLEND_FACTOR_FIELD_NAME);
+        pw.Uint(static_cast<std::uint32_t>(srcColorBlendFactor));
+        
+        pw.String(DST_COLOR_BLEND_FACTOR_FIELD_NAME);
+        pw.Uint(static_cast<std::uint32_t>(dstColorBlendFactor));
+        
+        pw.String(SRC_ALPHA_BLEND_FACTOR_FIELD_NAME);
+        pw.Uint(static_cast<std::uint32_t>(srcAlphaBlendFactor));
+        
+        pw.String(DST_ALPHA_BLEND_FACTOR_FIELD_NAME);
+        pw.Uint(static_cast<std::uint32_t>(dstAlphaBlendFactor));
+        
+        pw.String(COLOR_BLEND_OP_FIELD_NAME);
+        pw.Uint(static_cast<std::uint32_t>(colorBlendOp));
+        
+        pw.String(ALPHA_BLEND_OP_FIELD_NAME);
+        pw.Uint(static_cast<std::uint32_t>(alphaBlendOp));
+    }
+    
+    virtual void deserializeJSON(JSONObject& jo) final override {
+        LogicGraphNode::deserializeJSON(jo);
+        
+        cullMode = CullModeFlags(static_cast<CullModeFlagBits>(jo[CULL_MODE_FIELD_NAME].GetUint()));
+        depthCompareOp = static_cast<CompareOp>(jo[DEPTH_COMPARE_OP_FIELD_NAME].GetUint());
+        depthWriteEnabled = jo[DEPTH_WRITE_ENABLED_FIELD_NAME].GetBool();
+        depthTestEnabled = jo[DEPTH_TEST_ENABLED_FIELD_NAME].GetBool();
+        
+        blendEnabled = jo[BLEND_ENABLED_FIELD_NAME].GetBool();
+        srcColorBlendFactor = static_cast<BlendFactor>(jo[SRC_COLOR_BLEND_FACTOR_FIELD_NAME].GetUint());
+        dstColorBlendFactor = static_cast<BlendFactor>(jo[DST_COLOR_BLEND_FACTOR_FIELD_NAME].GetUint());
+        srcAlphaBlendFactor = static_cast<BlendFactor>(jo[SRC_ALPHA_BLEND_FACTOR_FIELD_NAME].GetUint());
+        dstAlphaBlendFactor = static_cast<BlendFactor>(jo[DST_ALPHA_BLEND_FACTOR_FIELD_NAME].GetUint());
+        colorBlendOp = static_cast<BlendOp>(jo[COLOR_BLEND_OP_FIELD_NAME].GetUint());
+        alphaBlendOp = static_cast<BlendOp>(jo[ALPHA_BLEND_OP_FIELD_NAME].GetUint());
+    }
+    
+    CullModeFlags cullMode;
+    CompareOp depthCompareOp;
+    bool depthWriteEnabled;
+    bool depthTestEnabled;
+    
+    bool blendEnabled;
+    BlendFactor srcColorBlendFactor;
+    BlendFactor dstColorBlendFactor;
+    BlendFactor srcAlphaBlendFactor;
+    BlendFactor dstAlphaBlendFactor;
+    BlendOp colorBlendOp;
+    BlendOp alphaBlendOp;
+private:
+    void buildConnectors(const MaterialFamilyDefinition& definition) {
         assert(definition.getLightProcessingFunctionInputs().size() <= std::numeric_limits<LogicGraphConnectorID>::max());
         
         const std::vector<LightProcessingFunctionInput>& functionInputs = definition.getLightProcessingFunctionInputs();
@@ -158,14 +258,7 @@ public:
             addInput(variableDefinition.getName(), ShaderDataTypeToMaterialConnectorType(variableDefinition.type));
 //             LOG_D("MX: " << i << inputs.back().getName());
         }
-        
-//         LOG_V("MATS: " << inputs.size());
     }
-    
-    virtual MaterialNodeType getType() const final override {
-        return MaterialNodeType::Output;
-    }
-private:
 };
 
 class TextureInputNode : public MaterialNodeBase {
@@ -505,7 +598,7 @@ IYF_MAKE_GEN_TYPE_FLOAT_NODE(Refract, 2, 1, 1, {"I", "N", "x", "refract_node"});
 IYF_MAKE_GEN_TYPE_NODE(DfDx, 1, 1, {"p", "dfdx_node"});
 IYF_MAKE_GEN_TYPE_NODE(DfDy, 1, 1, {"p", "dfdy_node"});
 
-MaterialLogicGraph::MaterialLogicGraph(MaterialFamilyDefinition definition) : definition(std::move(definition)) {
+MaterialLogicGraph::MaterialLogicGraph(MaterialFamily materialFamily) : materialFamily(materialFamily) {
     const char* ns = MaterialNodeLocalizationNamespace;
     
     addNodeTypeInfo(MaterialNodeType::Output, "material_output_node", "material_output_node_doc", ns, MaterialNodeGroup::Output, false, false);
@@ -598,8 +691,8 @@ MaterialLogicGraph::MaterialLogicGraph(MaterialFamilyDefinition definition) : de
     validateNodeTypeInfo();
     assert(getNextKey() == 0);
     
-    MaterialOutputNode* outputNode = new MaterialOutputNode(this->definition, Vec2(0.0f, 0.0f), getNextZIndex());
-    insertNode(outputNode, getNextKey(), false);
+    output = new MaterialOutputNode(con::GetMaterialFamilyDefinition(materialFamily), Vec2(0.0f, 0.0f), getNextZIndex());
+    insertNode(output, getNextKey(), false);
 }
 
 MaterialLogicGraph::~MaterialLogicGraph() {}
@@ -617,7 +710,7 @@ MaterialNode* MaterialLogicGraph::addNodeImpl(NodeKey key, MaterialNodeType type
             if (!isDeserializing) {
                 throw std::logic_error("An Output node can only be created automatically by the LogicGraph during its initialization");
             } else {
-                node = new MaterialOutputNode(this->definition, position, getNextZIndex());
+                node = new MaterialOutputNode(con::GetMaterialFamilyDefinition(materialFamily), position, getNextZIndex());
             }
             
             break;
@@ -734,19 +827,54 @@ std::uint32_t MaterialLogicGraph::getConnectorTypeColor(ConnectorType type, bool
     throw std::runtime_error("Unhandled node connector type");
 }
 
+const char* MATERIAL_INFO_FIELD_NAME = "materialInfo";
+const char* MATERIAL_INFO_VERSION_FIELD_NAME = "version";
+const char* MATERIAL_FAMILY_ID_FIELD_NAME = "familyID";
+const int MATERIAL_INFO_VERSION = 1;
+
 void MaterialLogicGraph::serializeJSON(PrettyStringWriter& pw) const {
     LogicGraph::serializeJSON(pw);
+    
+    pw.String(MATERIAL_INFO_FIELD_NAME);
+    
+    pw.StartObject();
+    
+    pw.String(MATERIAL_INFO_VERSION_FIELD_NAME);
+    pw.Uint(MATERIAL_INFO_VERSION);
+    
+    pw.String(MATERIAL_FAMILY_ID_FIELD_NAME);
+    pw.Uint64(static_cast<std::uint64_t>(materialFamily));
+    
+    pw.EndObject();
 }
 
 void MaterialLogicGraph::deserializeJSON(JSONObject& jo) {
+    JSONObject& materialInfo = jo[MATERIAL_INFO_FIELD_NAME];
+    
+    assert(materialInfo[MATERIAL_INFO_VERSION_FIELD_NAME].GetUint() == 1);
+    materialFamily = static_cast<MaterialFamily>(materialInfo[MATERIAL_FAMILY_ID_FIELD_NAME].GetUint64());
+    
     LogicGraph::deserializeJSON(jo);
+}
+
+void MaterialLogicGraph::setMaterialFamily(MaterialFamily materialFamily) {
+    this->materialFamily = materialFamily;
+    
+    const bool disconnected = disconnectNode(output->getKey());
+    assert(disconnected);
+    
+    output->changeMaterialFamily(con::GetMaterialFamilyDefinition(this->materialFamily));
+}
+
+MaterialFamily MaterialLogicGraph::getMaterialFamily() const {
+    return materialFamily;
 }
 
 MaterialEditor::MaterialEditor(NodeEditorSettings settings) : LogicGraphEditor(settings) {
     nameBuffer.resize(128, '\0');
     
     // TODO - dev only. REMOVE ONCE DONE
-    graph = std::make_unique<MaterialLogicGraph>(con::GetMaterialFamilyDefinition(MaterialFamily::Toon));
+    graph = std::make_unique<MaterialLogicGraph>(MaterialFamily::Toon);
     TextureInputNode* nn = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 50.0f)));
     assert(nn != nullptr);
     TextureInputNode* nn2 = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 150.0f)));
@@ -759,6 +887,14 @@ MaterialEditor::MaterialEditor(NodeEditorSettings settings) : LogicGraphEditor(s
     con::GetMaterialFamilyDefinition(MaterialFamily::Toon).computeHash();
     
     graph->addNode(MaterialNodeType::PerFrameData, Vec2(0.0f, 150.0f));
+    
+    const std::size_t materialFamilyCount = static_cast<std::size_t>(MaterialFamily::COUNT);
+    materialFamilyNames.reserve(materialFamilyCount);
+    
+    for (std::size_t i = 0; i < materialFamilyCount; ++i) {
+        materialFamilyNames.emplace_back(con::GetMaterialFamilyDefinition(static_cast<MaterialFamily>(i)).getName());
+    }
+    
 //     LOG_V("LOCALIZED: " << nn->getLocalizationHandle().getHashValue());
 }
 
@@ -785,6 +921,17 @@ void MaterialEditor::onButtonClick(LogicGraphEditorButtonFlagBits button) {
 void MaterialEditor::onDrawButtonRow() {
     drawFilePopup(true);
     drawFilePopup(false);
+    
+    ImGui::SameLine();
+    
+    if (graph != nullptr) {
+        int currentMaterialFamily = static_cast<int>(graph->getMaterialFamily());
+        if (ImGui::Combo("Material Family", &currentMaterialFamily, util::StringVectorGetter, &materialFamilyNames, materialFamilyNames.size())) {
+            if (currentMaterialFamily != static_cast<int>(graph->getMaterialFamily())) {
+                graph->setMaterialFamily(MaterialFamily::Toon);
+            }
+        }
+    }
 }
 
 void MaterialEditor::drawFilePopup(bool isLoadPopup) {
@@ -840,10 +987,85 @@ void MaterialEditor::drawFilePopup(bool isLoadPopup) {
     }
 }
 
+void MaterialEditor::drawNodeExtraProperties(MaterialNode& node) {
+    if (node.getType() == MaterialNodeType::Output) {
+        MaterialOutputNode& n = static_cast<MaterialOutputNode&>(node);
+        
+        // CULLING
+        ImGui::Spacing();
+        
+        std::vector<std::string> cullModes = {
+            LOC_SYS(LH("cull_mode_none", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("cull_mode_front", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("cull_mode_back", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("cull_mode_front_and_back", GraphicsLocalizationNamespace))
+        };
+        
+        int currentCullMode = unsigned(n.cullMode);
+        if (currentCullMode >= static_cast<int>(CullModeFlagBits::FrontAndBack)) {
+            currentCullMode = static_cast<int>(CullModeFlagBits::Back);
+        }
+        
+        if (ImGui::Combo(LOC_SYS(LH("cull_mode", GraphicsLocalizationNamespace)).c_str(), &currentCullMode, util::StringVectorGetter, &cullModes, cullModes.size())) {
+            n.cullMode = static_cast<CullModeFlagBits>(currentCullMode);
+        }
+        
+        // DEPTH
+        ImGui::Spacing();
+        ImGui::Checkbox(LOC_SYS(LH("depth_write_enabled", GraphicsLocalizationNamespace)).c_str(), &(n.depthWriteEnabled));
+        ImGui::Checkbox(LOC_SYS(LH("depth_test_enabled", GraphicsLocalizationNamespace)).c_str(), &(n.depthTestEnabled));
+        
+        std::vector<std::string> depthCompareOps = {
+            LOC_SYS(LH("compare_op_never", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("compare_op_less", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("compare_op_less_equal", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("compare_op_equal", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("compare_op_greater", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("compare_op_greater_equal", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("compare_op_always", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("compare_op_not_equal", GraphicsLocalizationNamespace)),
+        };
+        util::DisplayFlagPicker<CompareOp, static_cast<int>(CompareOp::COUNT)>(LOC_SYS(LH("depth_compare_op", GraphicsLocalizationNamespace)), n.depthCompareOp, CompareOp::Less, depthCompareOps);
+        
+        // BLENDING
+        ImGui::Spacing();
+        ImGui::Checkbox(LOC_SYS(LH("blending_enabled", GraphicsLocalizationNamespace)).c_str(), &(n.blendEnabled));
+        
+        std::vector<std::string> blendFactors = {
+            LOC_SYS(LH("blend_fac_zero", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("blend_fac_one", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("blend_fac_src_color", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("blend_fac_one_minus_src_color", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("blend_fac_dst_color", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("blend_fac_one_minus_dst_color", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("blend_fac_src_alpha", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("blend_fac_one_minus_src_alpha", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("blend_fac_dst_alpha", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("blend_fac_one_minus_dst_alpha", GraphicsLocalizationNamespace)),
+        };
+
+        util::DisplayFlagPicker<BlendFactor, static_cast<int>(BlendFactor::ConstantColor)>(LOC_SYS(LH("src_color_blend_fac", GraphicsLocalizationNamespace)), n.srcColorBlendFactor, BlendFactor::One, blendFactors);
+        util::DisplayFlagPicker<BlendFactor, static_cast<int>(BlendFactor::ConstantColor)>(LOC_SYS(LH("dst_color_blend_fac", GraphicsLocalizationNamespace)), n.dstColorBlendFactor, BlendFactor::Zero, blendFactors);
+        util::DisplayFlagPicker<BlendFactor, static_cast<int>(BlendFactor::ConstantColor)>(LOC_SYS(LH("src_alpha_blend_fac", GraphicsLocalizationNamespace)), n.srcAlphaBlendFactor, BlendFactor::One, blendFactors);
+        util::DisplayFlagPicker<BlendFactor, static_cast<int>(BlendFactor::ConstantColor)>(LOC_SYS(LH("dst_alpha_blend_fac", GraphicsLocalizationNamespace)), n.dstAlphaBlendFactor, BlendFactor::Zero, blendFactors);
+
+        std::vector<std::string> blendOps = {
+            LOC_SYS(LH("blend_op_add", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("blend_op_subtract", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("blend_op_reverse_subtract", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("blend_op_min", GraphicsLocalizationNamespace)),
+            LOC_SYS(LH("blend_op_max", GraphicsLocalizationNamespace)),
+        };
+        
+        util::DisplayFlagPicker<BlendOp, static_cast<int>(BlendOp::COUNT)>(LOC_SYS(LH("color_blend_op", GraphicsLocalizationNamespace)), n.colorBlendOp, BlendOp::Add, blendOps);
+        util::DisplayFlagPicker<BlendOp, static_cast<int>(BlendOp::COUNT)>(LOC_SYS(LH("alpha_blend_op", GraphicsLocalizationNamespace)), n.alphaBlendOp, BlendOp::Add, blendOps);
+    }
+}
+
 MaterialEditor::~MaterialEditor() {}
 
 std::unique_ptr<MaterialLogicGraph> MaterialEditor::makeNewGraph(const NewGraphSettings&) {
-    return std::make_unique<MaterialLogicGraph>(con::GetMaterialFamilyDefinition(MaterialFamily::Toon));
+    return std::make_unique<MaterialLogicGraph>(MaterialFamily::Toon);
 }
 
 }

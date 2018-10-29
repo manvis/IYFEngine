@@ -409,6 +409,13 @@ protected:
     inline Connector& getOutput(std::size_t id) {
         return outputs[id];
     }
+protected:
+    /// \warning Always favor the multiple mode approach and only use this function in EXTREMELY SPECIAL cases. Moreover, make sure to call
+    /// LogicGraph::disconnectNode() before calling this and add new connectors immediately afterwards.
+    inline void removeAllConnectors() {
+        inputs.clear();
+        outputs.clear();
+    }
 private:
     static constexpr const char* MultipleModesNotSupportedError = "This node doesn't support multiple modes.";
     
@@ -602,8 +609,28 @@ public:
     
     virtual bool removeNode(NodeKey key) {
         NodeType* node = getNode(key);
+        if (!getNodeTypeInfo(node->getType()).deletable) {
+            return false;
+        }
         
-        if (node == nullptr || !getNodeTypeInfo(node->getType()).deletable) {
+        const bool disconnectionResult = disconnectNode(key);
+        if (!disconnectionResult) {
+            return false;
+        }
+        
+        auto nodeResult = nodes.find(key);
+        assert(nodeResult != nodes.end());
+        
+        delete nodeResult->second;
+        nodes.erase(nodeResult);
+        
+        return true;
+    }
+    
+    virtual bool disconnectNode(NodeKey key) {
+        NodeType* node = getNode(key);
+        
+        if (node == nullptr) {
             return false;
         }
         
@@ -615,12 +642,6 @@ public:
         assert(destinations->second.empty());
         
         connections.erase(destinations);
-        
-        auto nodeResult = nodes.find(key);
-        assert(nodeResult != nodes.end());
-        
-        delete nodeResult->second;
-        nodes.erase(nodeResult);
         
         return true;
     }

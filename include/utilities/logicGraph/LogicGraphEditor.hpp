@@ -79,6 +79,7 @@ template <typename T>
 class LogicGraphEditor {
 public:
     using NodeKey = typename T::NodeKey;
+    using NodeTypeEnum = typename T::NodeTypeEnum;
     
     static constexpr const char* LocalizationNamespace = "logic_graph_editor";
     
@@ -126,6 +127,7 @@ protected:
     void drawConnections();
     void drawCanvasInfo();
     void drawNodeProperties();
+    virtual void drawNodeExtraProperties([[maybe_unused]] typename T::NodeType& node) {}
     void showConnectionErrorTooltip(const char* text) const;
     bool validateConnection(bool connectIfValidated = false);
     void showLocalizedDocumentation(LocalizationHandle handle);
@@ -940,6 +942,8 @@ void LogicGraphEditor<T>::drawNodeProperties() {
             ImGui::EndCombo();
         }
     }
+    
+    drawNodeExtraProperties(node);
 }
 
 template <typename T>

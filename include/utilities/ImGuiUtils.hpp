@@ -44,6 +44,18 @@ inline bool StringVectorGetter(void* in, int idx, const char** out_text) {
     return true;
 }
 
+template <typename T, int MaxValue>
+inline void DisplayFlagPicker(const std::string& comboName, T& inOut, T defaultValue, std::vector<std::string>& names) {
+    int currentValue = static_cast<int>(inOut);
+    if (currentValue >= MaxValue) {
+        currentValue = static_cast<int>(defaultValue);
+    }
+    
+    if (ImGui::Combo(comboName.c_str(), &currentValue, util::StringVectorGetter, &names, names.size())) {
+        inOut = static_cast<T>(currentValue);
+    }
+}
+
 }
 }
 

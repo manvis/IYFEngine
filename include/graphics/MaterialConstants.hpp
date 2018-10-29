@@ -33,6 +33,9 @@ namespace iyf {
 class MaterialFamilyDefinition;
 
 /// List of all material families supported by the engine
+///
+/// \warning Feel free to add to this enum, but make sure there are no gaps and the numbers don't change.
+/// Moreover, make sure to create the appropriate MaterialFamilyDefinition for GetMaterialFamilyDefinition().
 enum class MaterialFamily {
     Toon = 0,
     // PBR = 1, // TODO implement PBR rendering

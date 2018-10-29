@@ -57,6 +57,7 @@
 #include "core/DefaultWorld.hpp"
 #include "imgui_internal.h"
 #include "utilities/IntegerPacking.hpp"
+#include "utilities/ImGuiUtils.hpp"
 
 #include "glm/gtx/string_cast.hpp"
 
@@ -1259,13 +1260,7 @@ void EditorState::showMeshComponentEditor(Entity& entity) {
     int tempMode = static_cast<int>(mode);
     
     // TODO create a SINGLE std::function and reuse it
-    ImGui::Combo("Render mode", &tempMode, 
-                 [](void* in, int idx, const char** out_text){
-                   std::string* strs = static_cast<std::string*>(in);
-
-                   *out_text = strs[idx].c_str();
-                   return true;
-                }, const_cast<void*>(static_cast<const void*>(renderModeNames.data())), renderModeNames.size());
+    ImGui::Combo("Render mode", &tempMode, util::StringVectorGetter, &renderModeNames, renderModeNames.size());
     
     if (static_cast<MaterialRenderMode>(tempMode) != renderData.getRenderMode()) {
         renderData.setRenderMode(static_cast<MaterialRenderMode>(tempMode));
@@ -1403,19 +1398,7 @@ void EditorState::showAssetWindow() {
         ImGui::PushItemWidth(200.0f);
         
         const int typeCount = static_cast<int>(AssetType::COUNT) + 1;
-        bool filterUpdate = ImGui::Combo("Asset Type", &currentlyPickedAssetType,
-                [](void* ptr, int idx, const char** out_text) {
-                    // Checking if we're in bounds
-                    if (idx < 0 || idx >= static_cast<int>(AssetType::COUNT) + 1) {
-                        return false;
-                    }
-                    
-                    std::vector<std::string>* names = static_cast<std::vector<std::string>*>(ptr);
-
-                    *out_text = (*names)[idx].c_str();
-                    return true;
-                },
-            &assetTypeNames, typeCount, typeCount);
+        bool filterUpdate = ImGui::Combo("Asset Type", &currentlyPickedAssetType, util::StringVectorGetter, &assetTypeNames, typeCount, typeCount);
 
         ImGui::PopItemWidth();
         //assert(currentlyPickedAssetType >= 0 && currentlyPickedAssetType <= static_cast<int>(AssetType::Custom));

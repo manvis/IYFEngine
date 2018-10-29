@@ -35,6 +35,8 @@
 #include "utilities/logicGraph/LogicGraphEditor.hpp"
 
 namespace iyf::editor {
+class MaterialOutputNode;
+
 enum class MaterialNodeConnectorType : std::uint8_t {
     Float = 0, /// < Single floating point value
     Vec2  = 1, /// < 2 component floating point vector
@@ -128,7 +130,7 @@ using MaterialGraphNodeTypeInfo = LogicGraphNodeTypeInfo<MaterialNode, MaterialN
 
 class MaterialLogicGraph : public LogicGraph<MaterialNode, MaterialGraphNodeTypeInfo> {
 public:
-    MaterialLogicGraph(MaterialFamilyDefinition definition);
+    MaterialLogicGraph(MaterialFamily materialFamily);
     virtual ~MaterialLogicGraph();
     
     virtual std::string getConnectorTypeName(MaterialNodeConnectorType type) const final override;
@@ -140,10 +142,14 @@ public:
     
     virtual void serializeJSON(PrettyStringWriter& pw) const final override;
     virtual void deserializeJSON(JSONObject& jo) final override;
+    
+    void setMaterialFamily(MaterialFamily materialFamily);
+    MaterialFamily getMaterialFamily() const;
 protected:
     virtual MaterialNode* addNodeImpl(NodeKey key, MaterialNodeType type, const Vec2& position, bool isDeserializing) final override;
 private:
-    MaterialFamilyDefinition definition;
+    MaterialOutputNode* output;
+    MaterialFamily materialFamily;
 };
 
 class MaterialEditor : public LogicGraphEditor<MaterialLogicGraph> {
@@ -154,11 +160,13 @@ public:
 protected:
     virtual void onButtonClick(LogicGraphEditorButtonFlagBits button) final override;
     virtual void onDrawButtonRow() final override;
+    virtual void drawNodeExtraProperties(MaterialNode& node) final override;
     void drawFilePopup(bool isLoadPopup);
     
     virtual std::unique_ptr<MaterialLogicGraph> makeNewGraph(const NewGraphSettings& settings) final override;
     
     std::vector<char> nameBuffer;
+    std::vector<std::string> materialFamilyNames;
 };
 
 }
