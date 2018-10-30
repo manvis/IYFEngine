@@ -103,7 +103,10 @@ namespace con {
 // -----------------------------------------------------------------------------
 
 /// \brief Extension to use for all material files
-extern const std::string MaterialFormatExtension;
+extern const std::string MaterialInstanceFormatExtension;
+
+/// \brief Extension to use for all material template files
+extern const std::string MaterialTemplateFormatExtension;
 
 /// \brief Extension to use for engine's project files
 extern const std::string ProjectFileExtension;

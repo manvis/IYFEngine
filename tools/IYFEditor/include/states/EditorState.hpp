@@ -74,6 +74,9 @@ protected:
 };
 
 struct DragDropAssetPayload {
+    inline DragDropAssetPayload() : nameHash(0), type(AssetType::COUNT) {}
+    inline DragDropAssetPayload(StringHash hash, AssetType type) : nameHash(hash), type(type) {}
+    
     // Can't use StringHash here because it causes a warning
     std::uint64_t nameHash;
     AssetType type;

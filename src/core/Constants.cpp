@@ -33,7 +33,8 @@
 namespace iyf {
 namespace con {
 
-const std::string MaterialFormatExtension = u8".iyfm";
+const std::string MaterialInstanceFormatExtension = u8".iyfm";
+const std::string MaterialTemplateFormatExtension = u8".iyfmt";
 const std::string ProjectFileExtension = u8".iyfp";
 const std::string MetadataExtension = u8".iyfd";
 const std::string TextMetadataExtension = u8".iyfjd";

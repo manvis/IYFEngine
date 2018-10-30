@@ -914,7 +914,9 @@ void EditorState::showWorldEditorWindow() {
     
     ImGui::Text("Drop Mesh Here");
     if (ImGui::BeginDragDropTarget()) {
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(GetPayloadNameForAssetType(AssetType::Mesh))) {
+        const char* payloadName = GetPayloadNameForAssetType(AssetType::Mesh);
+        
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadName)) {
             assert(payload->DataSize == sizeof(DragDropAssetPayload));
             
             DragDropAssetPayload payloadDestination;
@@ -942,7 +944,9 @@ void EditorState::showWorldEditorWindow() {
     
     ImGui::Text("Drop Mesh Here");
     if (ImGui::BeginDragDropTarget()) {
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(GetPayloadNameForAssetType(AssetType::Mesh))) {
+        const char* payloadName = GetPayloadNameForAssetType(AssetType::Mesh);
+        
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadName)) {
             assert(payload->DataSize == sizeof(DragDropAssetPayload));
             
             DragDropAssetPayload payloadDestination;
@@ -1430,7 +1434,7 @@ void EditorState::showAssetWindow() {
                     }
                     
                     if (assetFilterType != AssetType::ANY) {
-                        const AssetType currentFileType = AssetManager::GetAssetTypeFromExtension(p.extension());
+                        const AssetType currentFileType = AssetManager::GetAssetTypeFromExtension(p);
                         if (currentFileType != assetFilterType) {
                             continue;
                         }
@@ -1524,12 +1528,12 @@ void EditorState::showAssetWindow() {
                 ImGui::EndPopup();
             }
             
-            const AssetType type = AssetManager::GetAssetTypeFromExtension(a.path.filename().extension());
+            const AssetType type = AssetManager::GetAssetTypeFromExtension(a.path);
             
             if (a.imported && !a.isDirectory) {
                 if (ImGui::BeginDragDropSource()) {
-                    ImGui::Text("File: %s", fileName.c_str());
-                    DragDropAssetPayload payload = {a.hash, type};
+                    ImGui::Text("File: %s\n%s asset", fileName.c_str(), con::AssetTypeToTranslationString(type).c_str());
+                    DragDropAssetPayload payload(a.hash, type);
                     ImGui::SetDragDropPayload(GetPayloadNameForAssetType(type), &payload, sizeof(payload));
                     ImGui::EndDragDropSource();
                 }
