@@ -113,7 +113,7 @@ static void SquareConstraint(ImGuiSizeCallbackData* data) {
 
 EditorState::EditorState(iyf::Engine* engine) : GameState(engine),
         newLevelDialogRequested(false), levelName("test_level_name"), levelDescription("test_level_desc"), isPickPlaceMode(false), 
-        pickOrPlaceModeId(0), worldType(0), entityName("a"), cameraMode(CameraMode::Stationary), materialFamilyEditorOpen(true), materialEditorOpen(true),
+        pickOrPlaceModeId(0), worldType(0), entityName("a"), cameraMode(CameraMode::Stationary), materialFamilyEditorOpen(true), materialEditorOpen(false),
         currentlyPickedAssetType(0), maxClipboardElements(5), logWindow(engine) {
     
     pickPlaceModeDrawFunction = drawNothing;
@@ -1561,6 +1561,12 @@ void EditorState::showAssetWindow() {
                 
                 ImGui::Separator();
                 
+                const AssetType type = AssetManager::GetAssetTypeFromExtension(a.path);
+                if ((type == AssetType::MaterialTemplate) && ImGui::Selectable("Edit")) {
+                    materialEditorOpen = true;
+                    materialEditor->setPath(a.path);
+                }
+                
                 if (a.imported) {
                     if (ImGui::Selectable("Re-import asset")) {
                         // TODO implement me
@@ -1571,11 +1577,6 @@ void EditorState::showAssetWindow() {
                         // TODO implement me
                         LOG_W("NOT YET IMPLEMENTED")
                     }
-                }
-                
-                const AssetType type = AssetManager::GetAssetTypeFromExtension(a.path);
-                if ((type == AssetType::MaterialTemplate) && ImGui::Selectable("Edit")) {
-                    LOG_W("NOT YET IMPLEMENTED")
                 }
                 
                 ImGui::EndPopup();

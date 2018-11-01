@@ -154,9 +154,14 @@ private:
 
 class MaterialEditor : public LogicGraphEditor<MaterialLogicGraph> {
 public:
-    MaterialEditor(NodeEditorSettings settings = NodeEditorSettings());
+    MaterialEditor();
     virtual std::string getWindowName() const final override;
     virtual ~MaterialEditor();
+    
+    void setPath(fs::path path);
+    inline const fs::path& getPath() const {
+        return filePath;
+    }
 protected:
     virtual void onButtonClick(LogicGraphEditorButtonFlagBits button) final override;
     virtual void onDrawButtonRow() final override;
@@ -167,6 +172,7 @@ protected:
     
     std::vector<char> nameBuffer;
     std::vector<std::string> materialFamilyNames;
+    fs::path filePath;
 };
 
 }

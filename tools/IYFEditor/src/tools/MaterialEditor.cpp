@@ -29,6 +29,7 @@
 #include "tools/MaterialEditor.hpp"
 
 #include "core/Logger.hpp"
+#include "core/filesystem/File.hpp"
 #include "graphics/GraphicsAPIConstants.hpp"
 #include "localization/TextLocalization.hpp"
 #include "utilities/logicGraph/LogicGraph.hpp"
@@ -870,7 +871,14 @@ MaterialFamily MaterialLogicGraph::getMaterialFamily() const {
     return materialFamily;
 }
 
-MaterialEditor::MaterialEditor(NodeEditorSettings settings) : LogicGraphEditor(settings) {
+inline NodeEditorSettings MakeNodeEditorSettings() {
+    NodeEditorSettings s;
+    s.shownButtons = LogicGraphEditorButtonFlagBits::Save;
+    s.showNewAsClear = true;
+    return s;
+}
+
+MaterialEditor::MaterialEditor() : LogicGraphEditor(MakeNodeEditorSettings()) {
     nameBuffer.resize(128, '\0');
     
     // TODO - dev only. REMOVE ONCE DONE
@@ -899,7 +907,9 @@ MaterialEditor::MaterialEditor(NodeEditorSettings settings) : LogicGraphEditor(s
 }
 
 std::string MaterialEditor::getWindowName() const {
-    return LOC_SYS(LH("material_editor", MaterialNodeLocalizationNamespace));
+    const std::string windowName = LOC_SYS(LH("material_editor", MaterialNodeLocalizationNamespace), filePath.generic_string());
+//     LOG_D(windowName);
+    return windowName;
 }
 
 void MaterialEditor::onButtonClick(LogicGraphEditorButtonFlagBits button) {
@@ -1060,6 +1070,14 @@ void MaterialEditor::drawNodeExtraProperties(MaterialNode& node) {
         util::DisplayFlagPicker<BlendOp, static_cast<int>(BlendOp::COUNT)>(LOC_SYS(LH("color_blend_op", GraphicsLocalizationNamespace)), n.colorBlendOp, BlendOp::Add, blendOps);
         util::DisplayFlagPicker<BlendOp, static_cast<int>(BlendOp::COUNT)>(LOC_SYS(LH("alpha_blend_op", GraphicsLocalizationNamespace)), n.alphaBlendOp, BlendOp::Add, blendOps);
     }
+}
+
+void MaterialEditor::setPath(fs::path path) {
+    filePath = std::move(path);
+    File in(filePath, File::OpenMode::Read);
+    auto wholeFile = in.readWholeFile();
+    
+    deserializeJSON(wholeFile.first.get(), wholeFile.second);
 }
 
 MaterialEditor::~MaterialEditor() {}

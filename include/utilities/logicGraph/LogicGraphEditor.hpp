@@ -51,7 +51,7 @@ IYF_DEFINE_ENUM_FLAG_OPS(LogicGraphEditorButtonFlagBits)
 struct NodeEditorSettings {
     NodeEditorSettings() 
         : canvasSize(2000.0f, 1500.0f), lineDensity(50.0f, 50.0f), zoomMultiplier(0.1f), nodeWidth(150.0f), scrollMultipliers(25.0f, 25.0f),
-        lineThickness(2.0f), showDebugOptions(false), shownButtons(LogicGraphEditorButtonFlagBits::Save | LogicGraphEditorButtonFlagBits::SaveAs) {}
+        lineThickness(2.0f), showDebugOptions(false), showNewAsClear(false), shownButtons(LogicGraphEditorButtonFlagBits::Load | LogicGraphEditorButtonFlagBits::Save | LogicGraphEditorButtonFlagBits::SaveAs) {}
     
     ImVec2 canvasSize;
     ImVec2 lineDensity;
@@ -60,6 +60,7 @@ struct NodeEditorSettings {
     ImVec2 scrollMultipliers;
     float lineThickness;
     bool showDebugOptions;
+    bool showNewAsClear;
     LogicGraphEditorButtonFlags shownButtons;
 };
 
@@ -110,6 +111,16 @@ public:
         
         rj::Document document;
         document.Parse(json);
+        graph->deserializeJSON(document);
+    }
+    
+    /// Destroys the current graph and deserializes a new one from a JSON char array. Should be used when handling the load button.
+    void deserializeJSON(const char* data, std::int64_t length) {
+        graph = makeNewGraph(NewGraphSettings());
+        clear();
+        
+        rj::Document document;
+        document.Parse(data, static_cast<std::size_t>(length));
         graph->deserializeJSON(document);
     }
 protected:
@@ -242,9 +253,17 @@ void LogicGraphEditor<T>::show(bool* open) {
     
     const std::string windowName = getWindowName();
     if (ImGui::Begin(windowName.c_str(), open)) {
-        if (ImGui::Button("New")) {
-            graph = makeNewGraph(NewGraphSettings());
-            clear();
+        
+        if (settings.showNewAsClear) {
+            if (ImGui::Button("Clear")) {
+                graph = makeNewGraph(NewGraphSettings());
+                clear();
+            }
+        } else {
+            if (ImGui::Button("New")) {
+                graph = makeNewGraph(NewGraphSettings());
+                clear();
+            }
         }
         
         ImGui::SameLine();

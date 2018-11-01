@@ -29,7 +29,7 @@ custom,,Custom
 materialTemplate,,Material Template
 any,,Any
 cannot_delete,logic_graph_editor,You cannot delete this node.
-material_editor,material_nodes,Material Instance Definition Editor
+material_editor,material_nodes,Material Template Editor - {0}###MatEdWindow
 float,material_nodes,Float
 vec2,material_nodes,Vec2
 vec3,material_nodes,Vec3
