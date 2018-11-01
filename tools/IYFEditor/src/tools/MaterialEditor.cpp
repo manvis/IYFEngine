@@ -915,23 +915,21 @@ std::string MaterialEditor::getWindowName() const {
 void MaterialEditor::onButtonClick(LogicGraphEditorButtonFlagBits button) {
     switch (button) {
         case LogicGraphEditorButtonFlagBits::Load:
-            ImGui::OpenPopup(LOC_SYS(LH("load_material_editor", MaterialNodeLocalizationNamespace)).c_str());
-            break;
-        case LogicGraphEditorButtonFlagBits::Save:
-            ImGui::OpenPopup(LOC_SYS(LH("save_material_editor", MaterialNodeLocalizationNamespace)).c_str());
-            break;
         case LogicGraphEditorButtonFlagBits::SaveAs:
-            ImGui::OpenPopup(LOC_SYS(LH("save_as_material_editor", MaterialNodeLocalizationNamespace)).c_str());
+            throw std::logic_error("This material editor button should have been disabled");
+        case LogicGraphEditorButtonFlagBits::Save: {
+            const std::string result = serializeJSON();
+            
+            File output(filePath, File::OpenMode::Write);
+            output.writeBytes(result.data(), result.size());
             break;
+        }
     }
     
     nameBuffer[0] = '\0';
 }
 
 void MaterialEditor::onDrawButtonRow() {
-    drawFilePopup(true);
-    drawFilePopup(false);
-    
     ImGui::SameLine();
     
     if (graph != nullptr) {
@@ -941,59 +939,6 @@ void MaterialEditor::onDrawButtonRow() {
                 graph->setMaterialFamily(MaterialFamily::Toon);
             }
         }
-    }
-}
-
-void MaterialEditor::drawFilePopup(bool isLoadPopup) {
-    const std::string popupName = isLoadPopup ? 
-        LOC_SYS(LH("load_material_editor", MaterialNodeLocalizationNamespace)) :
-        LOC_SYS(LH("save_material_editor", MaterialNodeLocalizationNamespace));
-    
-    if (ImGui::BeginPopupModal(popupName.c_str())) {
-        const std::string actionName = isLoadPopup ?
-        LOC_SYS(LH("load", MaterialNodeLocalizationNamespace)) :
-        LOC_SYS(LH("save", MaterialNodeLocalizationNamespace));
-    
-        const std::string nameFieldName = LOC_SYS(LH("name", MaterialNodeLocalizationNamespace));
-        if (ImGui::InputText(nameFieldName.c_str(), nameBuffer.data(), nameBuffer.size())) {
-            // TODO validate here or on save?
-        }
-        
-        if (ImGui::BeginChild("##material_instance_def_list", ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing()))) {
-            ImGui::Columns(3);
-            ImGui::Separator();
-            
-            ImGui::Text("%s", nameFieldName.c_str());
-            ImGui::NextColumn();
-            
-            std::string familyName = LOC_SYS(LH("family", MaterialNodeLocalizationNamespace));
-            ImGui::Text("%s", familyName.c_str());
-            ImGui::NextColumn();
-            
-            const std::string hashName = LOC_SYS(LH("hash", MaterialNodeLocalizationNamespace));
-            ImGui::Text("%s", hashName.c_str());
-            ImGui::NextColumn();
-            ImGui::Separator();
-            
-            // TODO list all definitions
-            
-            ImGui::Columns();
-        }
-        ImGui::Separator();
-        
-        ImGui::EndChild();
-        
-        if (ImGui::Button(actionName.c_str())) {
-            LOG_V(serializeJSON())
-            ImGui::CloseCurrentPopup();
-        }
-        
-        ImGui::SameLine();
-        
-        if (ImGui::Button(LOC_SYS(LH("cancel", MaterialNodeLocalizationNamespace)).c_str())) {
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
     }
 }
 
