@@ -99,62 +99,6 @@ enum class TextureImportMode : std::uint8_t {
 
 namespace con {
 // -----------------------------------------------------------------------------
-// Default file extensions 
-// -----------------------------------------------------------------------------
-
-/// \brief Extension to use for all material files
-extern const std::string MaterialInstanceFormatExtension;
-
-/// \brief Extension to use for all material template files
-extern const std::string MaterialTemplateFormatExtension;
-
-/// \brief Extension to use for engine's project files
-extern const std::string ProjectFileExtension;
-
-/// \brief Extension to use for engine's binary metadata files
-extern const std::string MetadataExtension;
-
-/// \brief Extension to use for engine's text (JSON) metadata files
-extern const std::string TextMetadataExtension;
-
-/// \brief Extension to use for asset import settings
-extern const std::string ImportSettingsExtension;
-
-/// \brief The extension used by asset file packages
-extern const std::string PackFileExtension;
-
-/// \brief The extension used by files that store the world data
-extern const std::string WorldFileExtension;
-
-// -----------------------------------------------------------------------------
-// Default files 
-// -----------------------------------------------------------------------------
-
-/// \brief Default font file to use for ImGui rendering. This file should exist in FontPath
-const std::string ImGuiFont = u8"Roboto-Regular.ttf";
-
-/// \brief Name of the database file containing localization data. This file should exist in StringPath
-const std::string LocalizationDatabase = u8"strings.db";
-
-/// \brief Default texture to use when one is missing. This file should exist in TexturePath
-const std::string MissingTexture = u8"MissingTexture.sys.ktx";
-
-/// \brief Default mesh to use when one is missing. This file should exist in MeshPath
-const std::string MissingMesh = u8"MissingMesh.sys.iyfm";
-
-extern const std::string EngineBaseConfigFile;
-
-/// \brief the name of a file that contains core project settings. This file should exist in the root dir 
-/// of all projects.
-extern const std::string ProjectFile;
-
-/// \brief The name of the default world file that is stored in the system assets.
-extern const std::string DefaultWorldFile;
-
-extern const std::string SystemAssetPackName;
-extern const std::string DefaultReleasePackName;
-
-// -----------------------------------------------------------------------------
 // Compressed texture data
 // -----------------------------------------------------------------------------
 

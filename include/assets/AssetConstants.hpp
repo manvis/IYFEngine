@@ -73,81 +73,78 @@ namespace con {
 // -----------------------------------------------------------------------------
 // Directories
 // -----------------------------------------------------------------------------
+/// \brief Base path of all assets used by the game
+const fs::path& BaseAssetPath();
 
-// -------------------------------- WARNING ------------------------------------
-// ---   CHANGING THE NAMES OF DIRECTORIES WILL BREAK ALL CURRENT PROJECTS   ---
-// -------------------------------- WARNING ------------------------------------
-    
-/// The base asset directory.
-extern const fs::path AssetPath;
+/// \brief Path to system strings used by the editor and tools
+const fs::path& SystemStringPath();
 
-/// Directory where all system assets, common to all games, are stored
-extern const fs::path SystemAssetPath;
+/// \brief Path to all assets used by the editor, tools and some internal Engine components
+const fs::path& SystemAssetPath();
 
-/// Location where the Engine expects to find all files for import.
-extern const fs::path ImportPath;
+/// \brief Path to imports
+const fs::path& ImportPath();
 
-/// Location where the Engine expects to find all 3D mesh animations.
-/// Corresponds to AssetType::Animation
-extern const fs::path AnimationPath;
-
-/// Location where the Engine expects to find all 3D meshes.
-/// Corresponds to AssetType::Mesh
-extern const fs::path MeshPath;
-
-/// Location where the Engine expects to find all textures, skyboxes, etc.
-/// Corresponds to AssetType::Texture
-extern const fs::path TexturePath;
-
-/// Location where the Engine expects to find all font files.
-/// Corresponds to AssetType::Font
-extern const fs::path FontPath;
-
-/// Location where the Engine expects to find all music and sound effect files.
-/// Corresponds to AssetType::Audio
-extern const fs::path AudioPath;
-
-/// Location where the Engine expects to find all video files.
-/// Corresponds to AssetType::Video
-extern const fs::path VideoPath;
-
-/// Location where the Engine expects to find all worlds
-/// Corresponds to AssetType::World
-extern const fs::path WorldPath;
-
-/// Location where the Engine expects to find all scripts
-/// Corresponds to AssetType::Script
-extern const fs::path ScriptPath;
-
-/// Location where the Engine expects to find all shaders.
-/// Corresponds to AssetType::Shader
-extern const fs::path ShaderPath;
-
-/// Location where the Engine expects to find localized strings for the game.
-/// Corresponds to AssetType::Strings
-extern const fs::path StringPath;
-
-/// Location where the Engine expects to find all files that don't fit any other category 
-/// (e.g., custom assets for custom game specific systems should go there).
-/// Corresponds to AssetType::Custom
-extern const fs::path CustomPath;
-
-/// Location where the Engine expects to find material templates
-/// Corresponds to AssetType::MaterialTemplate
-extern const fs::path MaterialTemplatePath;
-
-/// Location where the Engine expects to find localized strings for the editor, tools
-/// and internal systems
-extern const fs::path SystemStringPath;
-
-// -----------------------------------------------------------------------------
-// Asset data mappings
-// -----------------------------------------------------------------------------
 /// \brief Default paths for each AssetType. AssetType::Any and AssetType::COUNT return empty strings they are helper values.
 const fs::path& AssetTypeToPath(AssetType type);
 
 /// \brief Default translation strings for each AssetType. Usage: submit these to LOC macro and get the human readable string in current language
 const std::string& AssetTypeToTranslationString(AssetType type);
+
+// -----------------------------------------------------------------------------
+// File extensions
+// -----------------------------------------------------------------------------
+/// \brief Extension to use for all material files
+const std::string& MaterialInstanceFormatExtension();
+
+/// \brief Extension to use for all material template files
+const std::string& MaterialTemplateFormatExtension();
+
+/// \brief Extension to use for engine's project files
+const std::string& ProjectFileExtension();
+
+/// \brief Extension to use for engine's binary metadata files
+const std::string& MetadataExtension();
+
+/// \brief Extension to use for engine's text (JSON) metadata files
+const std::string& TextMetadataExtension();
+
+/// \brief Extension to use for asset import settings
+const std::string& ImportSettingsExtension();
+
+/// \brief The extension used by asset file packages
+const std::string& PackFileExtension();
+
+/// \brief The extension used by files that store the world data
+const std::string& WorldFileExtension();
+
+// -----------------------------------------------------------------------------
+// Special files 
+// -----------------------------------------------------------------------------
+/// \brief Default font file to use for ImGui rendering. This file should exist in FontPath
+const std::string& ImGuiFont();
+
+/// \brief Name of the database file containing localization data. This file should exist in StringPath
+const std::string& LocalizationDatabase();
+
+/// \brief Default texture to use when one is missing. This file should exist in TexturePath
+const std::string& MissingTexture();
+
+/// \brief Default mesh to use when one is missing. This file should exist in MeshPath
+const std::string& MissingMesh();
+
+const std::string& EngineBaseConfigFile();
+
+/// \brief the name of a file that contains core project settings. This file should exist in the root dir 
+/// of all projects.
+const std::string& ProjectFile();
+
+/// \brief The name of the default world file that is stored in the system assets.
+const std::string& DefaultWorldFile();
+
+const std::string& SystemAssetPackName();
+const std::string& DefaultReleasePackName();
+
 }
 
 }

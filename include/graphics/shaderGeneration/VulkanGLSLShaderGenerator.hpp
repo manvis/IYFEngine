@@ -62,6 +62,7 @@ private:
 class VulkanGLSLShaderGenerator : public ShaderGenerator {
 public:
     VulkanGLSLShaderGenerator(const Engine* engine);
+    virtual ~VulkanGLSLShaderGenerator();
     
     virtual ShaderLanguage getShaderLanguage() const final override {
         return ShaderLanguage::GLSLVulkan;
@@ -71,7 +72,7 @@ public:
         return VulkanGLSLIncluder::GetHelperFunctionVersion();
     }
     
-    virtual ShaderCompilationResult compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) final override;
+    virtual ShaderCompilationResult compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) const final override;
     
     virtual std::string generateLightProcessingFunctionSignature(const MaterialFamilyDefinition& definition) const final override;
     

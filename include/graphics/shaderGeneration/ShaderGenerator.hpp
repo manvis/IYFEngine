@@ -154,12 +154,13 @@ struct ShaderCompilationSettings {
 class ShaderGenerator {
 public:
     ShaderGenerator(const Engine* engine);
+    virtual ~ShaderGenerator() {}
     
     /// Generate a shader of the specified shader stage based on the provided MaterialFamilyDefinition
     ShaderGenerationResult generateShader(ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition) const;
     
     /// Compile the generated shader
-    virtual ShaderCompilationResult compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) = 0;
+    virtual ShaderCompilationResult compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) const = 0;
     
     /// \return An identifier of the shader language that this generator outputs.
     virtual ShaderLanguage getShaderLanguage() const = 0;

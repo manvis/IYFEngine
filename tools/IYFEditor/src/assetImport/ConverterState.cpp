@@ -171,6 +171,8 @@ std::uint64_t MeshConverterState::getLatestSerializedDataVersion() const {
 }
 
 void MeshConverterState::serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const {
+    assert(version == 1);
+    
     pw.String(USE_32_BIT_INDICES_FIELD_NAME);
     pw.Bool(use32bitIndices);
     
@@ -185,6 +187,8 @@ void MeshConverterState::serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t
 }
 
 void MeshConverterState::deserializeJSONImpl(JSONObject& jo, std::uint64_t version) {
+    assert(version == 1);
+    
     use32bitIndices = jo[USE_32_BIT_INDICES_FIELD_NAME].GetBool();
     convertAnimations = jo[CONVERT_ANIMATIONS_FIELD_NAME].GetBool();
     scale = jo[MESH_SCALE_FIELD_NAME].GetFloat();
@@ -192,6 +196,21 @@ void MeshConverterState::deserializeJSONImpl(JSONObject& jo, std::uint64_t versi
     // TODO deserialize the not yet created fields
     // if (version == 2) {}
 }
+
+std::uint64_t MaterialTemplateConverterState::getLatestSerializedDataVersion() const {
+    return 1;
+}
+
+void MaterialTemplateConverterState::serializeJSONImpl(PrettyStringWriter&, std::uint64_t version) const {
+    assert(version == 1);
+    // not needed, for now
+}
+
+void MaterialTemplateConverterState::deserializeJSONImpl(JSONObject&, std::uint64_t version) {
+    assert(version == 1);
+    // not needed, for now
+}
+
 
 std::uint64_t FontConverterState::getLatestSerializedDataVersion() const {
     return 1;

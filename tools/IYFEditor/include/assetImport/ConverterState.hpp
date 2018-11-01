@@ -267,6 +267,23 @@ private:
         ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash) {}
 };
 
+class MaterialTemplateConverterState : public ConverterState {
+public:
+    virtual std::uint64_t getLatestSerializedDataVersion() const final override;
+    
+    virtual AssetType getType() const final override {
+        return AssetType::MaterialTemplate;
+    }
+private:
+    friend class MaterialTemplateConverter;
+    
+    virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
+    virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
+    
+    MaterialTemplateConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash) :
+        ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash) {}
+};
+
 class ShaderConverterState : public ConverterState {
 public:
     ShaderPurpose purpose;

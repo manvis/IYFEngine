@@ -58,7 +58,7 @@ void AssetUpdateManager::initialize() {
         return;
     }
     
-    importsDir = engine->getProject()->getRootPath() / con::ImportPath;
+    importsDir = engine->getProject()->getRootPath() / con::ImportPath();
     
     FileSystemWatcherCreateInfo fsci;
     fsci.handler = std::bind(&AssetUpdateManager::watcherCallback, this, std::placeholders::_1);
@@ -138,7 +138,7 @@ void AssetUpdateManager::watcherCallback(std::vector<FileSystemEvent> eventList)
         const fs::path finalDestinationPath = e.getDestination().lexically_relative(importsDir);
         
         // TODO updated settings files (e.g. via version control) should probably trigger a re-import as well
-        if (!isDirectory && finalSourcePath.extension() == con::ImportSettingsExtension) {
+        if (!isDirectory && finalSourcePath.extension() == con::ImportSettingsExtension()) {
             continue;
         }
         
@@ -179,14 +179,14 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(std::string path
                 // We don't track folders as assets
                 return []{};
             case AssetOperationType::Deleted: {
-                const fs::path sourcePath = con::ImportPath / path;
+                const fs::path sourcePath = con::ImportPath() / path;
                 return [assetManager, sourcePath]{
                     assetManager->requestAssetDeletion(sourcePath, true);
                 };
             }
             case AssetOperationType::Moved: {
-                const fs::path sourcePath = con::ImportPath / path;
-                const fs::path destinationPath = con::ImportPath / op.destination;
+                const fs::path sourcePath = con::ImportPath() / path;
+                const fs::path destinationPath = con::ImportPath() / op.destination;
                 return [assetManager, sourcePath, destinationPath] {
                     assetManager->requestAssetMove(sourcePath, destinationPath, true);
                 };
@@ -202,7 +202,7 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(std::string path
             // No need to prepend con::ImportPath here. The hash does not contain it and computeNameHash would only strip it.
             const StringHash nameHash = AssetManager::ComputeNameHash(path);
             
-            const fs::path sourcePath = con::ImportPath / path;
+            const fs::path sourcePath = con::ImportPath() / path;
             auto collisionCheckResult = assetManager->checkForHashCollision(nameHash, sourcePath);
             if (collisionCheckResult) {
                 LOG_W("Failed to import " << path << ". Detected a hash collision with " << *collisionCheckResult);
@@ -226,8 +226,8 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(std::string path
             break;
         }
         case AssetOperationType::Deleted: {
-            const fs::path sourcePath = con::ImportPath / path;
-            const fs::path settingsPath = fs::path(sourcePath).concat(con::ImportSettingsExtension);
+            const fs::path sourcePath = con::ImportPath() / path;
+            const fs::path settingsPath = fs::path(sourcePath).concat(con::ImportSettingsExtension());
             
             const FileSystem* fs = engine->getFileSystem();
             if (fs->exists(settingsPath)) {
@@ -245,8 +245,8 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(std::string path
             const fs::path sourcePath = importsDir / path;
             const fs::path destinationPath = importsDir / op.destination;
             
-            const fs::path settingsSourcePath = fs::path(sourcePath).concat(con::ImportSettingsExtension);
-            const fs::path settingsDestinationPath = fs::path(destinationPath).concat(con::ImportSettingsExtension);
+            const fs::path settingsSourcePath = fs::path(sourcePath).concat(con::ImportSettingsExtension());
+            const fs::path settingsDestinationPath = fs::path(destinationPath).concat(con::ImportSettingsExtension());
             
             const FileSystem* fs = engine->getFileSystem();
             bool result = fs->rename(settingsSourcePath, settingsDestinationPath);

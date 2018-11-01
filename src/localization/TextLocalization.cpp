@@ -27,8 +27,8 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "localization/TextLocalization.hpp"
+#include "assets/AssetConstants.hpp"
 #include "core/Logger.hpp"
-#include "core/Constants.hpp"
 #include "core/filesystem/FileSystem.hpp"
 #include "core/filesystem/File.hpp"
 #include "utilities/StringUtilities.hpp"
@@ -151,8 +151,8 @@ TextLocalizer::LoadResult TextLocalizer::loadToMap(const FileSystem* fs, const f
     for (const auto& name : fileNames) {
         // Making sure to skip metadata files
         const bool stringFile = util::startsWith(name.stem().string(), locale) &&
-                                (name.extension() != con::MetadataExtension) && 
-                                (name.extension() != con::TextMetadataExtension);
+                                (name.extension() != con::MetadataExtension()) && 
+                                (name.extension() != con::TextMetadataExtension());
         
         if (stringFile) {
             File file(localizationFileDirectory / name, File::OpenMode::Read);

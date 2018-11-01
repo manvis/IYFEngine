@@ -62,7 +62,8 @@ namespace iyf::editor {
 class EditorUI;
 class MaterialEditor;
 class AssetUpdateManager;
-    
+class AssetCreatorWindow;
+
 class ImGuiLog {
 public:
     ImGuiLog(Engine* engine) : engine(engine), lastLogLength(0) {}
@@ -234,6 +235,8 @@ protected:
     
     std::mutex fileSystemCallbackMutex;
     std::unique_ptr<AssetUpdateManager> assetUpdateManager;
+    std::unique_ptr<AssetCreatorWindow> assetCreatorWindow;
+    
 // LOGGING AND DEBUG ------------------------------------------------------------
     ImGuiLog logWindow;
     enum class DebugDataUnit : int {

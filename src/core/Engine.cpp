@@ -152,7 +152,7 @@ void Engine::init() {
     config->serialize();
     
     std::string locale = config->getValue(ConfigurationValueHandle(HS("text_locale"), ConfigurationValueFamily::Localization));
-    TextLocalizer::LoadResult result = SystemLocalizer().loadStringsForLocale(fileSystem.get(), con::SystemStringPath, locale, false);
+    TextLocalizer::LoadResult result = SystemLocalizer().loadStringsForLocale(fileSystem.get(), con::SystemStringPath(), locale, false);
     if (result != TextLocalizer::LoadResult::LoadSuccessful) {
         LOG_E("Failed to load system strings. Error: " << SystemLocalizer().loadResultToErrorString(result));
         throw std::runtime_error("Failed to load system strings (check log)");

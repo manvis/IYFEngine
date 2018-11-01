@@ -80,7 +80,7 @@ void SystemAssetPacker::recursiveExport(const fs::path& path, const editor::Conv
             recursiveExport(sourcePath, cm, platformID);
         } else {
             assert(!sourcePath.empty());
-            if (sourcePath.extension() == con::ImportSettingsExtension) {
+            if (sourcePath.extension() == con::ImportSettingsExtension()) {
                 continue;
             }
             
@@ -147,11 +147,11 @@ void SystemAssetPacker::pack() {
     const fs::path platformDataPath = cm.getAssetDestinationPath(processedPlatform);
     const fs::path realPlatformDataPath = filesystem->getRealDirectory(platformDataPath.generic_string());
     
-    const fs::path systemArchiveName = ("system" + con::PackFileExtension);
+    const fs::path systemArchiveName = ("system" + con::PackFileExtension());
     const fs::path archivePath = realPlatformDataPath / systemArchiveName;
     
     if (processedPlatform == con::GetCurrentPlatform()) {
-        const fs::path assetsFolder = realPlatformDataPath / con::AssetPath;
+        const fs::path assetsFolder = realPlatformDataPath / con::BaseAssetPath();
         if (fs::exists(assetsFolder)) {
             LOG_D("Removing the assets folder that was built by a previous run: " << assetsFolder);
             fs::remove_all(assetsFolder);
@@ -192,7 +192,7 @@ void SystemAssetPacker::pack() {
         }
     }
     
-    pathsToCompress.emplace_back(filesystem->getCurrentWriteDirectory() / con::EngineBaseConfigFile, con::EngineBaseConfigFile);
+    pathsToCompress.emplace_back(filesystem->getCurrentWriteDirectory() / con::EngineBaseConfigFile(), con::EngineBaseConfigFile());
 //     pathsToCompress.emplace_back(filesystem->getCurrentWriteDirectory() / con::ProjectBaseConfigFile, con::ProjectBaseConfigFile);
     
     if (util::CompressFileListToZip(pathsToCompress, archivePath, util::CompressionLevel::Best)) {

@@ -24,10 +24,12 @@ add_library(IYFTools STATIC
     assetImport/ConverterState.cpp
     assetImport/Converter.cpp
     assetImport/LocalizationStringConverter.cpp
+    assetImport/MaterialTemplateConverter.cpp
     assetImport/MeshConverter.cpp
     assetImport/ShaderConverter.cpp
     assetImport/TextureConverter.cpp
     assetImport/FontConverter.cpp
+    tools/AssetCreatorWindow.cpp
     tools/AssetUpdateManager.cpp
     tools/Compressonator_Test_Helpers.cpp
     tools/MaterialEditor.cpp

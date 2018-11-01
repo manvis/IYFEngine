@@ -56,7 +56,7 @@ FileSystem::FileSystem(bool editorMode, char* argv, bool skipSystemPackageMounti
     // Only skipped when running the SystemAssetPackager. It is a tool that makes the SystemAssetPacks we want to mount here
     if (!skipSystemPackageMounting) {
         // System assets should always be stored next to the executable
-        fs::path systemAssetRealPath = baseDir / con::SystemAssetPackName;
+        fs::path systemAssetRealPath = baseDir / con::SystemAssetPackName();
         
         if (PHYSFS_mount(systemAssetRealPath.c_str(), "", 1) == 0) {
             LOG_E("Failed to mount the system asset archive (" << systemAssetRealPath << "). PHYSFS error: " << getLastErrorText());
@@ -162,8 +162,8 @@ void FileSystem::setResourcePathsForProject(const Project* project) {
     } else {
         // When running in game mode, mount the data archive that contains the contents of the asset path
         fs::path assetPackPath = project->getRootPath();
-        assetPackPath /= con::DefaultReleasePackName;
-        addReadPath(assetPackPath.string(), con::AssetPath.generic_string(), true);
+        assetPackPath /= con::DefaultReleasePackName();
+        addReadPath(assetPackPath.string(), con::BaseAssetPath().generic_string(), true);
         
         // TODO mount patches, mods and DLCs
     }

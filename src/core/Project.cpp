@@ -109,7 +109,7 @@ bool Project::CreateProjectFile(const fs::path& path, const std::string& project
     project.setCompanyName(companyName);
     project.setVersion(version);
     project.setBaseLocale(baseLocale);
-    project.setFirstWorldName(con::DefaultWorldFile);
+    project.setFirstWorldName(con::DefaultWorldFile());
     
     if (!project.serialize()) {
         return false;
@@ -142,9 +142,9 @@ bool Project::CreateImportedAssetDirectories(const fs::path& path, PlatformIdent
     ErrorCode ec;
     
     if (platformID == con::GetCurrentPlatform()) {
-        fs::create_directories(path / con::SystemStringPath, ec);
+        fs::create_directories(path / con::SystemStringPath(), ec);
     } else {
-        fs::create_directories(path / con::PlatformIdentifierToName(platformID) / con::SystemStringPath, ec);
+        fs::create_directories(path / con::PlatformIdentifierToName(platformID) / con::SystemStringPath(), ec);
     }
     
     if (ec) {
@@ -156,7 +156,7 @@ bool Project::CreateImportedAssetDirectories(const fs::path& path, PlatformIdent
 
 bool Project::CreateImportsDirectory(const fs::path& path) {
     ErrorCode ec;
-    fs::create_directories(path / con::ImportPath, ec);
+    fs::create_directories(path / con::ImportPath(), ec);
     
     if (ec) {
         return false;
@@ -168,7 +168,7 @@ bool Project::CreateImportsDirectory(const fs::path& path) {
 
 Project::Project(fs::path root, bool deserializeFile) : root(std::move(root)) {
     if (deserializeFile && !deserialize()) {
-        LOG_E("Failed to deserialize the project file" << " from " << (root / con::ProjectFile));
+        LOG_E("Failed to deserialize the project file" << " from " << (root / con::ProjectFile()));
         throw std::runtime_error("Failed to deserialize the project file");
     }
 }
@@ -179,7 +179,7 @@ Project::~Project() {}
 
 bool Project::serialize() const {
     std::string jsonString = getJSONString();
-    const fs::path finalPath = root / con::ProjectFile;
+    const fs::path finalPath = root / con::ProjectFile();
     
     std::ofstream jsonFile(finalPath.string(), std::ios_base::out|std::ios_base::trunc|std::ios_base::binary);
     
@@ -200,7 +200,7 @@ bool Project::serialize() const {
 }
 
 bool Project::deserialize() {
-    const fs::path finalPath = root / con::ProjectFile;
+    const fs::path finalPath = root / con::ProjectFile();
     
     std::ifstream jsonFile(finalPath.string(), std::ios_base::in|std::ios_base::binary);
     

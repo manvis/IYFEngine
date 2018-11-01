@@ -245,6 +245,8 @@ VulkanGLSLShaderGenerator::VulkanGLSLShaderGenerator(const Engine* engine) : Sha
     fileSystem = engine->getFileSystem();
 }
 
+VulkanGLSLShaderGenerator::~VulkanGLSLShaderGenerator() {}
+
 fs::path VulkanGLSLShaderGenerator::getShaderStageFileExtension(ShaderStageFlagBits stage) const {
     switch (stage) {
         case ShaderStageFlagBits::Vertex:
@@ -870,7 +872,7 @@ std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionCall(const
 //     return ss.str();
 // }
 
-ShaderCompilationResult VulkanGLSLShaderGenerator::compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) {
+ShaderCompilationResult VulkanGLSLShaderGenerator::compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) const {
     const shaderc_shader_kind shaderKind = ShaderStageToKind(stage);
     
     shaderc::CompileOptions compileOptions;

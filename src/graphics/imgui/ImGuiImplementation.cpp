@@ -214,7 +214,7 @@ void ImGuiImplementation::initializeAssets() {
         0,
     };
     
-    AssetHandle<Font> fontAsset = assetManager->getSystemAsset<Font>(con::ImGuiFont);
+    AssetHandle<Font> fontAsset = assetManager->getSystemAsset<Font>(con::ImGuiFont());
     
     void* fontData = std::malloc(fontAsset->size);
     std::memcpy(fontData, fontAsset->data, fontAsset->size);

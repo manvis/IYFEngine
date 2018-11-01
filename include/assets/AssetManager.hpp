@@ -73,8 +73,8 @@ public:
     
     /// Computes the hash of the provided path. If the path starts with con::ImportPath, it is stripped before computing the hash.
     static inline StringHash ComputeNameHash(const fs::path& sourcePath) {
-        if (*sourcePath.begin() == con::ImportPath) {
-            return HS(sourcePath.lexically_relative(con::ImportPath).generic_string());
+        if (*sourcePath.begin() == con::ImportPath()) {
+            return HS(sourcePath.lexically_relative(con::ImportPath()).generic_string());
         } else {
             return HS(sourcePath.generic_string());
         }
@@ -395,8 +395,6 @@ private:
     
     bool editorMode;
     bool isInit;
-    
-    static const std::unordered_map<std::string, AssetType> ExtensionToType;
 };
 }
 

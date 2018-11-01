@@ -29,6 +29,7 @@
 #include "assetImport/ConverterManager.hpp"
 #include "core/Logger.hpp"
 
+#include "assetImport/MaterialTemplateConverter.hpp"
 #include "assetImport/MeshConverter.hpp"
 #include "assetImport/TextureConverter.hpp"
 #include "assetImport/FontConverter.hpp"
@@ -55,6 +56,7 @@ ConverterManager::ConverterManager(const FileSystem* fileSystem, fs::path assetD
     typeToConverter[AssetType::Font] = std::make_unique<FontConverter>(this);
     typeToConverter[AssetType::Shader] = std::make_unique<ShaderConverter>(this);
     typeToConverter[AssetType::Strings] = std::make_unique<LocalizationStringConverter>(this);
+    typeToConverter[AssetType::MaterialTemplate] = std::make_unique<MaterialTemplateConverter>(this);
 }
 
 ConverterManager::~ConverterManager() {}
@@ -102,7 +104,7 @@ fs::path ConverterManager::makeFinalPathForAsset(const fs::path& sourcePath, Ass
 }
 
 fs::path ConverterManager::makeFinalPathForSystemStrings(const fs::path& sourcePath, PlatformIdentifier platformID) const {
-    return makeLocaleStringPath(sourcePath, con::SystemStringPath, platformID);
+    return makeLocaleStringPath(sourcePath, con::SystemStringPath(), platformID);
 }
 
 fs::path ConverterManager::getRealPath(const fs::path& path) const {
@@ -122,10 +124,10 @@ AssetType ConverterManager::getAssetType(const fs::path& sourcePath) const {
 }
 
 fs::path ConverterManager::makeImporterSettingsFilePath(const fs::path& sourcePath) const {
-    assert(sourcePath.extension() != con::ImportSettingsExtension);
+    assert(sourcePath.extension() != con::ImportSettingsExtension());
     
     fs::path pathJSON = sourcePath;
-    pathJSON += con::ImportSettingsExtension;
+    pathJSON += con::ImportSettingsExtension();
     return pathJSON;
 }
 
@@ -202,7 +204,7 @@ bool ConverterManager::convert(ConverterState& state) const {
         assert(jsonString != nullptr && jsonByteCount != 0);
         
         fs::path metadataPath = asset.getDestinationPath();
-        metadataPath += fs::path(con::TextMetadataExtension);
+        metadataPath += fs::path(con::TextMetadataExtension());
         
         File metadataOutput(metadataPath, File::OpenMode::Write);
         metadataOutput.writeBytes(jsonString, jsonByteCount);

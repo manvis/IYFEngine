@@ -32,23 +32,6 @@
 
 namespace iyf {
 namespace con {
-
-const std::string MaterialInstanceFormatExtension = u8".iyfm";
-const std::string MaterialTemplateFormatExtension = u8".iyfmt";
-const std::string ProjectFileExtension = u8".iyfp";
-const std::string MetadataExtension = u8".iyfd";
-const std::string TextMetadataExtension = u8".iyfjd";
-const std::string ImportSettingsExtension = u8".iyfi";
-const std::string PackFileExtension = u8".iyfpak";
-const std::string WorldFileExtension = u8".iyfw";
-
-const std::string SystemAssetPackName = u8"system" + PackFileExtension;
-const std::string DefaultReleasePackName = u8"assets" + PackFileExtension;
-
-const std::string DefaultWorldFile = u8"DefaultEmptyWorld" + WorldFileExtension;
-const std::string ProjectFile = u8"Project" + ProjectFileExtension;
-const std::string EngineBaseConfigFile = u8"EngineBaseConfig.lua";
-
 inline std::size_t CalculateMipmapLevelSizeHalfBytePerPixel(std::size_t width, std::size_t height) {
     const std::size_t blockSize = 8;
     const std::size_t size = (width * height) / 2;

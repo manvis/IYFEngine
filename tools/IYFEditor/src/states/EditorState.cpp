@@ -47,6 +47,7 @@
 #include "assets/loaders/MeshLoader.hpp"
 #include "localization/TextLocalization.hpp"
 #include "tools/MaterialEditor.hpp"
+#include "tools/AssetCreatorWindow.hpp"
 #include "tools/AssetUpdateManager.hpp"
 
 #include "imgui.h"
@@ -218,7 +219,7 @@ void EditorState::initialize() {
     }
     currentlyPickedAssetType = static_cast<int>(AssetType::COUNT);
     
-    currentlyOpenDir = con::ImportPath;
+    currentlyOpenDir = con::ImportPath();
     
 //     profilerResults = iyft::ProfilerResults::LoadFromFile("profilerResults.profres");
     profilerZoom = 1.0f;
@@ -1396,8 +1397,10 @@ void EditorState::showAssetWindow() {
 // //        ImGui::PushStyleVar(ImGuiStyleVar_ChildWindowRounding, rounding);
 //         ImGui::BeginChild("AssetList", ImVec2(ImGui::GetWindowContentRegionWidth() - contentHeight - spacing, 0), false);
 
-        const bool showUpNavigation = currentlyOpenDir != con::ImportPath;
+        const bool showUpNavigation = (currentlyOpenDir != con::ImportPath());
         ImGui::Text("Current path: %s", currentlyOpenDir.c_str());
+        
+        ImGui::Separator();
         
         ImGui::PushItemWidth(200.0f);
         
@@ -1405,6 +1408,49 @@ void EditorState::showAssetWindow() {
         bool filterUpdate = ImGui::Combo("Asset Type", &currentlyPickedAssetType, util::StringVectorGetter, &assetTypeNames, typeCount, typeCount);
 
         ImGui::PopItemWidth();
+        
+        ImGui::SameLine(ImGui::GetWindowWidth() - 80);
+        
+        if (ImGui::Button("Create New")) {}
+        
+        bool needToOpenCreatorWindow = false;
+        if (ImGui::BeginPopupContextItem(nullptr, 0)) {
+            
+            if (ImGui::Selectable("Directory")) {
+                assert(assetCreatorWindow == nullptr);
+                assetCreatorWindow = std::make_unique<AssetCreatorWindow>(engine, currentlyOpenDir.generic_string());
+                needToOpenCreatorWindow = true;
+            }
+            
+            ImGui::Separator();
+            
+            if (ImGui::Selectable("Material")) {
+                // TODO implement me
+                LOG_W("NOT YET IMPLEMENTED");
+//                 assert(assetCreatorWindow == nullptr);
+//                 assetCreatorWindow = std::make_unique<AssetCreatorWindow>(engine, currentlyOpenDir.generic_string(), AssetType::Material);
+//                 needToOpenCreatorWindow = true;
+            }
+            
+            if (ImGui::Selectable("Material Template")) {
+                assert(assetCreatorWindow == nullptr);
+                assetCreatorWindow = std::make_unique<AssetCreatorWindow>(engine, currentlyOpenDir.generic_string(), AssetType::MaterialTemplate);
+                needToOpenCreatorWindow = true;
+            }
+            
+            ImGui::EndPopup();
+        }
+        
+        if (assetCreatorWindow != nullptr) {
+            if (needToOpenCreatorWindow) {
+                assetCreatorWindow->openPopup();
+            }
+            
+            if (assetCreatorWindow->show()) {
+                assetCreatorWindow = nullptr;
+            }
+        }
+        
         //assert(currentlyPickedAssetType >= 0 && currentlyPickedAssetType <= static_cast<int>(AssetType::Custom));
         // TODO or dir contents changed
         if (filterUpdate || assetBrowserPathChanged || assetDirUpdated) {
@@ -1417,7 +1463,7 @@ void EditorState::showAssetWindow() {
                 const fs::path finalPath = currentlyOpenDir / p;
                 
                 // con::ImportPath is not supposed to be a part of the hash
-                const fs::path pathToHash = finalPath.lexically_relative(con::ImportPath);
+                const fs::path pathToHash = finalPath.lexically_relative(con::ImportPath());
                 
                 PHYSFS_Stat stat;
                 filesystem->getFileSystemStatistics(finalPath, stat);
@@ -1429,7 +1475,7 @@ void EditorState::showAssetWindow() {
                     listItem.isDirectory = true;
                     listItem.imported = false;
                 } else if (stat.filetype == PHYSFS_FileType::PHYSFS_FILETYPE_REGULAR) {
-                    if (p.extension() == con::ImportSettingsExtension) {
+                    if (p.extension() == con::ImportSettingsExtension()) {
                         continue;
                     }
                     
@@ -1517,12 +1563,19 @@ void EditorState::showAssetWindow() {
                 
                 if (a.imported) {
                     if (ImGui::Selectable("Re-import asset")) {
-                        //ImGui::CloseCurrentPopup();
+                        // TODO implement me
+                        LOG_W("NOT YET IMPLEMENTED")
                     }
                 } else {
                     if (ImGui::Selectable("Import asset")) {
-                        //ImGui::CloseCurrentPopup();
+                        // TODO implement me
+                        LOG_W("NOT YET IMPLEMENTED")
                     }
+                }
+                
+                const AssetType type = AssetManager::GetAssetTypeFromExtension(a.path);
+                if ((type == AssetType::MaterialTemplate) && ImGui::Selectable("Edit")) {
+                    LOG_W("NOT YET IMPLEMENTED")
                 }
                 
                 ImGui::EndPopup();
@@ -1563,6 +1616,7 @@ void EditorState::showAssetWindow() {
         }
         
         ImGui::Columns(1, "assetListColumns");
+        
         ImGui::Separator();
 
         ImGui::EndChild();

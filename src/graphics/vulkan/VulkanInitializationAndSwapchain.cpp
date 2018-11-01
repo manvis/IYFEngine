@@ -994,7 +994,7 @@ VkSurfaceFormatKHR VulkanAPI::chooseSwapchainImageFormat() {
         std::stringstream ss;
         
         for (std::uint32_t i = 0; i < physicalDevice.surfaceFormats.size(); ++i) {
-            ss << physicalDevice.surfaceFormats[i].format << "; ";
+            ss << "\n\t\t" << getFormatName(Format(physicalDevice.surfaceFormats[i].format));
         }
 
         LOG_V("Supported surface formats: " << ss.str());
