@@ -162,6 +162,8 @@ public:
     inline const fs::path& getPath() const {
         return filePath;
     }
+    
+    static std::string CreateNewGraph(MaterialFamily family);
 protected:
     virtual void onButtonClick(LogicGraphEditorButtonFlagBits button) final override;
     virtual void onDrawButtonRow() final override;

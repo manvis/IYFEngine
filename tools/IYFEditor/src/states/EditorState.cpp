@@ -1557,7 +1557,7 @@ void EditorState::showAssetWindow() {
             }
             
             if (!a.isDirectory && ImGui::BeginPopupContextItem()) {
-                ImGui::Text("Item: %s", fileName.c_str());
+                ImGui::TextDisabled("Item: %s", fileName.c_str());
                 
                 ImGui::Separator();
                 
@@ -1568,17 +1568,32 @@ void EditorState::showAssetWindow() {
                 }
                 
                 if (a.imported) {
-                    if (ImGui::Selectable("Re-import asset")) {
+                    if (ImGui::Selectable("Re-import Asset")) {
                         // TODO implement me
                         LOG_W("NOT YET IMPLEMENTED")
                     }
                 } else {
-                    if (ImGui::Selectable("Import asset")) {
+                    if (ImGui::Selectable("Import Asset")) {
                         // TODO implement me
                         LOG_W("NOT YET IMPLEMENTED")
                     }
                 }
                 
+                ImGui::Separator();
+                
+                if (ImGui::Selectable("Open in File Browser")) {
+                    filesystem->openInFileBrowser(filesystem->getRealDirectory(a.path.parent_path()));
+                }
+                
+                if (ImGui::Selectable("Open in External Editor")) {
+                    filesystem->openInFileBrowser(filesystem->getRealDirectory(a.path));
+                }
+                
+                ImGui::EndPopup();
+            } else if (a.isDirectory && ImGui::BeginPopupContextItem()) {
+                if (ImGui::Selectable("Open in File Browser")) {
+                    filesystem->openInFileBrowser(filesystem->getRealDirectory(a.path));
+                }
                 ImGui::EndPopup();
             }
             

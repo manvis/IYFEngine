@@ -878,6 +878,26 @@ inline NodeEditorSettings MakeNodeEditorSettings() {
     return s;
 }
 
+std::string MaterialEditor::CreateNewGraph(MaterialFamily family) {
+    MaterialLogicGraph mlg(family);
+    
+    rj::StringBuffer sb;
+    PrettyStringWriter pw(sb);
+    
+    assert(!mlg.makesJSONRoot());
+    
+    pw.StartObject();
+    StoreEditorValues(1.0f, ImVec2(0.0f, 0.0f), pw);
+    
+    mlg.serializeJSON(pw);
+    pw.EndObject();
+    
+    const char* jsonString = sb.GetString();
+    const std::size_t jsonByteCount = sb.GetSize();
+    
+    return std::string(jsonString, jsonByteCount);
+}
+
 MaterialEditor::MaterialEditor() : LogicGraphEditor(MakeNodeEditorSettings()) {
     nameBuffer.resize(128, '\0');
     

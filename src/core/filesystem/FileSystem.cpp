@@ -26,6 +26,12 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifdef __linux__
+#define _XOPEN_SOURCE
+#include <stdio.h>
+#elif _WIN64
+// TODO what to include here
+#endif // OS CHECK
 
 #include "assets/AssetConstants.hpp"
 #include "core/filesystem/FileSystem.hpp"
@@ -34,12 +40,7 @@
 #include "core/Logger.hpp"
 #include "core/Project.hpp"
 #include "core/Constants.hpp"
-
-#ifdef __linux__
-#include <stdio.h>
-#elif _WIN64
-// TODO what to include here
-#endif // OS CHECK
+#include "format/format.h"
 
 namespace iyf {
 FileSystem::FileSystem(bool editorMode, char* argv, bool skipSystemPackageMounting) : editorMode(editorMode) {
@@ -167,6 +168,19 @@ void FileSystem::setResourcePathsForProject(const Project* project) {
         
         // TODO mount patches, mods and DLCs
     }
+}
+
+bool FileSystem::openInFileBrowser(const fs::path& path) const {
+#ifdef __linux__
+    std::string command = fmt::format("xdg-open \"{}\"", path.string());
+
+    int result = system(command.c_str());
+    
+    return WIFEXITED(result) && (WEXITSTATUS(result) == 0);
+#else
+    // TODO implement
+    throw std::runtime_error("Not yet implemented");
+#endif // OS CHECK
 }
 
 const char* FileSystem::getLastErrorText() const {

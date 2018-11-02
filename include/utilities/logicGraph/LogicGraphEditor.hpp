@@ -95,23 +95,45 @@ public:
     
     virtual std::string getWindowName() const = 0;
     
-    /// Serializes the currently active graph to a JSON string. Should be used when handling the save button.
+    /// Serializes the currently active graph and extra parameters from this editor to a JSON string. Should be used when handling the save button.
     std::string serializeJSON() const {
         if (graph == nullptr) {
             return "";
         } else {
-            return graph->getJSONString();
+            rj::StringBuffer sb;
+            PrettyStringWriter pw(sb);
+            
+            serializeJSON(pw);
+            
+            const char* jsonString = sb.GetString();
+            const std::size_t jsonByteCount = sb.GetSize();
+            
+            return std::string(jsonString, jsonByteCount);
         }
+    }
+    
+    /// Serializes the currently active graph (if any) and extra parameters from this editor into a PrettyStringWriter.
+    void serializeJSON(PrettyStringWriter& pw) const {
+        if (graph == nullptr) {
+            return;
+        }
+        
+        pw.SetIndent('\t', 1);
+            
+        assert(!graph->makesJSONRoot());
+        
+        pw.StartObject();
+        
+        StoreEditorValues(scale, canvasPosition, pw);
+        
+        graph->serializeJSON(pw);
+        
+        pw.EndObject();
     }
     
     /// Destroys the current graph and deserializes a new one from a JSON string. Should be used when handling the load button.
     void deserializeJSON(const std::string& json) {
-        graph = makeNewGraph(NewGraphSettings());
-        clear();
-        
-        rj::Document document;
-        document.Parse(json);
-        graph->deserializeJSON(document);
+        deserializeJSON(json.data(), json.length());
     }
     
     /// Destroys the current graph and deserializes a new one from a JSON char array. Should be used when handling the load button.
@@ -121,9 +143,33 @@ public:
         
         rj::Document document;
         document.Parse(data, static_cast<std::size_t>(length));
+        
+        LoadEditorValues(scale, canvasPosition, document);
+        
         graph->deserializeJSON(document);
     }
 protected:
+    static constexpr const char* SCALE_FIELD_NAME = "editorScale";
+    static constexpr const char* POS_X_FIELD_NAME = "editorXPos";
+    static constexpr const char* POS_Y_FIELD_NAME = "editorYPos";
+    
+    static void StoreEditorValues(float scale, const ImVec2& canvasPosition, PrettyStringWriter& pw) {
+        pw.String(SCALE_FIELD_NAME);
+        pw.Double(scale);
+        
+        pw.String(POS_X_FIELD_NAME);
+        pw.Double(canvasPosition.x);
+        
+        pw.String(POS_Y_FIELD_NAME);
+        pw.Double(canvasPosition.y);
+    }
+    
+    static void LoadEditorValues(float& scale, ImVec2& canvasPosition, JSONObject& jo) {
+        scale = jo[SCALE_FIELD_NAME].GetFloat();
+        canvasPosition.x = jo[POS_X_FIELD_NAME].GetFloat();
+        canvasPosition.y = jo[POS_Y_FIELD_NAME].GetFloat();
+    }
+    
     virtual std::unique_ptr<T> makeNewGraph(const NewGraphSettings& settings) = 0;
     /// Called when a button from the button row is clicked. This method is usually used to open a modal dialog that is drawn
     /// and handled in onDrawButtonRow() 

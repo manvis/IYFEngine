@@ -51,6 +51,9 @@ public:
     
     FileHash computeFileHash(const fs::path& path) const;
     
+    /// Open a file in the file browser. This function expects a real path.
+    bool openInFileBrowser(const fs::path& path) const;
+    
     /// Obtain the current write directory used by the virtual file system. The path is provided in platform dependent notation.
     ///
     /// This is a real directory that serves as the root for all File objects currently open in write mode. That is, if this 

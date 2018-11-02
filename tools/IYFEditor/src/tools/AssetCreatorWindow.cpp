@@ -67,8 +67,7 @@ void AssetCreatorWindow::executeOperation() {
         
         fs->createDirectory(finalPath);
     } else {
-        MaterialLogicGraph mlg(family);
-        const std::string json = mlg.getJSONString();
+        const std::string json = MaterialEditor::CreateNewGraph(family);
         
         finalPath += con::MaterialTemplateFormatExtension();
         
