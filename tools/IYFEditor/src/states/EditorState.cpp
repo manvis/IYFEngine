@@ -1589,10 +1589,26 @@ void EditorState::showAssetWindow() {
                     filesystem->openInFileBrowser(filesystem->getRealDirectory(a.path));
                 }
                 
+                if (ImGui::Selectable("Delete")) {
+                    const fs::path realPath = filesystem->getRealDirectory(a.path);
+                    iyf::ErrorCode ec;
+                    if (!fs::remove(realPath, ec)) {
+                        LOG_W("Failed to delete " << realPath);
+                    }
+                }
+                
                 ImGui::EndPopup();
             } else if (a.isDirectory && ImGui::BeginPopupContextItem()) {
                 if (ImGui::Selectable("Open in File Browser")) {
                     filesystem->openInFileBrowser(filesystem->getRealDirectory(a.path));
+                }
+                
+                if (ImGui::Selectable("Delete")) {
+                    const fs::path realPath = filesystem->getRealDirectory(a.path);
+                    iyf::ErrorCode ec;
+                    if (fs::remove_all(realPath, ec) == static_cast<std::uintmax_t>(-1)) {
+                        LOG_W("Failed to delete " << realPath);
+                    }
                 }
                 ImGui::EndPopup();
             }
