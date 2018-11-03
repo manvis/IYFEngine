@@ -1590,11 +1590,7 @@ void EditorState::showAssetWindow() {
                 }
                 
                 if (ImGui::Selectable("Delete")) {
-                    const fs::path realPath = filesystem->getRealDirectory(a.path);
-                    iyf::ErrorCode ec;
-                    if (!fs::remove(realPath, ec)) {
-                        LOG_W("Failed to delete " << realPath);
-                    }
+                    nextAssetToDelete = NextAssetToDelete(filesystem->getRealDirectory(a.path), false);
                 }
                 
                 ImGui::EndPopup();
@@ -1604,11 +1600,7 @@ void EditorState::showAssetWindow() {
                 }
                 
                 if (ImGui::Selectable("Delete")) {
-                    const fs::path realPath = filesystem->getRealDirectory(a.path);
-                    iyf::ErrorCode ec;
-                    if (fs::remove_all(realPath, ec) == static_cast<std::uintmax_t>(-1)) {
-                        LOG_W("Failed to delete " << realPath);
-                    }
+                    nextAssetToDelete = NextAssetToDelete(filesystem->getRealDirectory(a.path), true);
                 }
                 ImGui::EndPopup();
             }
@@ -1648,6 +1640,45 @@ void EditorState::showAssetWindow() {
         }
         
         ImGui::Columns(1, "assetListColumns");
+        
+        if (nextAssetToDelete.needToOpenModal) {
+            nextAssetToDelete.needToOpenModal = false;
+            ImGui::OpenPopup("Confirm Deletion");
+        }
+        
+        if (ImGui::BeginPopupModal("Confirm Deletion")) {
+            const bool isDir = nextAssetToDelete.isDirectory;
+            ImGui::Text("Are you sure you want to delete the %s?\nThis operation cannot be undone.", (isDir ? "directory" : "file"));
+            
+            ImGui::Spacing();
+            
+            if (ImGui::Button("Delete")) {
+                const fs::path& realPath = nextAssetToDelete.path;
+                
+                if (isDir) {
+                    iyf::ErrorCode ec;
+                    if (fs::remove_all(realPath, ec) == static_cast<std::uintmax_t>(-1)) {
+                        LOG_W("Failed to delete " << realPath);
+                    }
+                } else {
+                    iyf::ErrorCode ec;
+                    if (!fs::remove(realPath, ec)) {
+                        LOG_W("Failed to delete " << realPath);
+                    }
+                }
+                
+                ImGui::CloseCurrentPopup();
+            }
+            
+            ImGui::SameLine();
+            
+            if (ImGui::Button("Cancel")) {
+                ImGui::CloseCurrentPopup();
+            }
+            
+            ImGui::EndPopup();
+        }
+        
         
         ImGui::Separator();
 

@@ -103,6 +103,15 @@ struct AssetListItem {
     }
 };
 
+struct NextAssetToDelete {
+    NextAssetToDelete() : isDirectory(false), needToOpenModal(false) {}
+    NextAssetToDelete(fs::path path, bool isDirectory) : path(std::move(path)), isDirectory(isDirectory), needToOpenModal(true) {}
+    
+    fs::path path;
+    bool isDirectory;
+    bool needToOpenModal;
+};
+
 class EditorState : public GameState {
 public:    
     EditorState(Engine* engine);
@@ -237,6 +246,7 @@ protected:
     std::unique_ptr<AssetUpdateManager> assetUpdateManager;
     std::unique_ptr<AssetCreatorWindow> assetCreatorWindow;
     
+    NextAssetToDelete nextAssetToDelete;
 // LOGGING AND DEBUG ------------------------------------------------------------
     ImGuiLog logWindow;
     enum class DebugDataUnit : int {
