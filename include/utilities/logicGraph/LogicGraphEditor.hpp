@@ -86,7 +86,7 @@ public:
     
     LogicGraphEditor(NodeEditorSettings settings = NodeEditorSettings()) 
         : scale(1.0f), nodeInfoWidth(200.0f), canvasPosition(0.0f, 0.0f), nodeCreationMenuLocation(0.0f, 0.0f), settings(std::move(settings)), hoveredNodeKey(T::InvalidKey),
-          contextMenuNodeKey(T::InvalidKey), dragMode(DragMode::NoDrag), wasMouse1DraggingLastFrame(false), lastValidationResult(LogicGraphValidationResult::Success) {
+          contextMenuNodeKey(T::InvalidKey), dragMode(DragMode::NoDrag), wasMouse1DraggingLastFrame(false) {
         name.resize(128, '\0');
     }
     virtual ~LogicGraphEditor() {}
@@ -259,7 +259,7 @@ protected:
     ConnectorKey newConnectionStart;
     DragMode dragMode;
     bool wasMouse1DraggingLastFrame;
-    LogicGraphValidationResult lastValidationResult;
+    std::string lastValidationResult;
     
     std::string lastSort;
 };
@@ -334,36 +334,32 @@ void LogicGraphEditor<T>::show(bool* open) {
                 onButtonClick(LogicGraphEditorButtonFlagBits::SaveAs);
             }
             
+            ImGui::SameLine();
+            ImGui::Text("|");
+            ImGui::SameLine();
+            
+            if (ImGui::Button("Validate")) {
+                ImGui::OpenPopup("Validation Result");
+                std::stringstream ss;
+                ss << "Node graph validation failed with error(s):\n\n";
+                if (graph->validate(&ss)) {
+                    lastValidationResult = "The node graph was validated successfully.";
+                } else {
+                    lastValidationResult = ss.str();
+                }
+            }
+            
+            if (ImGui::BeginPopupModal("Validation Result", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::Text("%s", lastValidationResult.c_str());
+                
+                if (ImGui::Button("OK")) {
+                    ImGui::CloseCurrentPopup();
+                }
+                
+                ImGui::EndPopup();
+            }
+            
             if (settings.showDebugOptions) {
-                ImGui::SameLine();
-                ImGui::Text("|");
-                ImGui::SameLine();
-                
-                if (ImGui::Button("Validate")) {
-                    ImGui::OpenPopup("Validation Result");
-                    lastValidationResult = graph->validate();
-                }
-                
-                if (ImGui::BeginPopupModal("Validation Result")) {
-                    switch (lastValidationResult) {
-                        case LogicGraphValidationResult::Success:
-                            ImGui::Text("The node graph was validated successfully.");
-                            break;
-                        case LogicGraphValidationResult::CycleFound:
-                            ImGui::Text("The node graph has one or more cycles.");
-                            break;
-                        case LogicGraphValidationResult::Empty:
-                            ImGui::Text("The node graph is empty.");
-                            break;
-                    }
-                    
-                    if (ImGui::Button("OK")) {
-                        ImGui::CloseCurrentPopup();
-                    }
-                    
-                    ImGui::EndPopup();
-                }
-                
                 ImGui::SameLine();
                 
                 if (ImGui::Button("Sort")) {

@@ -481,6 +481,7 @@ enum class NodeConnectionResult {
 enum class LogicGraphValidationResult {
     Success,
     CycleFound,
+    RequiredInputsNotConnected,
     Empty,
 };
 
@@ -677,10 +678,10 @@ public:
     ///
     /// \remark Based on https://www.geeksforgeeks.org/topological-sorting/
     ///
-    /// \returns A vector that contains topologically sorted nodes.
+    /// \returns A vector that contains topologically sorted nodes or an empty vector if validation failed.
     std::vector<NodeKey> getTopologicalSort() const {
         std::vector<NodeKey> sortedNodes;
-        if (validate() != LogicGraphValidationResult::Success) {
+        if (!validate(nullptr)) {
             return sortedNodes;
         }
         
@@ -710,16 +711,67 @@ public:
         return false;
     }
     
-    inline LogicGraphValidationResult validate() const {
+    bool requiredInputsConnected(std::stringstream* ss) const {
+        const bool log = (ss != nullptr);
+        
+        bool result = true;
+        
+        for (const auto& node : nodes) {
+            const auto& inputs = node.second->getInputs();
+            
+            for (std::size_t i = 0; i < inputs.size(); ++i) {
+                const auto& input = inputs[i];
+                if (input.isRequired() && input.isEnabled() && !(getInputSource(node.first, i).isValid())) {
+                    if (log) {
+                        (*ss) << "ERROR: Node " << node.first << " connector " << i << " needs an input\n";
+                    }
+                    result = false;
+                }
+            }
+        }
+        
+        return result;
+    }
+    
+    inline KeyConnectorPair getInputSource(NodeKey key, LogicGraphConnectorID id) const {
+        const KeyConnectorPair kcp(key, id);
+        
+        auto result = busyInputs.find(kcp);
+        
+        if (result == busyInputs.end()) {
+            return KeyConnectorPair();
+        } else {
+            return result->second;
+        }
+    }
+    
+    /// \brief Validates this node graph and writes all errors to an std::stringstream if one is provided.
+    ///
+    /// \param ss Optional std::stringstream that will receive all errors.
+    virtual bool validate(std::stringstream* ss) const {
+        const bool log = (ss != nullptr);
+        
         if (nodes.empty()) {
-            return LogicGraphValidationResult::Empty;
+            if (log) {
+                (*ss) << "ERROR: The node graph is empty.\n";
+            }
+            
+            return false;
         }
         
         if (hasCycles()) {
-            return LogicGraphValidationResult::CycleFound;
+            if (log) {
+                (*ss) << "ERROR: The node graph has at least one cycle.\n";
+            }
+            
+            return false;
         }
         
-        return LogicGraphValidationResult::Success;
+        if (!requiredInputsConnected(ss)) {
+            return false;
+        }
+        
+        return true;
     }
     
     /// \brief Checks if two nodes can be connected.

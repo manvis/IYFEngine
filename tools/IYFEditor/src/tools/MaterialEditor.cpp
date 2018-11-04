@@ -34,6 +34,7 @@
 #include "localization/TextLocalization.hpp"
 #include "utilities/logicGraph/LogicGraph.hpp"
 #include "utilities/ImGuiUtils.hpp"
+#include "utilities/Regexes.hpp"
 
 #include "imgui.h"
 
@@ -71,11 +72,11 @@ public:
         std::size_t counter = 0;
         const auto connectorType = static_cast<MaterialNodeConnectorType>(selectedMode);
         for (std::size_t i = 0; i < inputsToChange; ++i) {
-            addInput(getNextLocalizationHandle(ioNames, counter), connectorType);
+            addInput(getNextLocalizationHandle(ioNames, counter), connectorType, true, true);
         }
         
         for (std::size_t i = 0; i < floatInputs; ++i) {
-            addInput(getNextLocalizationHandle(ioNames, counter), MaterialNodeConnectorType::Float);
+            addInput(getNextLocalizationHandle(ioNames, counter), MaterialNodeConnectorType::Float, true, true);
         }
         
         for (std::size_t i = 0; i < outputsToChange; ++i) {
@@ -256,8 +257,13 @@ private:
             const auto& variableDefinition = functionInput.getVariableDefinition();
             
             assert(variableDefinition.format == ShaderDataFormat::Float);
-            addInput(variableDefinition.getName(), ShaderDataTypeToMaterialConnectorType(variableDefinition.type));
+            addInput(variableDefinition.getName(), ShaderDataTypeToMaterialConnectorType(variableDefinition.type), true, false);
 //             LOG_D("MX: " << i << inputs.back().getName());
+        }
+        
+        // Normals should be adjustable. We wouldn't be able to use a normal map otherwise.
+        if (definition.isNormalDataRequired()) {
+            addInput("normal", ShaderDataTypeToMaterialConnectorType(ShaderDataType::Vector3D), true, false);
         }
     }
 };
@@ -265,7 +271,7 @@ private:
 class TextureInputNode : public MaterialNodeBase {
 public:
     TextureInputNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex, 2) {
-        addInput(LH("uv", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2);
+        addInput(LH("uv", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2, true, true);
         addOutput(LH("rgb", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
     }
     
@@ -320,7 +326,7 @@ public:
 class NormalMapInputNode : public MaterialNodeBase {
 public:
     NormalMapInputNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
-        addInput(LH("uv", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2);
+        addInput(LH("uv", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2, true, true);
         addOutput(LH("vec3", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
     }
     
@@ -332,8 +338,8 @@ public:
 class CrossNode : public MaterialNodeBase {
 public:
     CrossNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
-        addInput(LH("x", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
-        addInput(LH("y", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
+        addInput(LH("x", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3, true, true);
+        addInput(LH("y", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3, true, true);
         addOutput(LH("vec3", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
     }
     
@@ -378,6 +384,111 @@ public:
     }
 };
 
+const char* VALUE_FIELD_NAME = "value";
+const char* CONSTANT_X_FIELD_NAME = "x";
+const char* CONSTANT_Y_FIELD_NAME = "y";
+const char* CONSTANT_Z_FIELD_NAME = "z";
+const char* CONSTANT_W_FIELD_NAME = "w";
+
+class VariableNode : public MaterialNodeBase {
+public:
+    VariableNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
+        : MaterialNodeBase(key, position, zIndex, 2), value(0.0f, 0.0f, 0.0f, 0.0f) {
+        addOutput(LH("vec3", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
+//         for (std::size_t i = 0; i < (con::MaxMaterialComponents / 4); ++i) {
+//             addOutput(LH("vec4", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec4);
+//         }
+    }
+    
+    virtual MaterialNodeType getType() const override {
+        return MaterialNodeType::Variable;
+    }
+    
+    virtual bool supportsMultipleModes() const final override {
+        return true;
+    }
+    
+    virtual std::vector<ModeInfo>& getSupportedModes() const final override {
+        static std::vector<ModeInfo> modes = {
+            ModeInfo(LH("float", MaterialNodeLocalizationNamespace), LH("float_constant_doc", MaterialNodeLocalizationNamespace)),
+            ModeInfo(LH("vec2",  MaterialNodeLocalizationNamespace), LH("vec2_constant_doc",  MaterialNodeLocalizationNamespace)),
+            ModeInfo(LH("vec3",  MaterialNodeLocalizationNamespace), LH("vec3_constant_doc",  MaterialNodeLocalizationNamespace)),
+            ModeInfo(LH("vec4",  MaterialNodeLocalizationNamespace), LH("vec4_constant_doc",  MaterialNodeLocalizationNamespace)),
+        };
+        
+        return modes;
+    }
+    
+    virtual bool onModeChange(std::size_t, std::size_t requestedModeID, bool) final override {
+        if (requestedModeID >= getSupportedModes().size()) {
+            return false;
+        }
+        
+        auto& output = getOutput(0);
+        output.setType(static_cast<MaterialNodeConnectorType>(requestedModeID));
+        
+        switch (requestedModeID) {
+            case 0:
+                output.setLocalizationHandle(LH("float", MaterialNodeLocalizationNamespace));
+                break;
+            case 1:
+                output.setLocalizationHandle(LH("vec2", MaterialNodeLocalizationNamespace));
+                break;
+            case 2:
+                output.setLocalizationHandle(LH("vec3", MaterialNodeLocalizationNamespace));
+                break;
+            case 3:
+                output.setLocalizationHandle(LH("vec4", MaterialNodeLocalizationNamespace));
+                break;
+        }
+        
+        return true;
+    }
+    
+    virtual void serializeJSON(PrettyStringWriter& pw) const final override {
+        LogicGraphNode::serializeJSON(pw);
+        
+        pw.String(VALUE_FIELD_NAME);
+        pw.StartObject();
+        
+        pw.String(CONSTANT_X_FIELD_NAME);
+        pw.Double(value.x);
+        
+        pw.String(CONSTANT_Y_FIELD_NAME);
+        pw.Double(value.y);
+        
+        pw.String(CONSTANT_Z_FIELD_NAME);
+        pw.Double(value.z);
+        
+        pw.String(CONSTANT_W_FIELD_NAME);
+        pw.Double(value.w);
+        
+        pw.EndObject();
+    }
+    
+    virtual void deserializeJSON(JSONObject& jo) final override {
+        LogicGraphNode::deserializeJSON(jo);
+        
+        JSONObject val = jo[VALUE_FIELD_NAME].GetObject();
+        
+        value.x = val[CONSTANT_X_FIELD_NAME].GetFloat();
+        value.y = val[CONSTANT_Y_FIELD_NAME].GetFloat();
+        value.z = val[CONSTANT_Z_FIELD_NAME].GetFloat();
+        value.w = val[CONSTANT_W_FIELD_NAME].GetFloat();
+    }
+    
+    glm::vec4 value;
+};
+
+class ConstantNode : public VariableNode {
+public:
+    ConstantNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : VariableNode(key, position, zIndex) {}
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::Constant;
+    }
+};
+
 class SplitterJoinerBase : public MaterialNodeBase {
 public:
     SplitterJoinerBase(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex, std::size_t selectedMode = 2) 
@@ -401,7 +512,7 @@ public:
 class SplitterNode : public SplitterJoinerBase {
 public:
     SplitterNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : SplitterJoinerBase(key, position, zIndex, 0) {
-        addInput(LH("vector", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2);
+        addInput(LH("vector", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2, true, true);
         addOutput(LH("x", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
         addOutput(LH("y", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
         addOutput(LH("z", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
@@ -451,10 +562,10 @@ public:
 class JoinerNode : public SplitterJoinerBase {
 public:
     JoinerNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : SplitterJoinerBase(key, position, zIndex, 0) {
-        addInput(LH("x", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
-        addInput(LH("y", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
-        addInput(LH("z", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
-        addInput(LH("w", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+        addInput(LH("x", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float, true, true);
+        addInput(LH("y", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float, true, true);
+        addInput(LH("z", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float, true, true);
+        addInput(LH("w", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float, true, true);
         addOutput(LH("vector", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2);
         
         setSelectedModeID(1);
@@ -495,20 +606,6 @@ public:
         }
         
         return true;
-    }
-};
-
-class MaterialDataNode : public MaterialNodeBase {
-public:
-    MaterialDataNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
-        : MaterialNodeBase(key, position, zIndex) {
-        for (std::size_t i = 0; i < (con::MaxMaterialComponents / 4); ++i) {
-            addOutput(LH("vec4", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec4);
-        }
-    }
-    
-    virtual MaterialNodeType getType() const final override {
-        return MaterialNodeType::MaterialData;
     }
 };
 
@@ -598,6 +695,10 @@ IYF_MAKE_GEN_TYPE_NODE(Reflect, 2, 1, {"I", "N", "reflect_node"});
 IYF_MAKE_GEN_TYPE_FLOAT_NODE(Refract, 2, 1, 1, {"I", "N", "x", "refract_node"});
 IYF_MAKE_GEN_TYPE_NODE(DfDx, 1, 1, {"p", "dfdx_node"});
 IYF_MAKE_GEN_TYPE_NODE(DfDy, 1, 1, {"p", "dfdy_node"});
+IYF_MAKE_GEN_TYPE_NODE(Add, 2, 1, {"x", "y", "result"});
+IYF_MAKE_GEN_TYPE_NODE(Subtract, 2, 1, {"x", "y", "result"});
+IYF_MAKE_GEN_TYPE_NODE(Multiply, 2, 1, {"x", "y", "result"});
+IYF_MAKE_GEN_TYPE_NODE(Divide, 2, 1, {"x", "y", "result"});
 
 MaterialLogicGraph::MaterialLogicGraph(MaterialFamily materialFamily) : materialFamily(materialFamily) {
     const char* ns = MaterialNodeLocalizationNamespace;
@@ -608,7 +709,14 @@ MaterialLogicGraph::MaterialLogicGraph(MaterialFamily materialFamily) : material
     addNodeTypeInfo(MaterialNodeType::TextureInput, "texture_input_node", "texture_input_node_doc", ns, input);
     addNodeTypeInfo(MaterialNodeType::NormalMapInput, "normal_map_input_node", "normal_map_input_node_doc", ns, input);
     addNodeTypeInfo(MaterialNodeType::PerFrameData, "per_frame_data_node", "per_frame_data_node_doc", ns, input);
-    addNodeTypeInfo(MaterialNodeType::MaterialData, "material_data_node", "material_data_node_doc", ns, input);
+    addNodeTypeInfo(MaterialNodeType::Variable, "variable_node", "variable_node_doc", ns, input);
+    addNodeTypeInfo(MaterialNodeType::Constant, "constant_node", "constant_node_doc", ns, input);
+    
+    const MaterialNodeGroup arithmetic = MaterialNodeGroup::Arithmetic;
+    addNodeTypeInfo(MaterialNodeType::Add, "add_node", "add_node_doc", ns, arithmetic);
+    addNodeTypeInfo(MaterialNodeType::Subtract, "subtract_node", "subtract_node_doc", ns, arithmetic);
+    addNodeTypeInfo(MaterialNodeType::Multiply, "multiply_node", "multiply_node_doc", ns, arithmetic);
+    addNodeTypeInfo(MaterialNodeType::Divide, "divide_node", "divide_node_doc", ns, arithmetic);
     
     const MaterialNodeGroup vecs = MaterialNodeGroup::VectorComponents;
     addNodeTypeInfo(MaterialNodeType::Splitter, "splitter_node", "splitter_node_doc", ns, vecs);
@@ -688,6 +796,7 @@ MaterialLogicGraph::MaterialLogicGraph(MaterialFamily materialFamily) : material
     setNodeGroupName(MaterialNodeGroup::Geometry, LH("geometry", ns));
     setNodeGroupName(MaterialNodeGroup::Derivatives, LH("derivatives", ns));
     setNodeGroupName(MaterialNodeGroup::Output, LH("output", ns));
+    setNodeGroupName(MaterialNodeGroup::Arithmetic, LH("arithmetic", ns));
     
     validateNodeTypeInfo();
     assert(getNextKey() == 0);
@@ -775,7 +884,12 @@ MaterialNode* MaterialLogicGraph::addNodeImpl(NodeKey key, MaterialNodeType type
         IYF_CREATE_NODE_CASE(DfDy);
         IYF_CREATE_NODE_CASE(Splitter);
         IYF_CREATE_NODE_CASE(Joiner);
-        IYF_CREATE_NODE_CASE(MaterialData);
+        IYF_CREATE_NODE_CASE(Variable);
+        IYF_CREATE_NODE_CASE(Constant);
+        IYF_CREATE_NODE_CASE(Add);
+        IYF_CREATE_NODE_CASE(Subtract);
+        IYF_CREATE_NODE_CASE(Multiply);
+        IYF_CREATE_NODE_CASE(Divide);
         case MaterialNodeType::COUNT:
             throw std::logic_error("COUNT is not a valid NodeType");
     }
@@ -858,6 +972,109 @@ void MaterialLogicGraph::deserializeJSON(JSONObject& jo) {
     LogicGraph::deserializeJSON(jo);
 }
 
+std::vector<MaterialNodeKey> MaterialLogicGraph::getTextureNodes() const {
+    std::vector<MaterialNodeKey> nodes;
+    nodes.reserve(10);
+    
+    for (const auto& node : getNodes()) {
+        if (node.second->getType() == MaterialNodeType::TextureInput) {
+            nodes.emplace_back(node.second->getKey());
+        }
+    }
+    
+    return nodes;
+}
+
+std::vector<MaterialNodeKey> MaterialLogicGraph::getVariableNodes() const {
+    std::vector<MaterialNodeKey> nodes;
+    nodes.reserve(10);
+    
+    for (const auto& node : getNodes()) {
+        if (node.second->getType() == MaterialNodeType::Variable) {
+            nodes.emplace_back(node.second->getKey());
+        }
+    }
+    
+    return nodes;
+}
+
+std::vector<MaterialNodeKey> MaterialLogicGraph::getNormalMapNodes() const {
+    std::vector<MaterialNodeKey> nodes;
+    nodes.reserve(10);
+    
+    for (const auto& node : getNodes()) {
+        if (node.second->getType() == MaterialNodeType::NormalMapInput) {
+            nodes.emplace_back(node.second->getKey());
+        }
+    }
+    
+    return nodes;
+}
+
+inline bool ProcessDynamicDataNodeValidation(std::stringstream* ss, MaterialNode* node, std::unordered_map<std::string, MaterialNode*>& map, const char* name, bool isTextureNode) {
+    if (!node->hasName()) {
+        if (ss != nullptr) {
+            (*ss) << "Node " << node->getKey() << " is a " << name << " node. " << name << " nodes must be named.\n";
+        }
+        
+        return false;
+    } else {
+        if (!std::regex_match(node->getName(), SystemRegexes().FunctionAndFileNameRegex)) {
+            if (ss != nullptr) {
+                (*ss) << "Names of " << name << " nodes must be usable as variable names. \"" << node->getName() << "\" is not.\n";
+            }
+            
+            return false;
+        }
+        
+        auto result = map.try_emplace(node->getName(), node);
+        if (!result.second) {
+            if (ss != nullptr) {
+                if (!isTextureNode) {
+                    (*ss) << "There's more than one " << name << " node called \"" << node->getName() << "\".\n" << name << " nodes must have unique names.\n";
+                } else {
+                    (*ss) << "There's more than one texture backed node called \"" << node->getName() << ".\"\nEven if their types differ, all texture backed nodes must have unique names.\n";
+                }
+            }
+            
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+bool MaterialLogicGraph::validate(std::stringstream* ss) const {
+    if (!LogicGraph::validate(ss)) {
+        return false;
+    }
+    
+    std::unordered_map<std::string, MaterialNode*> variables;
+    std::unordered_map<std::string, MaterialNode*> textures;
+
+    bool result = true;
+    
+    for (const auto& node : getNodes()) {
+        const MaterialNodeType type = node.second->getType();
+        
+        switch (type) {
+            case MaterialNodeType::Variable:
+                result &= ProcessDynamicDataNodeValidation(ss, node.second, variables, "Variable", false);
+                break;
+            case MaterialNodeType::NormalMapInput:
+                result &= ProcessDynamicDataNodeValidation(ss, node.second, textures, "Normal Map Input", true);
+                break;
+            case MaterialNodeType::TextureInput:
+                result &= ProcessDynamicDataNodeValidation(ss, node.second, textures, "Texture Input", true);
+                break;
+            default:
+                break;
+        }
+    }
+    
+    return result;
+}
+
 void MaterialLogicGraph::setMaterialFamily(MaterialFamily materialFamily) {
     this->materialFamily = materialFamily;
     
@@ -869,6 +1086,372 @@ void MaterialLogicGraph::setMaterialFamily(MaterialFamily materialFamily) {
 
 MaterialFamily MaterialLogicGraph::getMaterialFamily() const {
     return materialFamily;
+}
+
+inline std::string MakeOutputVariableName(ShaderLanguage language, MaterialNodeKey key, LogicGraphConnectorID outputID) {
+    if (language != ShaderLanguage::GLSLVulkan) {
+        throw std::runtime_error("Can't generate a variable for an unsupported language.");
+    }
+    
+    return fmt::format("n{}o{}", key, outputID);
+}
+
+inline std::string MakeOutputVariableType(ShaderLanguage language, MaterialNodeConnectorType type) {
+    if (language != ShaderLanguage::GLSLVulkan) {
+        throw std::runtime_error("Can't generate a variable type for an unsupported language.");
+    }
+    
+    switch (type) {
+        case MaterialNodeConnectorType::Float:
+            return "float";
+        case MaterialNodeConnectorType::Vec2:
+            return "vec2";
+        case MaterialNodeConnectorType::Vec3:
+            return "vec3";
+        case MaterialNodeConnectorType::Vec4:
+            return "vec4";
+        default:
+            throw std::runtime_error("Unsupported MaterialNodeConnectorType");
+    }
+}
+
+void MaterialLogicGraph::arithmeticNodeToCode(ShaderLanguage language, std::stringstream& ss, const MaterialNode& mn,
+                                              const char* operatorValue,
+                                              const std::vector<MaterialNode::Connector>& inputs,
+                                              const std::vector<MaterialNode::Connector>& outputs) const {
+    if (inputs.size() != 2) {
+        throw std::logic_error("An arithmetic node can only have 2 inputs.");
+    }
+    
+    const MaterialNodeConnectorType type = outputs[0].getType();
+    ss << MakeOutputVariableType(language, type) << " ";
+    ss << MakeOutputVariableName(language, mn.getKey(), 0) << " = ";
+    
+    KeyConnectorPair pairA = getInputSource(mn.getKey(), 0);
+    assert(pairA.isValid());
+    ss << MakeOutputVariableName(language, pairA.getNodeKey(), pairA.getConnectorID());
+    
+    ss << " " << operatorValue << " ";
+    
+    KeyConnectorPair pairB = getInputSource(mn.getKey(), 0);
+    assert(pairB.isValid());
+    ss << MakeOutputVariableName(language, pairB.getNodeKey(), pairB.getConnectorID());
+    
+    ss << ";\n";
+}
+
+void MaterialLogicGraph::singleOutputFunctionNodeToCode(ShaderLanguage language, std::stringstream& ss, const MaterialNode& mn,
+                                                        const char* functionName,
+                                                        const std::vector<MaterialNode::Connector>& inputs,
+                                                        const std::vector<MaterialNode::Connector>& outputs) const {
+    const MaterialNodeConnectorType type = outputs[0].getType();
+    ss << MakeOutputVariableType(language, type) << " ";
+    ss << MakeOutputVariableName(language, mn.getKey(), 0);
+    ss << " = ";
+    ss << functionName << "(";
+    
+    const std::size_t lastVal = inputs.size() - 1;
+    for (std::size_t i = 0; i < inputs.size(); ++i) {
+        KeyConnectorPair pair = getInputSource(mn.getKey(), i);
+        assert(pair.isValid());
+        
+        ss << MakeOutputVariableName(language, pair.getNodeKey(), pair.getConnectorID());
+        
+        if (i != lastVal) {
+            ss << ", ";
+        }
+    }
+    
+    ss << ");\n";
+}
+
+void MaterialLogicGraph::constantNodeToCode(ShaderLanguage language, std::stringstream& ss, const MaterialNode& mn, const std::vector<MaterialNode::Connector>& outputs) const {
+    const MaterialNodeConnectorType type = outputs[0].getType();
+    const std::string typeStr = MakeOutputVariableType(language, type);
+    
+    ss << typeStr << " ";
+    ss << MakeOutputVariableName(language, mn.getKey(), 0);
+    ss << " = ";
+    
+    const ConstantNode& cn = static_cast<const ConstantNode&>(mn);
+    
+    switch (type) {
+        case MaterialNodeConnectorType::Float:
+            ss << cn.value.x << ";\n";
+            break;
+        case MaterialNodeConnectorType::Vec2:
+            ss << typeStr << "(" << cn.value.x << ", " << cn.value.y << ");\n";
+            break;
+        case MaterialNodeConnectorType::Vec3:
+            ss << typeStr << "(" << cn.value.x << ", " << cn.value.y << ", " << cn.value.z << ");\n";
+            break;
+        case MaterialNodeConnectorType::Vec4:
+            ss << typeStr << "(" << cn.value.x << ", " << cn.value.y << ", " << cn.value.z << ", " << cn.value.w << ");\n";
+            break;
+        default:
+            throw std::runtime_error("Invalid MaterialNodeConnectorType");
+    }
+}
+
+void MaterialLogicGraph::splitterNodeToCode(ShaderLanguage language, std::stringstream& ss, const MaterialNode& mn) const {
+    const SplitterNode& splitter = static_cast<const SplitterNode&>(mn);
+    const std::string varType = MakeOutputVariableType(language, MaterialNodeConnectorType::Float);
+    
+    KeyConnectorPair pair = getInputSource(mn.getKey(), 0);
+    assert(pair.isValid());
+    
+    const std::size_t modeID = splitter.getSelectedModeID();
+    ss << varType << " "
+        << MakeOutputVariableName(language, mn.getKey(), 0) << " = " 
+        << MakeOutputVariableName(language, pair.getNodeKey(), pair.getConnectorID())
+        << ".x;\n";
+    
+    ss << varType << " "
+        << MakeOutputVariableName(language, mn.getKey(), 1) << " = " 
+        << MakeOutputVariableName(language, pair.getNodeKey(), pair.getConnectorID())
+        << ".y;\n";
+    
+    if (modeID >= 1) {
+        ss << varType << " "
+            << MakeOutputVariableName(language, mn.getKey(), 2) << " = " 
+            << MakeOutputVariableName(language, pair.getNodeKey(), pair.getConnectorID())
+            << ".z;\n";
+    }
+    
+    if (modeID >= 2) {
+        ss << varType << " "
+            << MakeOutputVariableName(language, mn.getKey(), 3) << " = " 
+            << MakeOutputVariableName(language, pair.getNodeKey(), pair.getConnectorID())
+            << ".w;\n";
+    }
+    
+}
+
+void MaterialLogicGraph::joinerNodeToCode(ShaderLanguage language, std::stringstream& ss, const MaterialNode& mn) const {
+    const JoinerNode& joiner = static_cast<const JoinerNode&>(mn);
+                
+    if (joiner.getSelectedModeID() == 0) {
+        KeyConnectorPair p1 = getInputSource(mn.getKey(), 0);
+        KeyConnectorPair p2 = getInputSource(mn.getKey(), 1);
+        
+        const std::string varType = MakeOutputVariableType(language, MaterialNodeConnectorType::Vec2);
+        ss << varType << " ";
+        ss << MakeOutputVariableName(language, mn.getKey(), 0) << " = " ;
+        ss << varType << "(";
+        ss << MakeOutputVariableName(language, p1.getNodeKey(), p1.getConnectorID()) << ", ";
+        ss << MakeOutputVariableName(language, p2.getNodeKey(), p2.getConnectorID());
+        ss << ")";
+    } else if (joiner.getSelectedModeID() == 1) {
+        KeyConnectorPair p1 = getInputSource(mn.getKey(), 0);
+        KeyConnectorPair p2 = getInputSource(mn.getKey(), 1);
+        KeyConnectorPair p3 = getInputSource(mn.getKey(), 2);
+        
+        const std::string varType = MakeOutputVariableType(language, MaterialNodeConnectorType::Vec3);
+        ss << varType << " ";
+        ss << MakeOutputVariableName(language, mn.getKey(), 0) << " = " ;
+        ss << varType << "(";
+        ss << MakeOutputVariableName(language, p1.getNodeKey(), p1.getConnectorID()) << ", ";
+        ss << MakeOutputVariableName(language, p2.getNodeKey(), p2.getConnectorID()) << ", ";
+        ss << MakeOutputVariableName(language, p3.getNodeKey(), p3.getConnectorID());
+        ss << ")";
+    } else if (joiner.getSelectedModeID() == 2) {
+        KeyConnectorPair p1 = getInputSource(mn.getKey(), 0);
+        KeyConnectorPair p2 = getInputSource(mn.getKey(), 1);
+        KeyConnectorPair p3 = getInputSource(mn.getKey(), 2);
+        KeyConnectorPair p4 = getInputSource(mn.getKey(), 3);
+        
+        const std::string varType = MakeOutputVariableType(language, MaterialNodeConnectorType::Vec4);
+        ss << varType << " ";
+        ss << MakeOutputVariableName(language, mn.getKey(), 0) << " = " ;
+        ss << varType << "(";
+        ss << MakeOutputVariableName(language, p1.getNodeKey(), p1.getConnectorID()) << ", ";
+        ss << MakeOutputVariableName(language, p2.getNodeKey(), p2.getConnectorID()) << ", ";
+        ss << MakeOutputVariableName(language, p3.getNodeKey(), p3.getConnectorID()) << ", ";
+        ss << MakeOutputVariableName(language, p4.getNodeKey(), p4.getConnectorID());
+        ss << ")";
+    }
+}
+
+#define SINGLE_OUTPUT_FUNC(type, funcName) \
+    case MaterialNodeType::type: \
+        singleOutputFunctionNodeToCode(language, ss, mn, funcName, inputs, outputs); \
+        break;
+
+#define ARITHMETIC_FUNC(type, operatorValue) \
+    case MaterialNodeType::type: \
+            arithmeticNodeToCode(language, ss, mn, operatorValue, inputs, outputs); \
+            break;
+
+CodeGenerationResult MaterialLogicGraph::toCode(ShaderLanguage language) const {
+    if (language != ShaderLanguage::GLSLVulkan) {
+        throw std::runtime_error("Tried to generate shader code for an unsupported language");
+    }
+    
+    std::stringstream ssErr;
+    ssErr << "Cannot generate code because validation of the MaterialLogicGraph failed with error(s):";
+    if (!validate(&ssErr)) {
+        return CodeGenerationResult(ssErr.str(), false);
+    }
+    
+    std::stringstream ss;
+    const std::vector<MaterialNodeKey> nodes = getTopologicalSort();
+    for (auto iter = nodes.rbegin(); iter != nodes.rend(); ++iter) {
+        const MaterialNodeKey n = *iter;
+        const MaterialNode& mn = (*getNode(n));
+        
+        const std::vector<MaterialNode::Connector>& inputs = mn.getInputs();
+        const std::vector<MaterialNode::Connector>& outputs = mn.getOutputs();
+        
+        const MaterialNodeType type = mn.getType();
+
+        switch(type) {
+            SINGLE_OUTPUT_FUNC(Radians, "radians");
+            SINGLE_OUTPUT_FUNC(Degrees, "degrees");
+            SINGLE_OUTPUT_FUNC(Sin, "sin");
+            SINGLE_OUTPUT_FUNC(Cos, "cos");
+            SINGLE_OUTPUT_FUNC(Tan, "tan");
+            SINGLE_OUTPUT_FUNC(Asin, "asin");
+            SINGLE_OUTPUT_FUNC(Acos, "acos");
+            SINGLE_OUTPUT_FUNC(Atan, "atan");
+            SINGLE_OUTPUT_FUNC(Atan2, "atan2");
+            SINGLE_OUTPUT_FUNC(Sinh, "sinh");
+            SINGLE_OUTPUT_FUNC(Cosh, "cosh");
+            SINGLE_OUTPUT_FUNC(Tanh, "tanh");
+            SINGLE_OUTPUT_FUNC(Asinh, "asinh");
+            SINGLE_OUTPUT_FUNC(Acosh, "acosh");
+            SINGLE_OUTPUT_FUNC(Atanh, "atanh");
+            SINGLE_OUTPUT_FUNC(Pow, "pow");
+            SINGLE_OUTPUT_FUNC(Exp, "exp");
+            SINGLE_OUTPUT_FUNC(Log, "log");
+            SINGLE_OUTPUT_FUNC(Exp2, "exp2");
+            SINGLE_OUTPUT_FUNC(Log2, "log2");
+            SINGLE_OUTPUT_FUNC(Sqrt, "sqrt");
+            SINGLE_OUTPUT_FUNC(InverseSqrt, "inversesqrt");
+            SINGLE_OUTPUT_FUNC(Abs, "abs");
+            SINGLE_OUTPUT_FUNC(Sign, "sign");
+            SINGLE_OUTPUT_FUNC(Floor, "floor");
+            SINGLE_OUTPUT_FUNC(Trunc, "trunc");
+            SINGLE_OUTPUT_FUNC(Round, "round");
+            SINGLE_OUTPUT_FUNC(RoundEven, "roundEven");
+            SINGLE_OUTPUT_FUNC(Ceil, "ceil");
+            SINGLE_OUTPUT_FUNC(Fract, "fract");
+            SINGLE_OUTPUT_FUNC(Mod, "mod");
+            SINGLE_OUTPUT_FUNC(ModFloat, "mod");
+            SINGLE_OUTPUT_FUNC(Min, "min");
+            SINGLE_OUTPUT_FUNC(MinFloat, "min");
+            SINGLE_OUTPUT_FUNC(Max, "max");
+            SINGLE_OUTPUT_FUNC(MaxFloat, "max");
+            SINGLE_OUTPUT_FUNC(Clamp, "clamp");
+            SINGLE_OUTPUT_FUNC(ClampFloat, "clamp");
+            SINGLE_OUTPUT_FUNC(Mix, "mix");
+            SINGLE_OUTPUT_FUNC(MixFloat, "mix");
+            SINGLE_OUTPUT_FUNC(Step, "step");
+            SINGLE_OUTPUT_FUNC(StepFloat, "step");
+            SINGLE_OUTPUT_FUNC(SmoothStep, "smoothstep");
+            SINGLE_OUTPUT_FUNC(SmoothstepFloat, "smoothstep");
+            SINGLE_OUTPUT_FUNC(Length, "length");
+            SINGLE_OUTPUT_FUNC(Distance, "distance");
+            SINGLE_OUTPUT_FUNC(Dot, "dot");
+            SINGLE_OUTPUT_FUNC(Cross, "cross");
+            SINGLE_OUTPUT_FUNC(Normalize, "normalize");
+            SINGLE_OUTPUT_FUNC(FaceForward, "faceforward");
+            SINGLE_OUTPUT_FUNC(Reflect, "reflect");
+            SINGLE_OUTPUT_FUNC(Refract, "refract");
+            SINGLE_OUTPUT_FUNC(DfDx, "dFdx");
+            SINGLE_OUTPUT_FUNC(DfDy, "dFdy");
+            ARITHMETIC_FUNC(Add, "+");
+            ARITHMETIC_FUNC(Subtract, "-");
+            ARITHMETIC_FUNC(Divide, "/");
+            ARITHMETIC_FUNC(Multiply, "*");
+            case MaterialNodeType::Constant:
+                constantNodeToCode(language, ss, mn, outputs);
+                break;
+            case MaterialNodeType::Splitter:
+                splitterNodeToCode(language, ss, mn);
+                break;
+            case MaterialNodeType::Joiner:
+                joinerNodeToCode(language, ss, mn);
+                break;
+            case MaterialNodeType::ModF: {
+                const MaterialNodeConnectorType connectorType = outputs[0].getType(); // All inputs and outputs use the same type in this node
+                const std::string varType = MakeOutputVariableType(language, connectorType);
+                const std::string integralPart = MakeOutputVariableName(language, mn.getKey(), 0);
+                
+                const char* funcName = nullptr;
+                switch (language) {
+                    case ShaderLanguage::GLSLVulkan:
+                        funcName = "modf";
+                        break;
+                    default:
+                        throw std::runtime_error("modf not supported in this language");
+                }
+                
+                KeyConnectorPair pair = getInputSource(mn.getKey(), 0);
+                
+                ss << varType << " " << integralPart << ";\n";
+                ss << varType << " " << MakeOutputVariableName(language, mn.getKey(), 1) << " = "
+                   << funcName << "(" << MakeOutputVariableName(language, pair.getNodeKey(), pair.getConnectorID()) << ", " << integralPart << ");\n";
+                break;
+            }
+            case MaterialNodeType::Output:
+                for (std::size_t c = 0; c < inputs.size(); ++c) {
+                    KeyConnectorPair pair = getInputSource(mn.getKey(), c);
+                    if (pair.isValid()) {
+                        ss << inputs[c].getName() << " = " << MakeOutputVariableName(language, pair.getNodeKey(), pair.getConnectorID()) << ";\n";
+                    }
+                }
+                break;
+            case MaterialNodeType::Variable: {
+                assert(language == ShaderLanguage::GLSLVulkan);
+                assert(mn.hasName());
+                
+                const MaterialNodeConnectorType connectorType = outputs[0].getType();
+                
+                ss << MakeOutputVariableType(language, connectorType) << " " << MakeOutputVariableName(language, mn.getKey(), 0);
+                ss << " = ";
+                // TODO make sure that this class and the shader generator class use the same names
+                ss << "materials.materials[ID.material]." << mn.getName() << ";\n";
+                
+                break;
+            }
+            case MaterialNodeType::TextureInput: {
+                assert(language == ShaderLanguage::GLSLVulkan);
+                assert(mn.hasName());
+                
+                KeyConnectorPair pair = getInputSource(mn.getKey(), 0);
+                
+                const MaterialNodeConnectorType connectorType = outputs[0].getType();
+                const char* swizzle = nullptr;
+                
+                switch (connectorType) {
+                    case MaterialNodeConnectorType::Float:
+                        swizzle = ".x";
+                        break;
+                    case MaterialNodeConnectorType::Vec2:
+                        swizzle = ".xy";
+                        break;
+                    case MaterialNodeConnectorType::Vec3:
+                        swizzle = ".xyz";
+                        break;
+                    case MaterialNodeConnectorType::Vec4:
+                        swizzle = ".xyzw";
+                        break;
+                    default:
+                        throw std::logic_error("Unsupported MaterialNodeConnectorType");
+                }
+                
+                ss << MakeOutputVariableType(language, connectorType) << " " << MakeOutputVariableName(language, mn.getKey(), 0);
+                ss << " = ";
+                ss << "texture(" << mn.getName() << ", " << MakeOutputVariableName(language, pair.getNodeKey(), pair.getConnectorID()) << ")" << swizzle << ";\n";
+                
+                break;
+            }
+            case MaterialNodeType::COUNT:
+                break;
+        }// MODF
+    }
+    
+    return CodeGenerationResult(ss.str(), true);
 }
 
 inline NodeEditorSettings MakeNodeEditorSettings() {
@@ -938,10 +1521,11 @@ void MaterialEditor::onButtonClick(LogicGraphEditorButtonFlagBits button) {
         case LogicGraphEditorButtonFlagBits::SaveAs:
             throw std::logic_error("This material editor button should have been disabled");
         case LogicGraphEditorButtonFlagBits::Save: {
-            const std::string result = serializeJSON();
-            
-            File output(filePath, File::OpenMode::Write);
-            output.writeBytes(result.data(), result.size());
+//             const std::string result = serializeJSON();
+//             
+//             File output(filePath, File::OpenMode::Write);
+//             output.writeBytes(result.data(), result.size());
+            LOG_D(graph->toCode(ShaderLanguage::GLSLVulkan).getCode());
             break;
         }
     }
@@ -1034,6 +1618,28 @@ void MaterialEditor::drawNodeExtraProperties(MaterialNode& node) {
         
         util::DisplayFlagPicker<BlendOp, static_cast<int>(BlendOp::COUNT)>(LOC_SYS(LH("color_blend_op", GraphicsLocalizationNamespace)), n.colorBlendOp, BlendOp::Add, blendOps);
         util::DisplayFlagPicker<BlendOp, static_cast<int>(BlendOp::COUNT)>(LOC_SYS(LH("alpha_blend_op", GraphicsLocalizationNamespace)), n.alphaBlendOp, BlendOp::Add, blendOps);
+    } else if (node.getType() == MaterialNodeType::Constant) {
+        ConstantNode& n = static_cast<ConstantNode&>(node);
+        
+        ImGui::Spacing();
+        
+        ImGui::Text("Value");
+        
+        ImGui::DragFloat("X", &(n.value.x));
+        ImGui::DragFloat("Y", &(n.value.y));
+        ImGui::DragFloat("Z", &(n.value.z));
+        ImGui::DragFloat("W", &(n.value.w));
+    } else if (node.getType() == MaterialNodeType::Variable) {
+        VariableNode& n = static_cast<VariableNode&>(node);
+        
+        ImGui::Spacing();
+        
+        ImGui::Text("Initial value");
+        
+        ImGui::DragFloat("X", &(n.value.x));
+        ImGui::DragFloat("Y", &(n.value.y));
+        ImGui::DragFloat("Z", &(n.value.z));
+        ImGui::DragFloat("W", &(n.value.w));
     }
 }
 

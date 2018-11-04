@@ -107,7 +107,12 @@ enum class MaterialNodeType : std::uint32_t {
     DfDy            = 58,
     Splitter        = 59,
     Joiner          = 60,
-    MaterialData    = 61,
+    Variable        = 61,
+    Constant        = 62,
+    Add             = 63,
+    Subtract        = 64,
+    Multiply        = 65,
+    Divide          = 66,
     COUNT
 };
 
@@ -120,6 +125,7 @@ enum class MaterialNodeGroup : std::uint8_t {
     Geometry         = 5,
     Derivatives      = 6,
     Output           = 7,
+    Arithmetic       = 8,
     COUNT
 };
 
@@ -127,6 +133,23 @@ using MaterialNodeKey = std::uint32_t;
 using MaterialNodeConnector = LogicGraphConnector<MaterialNodeConnectorType>;
 using MaterialNode = LogicGraphNode<MaterialNodeType, MaterialNodeConnector, MaterialNodeKey>;
 using MaterialGraphNodeTypeInfo = LogicGraphNodeTypeInfo<MaterialNode, MaterialNodeGroup>;
+
+class CodeGenerationResult {
+public:
+    CodeGenerationResult() : success(false) {}
+    CodeGenerationResult(std::string code, bool success) : code(std::move(code)), success(success) {}
+    
+    const std::string& getCode() const {
+        return code;
+    }
+    
+    bool isSuccessful() const {
+        return success;
+    }
+private:
+    std::string code;
+    bool success;
+};
 
 class MaterialLogicGraph : public LogicGraph<MaterialNode, MaterialGraphNodeTypeInfo> {
 public:
@@ -142,11 +165,32 @@ public:
     
     virtual void serializeJSON(PrettyStringWriter& pw) const final override;
     virtual void deserializeJSON(JSONObject& jo) final override;
+    virtual bool validate(std::stringstream* ss) const final override;
+    
+    std::vector<MaterialNodeKey> getTextureNodes() const;
+    std::vector<MaterialNodeKey> getVariableNodes() const;
+    std::vector<MaterialNodeKey> getNormalMapNodes() const;
     
     void setMaterialFamily(MaterialFamily materialFamily);
     MaterialFamily getMaterialFamily() const;
+    
+    CodeGenerationResult toCode(ShaderLanguage language) const;
 protected:
     virtual MaterialNode* addNodeImpl(NodeKey key, MaterialNodeType type, const Vec2& position, bool isDeserializing) final override;
+    
+    void singleOutputFunctionNodeToCode(ShaderLanguage language, std::stringstream& ss, const MaterialNode& mn,
+                                        const char* functionName,
+                                        const std::vector<MaterialNode::Connector>& inputs,
+                                        const std::vector<MaterialNode::Connector>& outputs) const;
+                                        
+    void arithmeticNodeToCode(ShaderLanguage language, std::stringstream& ss, const MaterialNode& mn,
+                              const char* operatorValue,
+                              const std::vector<MaterialNode::Connector>& inputs,
+                              const std::vector<MaterialNode::Connector>& outputs) const;
+    
+    void constantNodeToCode(ShaderLanguage language, std::stringstream& ss, const MaterialNode& mn, const std::vector<MaterialNode::Connector>& outputs) const;
+    void splitterNodeToCode(ShaderLanguage language, std::stringstream& ss, const MaterialNode& mn) const;
+    void joinerNodeToCode(ShaderLanguage language, std::stringstream& ss, const MaterialNode& mn) const;
 private:
     MaterialOutputNode* output;
     MaterialFamily materialFamily;

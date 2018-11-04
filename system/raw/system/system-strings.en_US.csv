@@ -57,6 +57,10 @@ float_mode_doc,material_nodes,The node will accept Float inputs and provide Floa
 vec2_mode_doc,material_nodes,The node will accept Vec2 inputs and provide Vec2 outputs.
 vec3_mode_doc,material_nodes,The node will accept Vec3 inputs and provide Vec3 outputs.
 vec4_mode_doc,material_nodes,The node will accept Vec4 inputs and provide Vec4 outputs.
+float_constant_doc,material_nodes,A floating point constant value
+vec2_constant_doc,material_nodes,A Vec2 constant value
+vec3_constant_doc,material_nodes,A Vec3 constant value
+vec4_constant_doc,material_nodes,A Vec4 constant value
 radians_node,material_nodes,Degrees to Radians
 radians_node_doc,material_nodes,"Converts degrees to radians.
 
@@ -228,6 +232,16 @@ dfdx_node,material_nodes,DfDx
 dfdx_node_doc,material_nodes,Returns a partial derivative of the provided argument with respect to the x coordinate of the window.
 dfdy_node,material_nodes,DfDy
 dfdy_node_doc,material_nodes,Returns a partial derivative of the provided argument with respect to the y coordinate of the window.
+constant_node,material_nodes,Constant
+constant_node_doc,material_nodes,Set a constant value that doesn’t need to be adjusted during runtime.
+add_node,material_nodes,Add
+add_node_doc,material_nodes,Performs addition
+subtract_node,material_nodes,Subtract
+subtract_node_doc,material_nodes,Performs subtraction
+multiply_node,material_nodes,Multiply
+multiply_node_doc,material_nodes,Performs multiplication
+divide_node,material_nodes,Divide
+divide_node_doc,material_nodes,Performs division
 x,material_nodes,X
 y,material_nodes,Y
 z,material_nodes,Z
@@ -253,12 +267,13 @@ common_math,material_nodes,Common
 geometry,material_nodes,Geometry
 derivatives,material_nodes,Derivatives
 output,material_nodes,Output
+arithmetic,material_nodes,Arithmetic
 splitter_node,material_nodes,Splitter
 splitter_node_doc,material_nodes,Splits a vector into components.
 joiner_node,material_nodes,Joiner
 joiner_node_doc,material_nodes,Creates a vector from provided components.
-material_data_node,material_nodes,Material Data
-material_data_node_doc,material_nodes,Every single material may receive up to 16 floating point values (by default) every frame. They can be used for material instance specific or animated properties. This node allows you to access that data.
+variable_node,material_nodes,Variable
+variable_node_doc,material_nodes,Every single material may receive up to 16 floating point values (by default) every frame. The actual number may end up lower because of padding.
 load_material_editor,material_nodes,Load Material Instance Definition
 save_material_editor,material_nodes,Save Material Instance Definition
 save_as_material_editor,material_nodes,Save Material Instance Definition As
@@ -269,6 +284,7 @@ name,material_nodes,Name
 hash,material_nodes,Hash
 pipeline,material_nodes,Material Pipeline
 family,material_nodes,Material Family
+result,material_nodes,Result
 cull_mode,graphics,Cull Mode
 cull_mode_front,graphics,Front
 cull_mode_back,graphics,Back
