@@ -28,7 +28,7 @@
 
 #include "graphics/shaderGeneration/ShaderGenerator.hpp"
 #include "graphics/Renderer.hpp"
-#include "core/Engine.hpp"
+#include "core/filesystem/FileSystem.hpp"
 #include "core/Logger.hpp"
 #include "core/filesystem/File.hpp"
 #include "format/format.h"
@@ -37,7 +37,7 @@
 #include <unordered_set>
 
 namespace iyf {
-ShaderGenerator::ShaderGenerator(const Engine* engine) : engine(engine), renderer(engine->getRenderer()) {}
+ShaderGenerator::ShaderGenerator(const FileSystem* fileSystem) : fileSystem(fileSystem) {}
 
 ShaderGenerationResult ShaderGenerator::generateAndReportError(ShaderGenerationResult::Status status, const std::string& error) const {
     LOG_E("Shader generation error: " << error);
@@ -45,7 +45,7 @@ ShaderGenerationResult ShaderGenerator::generateAndReportError(ShaderGenerationR
     return {status, error};
 }
 
-ShaderGenerationResult ShaderGenerator::generateShader(ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition) const {
+ShaderGenerationResult ShaderGenerator::generateShader(RendererType rendererType, ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition) const {
     ShaderGenerationResult result = validateFamilyDefinition(definition);
     if (result.getStatus() != ShaderGenerationResult::Status::Success) {
         return result;
@@ -53,9 +53,9 @@ ShaderGenerationResult ShaderGenerator::generateShader(ShaderStageFlagBits stage
     
     switch (stage) {
         case ShaderStageFlagBits::Vertex:
-            return generateVertexShader(definition);
+            return generateVertexShader(rendererType, definition);
         case ShaderStageFlagBits::Fragment:
-            return generateFragmentShader(definition);
+            return generateFragmentShader(rendererType, definition);
         default:
             throw std::runtime_error("Not implemented");
     }

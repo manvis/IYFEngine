@@ -30,6 +30,7 @@
 
 #include "core/Logger.hpp"
 #include "core/filesystem/File.hpp"
+#include "graphics/ShaderMacros.hpp"
 #include "graphics/GraphicsAPIConstants.hpp"
 #include "localization/TextLocalization.hpp"
 #include "utilities/logicGraph/LogicGraph.hpp"
@@ -135,16 +136,107 @@ private:
     std::size_t outputsToChange;
 };
 
-class PerFrameDataNode : public MaterialNodeBase {
+class TextureCoordinatesNode : public MaterialNodeBase {
 public:
-    PerFrameDataNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
+    TextureCoordinatesNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
         addOutput(LH("uv", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2);
     }
     
     virtual MaterialNodeType getType() const final override {
-        return MaterialNodeType::PerFrameData;
+        return MaterialNodeType::TextureCoordinates;
     }
 };
+
+// class TimeNode : public MaterialNodeBase {
+// public:
+//     TimeNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
+//         addOutput(LH("time", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+//     }
+//     
+//     virtual MaterialNodeType getType() const final override {
+//         return MaterialNodeType::Time;
+//     }
+// };
+
+class VertexColorNode : public MaterialNodeBase {
+public:
+    VertexColorNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
+        addOutput(LH("rgba", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec4);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::VertexColor;
+    }
+};
+
+class FragmentCoordinateNode : public MaterialNodeBase {
+public:
+    FragmentCoordinateNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
+        addOutput(LH("vec4", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec4);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::FragmentCoordinate;
+    }
+};
+
+class PositionNode : public MaterialNodeBase {
+public:
+    PositionNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
+        addOutput(LH("vec3", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::Position;
+    }
+};
+
+class NormalNode : public MaterialNodeBase {
+public:
+    NormalNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
+        addOutput(LH("vec3", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::Normal;
+    }
+};
+
+class CameraPositionNode : public MaterialNodeBase {
+public:
+    CameraPositionNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
+        addOutput(LH("vec3", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::CameraPosition;
+    }
+};
+
+class CameraPropertiesNode : public MaterialNodeBase {
+public:
+    CameraPropertiesNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
+        addOutput(LH("znear", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+        addOutput(LH("zfar", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+        addOutput(LH("fov", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Float);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::CameraProperties;
+    }
+};
+
+class ScreenDimensionsNode : public MaterialNodeBase {
+public:
+    ScreenDimensionsNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
+        addOutput(LH("vec2", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2);
+    }
+    
+    virtual MaterialNodeType getType() const final override {
+        return MaterialNodeType::ScreenDimensions;
+    }
+};
+
 
 const char* CULL_MODE_FIELD_NAME = "cullMode";
 const char* DEPTH_COMPARE_OP_FIELD_NAME = "depthCompareOp";
@@ -165,7 +257,7 @@ public:
     MaterialOutputNode(const MaterialFamilyDefinition& definition, Vec2 position, std::uint32_t zIndex) 
         : MaterialNodeBase(0, position, zIndex), cullMode(CullModeFlagBits::Back), depthCompareOp(CompareOp::Less), depthWriteEnabled(true), depthTestEnabled(true),
         blendEnabled(false), srcColorBlendFactor(BlendFactor::One), dstColorBlendFactor(BlendFactor::Zero), srcAlphaBlendFactor(BlendFactor::One), dstAlphaBlendFactor(BlendFactor::Zero),
-        colorBlendOp(BlendOp::Add), alphaBlendOp(BlendOp::Add)
+        colorBlendOp(BlendOp::Add), alphaBlendOp(BlendOp::Add), normalID(Connector::InvalidID)
     {
         assert(getKey() == 0);
         
@@ -179,6 +271,10 @@ public:
     void changeMaterialFamily(const MaterialFamilyDefinition& definition) {
         removeAllConnectors();
         buildConnectors(definition);
+    }
+    
+    LogicGraphConnectorID getNormalConnectorID() const {
+        return normalID;
     }
     
     virtual void serializeJSON(PrettyStringWriter& pw) const final override {
@@ -264,8 +360,12 @@ private:
         // Normals should be adjustable. We wouldn't be able to use a normal map otherwise.
         if (definition.isNormalDataRequired()) {
             addInput("normal", ShaderDataTypeToMaterialConnectorType(ShaderDataType::Vector3D), true, false);
+            
+            normalID = static_cast<LogicGraphConnectorID>(getInputs().size()) - 1;
         }
     }
+    
+    LogicGraphConnectorID normalID;
 };
 
 class TextureInputNode : public MaterialNodeBase {
@@ -318,20 +418,6 @@ public:
         }
         
         return true;
-    }
-};
-
-/// Depending on a platform, normal maps may have either 2 or 3 channels.
-/// Unlike the TextureInputNode
-class NormalMapInputNode : public MaterialNodeBase {
-public:
-    NormalMapInputNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex) {
-        addInput(LH("uv", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2, true, true);
-        addOutput(LH("vec3", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
-    }
-    
-    virtual MaterialNodeType getType() const final override {
-        return MaterialNodeType::NormalMapInput;
     }
 };
 
@@ -707,10 +793,17 @@ MaterialLogicGraph::MaterialLogicGraph(MaterialFamily materialFamily) : material
     
     const MaterialNodeGroup input = MaterialNodeGroup::Input;
     addNodeTypeInfo(MaterialNodeType::TextureInput, "texture_input_node", "texture_input_node_doc", ns, input);
-    addNodeTypeInfo(MaterialNodeType::NormalMapInput, "normal_map_input_node", "normal_map_input_node_doc", ns, input);
-    addNodeTypeInfo(MaterialNodeType::PerFrameData, "per_frame_data_node", "per_frame_data_node_doc", ns, input);
+    addNodeTypeInfo(MaterialNodeType::TextureCoordinates, "texture_coordinates_node", "texture_coordinates_node_doc", ns, input);
     addNodeTypeInfo(MaterialNodeType::Variable, "variable_node", "variable_node_doc", ns, input);
     addNodeTypeInfo(MaterialNodeType::Constant, "constant_node", "constant_node_doc", ns, input);
+    addNodeTypeInfo(MaterialNodeType::ScreenDimensions, "screen_dimensions_node", "screen_dimensions_node_doc", ns, input);
+    //addNodeTypeInfo(MaterialNodeType::Time, "time_node", "time_node_doc", ns, input);
+    addNodeTypeInfo(MaterialNodeType::VertexColor, "vertex_color_node", "vertex_color_node_doc", ns, input);
+    addNodeTypeInfo(MaterialNodeType::FragmentCoordinate, "fragment_coordinate_node", "fragment_coordinate_node_doc", ns, input);
+    addNodeTypeInfo(MaterialNodeType::Position, "position_node", "position_node_doc", ns, input);
+    addNodeTypeInfo(MaterialNodeType::Normal, "normal_node", "normal_node_doc", ns, input);
+    addNodeTypeInfo(MaterialNodeType::CameraPosition, "camera_position_node", "camera_position_node_doc", ns, input);
+    addNodeTypeInfo(MaterialNodeType::CameraProperties, "camera_properties_node", "camera_properties_node_doc", ns, input);
     
     const MaterialNodeGroup arithmetic = MaterialNodeGroup::Arithmetic;
     addNodeTypeInfo(MaterialNodeType::Add, "add_node", "add_node_doc", ns, arithmetic);
@@ -825,8 +918,7 @@ MaterialNode* MaterialLogicGraph::addNodeImpl(NodeKey key, MaterialNodeType type
             
             break;
         IYF_CREATE_NODE_CASE(TextureInput);
-        IYF_CREATE_NODE_CASE(NormalMapInput);
-        IYF_CREATE_NODE_CASE(PerFrameData);
+        IYF_CREATE_NODE_CASE(TextureCoordinates);
         IYF_CREATE_NODE_CASE(Radians);
         IYF_CREATE_NODE_CASE(Degrees);
         IYF_CREATE_NODE_CASE(Sin);
@@ -890,6 +982,14 @@ MaterialNode* MaterialLogicGraph::addNodeImpl(NodeKey key, MaterialNodeType type
         IYF_CREATE_NODE_CASE(Subtract);
         IYF_CREATE_NODE_CASE(Multiply);
         IYF_CREATE_NODE_CASE(Divide);
+//         IYF_CREATE_NODE_CASE(Time);
+        IYF_CREATE_NODE_CASE(VertexColor);
+        IYF_CREATE_NODE_CASE(FragmentCoordinate);
+        IYF_CREATE_NODE_CASE(Position);
+        IYF_CREATE_NODE_CASE(Normal);
+        IYF_CREATE_NODE_CASE(CameraPosition);
+        IYF_CREATE_NODE_CASE(CameraProperties);
+        IYF_CREATE_NODE_CASE(ScreenDimensions);
         case MaterialNodeType::COUNT:
             throw std::logic_error("COUNT is not a valid NodeType");
     }
@@ -998,19 +1098,6 @@ std::vector<MaterialNodeKey> MaterialLogicGraph::getVariableNodes() const {
     return nodes;
 }
 
-std::vector<MaterialNodeKey> MaterialLogicGraph::getNormalMapNodes() const {
-    std::vector<MaterialNodeKey> nodes;
-    nodes.reserve(10);
-    
-    for (const auto& node : getNodes()) {
-        if (node.second->getType() == MaterialNodeType::NormalMapInput) {
-            nodes.emplace_back(node.second->getKey());
-        }
-    }
-    
-    return nodes;
-}
-
 inline bool ProcessDynamicDataNodeValidation(std::stringstream* ss, MaterialNode* node, std::unordered_map<std::string, MaterialNode*>& map, const char* name, bool isTextureNode) {
     if (!node->hasName()) {
         if (ss != nullptr) {
@@ -1060,9 +1147,6 @@ bool MaterialLogicGraph::validate(std::stringstream* ss) const {
         switch (type) {
             case MaterialNodeType::Variable:
                 result &= ProcessDynamicDataNodeValidation(ss, node.second, variables, "Variable", false);
-                break;
-            case MaterialNodeType::NormalMapInput:
-                result &= ProcessDynamicDataNodeValidation(ss, node.second, textures, "Normal Map Input", true);
                 break;
             case MaterialNodeType::TextureInput:
                 result &= ProcessDynamicDataNodeValidation(ss, node.second, textures, "Texture Input", true);
@@ -1393,14 +1477,22 @@ CodeGenerationResult MaterialLogicGraph::toCode(ShaderLanguage language) const {
                    << funcName << "(" << MakeOutputVariableName(language, pair.getNodeKey(), pair.getConnectorID()) << ", " << integralPart << ");\n";
                 break;
             }
-            case MaterialNodeType::Output:
+            case MaterialNodeType::Output: {
                 for (std::size_t c = 0; c < inputs.size(); ++c) {
                     KeyConnectorPair pair = getInputSource(mn.getKey(), c);
                     if (pair.isValid()) {
                         ss << inputs[c].getName() << " = " << MakeOutputVariableName(language, pair.getNodeKey(), pair.getConnectorID()) << ";\n";
                     }
                 }
+                
+                const MaterialOutputNode& mnOut = static_cast<const MaterialOutputNode&>(mn);
+                const LogicGraphConnectorID connectorID = mnOut.getNormalConnectorID();
+                if (connectorID != MaterialNodeBase::Connector::InvalidID && getInputSource(mn.getKey(), connectorID).isValid()) {
+                    ss << "#define " << GetShaderMacroName(ShaderMacro::NormalMapTextureAvailable) <<"\n";
+                }
+                
                 break;
+            }
             case MaterialNodeType::Variable: {
                 assert(language == ShaderLanguage::GLSLVulkan);
                 assert(mn.hasName());
@@ -1409,7 +1501,6 @@ CodeGenerationResult MaterialLogicGraph::toCode(ShaderLanguage language) const {
                 
                 ss << MakeOutputVariableType(language, connectorType) << " " << MakeOutputVariableName(language, mn.getKey(), 0);
                 ss << " = ";
-                // TODO make sure that this class and the shader generator class use the same names
                 ss << "materials.materials[ID.material]." << mn.getName() << ";\n";
                 
                 break;
@@ -1444,6 +1535,81 @@ CodeGenerationResult MaterialLogicGraph::toCode(ShaderLanguage language) const {
                 ss << " = ";
                 ss << "texture(" << mn.getName() << ", " << MakeOutputVariableName(language, pair.getNodeKey(), pair.getConnectorID()) << ")" << swizzle << ";\n";
                 
+                break;
+            }
+            case MaterialNodeType::ScreenDimensions: {
+                const std::string type = MakeOutputVariableType(language, MaterialNodeConnectorType::Vec2);
+                ss << type << " " << MakeOutputVariableName(language, mn.getKey(), 0);
+                ss << " = " << type << "(cameraAndLights.framebufferDimensions.xy);\n";
+                break;
+            }
+            case MaterialNodeType::CameraPosition: {
+                const std::string type = MakeOutputVariableType(language, MaterialNodeConnectorType::Vec3);
+                ss << type << " " << MakeOutputVariableName(language, mn.getKey(), 0);
+                ss << " = cameraAndLights.cameraPosition;\n";
+                break;
+            }
+            case MaterialNodeType::FragmentCoordinate: {
+                assert(language == ShaderLanguage::GLSLVulkan);
+
+                const std::string type = MakeOutputVariableType(language, MaterialNodeConnectorType::Vec4);
+                ss << type << " " << MakeOutputVariableName(language, mn.getKey(), 0);
+                ss << " = gl_FragCoord;\n";
+                break;
+            }
+            case MaterialNodeType::CameraProperties: {
+                const std::string type = MakeOutputVariableType(language, MaterialNodeConnectorType::Float);
+                ss << type << " " << MakeOutputVariableName(language, mn.getKey(), 0) << " = cameraAndLights.zNear;\n";
+                ss << type << " " << MakeOutputVariableName(language, mn.getKey(), 1) << " = cameraAndLights.zFar;\n";
+                ss << type << " " << MakeOutputVariableName(language, mn.getKey(), 2) << " = cameraAndLights.fieldOfView;\n";
+                break;
+            }
+            case MaterialNodeType::TextureCoordinates: {
+                const std::string type = MakeOutputVariableType(language, MaterialNodeConnectorType::Vec2);
+                const std::string varName = MakeOutputVariableName(language, mn.getKey(), 0);
+                
+                ss << "#ifdef " << GetShaderMacroName(ShaderMacro::TextureCoordinatesAvailable) << "\n";
+                ss << type << " " << varName << " = " << "fragmentInput.UV;\n";
+                ss << "#else\n";
+                ss << type << " " << varName << " = " << type << "(0.0, 0.0);\n";
+                ss << "#endif\n";
+                break;
+            }
+            case MaterialNodeType::VertexColor: {
+                const std::string type = MakeOutputVariableType(language, MaterialNodeConnectorType::Vec4);
+                const std::string varName = MakeOutputVariableName(language, mn.getKey(), 0);
+                
+                ss << "#ifdef " << GetShaderMacroName(ShaderMacro::VertexColorAvailable) << "\n";
+                ss << type << " " << varName << " = " << "fragmentInput.vertColor;\n";
+                ss << "#else\n";
+                ss << type << " " << varName << " = " << type << "(1.0, 1.0, 1.0, 1.0);\n";
+                ss << "#endif\n";
+                break;
+            }
+            case MaterialNodeType::Position: {
+                const std::string type = MakeOutputVariableType(language, MaterialNodeConnectorType::Vec3);
+                const std::string varName = MakeOutputVariableName(language, mn.getKey(), 0);
+                
+                ss << "#ifdef " << GetShaderMacroName(ShaderMacro::WorldSpacePositionAvailable) << "\n";
+                ss << type << " " << varName << " = " << "fragmentInput.positionWS;\n";
+                ss << "#else\n";
+                ss << type << " " << varName << " = " << type << "(0.0, 0.0, 0.0);\n";
+                ss << "#endif\n";
+                break;
+            }
+            case MaterialNodeType::Normal: {
+                const std::string type = MakeOutputVariableType(language, MaterialNodeConnectorType::Vec3);
+                const std::string varName = MakeOutputVariableName(language, mn.getKey(), 0);
+                
+                ss << "#ifdef " << GetShaderMacroName(ShaderMacro::NormalAvailable) << "\n";
+                ss << "#if (" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0)\n";
+                ss << type << " " << varName << " = " << "fragmentInput.TBN[2];\n";
+                ss << "#else //" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << "\n";
+                ss << type << " " << varName << " = " << "fragmentInput.normalWS;\n";
+                ss << "#endif //" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << "\n";
+                ss << "#else //" << GetShaderMacroName(ShaderMacro::NormalAvailable) << "\n";
+                ss << type << " " << varName << " = " << type << "(0.0, 0.0, 0.0);\n";
+                ss << "#endif //"<< GetShaderMacroName(ShaderMacro::NormalAvailable) << "\n";
                 break;
             }
             case MaterialNodeType::COUNT:
@@ -1497,7 +1663,7 @@ MaterialEditor::MaterialEditor() : LogicGraphEditor(MakeNodeEditorSettings()) {
     
     con::GetMaterialFamilyDefinition(MaterialFamily::Toon).computeHash();
     
-    graph->addNode(MaterialNodeType::PerFrameData, Vec2(0.0f, 150.0f));
+    graph->addNode(MaterialNodeType::TextureCoordinates, Vec2(0.0f, 150.0f));
     
     const std::size_t materialFamilyCount = static_cast<std::size_t>(MaterialFamily::COUNT);
     materialFamilyNames.reserve(materialFamilyCount);
@@ -1521,10 +1687,10 @@ void MaterialEditor::onButtonClick(LogicGraphEditorButtonFlagBits button) {
         case LogicGraphEditorButtonFlagBits::SaveAs:
             throw std::logic_error("This material editor button should have been disabled");
         case LogicGraphEditorButtonFlagBits::Save: {
-//             const std::string result = serializeJSON();
-//             
-//             File output(filePath, File::OpenMode::Write);
-//             output.writeBytes(result.data(), result.size());
+            const std::string result = serializeJSON();
+            
+            File output(filePath, File::OpenMode::Write);
+            output.writeBytes(result.data(), result.size());
             LOG_D(graph->toCode(ShaderLanguage::GLSLVulkan).getCode());
             break;
         }

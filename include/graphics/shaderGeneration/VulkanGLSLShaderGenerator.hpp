@@ -61,7 +61,7 @@ private:
 
 class VulkanGLSLShaderGenerator : public ShaderGenerator {
 public:
-    VulkanGLSLShaderGenerator(const Engine* engine);
+    VulkanGLSLShaderGenerator(const FileSystem* fileSystem);
     virtual ~VulkanGLSLShaderGenerator();
     
     virtual ShaderLanguage getShaderLanguage() const final override {
@@ -78,15 +78,14 @@ public:
     
     virtual fs::path getShaderStageFileExtension(ShaderStageFlagBits stage) const final override;
 protected:
-    virtual ShaderGenerationResult generateVertexShader(const MaterialFamilyDefinition& definition) const final override;
-    virtual ShaderGenerationResult generateFragmentShader(const MaterialFamilyDefinition& definition) const final override;
+    virtual ShaderGenerationResult generateVertexShader(RendererType rendererType, const MaterialFamilyDefinition& definition) const final override;
+    virtual ShaderGenerationResult generateFragmentShader(RendererType rendererType, const MaterialFamilyDefinition& definition) const final override;
     
-    virtual std::string generatePerFrameData(const ShaderDataSets& requiredDataSets) const final override;
+    virtual std::string generatePerFrameData(RendererType rendererType, const ShaderDataSets& requiredDataSets) const final override;
     
     virtual std::string generateLightProcessingFunctionCall(const MaterialFamilyDefinition& definition) const final override;
     
     shaderc::Compiler compiler;
-    FileSystem* fileSystem;
 };
 }
 

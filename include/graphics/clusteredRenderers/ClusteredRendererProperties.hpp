@@ -26,35 +26,23 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef CAMERA_AND_LIGHT_BUFFER_LAYOUT_HPP
-#define CAMERA_AND_LIGHT_BUFFER_LAYOUT_HPP
+#ifndef IYF_CLUSTERED_RENDERER_PROPERTIES_HPP
+#define IYF_CLUSTERED_RENDERER_PROPERTIES_HPP
 
-#include <cstdint>
-
-#include <glm/mat4x4.hpp>
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
-
-#include "graphics/Lights.hpp"
-#include "graphics/ShaderConstants.hpp"
+#include "graphics/RendererProperties.hpp"
 
 namespace iyf {
-struct CameraAndLightData {
-    glm::mat4 V;
-    glm::mat4 P;
-    glm::mat4 VP;
-    glm::vec3 cameraPosition;
-    std::uint32_t directionalLightCount;
-    float zNear;
-    float zFar;
-    glm::uvec2 framebufferDimensions;
-    std::uint32_t pointLightCount;
-    std::uint32_t spotLightCount;
-    float fieldOfView;
-    float time;
-    DirectionalLight directionalLights[con::MaxDirectionalLights];
-    PointLight pointLights[con::MaxPointLights];
-    SpotLight spotLights[con::MaxSpotLights];
+    
+class ClusteredRendererProperties : public RendererProperties {
+public:
+    virtual std::string makeRenderDataSet(ShaderLanguage language) const final;
+    virtual std::string makeLightLoops(ShaderLanguage language, const std::string& lightingFunction) const final override;
+    virtual const std::vector<SpecializationConstant>& getShaderSpecializationConstants() const final override;
+protected:
+    friend class Renderer;
+    ClusteredRendererProperties();
 };
+
 }
-#endif // CAMERA_AND_LIGHT_BUFFER_LAYOUT_HPP
+
+#endif // IYF_CLUSTERED_RENDERER_PROPERTIES_HPP

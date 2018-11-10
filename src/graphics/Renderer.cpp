@@ -34,6 +34,8 @@
 #include "graphics/VertexDataLayouts.hpp"
 #include "threading/ThreadProfiler.hpp"
 
+#include "graphics/clusteredRenderers/ClusteredRendererProperties.hpp"
+
 namespace iyf {
 Renderer::Renderer(Engine* engine, GraphicsAPI* gfx) : engine(engine), gfx(gfx), imGuiSubmissionRequired(false), drawingWorldThisFrame(false), initialized(false) {
     assert(engine != nullptr && gfx != nullptr);
@@ -61,6 +63,14 @@ void Renderer::drawImGui(ImGuiImplementation* impl) {
     } else {
         imGuiSubmissionRequired = false;
     }
+}
+
+const RendererProperties& Renderer::GetRendererProperties(RendererType type) {
+    static std::array<std::unique_ptr<RendererProperties>, static_cast<std::size_t>(RendererType::COUNT)> properties = {
+        std::unique_ptr<ClusteredRendererProperties>(new ClusteredRendererProperties()),
+    };
+    
+    return (*properties[static_cast<std::size_t>(type)]);
 }
 
 }

@@ -50,30 +50,6 @@ public:
     virtual std::pair<RenderPassHnd, std::uint32_t> getImGuiRenderPassAndSubPass() final override;
 
     virtual void submitCommandBuffers() final override;
-    
-    virtual bool usesSeparateShadingPass() final override {
-        return false;
-    }
-    
-    virtual bool canUseMultipleLightingModels() final override {
-        return true;
-    }
-    
-    virtual StringHash getNameLocalizationHandle() const final override {
-        // TODO insert this into string database
-        return HS("forward_clustered_renderer");
-    }
-    
-    virtual std::string getName() const final override {
-        return "ForwardClustered";
-    }
-    
-    virtual const std::vector<SpecializationConstant>& getShaderSpecializationConstants() const final override {
-        return specializationConstants;
-    }
-    
-    virtual std::string makeRenderDataSet(ShaderLanguage language) const final;
-    virtual std::string makeLightLoops(ShaderLanguage language, const std::string& lightingFunction) const final override;
 
     virtual std::pair<RenderPassHnd, std::uint32_t> getSkyboxRenderPassAndSubPass() final override;
     
@@ -136,7 +112,6 @@ protected:
     Pipeline simpleFlatPipeline;
     AssetHandle<Shader> vsSimple;
     AssetHandle<Shader> fsSimpleFlat;
-    std::vector<SpecializationConstant> specializationConstants;
     
     ShaderHnd fullScreenQuadVS;
     ShaderHnd tonemapFS;

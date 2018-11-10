@@ -52,6 +52,10 @@ std::string GetShaderMacroName(ShaderMacro macro) {
             return "WORLD_SPACE_POSITION_AVAILABLE";
         case ShaderMacro::NormalAvailable:
             return "NORMAL_AVAILABLE";
+        case ShaderMacro::VertexColorAvailable:
+            return "VERTEX_COLOR_AVAILABLE";
+        case ShaderMacro::TextureCoordinatesAvailable:
+            return "TEXTURE_COORDINATES_AVAILABLE";
         case ShaderMacro::Custom:
             throw std::logic_error("Custom or COUNT must not be used in GetShaderMacroName()");
     }
@@ -118,6 +122,10 @@ bool ValidateShaderMacroValue(ShaderMacro macro, const ShaderMacroValue& value) 
             return ValidateValueImpl<std::monostate>(value, FailValidator);
         case ShaderMacro::NormalAvailable:
             return ValidateValueImpl<std::monostate>(value, FailValidator);
+        case ShaderMacro::VertexColorAvailable: // Must be defined or not.
+            return ValidateValueImpl<std::monostate>(value, EmptyValidator);
+        case ShaderMacro::TextureCoordinatesAvailable: // Must be defined or not.
+            return ValidateValueImpl<std::monostate>(value, EmptyValidator);
         case ShaderMacro::Custom:
             throw std::logic_error("Custom or COUNT must not be used in GetShaderMacroName()");
     }

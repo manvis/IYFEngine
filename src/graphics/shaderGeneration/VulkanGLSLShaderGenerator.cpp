@@ -241,9 +241,7 @@ std::string MakeVulkanGLSLDataType(Format format) {
     return MakeVulkanGLSLDataType(shaderDataFormat, shaderDataType);
 }
 
-VulkanGLSLShaderGenerator::VulkanGLSLShaderGenerator(const Engine* engine) : ShaderGenerator(engine) {
-    fileSystem = engine->getFileSystem();
-}
+VulkanGLSLShaderGenerator::VulkanGLSLShaderGenerator(const FileSystem* fileSystem) : ShaderGenerator(fileSystem) {}
 
 VulkanGLSLShaderGenerator::~VulkanGLSLShaderGenerator() {}
 
@@ -268,7 +266,7 @@ fs::path VulkanGLSLShaderGenerator::getShaderStageFileExtension(ShaderStageFlagB
     throw std::logic_error("Invalid ShaderStageFlagBit");
 }
 
-ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(const MaterialFamilyDefinition& definition) const {
+ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(RendererType rendererType, const MaterialFamilyDefinition& definition) const {
     std::size_t codeID = 0;
     for (std::size_t i = 0; i < definition.getSupportedLanguages().size(); ++i) {
         if (definition.getSupportedLanguages()[i] == getShaderLanguage()) {
@@ -281,7 +279,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(const Mat
     ss << MakeVulkanGLSLHeader(ShaderStageFlagBits::Vertex);
     ss << WriteMacroDefinitions(definition);
     
-    ss << generatePerFrameData(definition.getVertexShaderDataSets());
+    ss << generatePerFrameData(rendererType, definition.getVertexShaderDataSets());
     
     ss << "\n";
     
@@ -333,7 +331,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(const Mat
     }
     
     if (definition.isNormalDataRequired()) {
-        ss << "#if (" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0) && defined("<< GetShaderMacroName(ShaderMacro::NormalMapTextureAvailable) << ")\n";
+        ss << "#if (" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0)\n";
         ss << "    mat3 TBN;\n";
         ss << "#else // If normal data is required, but we don't do normal mapping, it is passed separately\n";
         ss << "    vec3 normalWS;\n";
@@ -364,7 +362,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(const Mat
     }
     
     if (definition.isNormalDataRequired()) {
-        ss << "#if (" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0) && defined("<< GetShaderMacroName(ShaderMacro::NormalMapTextureAvailable) << ")\n";
+        ss << "#if (" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0)\n";
         ss << "    vertexOutput.TBN = TBN();\n";
         ss << "#else\n";
         ss << "    vertexOutput.normalWS = normalize(mat3(M()) * " << con::GetVertexAttributeName(VertexAttributeType::Normal) << ".xyz);\n";
@@ -422,7 +420,7 @@ inline std::string formatVectorDataForOutput(const std::string& dataTypeName, co
     return ss.str();
 }
 
-ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(const MaterialFamilyDefinition& definition) const {
+ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(RendererType rendererType, const MaterialFamilyDefinition& definition) const {
     validateFamilyDefinition(definition);
     
     std::size_t codeID = 0;
@@ -453,7 +451,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(const M
     }
     
     if (definition.isNormalDataRequired()) {
-        ss << "#if (" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0) && defined("<< GetShaderMacroName(ShaderMacro::NormalMapTextureAvailable) << ")\n";
+        ss << "#if (" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0)\n";
         ss << "    mat3 TBN;\n";
         ss << "#else // If normal data is required, but we don't do normal mapping, it is passed separately\n";
         ss << "    vec3 normalWS;\n";
@@ -472,7 +470,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(const M
     
     ss << "layout (location = 0) out vec4 finalColor;\n\n";
     
-    ss << generatePerFrameData(definition.getFragmentShaderDataSets());
+    ss << generatePerFrameData(rendererType, definition.getFragmentShaderDataSets());
     
     ss << generateLightProcessingFunctionSignature(definition) << "{\n";
     
@@ -534,7 +532,8 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(const M
     std::string lightProcessingFunctionCall = generateLightProcessingFunctionCall(definition);
     
     if (definition.areLightsSupported()) {
-        ss << renderer->makeLightLoops(getShaderLanguage(), lightProcessingFunctionCall);
+        const RendererProperties& rendererProperties = Renderer::GetRendererProperties(rendererType);
+        ss << rendererProperties.makeLightLoops(getShaderLanguage(), lightProcessingFunctionCall);
     } else {
         ss << "   " << lightProcessingFunctionCall << "\n\n";
     }
@@ -545,11 +544,12 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(const M
     return ShaderGenerationResult(ShaderGenerationResult::Status::Success, ss.str());
 }
 
-std::string VulkanGLSLShaderGenerator::generatePerFrameData(const ShaderDataSets& requiredDataSets) const {
+std::string VulkanGLSLShaderGenerator::generatePerFrameData(RendererType rendererType, const ShaderDataSets& requiredDataSets) const {
     // First of all, the specialization constants
     std::stringstream ss;
     
-    const std::vector<SpecializationConstant>& constants = renderer->getShaderSpecializationConstants();
+    const RendererProperties& rendererProperties = Renderer::GetRendererProperties(rendererType);
+    const std::vector<SpecializationConstant>& constants = rendererProperties.getShaderSpecializationConstants();
     ss << "// Engine constants\n";
     
     std::size_t rendererConstantStart = (constants.size() == con::DefaultSpecializationConstants.size()) ? static_cast<std::size_t>(-1) : con::DefaultSpecializationConstants.size();
@@ -620,8 +620,8 @@ std::string VulkanGLSLShaderGenerator::generatePerFrameData(const ShaderDataSets
         ss << "    uvec2 framebufferDimensions;\n";
         ss << "    uint pointLightCount;\n";
         ss << "    uint spotLightCount;\n";
-        ss << "    float padding1;\n";
-        ss << "    float padding2;\n";
+        ss << "    float fieldOfView;\n";
+        ss << "    float time;\n";
         ss << "    DirectionalLight directionalLights[" << con::MaxDirectionalLightsConstName << "];\n";
         ss << "    PointLight pointLights[" << con::MaxPointLightsConstName << "];\n";
         ss << "    SpotLight spotLights[" << con::MaxSpotLightsConstName << "];\n";
@@ -636,7 +636,7 @@ std::string VulkanGLSLShaderGenerator::generatePerFrameData(const ShaderDataSets
     }
     
     if (requiredDataSets[static_cast<std::size_t>(PerFrameDataSet::RendererData)]) {
-        ss << renderer->makeRenderDataSet(getShaderLanguage()) << "\n";
+        ss << rendererProperties.makeRenderDataSet(getShaderLanguage()) << "\n";
     }
     
     if (requiredDataSets[static_cast<std::size_t>(PerFrameDataSet::MaterialData)]) {
@@ -1005,9 +1005,13 @@ inline std::string MakeVertexShaderHelperFunctionInclude() {
     ss << "#if " << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " == 1\n";
     ss << "mat3 TBN() {\n";
     ss << "    mat3 M3x3 = mat3(M());\n\n";
-    ss << "    vec3 normalWS    = normalize(M3x3 * " << con::GetVertexAttributeName(VertexAttributeType::Normal) << ".xyz);\n";
-    ss << "    vec3 tangentWS   = normalize(M3x3 * " << con::GetVertexAttributeName(VertexAttributeType::Tangent) << ".xyz);\n";
-    ss << "    vec3 bitangentWS = normalize(M3x3 * " << con::GetVertexAttributeName(VertexAttributeType::Bitangent) << ".xyz);\n\n";
+//     ss << "    vec3 normalWS    = normalize(M3x3 * " << con::GetVertexAttributeName(VertexAttributeType::Normal) << ".xyz);\n";
+//     ss << "    vec3 tangentWS   = normalize(M3x3 * " << con::GetVertexAttributeName(VertexAttributeType::Tangent) << ".xyz);\n";
+//     ss << "    vec3 bitangentWS = normalize(M3x3 * " << con::GetVertexAttributeName(VertexAttributeType::Bitangent) << ".xyz);\n\n";
+    // It's usually sufficient to normalize the final value only.
+    ss << "    vec3 normalWS    = M3x3 * " << con::GetVertexAttributeName(VertexAttributeType::Normal) << ".xyz;\n";
+    ss << "    vec3 tangentWS   = M3x3 * " << con::GetVertexAttributeName(VertexAttributeType::Tangent) << ".xyz;\n";
+    ss << "    vec3 bitangentWS = M3x3 * " << con::GetVertexAttributeName(VertexAttributeType::Bitangent) << ".xyz;\n\n";
     ss << "    return mat3(tangentWS, bitangentWS, normalWS);\n";
     ss << "}\n";
     ss << "#elif " << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " == 2\n";

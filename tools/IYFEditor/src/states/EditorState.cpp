@@ -166,10 +166,10 @@ void EditorState::initialize() {
         const std::string newName = empty.getName() + "1";
         empty.setName(newName);
         
-        iyf::VulkanGLSLShaderGenerator vkGen(engine);
+        iyf::VulkanGLSLShaderGenerator vkGen(engine->getFileSystem());
         
-        const ShaderGenerationResult vsResult = vkGen.generateShader(ShaderStageFlagBits::Vertex, def);
-        const ShaderGenerationResult fsResult = vkGen.generateShader(ShaderStageFlagBits::Fragment, def);
+        const ShaderGenerationResult vsResult = vkGen.generateShader(RendererType::ForwardClustered, ShaderStageFlagBits::Vertex, def);
+        const ShaderGenerationResult fsResult = vkGen.generateShader(RendererType::ForwardClustered, ShaderStageFlagBits::Fragment, def);
         
         assert(vsResult);
         assert(fsResult);

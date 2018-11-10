@@ -40,11 +40,11 @@
 #include "graphics/Lights.hpp"
 #include "graphics/MaterialFamilyDefinition.hpp"
 #include "graphics/ShaderMacros.hpp"
+#include "graphics/RendererProperties.hpp"
 #include "core/interfaces/Serializable.hpp"
 
 namespace iyf {
-class Renderer;
-class Engine;
+class FileSystem;
 
 class ShaderGenerationResult {
 public:
@@ -153,11 +153,11 @@ struct ShaderCompilationSettings {
 /// existing shaders if they are compatible. 
 class ShaderGenerator {
 public:
-    ShaderGenerator(const Engine* engine);
+    ShaderGenerator(const FileSystem* fileSystem);
     virtual ~ShaderGenerator() {}
     
     /// Generate a shader of the specified shader stage based on the provided MaterialFamilyDefinition
-    ShaderGenerationResult generateShader(ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition) const;
+    ShaderGenerationResult generateShader(RendererType rendererType, ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition) const;
     
     /// Compile the generated shader
     virtual ShaderCompilationResult compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) const = 0;
@@ -181,21 +181,20 @@ public:
     ShaderGenerationResult checkVertexDataLayoutCompatibility(const MaterialFamilyDefinition& definition, VertexDataLayout vertexDataLayout) const;
 protected:
     /// Generate the vertex shader. Called by generateShader()
-    virtual ShaderGenerationResult generateVertexShader(const MaterialFamilyDefinition& definition) const = 0;
+    virtual ShaderGenerationResult generateVertexShader(RendererType rendererType, const MaterialFamilyDefinition& definition) const = 0;
     
     /// Generate the fragment shader. Called by generateShader()
-    virtual ShaderGenerationResult generateFragmentShader(const MaterialFamilyDefinition& definition) const = 0;
+    virtual ShaderGenerationResult generateFragmentShader(RendererType rendererType, const MaterialFamilyDefinition& definition) const = 0;
     
     /// Generate the per frame data inputs (e.g., camera, light and material data).
-    virtual std::string generatePerFrameData(const ShaderDataSets& requiredDataSets) const = 0;
+    virtual std::string generatePerFrameData(RendererType rendererType, const ShaderDataSets& requiredDataSets) const = 0;
     
     virtual std::string generateLightProcessingFunctionCall(const MaterialFamilyDefinition& definition) const = 0;
     virtual std::string generateLightProcessingFunctionSignature(const MaterialFamilyDefinition& definition) const = 0;
     
     ShaderGenerationResult generateAndReportError(ShaderGenerationResult::Status status, const std::string& error) const;
     
-    const Engine* engine;
-    const Renderer* renderer;
+    const FileSystem* fileSystem;
 };
 }
 

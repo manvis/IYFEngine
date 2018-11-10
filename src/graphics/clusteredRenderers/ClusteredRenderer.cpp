@@ -27,6 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "graphics/clusteredRenderers/ClusteredRenderer.hpp"
+#include "graphics/clusteredRenderers/ClusteredRendererConstants.hpp"
 #include "graphics/VertexDataLayouts.hpp"
 #include "graphics/Camera.hpp"
 #include "graphics/CameraAndLightBufferLayout.hpp"
@@ -53,16 +54,6 @@
 #include <iostream>
 
 namespace iyf {
-const std::uint32_t ClusterVolumeX = 16;
-const std::uint32_t ClusterVolumeY =  8;
-const std::uint32_t ClusterVolumeZ = 24;
-
-const std::uint32_t MaxClusters = ClusterVolumeX * ClusterVolumeY * ClusterVolumeZ;
-const std::uint32_t MaxLightIDs = MaxClusters * 16;
-
-const std::string MaxClustersName = "MAX_CLUSTERS";
-const std::string MaxLightIDsName = "MAX_LIGHT_IDS";
-
 const std::string FullScreenQuadSource = 
 R"code(#version 450
 
@@ -184,10 +175,7 @@ struct ClusterData {
     std::uint32_t lightIDs[MaxLightIDs];
 };
 
-ClusteredRenderer::ClusteredRenderer(Engine* engine, GraphicsAPI* gfx) : Renderer(engine, gfx), specializationConstants(con::DefaultSpecializationConstants.begin(), con::DefaultSpecializationConstants.end()) {
-    specializationConstants.emplace_back(MaxClustersName, Format::R32_uInt, MaxClusters);
-    specializationConstants.emplace_back(MaxLightIDsName, Format::R32_uInt, MaxLightIDs);
-    
+ClusteredRenderer::ClusteredRenderer(Engine* engine, GraphicsAPI* gfx) : Renderer(engine, gfx) {
 //     pickingEnabled = false;
 }
 
@@ -1030,70 +1018,4 @@ std::future<std::uint32_t> ClusteredRenderer::getHoveredItemID() {
     promiseList.emplace_back();
     return promiseList.back().get_future();
 }
-
-std::string ClusteredRenderer::makeRenderDataSet(ShaderLanguage language) const {
-    if (language != ShaderLanguage::GLSLVulkan) {
-        throw std::runtime_error("Only GLSLVulkan is supported by this renderer");
-    }
-    
-    std::stringstream ss;
-    ss << "struct Cluster {\n";
-    ss << "    uint offset;\n";
-    ss << "    uint lightCount;\n";
-    ss << "};\n\n";
-    
-    ss << "layout(std" << "430" << ", set = " << con::RendererDataBuffer.set << ", binding = " << con::RendererDataBuffer.binding << ") buffer ClusterDataBuffer {\n";
-    ss << "    vec4 gridParameters;\n";
-    ss << "    Cluster clusters[" << MaxClustersName << "];\n";
-    ss << "    uint lightIDs[" << MaxLightIDsName << "];\n";
-    ss << "} clusterData; \n\n";
-    
-    return ss.str();
-}
-
-std::string ClusteredRenderer::makeLightLoops(ShaderLanguage language, const std::string& lightingFunction) const {
-    if (language != ShaderLanguage::GLSLVulkan) {
-        throw std::runtime_error("Only GLSLVulkan is supported by this renderer");
-    }
-    
-    std::stringstream ss;
-    
-    ss << "    // WARNING - TEST ONLY!!! These are poorly performing regular forward rendering loops.\n";
-    ss << "    // Directional lights\n";
-    ss << "    for (int i = 0; i < cameraAndLights.directionalLightCount; ++i) {\n";
-    ss << "        vec3 lightDirection = cameraAndLights.directionalLights[i].direction;\n";
-    ss << "        vec3 lightColor = cameraAndLights.directionalLights[i].color;\n";
-    ss << "        float lightIntensity = cameraAndLights.directionalLights[i].intensity;\n";
-    ss << "\n";
-    ss << "        " << lightingFunction << "\n";
-    ss << "    }\n\n";
-    
-//         float falloff = clamp(1.0f - (DdivR * DdivR * DdivR * DdivR), 0.0f, 1.0f);
-//         falloff *= falloff;
-//         falloff = falloff / (lightDistance * lightDistance + 1);
-// 
-//         if(falloff > 0.0f) {
-//             color.rgb += falloff * cookTorranceGGX(normal, viewDirection, lightDirection, lightsAndCamera.lightData[i].color.xyz, diffuseColor, 1.0f, 0.1f, 0.3f); // Point specular + diffuse
-//         }
-    ss << "    // Point lights\n";
-    ss << "    for (int i = 0; i < cameraAndLights.pointLightCount; ++i) {\n";
-    ss << "        vec3 lightDirection = normalize(cameraAndLights.pointLights[i].position - fragmentInput.positionWS);\n";
-    ss << "        float lightDistance = length(cameraAndLights.pointLights[i].position - fragmentInput.positionWS);\n\n";
-    ss << "        float DdivR = lightDistance / cameraAndLights.pointLights[i].radius;\n";
-    ss << "        float falloff = clamp(1.0f - (DdivR * DdivR * DdivR * DdivR), 0.0f, 1.0f);\n";
-    ss << "        falloff *= falloff;\n";
-    ss << "        falloff = falloff / (lightDistance * lightDistance + 1);\n\n";
-    ss << "        vec3 lightColor = cameraAndLights.pointLights[i].color;\n";
-    ss << "        float lightIntensity = cameraAndLights.pointLights[i].intensity;\n\n";
-    ss << "        if (falloff > 0.0f) {\n";
-    ss << "            " << lightingFunction << "\n";
-    ss << "        }\n";
-    ss << "    }\n\n";
-    
-    // TODO implement spotlights
-    ss << "   // TODO implement spotlights\n\n";
-    
-    return ss.str();
-}
-
 }

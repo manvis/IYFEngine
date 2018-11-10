@@ -81,9 +81,9 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
 //     
 //     File fw(outputPath, File::OpenMode::Write);
 //     fw.writeBytes(content.data(), outputByteCount);
-    throw std::runtime_error("errr");
-    
-    return true;
+    //throw std::runtime_error("errr");
+    LOG_W("MaterialTemplateConverter::convert() NOT YET IMPLEMENTED")
+    return false;
 }
 
 }

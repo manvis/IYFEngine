@@ -36,7 +36,7 @@ vec3,material_nodes,Vec3
 vec4,material_nodes,Vec4
 material_output_node,material_nodes,Material Output
 material_output_node_doc,material_nodes,The final destination of all inputs. Values from this node are sent to the light processing function.
-texture_input_node,material_nodes,Texture Input
+texture_input_node,material_nodes,Texture
 texture_input_node_doc,material_nodes,A texture used in the material.
 normal_map_input_node,material_nodes,Normal Map Input
 normal_map_input_node_doc,material_nodes,A normal map texture used in the material.
@@ -51,8 +51,8 @@ r,material_nodes,R
 rg,material_nodes,RG
 rgb,material_nodes,RGB
 rgba,material_nodes,RGBA
-per_frame_data_node,material_nodes,Per-Frame Data
-per_frame_data_node_doc,material_nodes,Contains commonly used data that changes once per frame
+texture_coordinates_node,material_nodes,Texture Coordinates
+texture_coordinates_node_doc,material_nodes,Obtain the UV coordinates of the currently rendered object.
 float_mode_doc,material_nodes,The node will accept Float inputs and provide Float outputs.
 vec2_mode_doc,material_nodes,The node will accept Vec2 inputs and provide Vec2 outputs.
 vec3_mode_doc,material_nodes,The node will accept Vec3 inputs and provide Vec3 outputs.
@@ -242,6 +242,26 @@ multiply_node,material_nodes,Multiply
 multiply_node_doc,material_nodes,Performs multiplication
 divide_node,material_nodes,Divide
 divide_node_doc,material_nodes,Performs division
+time_node,material_nodes,Time
+time_node_doc,material_nodes,Time in seconds since the world was loaded.
+time,material_nodes,Time
+znear,material_nodes,zNear
+zfar,material_nodes,zFar
+fov,material_nodes,FOV
+screen_dimensions_node,material_nodes,Screen Dimensions
+screen_dimensions_node_doc,material_nodes,The size of the screen that the shader is rendering to.
+vertex_color_node,material_nodes,Vertex Color
+vertex_color_node_doc,material_nodes,"Interpolated vertex color data from the mesh or vec4(1.0, 1.0, 1.0, 1.0) if the mesh had no vertex color data."
+fragment_coordinate_node,material_nodes,Fragment Coordinates
+fragment_coordinate_node_doc,material_nodes,Window relative coordinates of the current fragment
+position_node,material_nodes,Position
+position_node_doc,material_nodes,Position of the rendered fragment in world space.
+normal_node,material_nodes,Normal
+normal_node_doc,material_nodes,"Interpolated normal data from the mesh or vec3(0.0, 1.0, 0.0) if the mesh had no normal data."
+camera_position_node,material_nodes,Camera Position
+camera_position_node_doc,material_nodes,The position of the camera in world space
+camera_properties_node,material_nodes,Camera Properties
+camera_properties_node_doc,material_nodes,"Various camera properties (fow, zNear, zFar) that may be useful in certain calculations."
 x,material_nodes,X
 y,material_nodes,Y
 z,material_nodes,Z

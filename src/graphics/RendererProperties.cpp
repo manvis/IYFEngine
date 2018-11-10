@@ -26,35 +26,11 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef CAMERA_AND_LIGHT_BUFFER_LAYOUT_HPP
-#define CAMERA_AND_LIGHT_BUFFER_LAYOUT_HPP
-
-#include <cstdint>
-
-#include <glm/mat4x4.hpp>
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
-
-#include "graphics/Lights.hpp"
-#include "graphics/ShaderConstants.hpp"
+#include "graphics/RendererProperties.hpp"
 
 namespace iyf {
-struct CameraAndLightData {
-    glm::mat4 V;
-    glm::mat4 P;
-    glm::mat4 VP;
-    glm::vec3 cameraPosition;
-    std::uint32_t directionalLightCount;
-    float zNear;
-    float zFar;
-    glm::uvec2 framebufferDimensions;
-    std::uint32_t pointLightCount;
-    std::uint32_t spotLightCount;
-    float fieldOfView;
-    float time;
-    DirectionalLight directionalLights[con::MaxDirectionalLights];
-    PointLight pointLights[con::MaxPointLights];
-    SpotLight spotLights[con::MaxSpotLights];
-};
+RendererProperties::RendererProperties(std::string name, StringHash localizationHandle,
+                                       bool usesSeparateShadingPass, bool canUseMultipleLightingModels)
+    : name(std::move(name)), localizationHandle(std::move(localizationHandle)),
+      usesSeparateShadingPass(usesSeparateShadingPass), canUseMultipleLightingModels(canUseMultipleLightingModels) {}
 }
-#endif // CAMERA_AND_LIGHT_BUFFER_LAYOUT_HPP

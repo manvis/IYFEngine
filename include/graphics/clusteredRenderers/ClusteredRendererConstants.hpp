@@ -26,35 +26,21 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef CAMERA_AND_LIGHT_BUFFER_LAYOUT_HPP
-#define CAMERA_AND_LIGHT_BUFFER_LAYOUT_HPP
+#ifndef IYF_CLUSTERED_RENDERER_CONSTANTS_HPP
+#define IYF_CLUSTERED_RENDERER_CONSTANTS_HPP
 
 #include <cstdint>
 
-#include <glm/mat4x4.hpp>
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
-
-#include "graphics/Lights.hpp"
-#include "graphics/ShaderConstants.hpp"
-
 namespace iyf {
-struct CameraAndLightData {
-    glm::mat4 V;
-    glm::mat4 P;
-    glm::mat4 VP;
-    glm::vec3 cameraPosition;
-    std::uint32_t directionalLightCount;
-    float zNear;
-    float zFar;
-    glm::uvec2 framebufferDimensions;
-    std::uint32_t pointLightCount;
-    std::uint32_t spotLightCount;
-    float fieldOfView;
-    float time;
-    DirectionalLight directionalLights[con::MaxDirectionalLights];
-    PointLight pointLights[con::MaxPointLights];
-    SpotLight spotLights[con::MaxSpotLights];
-};
+const std::uint32_t ClusterVolumeX = 16;
+const std::uint32_t ClusterVolumeY =  8;
+const std::uint32_t ClusterVolumeZ = 24;
+
+const std::uint32_t MaxClusters = ClusterVolumeX * ClusterVolumeY * ClusterVolumeZ;
+const std::uint32_t MaxLightIDs = MaxClusters * 16;
+
+const char* const MaxClustersName = "MAX_CLUSTERS";
+const char* const MaxLightIDsName = "MAX_LIGHT_IDS";
 }
-#endif // CAMERA_AND_LIGHT_BUFFER_LAYOUT_HPP
+
+#endif // IYF_CLUSTERED_RENDERER_CONSTANTS_HPP

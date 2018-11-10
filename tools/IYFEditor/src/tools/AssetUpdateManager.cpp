@@ -220,10 +220,14 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(std::string path
                     return [assetManager, assetType, finalPath] {
                         assetManager->requestAssetRefresh(assetType, finalPath);
                     };
+                } else {
+                    LOG_W("Failed to import " << path << ". Error during the import.");
+                    return nullptr;
                 }
+            } else {
+                LOG_W("Failed to import " << path << ". The converter failed to initialize its state.");
+                return nullptr;
             }
-            
-            break;
         }
         case AssetOperationType::Deleted: {
             const fs::path sourcePath = con::ImportPath() / path;

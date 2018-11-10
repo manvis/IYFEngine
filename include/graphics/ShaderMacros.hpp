@@ -50,6 +50,8 @@ enum class ShaderMacro : std::uint16_t {
     TextureInputCount           = 3, /// < Integer. Number of texture inputs (including the normal texture, if any). Any number between 0 and con::MaxMaterialTextures
     WorldSpacePositionAvailable = 4, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined, the vertex shader will compute a world space position and pass it to later stages.
     NormalAvailable             = 5, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined, the vertex shader will pass the normal (or a TBN if NormalMapTextureAvailable is defined) to later stages.
+    VertexColorAvailable        = 6, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined and the vertices have colors, the vertex shader will pass them to later stages.
+    TextureCoordinatesAvailable = 7, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined and the vertices have texture coordinates, the vertex shader will pass them to later stages.
     Custom, /// < Special value, can be anything the user wants. Don't use in GetShaderMacroName().
     COUNT = Custom
 };

@@ -26,35 +26,14 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef CAMERA_AND_LIGHT_BUFFER_LAYOUT_HPP
-#define CAMERA_AND_LIGHT_BUFFER_LAYOUT_HPP
-
-#include <cstdint>
-
-#include <glm/mat4x4.hpp>
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
-
-#include "graphics/Lights.hpp"
-#include "graphics/ShaderConstants.hpp"
+#ifndef IYF_RENDERER_CONSTANTS_HPP
+#define IYF_RENDERER_CONSTANTS_HPP
 
 namespace iyf {
-struct CameraAndLightData {
-    glm::mat4 V;
-    glm::mat4 P;
-    glm::mat4 VP;
-    glm::vec3 cameraPosition;
-    std::uint32_t directionalLightCount;
-    float zNear;
-    float zFar;
-    glm::uvec2 framebufferDimensions;
-    std::uint32_t pointLightCount;
-    std::uint32_t spotLightCount;
-    float fieldOfView;
-    float time;
-    DirectionalLight directionalLights[con::MaxDirectionalLights];
-    PointLight pointLights[con::MaxPointLights];
-    SpotLight spotLights[con::MaxSpotLights];
+enum class RendererType {
+    ForwardClustered = 0,
+    COUNT
 };
 }
-#endif // CAMERA_AND_LIGHT_BUFFER_LAYOUT_HPP
+
+#endif // IYF_RENDERER_CONSTANTS_HPP

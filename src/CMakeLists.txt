@@ -102,12 +102,14 @@ graphics/MaterialDatabase.cpp
 graphics/MaterialInstanceDefinition.cpp
 graphics/MaterialFamilyDefinition.cpp
 graphics/Renderer.cpp
+graphics/RendererProperties.cpp
 graphics/ShaderConstants.cpp
 graphics/ShaderMacros.cpp
 graphics/Skybox.cpp
 graphics/VertexDataLayouts.cpp
 #--------------------- clustered rendering renderer
 graphics/clusteredRenderers/ClusteredRenderer.cpp
+graphics/clusteredRenderers/ClusteredRendererProperties.cpp
 #--------------------- culling
 graphics/culling/Frustum.cpp
 graphics/culling/BoundingVolumes.cpp
