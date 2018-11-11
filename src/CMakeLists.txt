@@ -146,6 +146,7 @@ threading/Implementation.cpp
 #------- utilities folder
 utilities/BufferRangeSet.cpp
 utilities/Compression.cpp
+utilities/ImGuiUtils.cpp
 utilities/stbImpl.cpp
 utilities/ReadWholeFile.cpp
 utilities/Regexes.cpp

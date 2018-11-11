@@ -34,6 +34,7 @@
 #include "assets/AssetManager.hpp"
 #include "assets/assetTypes/Shader.hpp"
 #include "assets/assetTypes/Font.hpp"
+#include "assets/assetTypes/Texture.hpp"
 #include "threading/ThreadProfiler.hpp"
 #include "graphics/Renderer.hpp"
 
@@ -45,13 +46,19 @@
 
 // TODO use engine native handles for scancodes, avoiding this explicit SDL dependency
 #include <SDL2/SDL.h>
-// TODO replace all these iostreams with LOG calls
-#include <iostream>
 
 namespace iyf {
+
+// TODO would be nice if the engine worked in 32 bit systems as well.
+static_assert(sizeof(ImTextureID) == 8, "ImTextureID (a.k.a. a void pointer) must fit 64 bits of data");
     
 static const size_t MAX_IMGUI_VBO = sizeof(ImDrawVert) * 8192 * 8;
 static const size_t MAX_IMGUI_IBO = sizeof(ImDrawIdx) * 8192 * 8;
+
+static const std::uint32_t MAX_DESCRIPTOR_COUNT = 64;
+static const std::uint32_t MAX_UNIFORM_BUFFER_DESCRIPTOR_COUNT = 1;
+static const std::uint32_t MAX_COMBINED_IMAGE_SAMPLER_DESCRIPTOR_COUNT = 63;
+static const std::uint64_t MAX_FRAMES_BEFORE_TEXTURE_CLEAR = 30;
     
 bool ImGuiImplementation::requestRenderThisFrame() {
     // Don't repeat initialization. Just in case 2 states get drawn at the same time (e.g., game and pause) and both have separate GUIs
@@ -154,6 +161,9 @@ void ImGuiImplementation::onTextInput(const char* text) {
 }
 
 void ImGuiImplementation::initialize() {
+    scissorRects.clear();
+    scissorRects.resize(1);
+    
     context = ImGui::CreateContext();
     ImGui::SetCurrentContext(context);
     
@@ -199,7 +209,7 @@ void ImGuiImplementation::dispose() {
 
 void ImGuiImplementation::initializeAssets() {
     GraphicsAPI* gfxAPI = engine->getGraphicsAPI();
-    AssetManager* assetManager = engine->getAssetManager();
+    assetManager = engine->getAssetManager();
     Renderer* renderer = engine->getRenderer();
     
     // Font texture atlas
@@ -245,12 +255,15 @@ void ImGuiImplementation::initializeAssets() {
     
     fontAtlas = gfxAPI->createUncompressedImage(uici);
     
-    fontSampler = gfxAPI->createPresetSampler(SamplerPreset::ImguiTexture);
+    imguiDefaultSampler = gfxAPI->createPresetSampler(SamplerPreset::ImguiTexture);
+    customTextureSampler = gfxAPI->createPresetSampler(SamplerPreset::Default3DModel);
+    
     fontView = gfxAPI->createDefaultImageView(fontAtlas);
-    io.Fonts->TexID = fontView.toNative<void*>();
+    io.Fonts->TexID = nullptr;//fontView.toNative<void*>();
     
     // Descriptor pool and layouts
-    DescriptorPoolCreateInfo dpci{1, {{DescriptorType::UniformBuffer, 1}, {DescriptorType::CombinedImageSampler, 1}}};
+    DescriptorPoolCreateInfo dpci{MAX_DESCRIPTOR_COUNT, {{DescriptorType::UniformBuffer, MAX_UNIFORM_BUFFER_DESCRIPTOR_COUNT},
+                                                         {DescriptorType::CombinedImageSampler, MAX_COMBINED_IMAGE_SAMPLER_DESCRIPTOR_COUNT}}};
     descriptorPool = gfxAPI->createDescriptorPool(dpci);
     
     DescriptorSetLayoutCreateInfo dslci{{{0, DescriptorType::CombinedImageSampler, 1, ShaderStageFlagBits::Fragment, {}}}};
@@ -305,7 +318,6 @@ void ImGuiImplementation::initializeAssets() {
     
     std::vector<Buffer> vboibo;
     std::vector<BufferCreateInfo> bci;
-    // TODO MemoryUsage::CPUToGPU
     bci.emplace_back(BufferUsageFlagBits::VertexBuffer, Bytes(MAX_IMGUI_VBO), MemoryUsage::CPUToGPU, true, "ImGui VBO");
     bci.emplace_back(BufferUsageFlagBits::IndexBuffer,  Bytes(MAX_IMGUI_IBO), MemoryUsage::CPUToGPU, true, "ImGui IBO");
     
@@ -322,8 +334,16 @@ void ImGuiImplementation::initializeAssets() {
     DescriptorSetAllocateInfo dsai{descriptorPool, {descriptorSetLayout}};
     atlasDescriptorSet = gfxAPI->allocateDescriptorSets(dsai)[0];
     
-    WriteDescriptorSet wds{atlasDescriptorSet, 0, 0, 1, DescriptorType::CombinedImageSampler, {{fontSampler, fontView, ImageLayout::ShaderReadOnlyOptimal}}, {}, {}};
+    WriteDescriptorSet wds{atlasDescriptorSet, 0, 0, 1, DescriptorType::CombinedImageSampler, {{imguiDefaultSampler, fontView, ImageLayout::ShaderReadOnlyOptimal}}, {}, {}};
     gfxAPI->updateDescriptorSets({wds});
+    
+    // Reserve empty descriptor sets
+    const std::uint32_t emptySetCount = MAX_COMBINED_IMAGE_SAMPLER_DESCRIPTOR_COUNT - 1; // We've already allocated one for the main texture atlas
+    freeSets.resize(emptySetCount);
+    std::vector<DescriptorSetLayoutHnd> setLayouts(emptySetCount, descriptorSetLayout);
+    
+    DescriptorSetAllocateInfo dsaiMulti{descriptorPool, std::move(setLayouts)};
+    freeSets = gfxAPI->allocateDescriptorSets(dsaiMulti);
     
     assetsInitialized = true;
 }
@@ -332,6 +352,15 @@ void ImGuiImplementation::disposeAssets() {
     assetsInitialized = false;
     
     GraphicsAPI* gfxAPI = engine->getGraphicsAPI();
+    
+    for (const auto& td : texureData) {
+        // The descriptor sets will get freed together with the pool
+        gfxAPI->destroyImageView(td.second.imageView);
+    }
+    
+    // Images will get cleared once their handles are freed.
+    freeSets.clear();
+    texureData.clear();
     
     gfxAPI->destroyDescriptorSetLayout(descriptorSetLayout);
     gfxAPI->destroyDescriptorPool(descriptorPool);
@@ -346,7 +375,8 @@ void ImGuiImplementation::disposeAssets() {
     gfxAPI->destroyImageView(fontView);
     gfxAPI->destroyImage(fontAtlas);
     ImGui::GetIO().Fonts->TexID = 0;
-    gfxAPI->destroySampler(fontSampler);
+    gfxAPI->destroySampler(imguiDefaultSampler);
+    gfxAPI->destroySampler(customTextureSampler);
     
     std::vector<Buffer> buffers;
     buffers.push_back(VBOs[0]);
@@ -445,6 +475,10 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
     std::size_t IBOOffset = 0;
     std::size_t VBOOffset = 0;
     
+    const std::uint64_t frameID = engine->getFrameID();
+    
+    ImTextureID previousID = nullptr;
+    Rect2D& scissorRect = scissorRects[0];
     for (int n = 0; n < drawData->CmdListsCount; ++n) {
         const ImDrawList* cmd_list = drawData->CmdLists[n];
         
@@ -452,8 +486,6 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
             if (pcmd->UserCallback) {
                 pcmd->UserCallback(cmd_list, pcmd);
             } else {
-                Rect2D scissorRect;
-                
                 float oX = pcmd->ClipRect.x;
                 float oY = pcmd->ClipRect.y;
                 float eX = pcmd->ClipRect.z - pcmd->ClipRect.x;
@@ -465,8 +497,46 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
                 scissorRect.extent.x = eX < 0.0f ? 0.0f : eX;
                 scissorRect.extent.y = eY < 0.0f ? 0.0f : eY;
                 
-                // TODO do something so that we wouldn't need to constantly re-create this vector
-                cmdBuff->setScissor(0, 1, {scissorRect});
+                if (pcmd->TextureId != previousID) {
+                    if (pcmd->TextureId == nullptr) {
+                        // Bind the font atlas
+                        cmdBuff->bindDescriptorSets(PipelineBindPoint::Graphics, pipelineLayout, 0, {atlasDescriptorSet}, {});
+                    } else {
+                        StringHash name = StringHash(reinterpret_cast<std::uint64_t>(pcmd->TextureId));
+                        
+                        auto result = texureData.find(name);
+                        if (result == texureData.end()) {
+                            ImGuiTextureData textureData;
+                            textureData.lastUsedOnFrame = frameID;
+                            textureData.texture = assetManager->load<Texture>(name, false);
+                            textureData.imageView = gfxAPI->createDefaultImageView(textureData.texture->image);
+                            
+                            if (freeSets.empty()) {
+                                // TODO resize or add extra
+                                throw std::logic_error("Not enough free slots to fit a descriptor set for one more texture.");
+                            }
+                            
+                            DescriptorSetHnd descriptorSet = freeSets.back();
+                            freeSets.pop_back();
+                            
+                            textureData.descriptorSet = descriptorSet;
+                            
+                            WriteDescriptorSet wds{textureData.descriptorSet, 0, 0, 1, DescriptorType::CombinedImageSampler, {{imguiDefaultSampler, textureData.imageView, ImageLayout::ShaderReadOnlyOptimal}}, {}, {}};
+                            gfxAPI->updateDescriptorSets({wds});
+                            
+                            result = texureData.emplace(std::make_pair(name, std::move(textureData))).first;
+                        } else {
+                            result->second.lastUsedOnFrame = frameID;
+                        }
+                        
+                        cmdBuff->bindDescriptorSets(PipelineBindPoint::Graphics, pipelineLayout, 0, {result->second.descriptorSet}, {});
+                    }
+                    
+                    previousID = pcmd->TextureId;
+                }
+                
+                //cmdBuff->
+                cmdBuff->setScissor(0, 1, scissorRects);
                 cmdBuff->drawIndexed(pcmd->ElemCount, 1, IBOOffset, VBOOffset, 0);
             }
             
@@ -474,6 +544,17 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
         }
         
         VBOOffset += cmd_list->VtxBuffer.size();
+    }
+    
+    for (auto it = texureData.begin(); it != texureData.end();) {
+        if ((frameID - it->second.lastUsedOnFrame) > MAX_FRAMES_BEFORE_TEXTURE_CLEAR) {
+            std::vector<DescriptorSetHnd> handles = {it->second.descriptorSet};
+            freeSets.emplace_back(it->second.descriptorSet);
+            gfxAPI->destroyImageView(it->second.imageView);
+            it = texureData.erase(it);
+        } else {
+            ++it;
+        }
     }
     
 //     cmdBuff->endRenderPass();

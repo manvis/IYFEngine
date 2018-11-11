@@ -36,6 +36,7 @@
 #include "utilities/logicGraph/LogicGraph.hpp"
 #include "utilities/ImGuiUtils.hpp"
 #include "utilities/Regexes.hpp"
+#include "DragDropAssetPayload.hpp"
 
 #include "imgui.h"
 
@@ -368,9 +369,14 @@ private:
     LogicGraphConnectorID normalID;
 };
 
+
+const char* DEFAULT_TEXTURE_FIELD_NAME = "defaultTexture";
+
 class TextureInputNode : public MaterialNodeBase {
 public:
-    TextureInputNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex, 2) {
+    StringHash defaultTexture;
+    
+    TextureInputNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex, 2), defaultTexture(HS(con::MissingTexture())) {
         addInput(LH("uv", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2, true, true);
         addOutput(LH("rgb", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
     }
@@ -419,6 +425,20 @@ public:
         
         return true;
     }
+    
+    virtual void serializeJSON(PrettyStringWriter& pw) const final override {
+        LogicGraphNode::serializeJSON(pw);
+        
+        pw.String(DEFAULT_TEXTURE_FIELD_NAME);
+        pw.Uint64(defaultTexture.value());
+    }
+    
+    virtual void deserializeJSON(JSONObject& jo) final override {
+        LogicGraphNode::deserializeJSON(jo);
+        
+        defaultTexture = StringHash(jo[DEFAULT_TEXTURE_FIELD_NAME].GetUint64());
+    }
+    
 };
 
 class CrossNode : public MaterialNodeBase {
@@ -1712,100 +1732,149 @@ void MaterialEditor::onDrawButtonRow() {
     }
 }
 
+void ShowOutputNodeUI(MaterialNode& node) {
+    MaterialOutputNode& n = static_cast<MaterialOutputNode&>(node);
+    
+    // CULLING
+    ImGui::Spacing();
+    
+    std::vector<std::string> cullModes = {
+        LOC_SYS(LH("cull_mode_none", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("cull_mode_front", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("cull_mode_back", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("cull_mode_front_and_back", GraphicsLocalizationNamespace))
+    };
+    
+    int currentCullMode = unsigned(n.cullMode);
+    if (currentCullMode >= static_cast<int>(CullModeFlagBits::FrontAndBack)) {
+        currentCullMode = static_cast<int>(CullModeFlagBits::Back);
+    }
+    
+    if (ImGui::Combo(LOC_SYS(LH("cull_mode", GraphicsLocalizationNamespace)).c_str(), &currentCullMode, util::StringVectorGetter, &cullModes, cullModes.size())) {
+        n.cullMode = static_cast<CullModeFlagBits>(currentCullMode);
+    }
+    
+    // DEPTH
+    ImGui::Spacing();
+    ImGui::Checkbox(LOC_SYS(LH("depth_write_enabled", GraphicsLocalizationNamespace)).c_str(), &(n.depthWriteEnabled));
+    ImGui::Checkbox(LOC_SYS(LH("depth_test_enabled", GraphicsLocalizationNamespace)).c_str(), &(n.depthTestEnabled));
+    
+    std::vector<std::string> depthCompareOps = {
+        LOC_SYS(LH("compare_op_never", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("compare_op_less", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("compare_op_less_equal", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("compare_op_equal", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("compare_op_greater", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("compare_op_greater_equal", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("compare_op_always", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("compare_op_not_equal", GraphicsLocalizationNamespace)),
+    };
+    util::DisplayFlagPicker<CompareOp, static_cast<int>(CompareOp::COUNT)>(LOC_SYS(LH("depth_compare_op", GraphicsLocalizationNamespace)), n.depthCompareOp, CompareOp::Less, depthCompareOps);
+    
+    // BLENDING
+    ImGui::Spacing();
+    ImGui::Checkbox(LOC_SYS(LH("blending_enabled", GraphicsLocalizationNamespace)).c_str(), &(n.blendEnabled));
+    
+    std::vector<std::string> blendFactors = {
+        LOC_SYS(LH("blend_fac_zero", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("blend_fac_one", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("blend_fac_src_color", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("blend_fac_one_minus_src_color", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("blend_fac_dst_color", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("blend_fac_one_minus_dst_color", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("blend_fac_src_alpha", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("blend_fac_one_minus_src_alpha", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("blend_fac_dst_alpha", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("blend_fac_one_minus_dst_alpha", GraphicsLocalizationNamespace)),
+    };
+
+    util::DisplayFlagPicker<BlendFactor, static_cast<int>(BlendFactor::ConstantColor)>(LOC_SYS(LH("src_color_blend_fac", GraphicsLocalizationNamespace)), n.srcColorBlendFactor, BlendFactor::One, blendFactors);
+    util::DisplayFlagPicker<BlendFactor, static_cast<int>(BlendFactor::ConstantColor)>(LOC_SYS(LH("dst_color_blend_fac", GraphicsLocalizationNamespace)), n.dstColorBlendFactor, BlendFactor::Zero, blendFactors);
+    util::DisplayFlagPicker<BlendFactor, static_cast<int>(BlendFactor::ConstantColor)>(LOC_SYS(LH("src_alpha_blend_fac", GraphicsLocalizationNamespace)), n.srcAlphaBlendFactor, BlendFactor::One, blendFactors);
+    util::DisplayFlagPicker<BlendFactor, static_cast<int>(BlendFactor::ConstantColor)>(LOC_SYS(LH("dst_alpha_blend_fac", GraphicsLocalizationNamespace)), n.dstAlphaBlendFactor, BlendFactor::Zero, blendFactors);
+
+    std::vector<std::string> blendOps = {
+        LOC_SYS(LH("blend_op_add", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("blend_op_subtract", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("blend_op_reverse_subtract", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("blend_op_min", GraphicsLocalizationNamespace)),
+        LOC_SYS(LH("blend_op_max", GraphicsLocalizationNamespace)),
+    };
+    
+    util::DisplayFlagPicker<BlendOp, static_cast<int>(BlendOp::COUNT)>(LOC_SYS(LH("color_blend_op", GraphicsLocalizationNamespace)), n.colorBlendOp, BlendOp::Add, blendOps);
+    util::DisplayFlagPicker<BlendOp, static_cast<int>(BlendOp::COUNT)>(LOC_SYS(LH("alpha_blend_op", GraphicsLocalizationNamespace)), n.alphaBlendOp, BlendOp::Add, blendOps);
+}
+
+void ShowConstantNodeUI(MaterialNode& node) {
+    ConstantNode& n = static_cast<ConstantNode&>(node);
+    
+    ImGui::Spacing();
+    
+    ImGui::Text("Value");
+    
+    ImGui::DragFloat("X", &(n.value.x));
+    ImGui::DragFloat("Y", &(n.value.y));
+    ImGui::DragFloat("Z", &(n.value.z));
+    ImGui::DragFloat("W", &(n.value.w));
+}
+
+void ShowVariableNodeUI(MaterialNode& node) {
+    VariableNode& n = static_cast<VariableNode&>(node);
+    
+    ImGui::Spacing();
+    
+    ImGui::Text("Initial value");
+    
+    ImGui::DragFloat("X", &(n.value.x));
+    ImGui::DragFloat("Y", &(n.value.y));
+    ImGui::DragFloat("Z", &(n.value.z));
+    ImGui::DragFloat("W", &(n.value.w));
+}
+
+void ShowTextureInputNodeUI(MaterialNode& node) {
+    TextureInputNode& n = static_cast<TextureInputNode&>(node);
+    
+    ImGui::Spacing();
+    
+    ImGui::Text("Default texture");
+    
+    const float contentWidth = ImGui::GetContentRegionAvailWidth();
+    ImGui::Image(reinterpret_cast<void*>(n.defaultTexture.value()), ImVec2(contentWidth, contentWidth));
+    
+    if (ImGui::BeginDragDropTarget()) {
+        const char* payloadName = util::GetPayloadNameForAssetType(AssetType::Texture);
+        
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadName)) {
+            assert(payload->DataSize == sizeof(DragDropAssetPayload));
+            
+            DragDropAssetPayload payloadDestination;
+            std::memcpy(&payloadDestination, payload->Data, sizeof(DragDropAssetPayload));
+            
+            n.defaultTexture = payloadDestination.getNameHash();
+        }
+        
+        ImGui::EndDragDropTarget();
+    }
+    ImGui::TextDisabled("(drop texture above)");
+    //ImGui::Image();
+}
+
 void MaterialEditor::drawNodeExtraProperties(MaterialNode& node) {
-    if (node.getType() == MaterialNodeType::Output) {
-        MaterialOutputNode& n = static_cast<MaterialOutputNode&>(node);
-        
-        // CULLING
-        ImGui::Spacing();
-        
-        std::vector<std::string> cullModes = {
-            LOC_SYS(LH("cull_mode_none", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("cull_mode_front", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("cull_mode_back", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("cull_mode_front_and_back", GraphicsLocalizationNamespace))
-        };
-        
-        int currentCullMode = unsigned(n.cullMode);
-        if (currentCullMode >= static_cast<int>(CullModeFlagBits::FrontAndBack)) {
-            currentCullMode = static_cast<int>(CullModeFlagBits::Back);
-        }
-        
-        if (ImGui::Combo(LOC_SYS(LH("cull_mode", GraphicsLocalizationNamespace)).c_str(), &currentCullMode, util::StringVectorGetter, &cullModes, cullModes.size())) {
-            n.cullMode = static_cast<CullModeFlagBits>(currentCullMode);
-        }
-        
-        // DEPTH
-        ImGui::Spacing();
-        ImGui::Checkbox(LOC_SYS(LH("depth_write_enabled", GraphicsLocalizationNamespace)).c_str(), &(n.depthWriteEnabled));
-        ImGui::Checkbox(LOC_SYS(LH("depth_test_enabled", GraphicsLocalizationNamespace)).c_str(), &(n.depthTestEnabled));
-        
-        std::vector<std::string> depthCompareOps = {
-            LOC_SYS(LH("compare_op_never", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("compare_op_less", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("compare_op_less_equal", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("compare_op_equal", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("compare_op_greater", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("compare_op_greater_equal", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("compare_op_always", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("compare_op_not_equal", GraphicsLocalizationNamespace)),
-        };
-        util::DisplayFlagPicker<CompareOp, static_cast<int>(CompareOp::COUNT)>(LOC_SYS(LH("depth_compare_op", GraphicsLocalizationNamespace)), n.depthCompareOp, CompareOp::Less, depthCompareOps);
-        
-        // BLENDING
-        ImGui::Spacing();
-        ImGui::Checkbox(LOC_SYS(LH("blending_enabled", GraphicsLocalizationNamespace)).c_str(), &(n.blendEnabled));
-        
-        std::vector<std::string> blendFactors = {
-            LOC_SYS(LH("blend_fac_zero", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("blend_fac_one", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("blend_fac_src_color", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("blend_fac_one_minus_src_color", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("blend_fac_dst_color", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("blend_fac_one_minus_dst_color", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("blend_fac_src_alpha", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("blend_fac_one_minus_src_alpha", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("blend_fac_dst_alpha", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("blend_fac_one_minus_dst_alpha", GraphicsLocalizationNamespace)),
-        };
-
-        util::DisplayFlagPicker<BlendFactor, static_cast<int>(BlendFactor::ConstantColor)>(LOC_SYS(LH("src_color_blend_fac", GraphicsLocalizationNamespace)), n.srcColorBlendFactor, BlendFactor::One, blendFactors);
-        util::DisplayFlagPicker<BlendFactor, static_cast<int>(BlendFactor::ConstantColor)>(LOC_SYS(LH("dst_color_blend_fac", GraphicsLocalizationNamespace)), n.dstColorBlendFactor, BlendFactor::Zero, blendFactors);
-        util::DisplayFlagPicker<BlendFactor, static_cast<int>(BlendFactor::ConstantColor)>(LOC_SYS(LH("src_alpha_blend_fac", GraphicsLocalizationNamespace)), n.srcAlphaBlendFactor, BlendFactor::One, blendFactors);
-        util::DisplayFlagPicker<BlendFactor, static_cast<int>(BlendFactor::ConstantColor)>(LOC_SYS(LH("dst_alpha_blend_fac", GraphicsLocalizationNamespace)), n.dstAlphaBlendFactor, BlendFactor::Zero, blendFactors);
-
-        std::vector<std::string> blendOps = {
-            LOC_SYS(LH("blend_op_add", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("blend_op_subtract", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("blend_op_reverse_subtract", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("blend_op_min", GraphicsLocalizationNamespace)),
-            LOC_SYS(LH("blend_op_max", GraphicsLocalizationNamespace)),
-        };
-        
-        util::DisplayFlagPicker<BlendOp, static_cast<int>(BlendOp::COUNT)>(LOC_SYS(LH("color_blend_op", GraphicsLocalizationNamespace)), n.colorBlendOp, BlendOp::Add, blendOps);
-        util::DisplayFlagPicker<BlendOp, static_cast<int>(BlendOp::COUNT)>(LOC_SYS(LH("alpha_blend_op", GraphicsLocalizationNamespace)), n.alphaBlendOp, BlendOp::Add, blendOps);
-    } else if (node.getType() == MaterialNodeType::Constant) {
-        ConstantNode& n = static_cast<ConstantNode&>(node);
-        
-        ImGui::Spacing();
-        
-        ImGui::Text("Value");
-        
-        ImGui::DragFloat("X", &(n.value.x));
-        ImGui::DragFloat("Y", &(n.value.y));
-        ImGui::DragFloat("Z", &(n.value.z));
-        ImGui::DragFloat("W", &(n.value.w));
-    } else if (node.getType() == MaterialNodeType::Variable) {
-        VariableNode& n = static_cast<VariableNode&>(node);
-        
-        ImGui::Spacing();
-        
-        ImGui::Text("Initial value");
-        
-        ImGui::DragFloat("X", &(n.value.x));
-        ImGui::DragFloat("Y", &(n.value.y));
-        ImGui::DragFloat("Z", &(n.value.z));
-        ImGui::DragFloat("W", &(n.value.w));
+    switch (node.getType()) {
+    case MaterialNodeType::Output:
+        ShowOutputNodeUI(node);
+        break;
+    case MaterialNodeType::Constant:
+        ShowConstantNodeUI(node);
+        break;
+    case MaterialNodeType::Variable:
+        ShowVariableNodeUI(node);
+        break;
+    case MaterialNodeType::TextureInput:
+        ShowTextureInputNodeUI(node);
+        break;
+    default:
+        break;
     }
 }
 

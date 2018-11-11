@@ -978,8 +978,11 @@ public:
     virtual bool destroyPipelineLayout(PipelineLayoutHnd handle) = 0;
     virtual DescriptorSetLayoutHnd createDescriptorSetLayout(const DescriptorSetLayoutCreateInfo& info) = 0;
     virtual bool destroyDescriptorSetLayout(DescriptorSetLayoutHnd handle) = 0;
+    
     virtual std::vector<DescriptorSetHnd> allocateDescriptorSets(const DescriptorSetAllocateInfo& info) = 0;
-    virtual bool updateDescriptorSets(const std::vector<WriteDescriptorSet>& set) = 0;
+    virtual bool updateDescriptorSets(const std::vector<WriteDescriptorSet>& sets) = 0;
+    virtual bool freeDescriptorSets(DescriptorPoolHnd handle, std::vector<DescriptorSetHnd>& sets) = 0;
+    
     virtual DescriptorPoolHnd createDescriptorPool(const DescriptorPoolCreateInfo& info) = 0;
     virtual bool destroyDescriptorPool(DescriptorPoolHnd handle) = 0;
     

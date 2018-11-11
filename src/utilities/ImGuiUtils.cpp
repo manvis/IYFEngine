@@ -26,47 +26,39 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_IMGUI_UTILS_HPP
-#define IYF_IMGUI_UTILS_HPP
-
-#include "assets/AssetConstants.hpp"
-#include "imgui.h"
-#include <string>
+#include "utilities/ImGuiUtils.hpp"
 
 namespace iyf {
 namespace util {
-
-inline bool StringVectorGetter(void* in, int idx, const char** out_text) {
-    std::vector<std::string>* names = static_cast<std::vector<std::string>*>(in);
+const char* GetPayloadNameForAssetType(AssetType type) {
+    switch (type) {
+        case AssetType::Animation:
+            return "pldAnimAss";
+        case AssetType::Mesh:
+            return "pldMshAss";
+        case AssetType::Texture:
+            return "pldTexAss";
+        case AssetType::Font:
+            return "pldFontAss";
+        case AssetType::Audio:
+            return "pldAudAss";
+        case AssetType::Video:
+            return "pldVidAss";
+        case AssetType::Script:
+            return "pldScrAss";
+        case AssetType::Shader:
+            return "pldShaAss";
+        case AssetType::Strings:
+            return "pldStrAss";
+        case AssetType::MaterialTemplate:
+            return "pldMatTem";
+        case AssetType::Custom:
+            return "pldCustAss";
+        case AssetType::ANY:
+            throw std::runtime_error("ANY/COUNT is not a valid asset type");
+    }
     
-     // Checking if we're in bounds
-    if (idx < 0 || idx >= static_cast<int>(names->size())) {
-        return false;
-    }
-
-    *out_text = (*names)[idx].c_str();
-    return true;
-}
-
-template <typename T, int MaxValue>
-inline void DisplayFlagPicker(const std::string& comboName, T& inOut, T defaultValue, std::vector<std::string>& names) {
-    int currentValue = static_cast<int>(inOut);
-    if (currentValue >= MaxValue) {
-        currentValue = static_cast<int>(defaultValue);
-    }
-    
-    if (ImGui::Combo(comboName.c_str(), &currentValue, util::StringVectorGetter, &names, names.size())) {
-        inOut = static_cast<T>(currentValue);
-    }
-}
-
-const char* GetPayloadNameForAssetType(AssetType type);
-
-inline void SquareConstraint(ImGuiSizeCallbackData* data) {
-    data->DesiredSize = ImVec2(std::max(data->DesiredSize.x, data->DesiredSize.y), std::max(data->DesiredSize.x, data->DesiredSize.y));
-}
-
+    throw std::runtime_error("Unknown AssetType value");
 }
 }
-
-#endif // IYF_IMGUI_UTILS_HPP
+}

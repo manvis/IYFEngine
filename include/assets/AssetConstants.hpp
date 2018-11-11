@@ -79,9 +79,6 @@ const fs::path& BaseAssetPath();
 /// \brief Path to system strings used by the editor and tools
 const fs::path& SystemStringPath();
 
-/// \brief Path to all assets used by the editor, tools and some internal Engine components
-const fs::path& SystemAssetPath();
-
 /// \brief Path to imports
 const fs::path& ImportPath();
 
@@ -127,11 +124,11 @@ const std::string& ImGuiFont();
 /// \brief Name of the database file containing localization data. This file should exist in StringPath
 const std::string& LocalizationDatabase();
 
-/// \brief Default texture to use when one is missing. This file should exist in TexturePath
-const std::string& MissingTexture();
+/// \brief Default texture to use when one is missing.
+const fs::path& MissingTexture();
 
-/// \brief Default mesh to use when one is missing. This file should exist in MeshPath
-const std::string& MissingMesh();
+/// \brief Default mesh to use when one is missing.
+const fs::path& MissingMesh();
 
 const std::string& EngineBaseConfigFile();
 

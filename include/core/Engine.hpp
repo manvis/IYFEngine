@@ -226,6 +226,10 @@ public:
         log.clear();
     }
     
+    inline std::uint64_t getFrameID() const {
+        return frameID;
+    }
+    
 //        int getWidth();
 //        int getHeight();
 
@@ -295,6 +299,8 @@ private:
 
     std::string log;
     std::unique_ptr<ImGuiImplementation> imguiImpl;
+    
+    std::uint64_t frameID;
     
     char* argv0;
 };

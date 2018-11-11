@@ -34,11 +34,16 @@
 #include "utilities/NonCopyable.hpp"
 #include "assets/AssetHandle.hpp"
 
-class ImGuiContext;
+#include <limits>
+#include <unordered_map>
+
+struct ImGuiContext;
 namespace iyf {
 class Engine;
 class Renderer;
 class Shader;
+class Texture;
+class AssetManager;
 
 class ImGuiImplementation : public InputListener, private NonCopyable {
 public:
@@ -60,6 +65,13 @@ protected:
     friend Engine;
     friend Renderer;
     
+    struct ImGuiTextureData {
+        AssetHandle<Texture> texture;
+        ImageViewHnd imageView;
+        DescriptorSetHnd descriptorSet;
+        std::uint64_t lastUsedOnFrame;
+    };
+    
     ImGuiImplementation(Engine* engine) : engine(engine), frameHasAlreadyBegun(false), assetsInitialized(false) {}
     void initialize();
     void dispose();
@@ -76,11 +88,13 @@ protected:
     static void setClipboardText(void* userData, const char* text);
 
     Engine* engine;
+    AssetManager* assetManager;
     ImGuiContext* context;
     bool frameHasAlreadyBegun, assetsInitialized;
     
     Image fontAtlas;
-    SamplerHnd fontSampler;
+    SamplerHnd imguiDefaultSampler;
+    SamplerHnd customTextureSampler;
     ImageViewHnd fontView;
     DescriptorPoolHnd descriptorPool;
     DescriptorSetLayoutHnd descriptorSetLayout;
@@ -89,14 +103,14 @@ protected:
     AssetHandle<Shader> fragmentShader;
     PipelineLayoutHnd pipelineLayout;
     Pipeline pipeline;
-//    std::vector<VertexBufferSlice> VBOs;
-//    IndexBufferSlice IBO;
-//    
+    
     Buffer IBO;
     std::vector<Buffer> VBOs;
+    std::vector<Rect2D> scissorRects;
+    std::vector<DescriptorSetHnd> freeSets;
+    std::unordered_map<StringHash, ImGuiTextureData> texureData;
     
     std::string temp;
-//    Renderer* renderer;
 };
 }
 

@@ -36,6 +36,7 @@
 #include "tools/MaterialFamilyEditor.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
 #include "AssetList.hpp"
+#include "DragDropAssetPayload.hpp"
 #include "core/Constants.hpp"
 
 #include <future>
@@ -72,19 +73,6 @@ public:
 protected:
     Engine* engine;
     size_t lastLogLength;
-};
-
-struct DragDropAssetPayload {
-    inline DragDropAssetPayload() : nameHash(0), type(AssetType::COUNT) {}
-    inline DragDropAssetPayload(StringHash hash, AssetType type) : nameHash(hash), type(type) {}
-    
-    // Can't use StringHash here because it causes a warning
-    std::uint64_t nameHash;
-    AssetType type;
-    
-    inline StringHash getNameHash() const {
-        return StringHash(nameHash);
-    }
 };
 
 struct AssetListItem {

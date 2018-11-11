@@ -26,47 +26,19 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_IMGUI_UTILS_HPP
-#define IYF_IMGUI_UTILS_HPP
+namespace iyf::editor {
 
-#include "assets/AssetConstants.hpp"
-#include "imgui.h"
-#include <string>
-
-namespace iyf {
-namespace util {
-
-inline bool StringVectorGetter(void* in, int idx, const char** out_text) {
-    std::vector<std::string>* names = static_cast<std::vector<std::string>*>(in);
+struct DragDropAssetPayload {
+    inline DragDropAssetPayload() : nameHash(0), type(AssetType::COUNT) {}
+    inline DragDropAssetPayload(StringHash hash, AssetType type) : nameHash(hash), type(type) {}
     
-     // Checking if we're in bounds
-    if (idx < 0 || idx >= static_cast<int>(names->size())) {
-        return false;
-    }
-
-    *out_text = (*names)[idx].c_str();
-    return true;
-}
-
-template <typename T, int MaxValue>
-inline void DisplayFlagPicker(const std::string& comboName, T& inOut, T defaultValue, std::vector<std::string>& names) {
-    int currentValue = static_cast<int>(inOut);
-    if (currentValue >= MaxValue) {
-        currentValue = static_cast<int>(defaultValue);
-    }
+    // Can't use StringHash here because it causes a warning
+    std::uint64_t nameHash;
+    AssetType type;
     
-    if (ImGui::Combo(comboName.c_str(), &currentValue, util::StringVectorGetter, &names, names.size())) {
-        inOut = static_cast<T>(currentValue);
+    inline StringHash getNameHash() const {
+        return StringHash(nameHash);
     }
-}
-
-const char* GetPayloadNameForAssetType(AssetType type);
-
-inline void SquareConstraint(ImGuiSizeCallbackData* data) {
-    data->DesiredSize = ImVec2(std::max(data->DesiredSize.x, data->DesiredSize.y), std::max(data->DesiredSize.x, data->DesiredSize.y));
-}
+};
 
 }
-}
-
-#endif // IYF_IMGUI_UTILS_HPP

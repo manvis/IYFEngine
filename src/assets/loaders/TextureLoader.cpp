@@ -53,7 +53,7 @@ TextureLoader::Result TextureLoader::load(const void* inputData, std::size_t byt
     tempData.channelCount = ms.readUInt8();
     tempData.mipmapLevelCount = ms.readUInt8();
     
-    assert(tempData.faceCount == 0 || tempData.faceCount == 6);
+    assert(tempData.faceCount == 1 || tempData.faceCount == 6);
     
     // Just to make sure everything fits into the array. Yes, -1 is here for a reason
     // we save the total offset into the array as well
@@ -97,7 +97,7 @@ TextureLoader::Result TextureLoader::load(const void* inputData, std::size_t byt
     
     tempData.loaded = true;
     
-    assert((tempData.sizesAndOffsets[tempData.mipmapLevelCount].offset * 6) == tempData.size);
+    assert((tempData.sizesAndOffsets[tempData.mipmapLevelCount].offset * tempData.faceCount) == tempData.size);
 
     data = std::move(tempData);
     

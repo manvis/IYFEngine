@@ -856,6 +856,11 @@ std::vector<DescriptorSetHnd> VulkanAPI::allocateDescriptorSets(const Descriptor
     return ds;
 }
 
+bool VulkanAPI::freeDescriptorSets(DescriptorPoolHnd handle, std::vector<DescriptorSetHnd>& sets) {
+    checkResult(vkFreeDescriptorSets(logicalDevice.handle, handle.toNative<VkDescriptorPool>(), sets.size(), reinterpret_cast<VkDescriptorSet*>(sets.data())), "descriptor_set_free_fail");
+    return true;
+}
+
 bool VulkanAPI::updateDescriptorSets(const std::vector<WriteDescriptorSet>& set) {
     std::vector<VkWriteDescriptorSet> mappedSet = vkutil::mapWriteDescriptorSet(set);
     

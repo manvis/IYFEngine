@@ -71,7 +71,7 @@
 
 namespace iyf
 {
-Engine::Engine(char* argv0, bool editorMode) : graphicsDelta(0L), ticks(std::chrono::milliseconds(TICKS)), pendingStackOperation(StackOperation::NoOperation), argv0(argv0) {
+Engine::Engine(char* argv0, bool editorMode) : graphicsDelta(0L), ticks(std::chrono::milliseconds(TICKS)), pendingStackOperation(StackOperation::NoOperation), frameID(0), argv0(argv0) {
     IYFT_PROFILER_NAME_THREAD("Main");
     
     engineMode = editorMode ? EngineMode::Editor : EngineMode::Game;
@@ -366,6 +366,8 @@ void Engine::executeMainLoop() {
         previousTime = currentTime;
         
         std::chrono::nanoseconds logicDelta = std::chrono::steady_clock::now() - logicTime;
+        
+        frameID++;
 
         // Catch up with logic (physics), if graphics are too slow
         while (logicDelta >= ticks) {

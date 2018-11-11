@@ -147,6 +147,7 @@ public:
     virtual DescriptorSetLayoutHnd createDescriptorSetLayout(const DescriptorSetLayoutCreateInfo& info) override;
     virtual bool destroyDescriptorSetLayout(DescriptorSetLayoutHnd handle) override;
     virtual std::vector<DescriptorSetHnd> allocateDescriptorSets(const DescriptorSetAllocateInfo& info) override;
+    virtual bool freeDescriptorSets(DescriptorPoolHnd handle, std::vector<DescriptorSetHnd>& sets) override;
     virtual bool updateDescriptorSets(const std::vector<WriteDescriptorSet>& set) override;
     virtual DescriptorPoolHnd createDescriptorPool(const DescriptorPoolCreateInfo& info) override;
     virtual bool destroyDescriptorPool(DescriptorPoolHnd handle) override;

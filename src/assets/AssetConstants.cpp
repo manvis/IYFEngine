@@ -47,11 +47,6 @@ const fs::path& SystemStringPath() {
     return path;
 }
 
-const fs::path& SystemAssetPath() {
-    static const fs::path path = BaseAssetPath() / u8"system";
-    return path;
-}
-
 /// \brief Path to imports
 const fs::path& ImportPath() {
     static const fs::path path = u8"imports";
@@ -165,13 +160,18 @@ const std::string& LocalizationDatabase() {
     return file;
 }
 
-const std::string& MissingTexture() {
-    static const std::string file = u8"MissingTexture.sys.ktx";
+const fs::path& SystemAssetSource() {
+    static const fs::path path = u8"raw/system";
+    return path;
+}
+
+const fs::path& MissingTexture() {
+    static const fs::path file = SystemAssetSource() / u8"missingTexture.png";
     return file;
 }
 
-const std::string& MissingMesh() {
-    static const std::string file = u8"MissingMesh.sys.iyfm";
+const fs::path& MissingMesh() {
+    static const fs::path file = SystemAssetSource() / u8"missing.dae";
     return file;
 }
 

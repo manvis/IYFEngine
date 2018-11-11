@@ -69,41 +69,6 @@
 #define ADD_REMOVE_COMPONENT_BUTTON_WIDTH 60
 
 namespace iyf::editor {
-static const char* GetPayloadNameForAssetType(AssetType type) {
-    switch (type) {
-        case AssetType::Animation:
-            return "pldAnimAss";
-        case AssetType::Mesh:
-            return "pldMshAss";
-        case AssetType::Texture:
-            return "pldTexAss";
-        case AssetType::Font:
-            return "pldFontAss";
-        case AssetType::Audio:
-            return "pldAudAss";
-        case AssetType::Video:
-            return "pldVidAss";
-        case AssetType::Script:
-            return "pldScrAss";
-        case AssetType::Shader:
-            return "pldShaAss";
-        case AssetType::Strings:
-            return "pldStrAss";
-        case AssetType::MaterialTemplate:
-            return "pldMatTem";
-        case AssetType::Custom:
-            return "pldCustAss";
-        case AssetType::ANY:
-            throw std::runtime_error("ANY/COUNT is not a valid asset type");
-    }
-    
-    throw std::runtime_error("Unknown AssetType value");
-}
-
-static void SquareConstraint(ImGuiSizeCallbackData* data) {
-    data->DesiredSize = ImVec2(std::max(data->DesiredSize.x, data->DesiredSize.y), std::max(data->DesiredSize.x, data->DesiredSize.y));
-}
-
 // TODO implement TOOLTIPS, like in imgui_demo.cpp:
 //    ImGui::BeginTooltip();
 //    ImGui::PushTextWrapPos(450.0f);
@@ -915,7 +880,7 @@ void EditorState::showWorldEditorWindow() {
     
     ImGui::Text("Drop Mesh Here");
     if (ImGui::BeginDragDropTarget()) {
-        const char* payloadName = GetPayloadNameForAssetType(AssetType::Mesh);
+        const char* payloadName = util::GetPayloadNameForAssetType(AssetType::Mesh);
         
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadName)) {
             assert(payload->DataSize == sizeof(DragDropAssetPayload));
@@ -945,7 +910,7 @@ void EditorState::showWorldEditorWindow() {
     
     ImGui::Text("Drop Mesh Here");
     if (ImGui::BeginDragDropTarget()) {
-        const char* payloadName = GetPayloadNameForAssetType(AssetType::Mesh);
+        const char* payloadName = util::GetPayloadNameForAssetType(AssetType::Mesh);
         
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadName)) {
             assert(payload->DataSize == sizeof(DragDropAssetPayload));
@@ -1611,7 +1576,7 @@ void EditorState::showAssetWindow() {
                 if (ImGui::BeginDragDropSource()) {
                     ImGui::Text("File: %s\n%s asset", fileName.c_str(), con::AssetTypeToTranslationString(type).c_str());
                     DragDropAssetPayload payload(a.hash, type);
-                    ImGui::SetDragDropPayload(GetPayloadNameForAssetType(type), &payload, sizeof(payload));
+                    ImGui::SetDragDropPayload(util::GetPayloadNameForAssetType(type), &payload, sizeof(payload));
                     ImGui::EndDragDropSource();
                 }
             }
@@ -1687,7 +1652,7 @@ void EditorState::showAssetWindow() {
     }
 
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200), ImVec2(FLT_MAX, FLT_MAX), SquareConstraint);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200), ImVec2(FLT_MAX, FLT_MAX), util::SquareConstraint);
     if (ImGui::Begin("Last Selected Asset Info")) {
         ImGui::Text("TODO Implement previews");
         ImGui::End();
