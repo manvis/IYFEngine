@@ -144,18 +144,138 @@ using MaterialGraphNodeTypeInfo = LogicGraphNodeTypeInfo<MaterialNode, MaterialN
 class CodeGenerationResult {
 public:
     CodeGenerationResult() : success(false) {}
-    CodeGenerationResult(std::string code, bool success) : code(std::move(code)), success(success) {}
+    CodeGenerationResult(std::string code, std::string structCode, bool success) : code(std::move(code)), structCode(std::move(structCode)), success(success) {}
     
-    const std::string& getCode() const {
+    inline const std::string& getCode() const {
         return code;
     }
     
-    bool isSuccessful() const {
+    inline const std::string& getMaterialStructCode() const {
+        return structCode;
+    }
+    
+    inline bool isSuccessful() const {
         return success;
     }
 private:
     std::string code;
+    std::string structCode;
     bool success;
+};
+
+class MaterialNodeBase : public MaterialNode {
+public:
+    MaterialNodeBase(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex, std::size_t selectedMode = 0);
+};
+
+class TextureInputNode : public MaterialNodeBase {
+public:
+    TextureInputNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex);
+    
+    virtual MaterialNodeType getType() const final override;
+    virtual bool supportsMultipleModes() const final override;
+    
+    virtual std::vector<ModeInfo>& getSupportedModes() const final override;
+    
+    virtual bool onModeChange(std::size_t, std::size_t requestedModeID, bool) final override;
+    
+    virtual void serializeJSON(PrettyStringWriter& pw) const final override;
+    virtual void deserializeJSON(JSONObject& jo) final override;
+    
+    inline StringHash getDefaultTexture() const {
+        return defaultTexture;
+    }
+    
+    inline void setDefaultTexture(StringHash defaultTexture) {
+        this->defaultTexture = defaultTexture;
+    }
+protected:
+    friend class MaterialLogicGraph;
+    friend class MaterialEditor;
+    
+    StringHash defaultTexture;
+};
+
+class VariableNode : public MaterialNodeBase {
+public:
+    VariableNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex);
+    
+    virtual MaterialNodeType getType() const override;
+    virtual bool supportsMultipleModes() const final override;
+    
+    virtual std::vector<ModeInfo>& getSupportedModes() const final override;
+    
+    virtual bool onModeChange(std::size_t, std::size_t requestedModeID, bool) final override;
+    
+    virtual void serializeJSON(PrettyStringWriter& pw) const final override;
+    virtual void deserializeJSON(JSONObject& jo) final override;
+
+    inline glm::vec4 getDefaultValue() const {
+        return value;
+    }
+    
+    inline void setDefaultValue(glm::vec4 value) {
+        this->value = value;
+    }
+    
+    inline std::uint32_t getComponentCount() const {
+        const Connector& ca = getOutputs()[0];
+        
+        return static_cast<std::uint32_t>(ca.getType()) + 1;
+    }
+    
+    inline friend bool operator<(const VariableNode& a, const VariableNode& b) {
+        const Connector& ca = a.getOutputs()[0];
+        const Connector& cb = b.getOutputs()[0];
+        
+        return static_cast<std::uint8_t>(ca.getType()) < static_cast<std::uint8_t>(cb.getType());
+    }
+    
+    inline friend bool operator>(const VariableNode& a, const VariableNode& b) {
+        const Connector& ca = a.getOutputs()[0];
+        const Connector& cb = b.getOutputs()[0];
+        
+        return static_cast<std::uint8_t>(ca.getType()) > static_cast<std::uint8_t>(cb.getType());
+    }
+protected:
+    glm::vec4 value;
+};
+
+class VariableNodeStructField {
+public:
+    inline VariableNodeStructField() : offset(0), node(nullptr) {}
+    inline VariableNodeStructField(VariableNode* node) : offset(0), node(node) {}
+    
+    inline std::size_t getComponentCount() const {
+        if (isPadding()) {
+            return 1;
+        } else {
+            return node->getComponentCount();
+        }
+    }
+    
+    inline bool isPadding() const {
+        return node == nullptr;
+    }
+    
+    inline const VariableNode* getNode() {
+        return node;
+    }
+    
+    inline std::size_t getOffset() const {
+        return offset;
+    }
+    
+    inline void setOffset(std::size_t offset) {
+        this->offset = offset;
+    }
+    
+    inline const VariableNode* getNode() const {
+        return node;
+    }
+private:
+    std::size_t offset;
+    VariableNode* node;
 };
 
 class MaterialLogicGraph : public LogicGraph<MaterialNode, MaterialGraphNodeTypeInfo> {
@@ -166,16 +286,12 @@ public:
     virtual std::string getConnectorTypeName(MaterialNodeConnectorType type) const final override;
     virtual std::uint32_t getConnectorTypeColor(ConnectorType type, bool enabled) const final override;
     
-    /*virtual NodeConnectionResult addConnection(MaterialNode* source, GraphNodeConnectorID outputID, MaterialNode* destination, GraphNodeConnectorID inputID) final override {
-        return NodeConnectionResult::Success;
-    }*/
-    
     virtual void serializeJSON(PrettyStringWriter& pw) const final override;
     virtual void deserializeJSON(JSONObject& jo) final override;
     virtual bool validate(std::stringstream* ss) const final override;
     
-    std::vector<MaterialNodeKey> getTextureNodes() const;
-    std::vector<MaterialNodeKey> getVariableNodes() const;
+    std::vector<const TextureInputNode*> getTextureNodes() const;
+    std::vector<const VariableNode*> getVariableNodes() const;
     
     void setMaterialFamily(MaterialFamily materialFamily);
     MaterialFamily getMaterialFamily() const;
@@ -197,6 +313,8 @@ protected:
     void constantNodeToCode(ShaderLanguage language, std::stringstream& ss, const MaterialNode& mn, const std::vector<MaterialNode::Connector>& outputs) const;
     void splitterNodeToCode(ShaderLanguage language, std::stringstream& ss, const MaterialNode& mn) const;
     void joinerNodeToCode(ShaderLanguage language, std::stringstream& ss, const MaterialNode& mn) const;
+    
+    bool validateInternal(std::stringstream* ss, std::vector<VariableNodeStructField>& fields) const;
 private:
     MaterialOutputNode* output;
     MaterialFamily materialFamily;

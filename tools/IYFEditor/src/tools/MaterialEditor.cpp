@@ -36,6 +36,7 @@
 #include "utilities/logicGraph/LogicGraph.hpp"
 #include "utilities/ImGuiUtils.hpp"
 #include "utilities/Regexes.hpp"
+#include "utilities/StringUtilities.hpp"
 #include "DragDropAssetPayload.hpp"
 
 #include "imgui.h"
@@ -59,11 +60,8 @@ inline MaterialNodeConnectorType ShaderDataTypeToMaterialConnectorType(ShaderDat
     }
 }
 
-class MaterialNodeBase : public MaterialNode {
-public:
-    MaterialNodeBase(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex, std::size_t selectedMode = 0)
-        : MaterialNode(key, std::move(position), zIndex, selectedMode) {}
-};
+MaterialNodeBase::MaterialNodeBase(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex, std::size_t selectedMode)
+    : MaterialNode(key, std::move(position), zIndex, selectedMode) {}
 
 class GenTypeMaterialNode : public MaterialNodeBase {
 public:
@@ -372,74 +370,68 @@ private:
 
 const char* DEFAULT_TEXTURE_FIELD_NAME = "defaultTexture";
 
-class TextureInputNode : public MaterialNodeBase {
-public:
-    StringHash defaultTexture;
-    
-    TextureInputNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex, 2), defaultTexture(HS(con::MissingTexture())) {
-        addInput(LH("uv", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2, true, true);
-        addOutput(LH("rgb", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
-    }
-    
-    virtual MaterialNodeType getType() const final override {
+TextureInputNode::TextureInputNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex, 2), defaultTexture(HS(con::MissingTexture())) {
+    addInput(LH("uv", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2, true, true);
+    addOutput(LH("rgb", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
+}
+
+MaterialNodeType TextureInputNode::getType() const {
         return MaterialNodeType::TextureInput;
+}
+
+bool TextureInputNode::supportsMultipleModes() const {
+    return true;
+}
+
+std::vector<ModeInfo>& TextureInputNode::getSupportedModes() const {
+    static std::vector<ModeInfo> modes = {
+        ModeInfo(LH("r", MaterialNodeLocalizationNamespace), LH("float_texture_doc", MaterialNodeLocalizationNamespace)),
+        ModeInfo(LH("rg",  MaterialNodeLocalizationNamespace), LH("vec2_texture_doc",  MaterialNodeLocalizationNamespace)),
+        ModeInfo(LH("rgb",  MaterialNodeLocalizationNamespace), LH("vec3_texture_doc",  MaterialNodeLocalizationNamespace)),
+        ModeInfo(LH("rgba",  MaterialNodeLocalizationNamespace), LH("vec4_texture_doc",  MaterialNodeLocalizationNamespace)),
+    };
+    
+    return modes;
+}
+
+bool TextureInputNode::onModeChange(std::size_t, std::size_t requestedModeID, bool) {
+    if (requestedModeID >= getSupportedModes().size()) {
+        return false;
     }
     
-    virtual bool supportsMultipleModes() const final override {
-        return true;
+    auto& output = getOutput(0);
+    output.setType(static_cast<MaterialNodeConnectorType>(requestedModeID));
+    
+    switch (requestedModeID) {
+        case 0:
+            output.setLocalizationHandle(LH("r", MaterialNodeLocalizationNamespace));
+            break;
+        case 1:
+            output.setLocalizationHandle(LH("rg", MaterialNodeLocalizationNamespace));
+            break;
+        case 2:
+            output.setLocalizationHandle(LH("rgb", MaterialNodeLocalizationNamespace));
+            break;
+        case 3:
+            output.setLocalizationHandle(LH("rgba", MaterialNodeLocalizationNamespace));
+            break;
     }
     
-    virtual std::vector<ModeInfo>& getSupportedModes() const final override {
-        static std::vector<ModeInfo> modes = {
-            ModeInfo(LH("r", MaterialNodeLocalizationNamespace), LH("float_texture_doc", MaterialNodeLocalizationNamespace)),
-            ModeInfo(LH("rg",  MaterialNodeLocalizationNamespace), LH("vec2_texture_doc",  MaterialNodeLocalizationNamespace)),
-            ModeInfo(LH("rgb",  MaterialNodeLocalizationNamespace), LH("vec3_texture_doc",  MaterialNodeLocalizationNamespace)),
-            ModeInfo(LH("rgba",  MaterialNodeLocalizationNamespace), LH("vec4_texture_doc",  MaterialNodeLocalizationNamespace)),
-        };
-        
-        return modes;
-    }
+    return true;
+}
+
+void TextureInputNode::serializeJSON(PrettyStringWriter& pw) const {
+    LogicGraphNode::serializeJSON(pw);
     
-    virtual bool onModeChange(std::size_t, std::size_t requestedModeID, bool) final override {
-        if (requestedModeID >= getSupportedModes().size()) {
-            return false;
-        }
-        
-        auto& output = getOutput(0);
-        output.setType(static_cast<MaterialNodeConnectorType>(requestedModeID));
-        
-        switch (requestedModeID) {
-            case 0:
-                output.setLocalizationHandle(LH("r", MaterialNodeLocalizationNamespace));
-                break;
-            case 1:
-                output.setLocalizationHandle(LH("rg", MaterialNodeLocalizationNamespace));
-                break;
-            case 2:
-                output.setLocalizationHandle(LH("rgb", MaterialNodeLocalizationNamespace));
-                break;
-            case 3:
-                output.setLocalizationHandle(LH("rgba", MaterialNodeLocalizationNamespace));
-                break;
-        }
-        
-        return true;
-    }
+    pw.String(DEFAULT_TEXTURE_FIELD_NAME);
+    pw.Uint64(defaultTexture.value());
+}
+
+void TextureInputNode::deserializeJSON(JSONObject& jo) {
+    LogicGraphNode::deserializeJSON(jo);
     
-    virtual void serializeJSON(PrettyStringWriter& pw) const final override {
-        LogicGraphNode::serializeJSON(pw);
-        
-        pw.String(DEFAULT_TEXTURE_FIELD_NAME);
-        pw.Uint64(defaultTexture.value());
-    }
-    
-    virtual void deserializeJSON(JSONObject& jo) final override {
-        LogicGraphNode::deserializeJSON(jo);
-        
-        defaultTexture = StringHash(jo[DEFAULT_TEXTURE_FIELD_NAME].GetUint64());
-    }
-    
-};
+    defaultTexture = StringHash(jo[DEFAULT_TEXTURE_FIELD_NAME].GetUint64());
+}
 
 class CrossNode : public MaterialNodeBase {
 public:
@@ -496,95 +488,90 @@ const char* CONSTANT_Y_FIELD_NAME = "y";
 const char* CONSTANT_Z_FIELD_NAME = "z";
 const char* CONSTANT_W_FIELD_NAME = "w";
 
-class VariableNode : public MaterialNodeBase {
-public:
-    VariableNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
-        : MaterialNodeBase(key, position, zIndex, 2), value(0.0f, 0.0f, 0.0f, 0.0f) {
-        addOutput(LH("vec3", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
-//         for (std::size_t i = 0; i < (con::MaxMaterialComponents / 4); ++i) {
-//             addOutput(LH("vec4", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec4);
-//         }
+VariableNode::VariableNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) 
+    : MaterialNodeBase(key, position, zIndex, 2), value(0.0f, 0.0f, 0.0f, 0.0f) {
+    addOutput(LH("vec3", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
+//     for (std::size_t i = 0; i < (con::MaxMaterialComponents / 4); ++i) {
+//         addOutput(LH("vec4", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec4);
+//     }
+}
+
+MaterialNodeType VariableNode::getType() const {
+    return MaterialNodeType::Variable;
+}
+
+bool VariableNode::supportsMultipleModes() const {
+    return true;
+}
+
+std::vector<ModeInfo>& VariableNode::getSupportedModes() const {
+    static std::vector<ModeInfo> modes = {
+        ModeInfo(LH("float", MaterialNodeLocalizationNamespace), LH("float_constant_doc", MaterialNodeLocalizationNamespace)),
+        ModeInfo(LH("vec2",  MaterialNodeLocalizationNamespace), LH("vec2_constant_doc",  MaterialNodeLocalizationNamespace)),
+        ModeInfo(LH("vec3",  MaterialNodeLocalizationNamespace), LH("vec3_constant_doc",  MaterialNodeLocalizationNamespace)),
+        ModeInfo(LH("vec4",  MaterialNodeLocalizationNamespace), LH("vec4_constant_doc",  MaterialNodeLocalizationNamespace)),
+    };
+    
+    return modes;
+}
+
+bool VariableNode::onModeChange(std::size_t, std::size_t requestedModeID, bool) {
+    if (requestedModeID >= getSupportedModes().size()) {
+        return false;
     }
     
-    virtual MaterialNodeType getType() const override {
-        return MaterialNodeType::Variable;
+    auto& output = getOutput(0);
+    output.setType(static_cast<MaterialNodeConnectorType>(requestedModeID));
+    
+    switch (requestedModeID) {
+        case 0:
+            output.setLocalizationHandle(LH("float", MaterialNodeLocalizationNamespace));
+            break;
+        case 1:
+            output.setLocalizationHandle(LH("vec2", MaterialNodeLocalizationNamespace));
+            break;
+        case 2:
+            output.setLocalizationHandle(LH("vec3", MaterialNodeLocalizationNamespace));
+            break;
+        case 3:
+            output.setLocalizationHandle(LH("vec4", MaterialNodeLocalizationNamespace));
+            break;
     }
     
-    virtual bool supportsMultipleModes() const final override {
-        return true;
-    }
+    return true;
+}
+
+void VariableNode::serializeJSON(PrettyStringWriter& pw) const {
+    LogicGraphNode::serializeJSON(pw);
     
-    virtual std::vector<ModeInfo>& getSupportedModes() const final override {
-        static std::vector<ModeInfo> modes = {
-            ModeInfo(LH("float", MaterialNodeLocalizationNamespace), LH("float_constant_doc", MaterialNodeLocalizationNamespace)),
-            ModeInfo(LH("vec2",  MaterialNodeLocalizationNamespace), LH("vec2_constant_doc",  MaterialNodeLocalizationNamespace)),
-            ModeInfo(LH("vec3",  MaterialNodeLocalizationNamespace), LH("vec3_constant_doc",  MaterialNodeLocalizationNamespace)),
-            ModeInfo(LH("vec4",  MaterialNodeLocalizationNamespace), LH("vec4_constant_doc",  MaterialNodeLocalizationNamespace)),
-        };
-        
-        return modes;
-    }
+    pw.String(VALUE_FIELD_NAME);
+    pw.StartObject();
     
-    virtual bool onModeChange(std::size_t, std::size_t requestedModeID, bool) final override {
-        if (requestedModeID >= getSupportedModes().size()) {
-            return false;
-        }
-        
-        auto& output = getOutput(0);
-        output.setType(static_cast<MaterialNodeConnectorType>(requestedModeID));
-        
-        switch (requestedModeID) {
-            case 0:
-                output.setLocalizationHandle(LH("float", MaterialNodeLocalizationNamespace));
-                break;
-            case 1:
-                output.setLocalizationHandle(LH("vec2", MaterialNodeLocalizationNamespace));
-                break;
-            case 2:
-                output.setLocalizationHandle(LH("vec3", MaterialNodeLocalizationNamespace));
-                break;
-            case 3:
-                output.setLocalizationHandle(LH("vec4", MaterialNodeLocalizationNamespace));
-                break;
-        }
-        
-        return true;
-    }
+    pw.String(CONSTANT_X_FIELD_NAME);
+    pw.Double(value.x);
     
-    virtual void serializeJSON(PrettyStringWriter& pw) const final override {
-        LogicGraphNode::serializeJSON(pw);
-        
-        pw.String(VALUE_FIELD_NAME);
-        pw.StartObject();
-        
-        pw.String(CONSTANT_X_FIELD_NAME);
-        pw.Double(value.x);
-        
-        pw.String(CONSTANT_Y_FIELD_NAME);
-        pw.Double(value.y);
-        
-        pw.String(CONSTANT_Z_FIELD_NAME);
-        pw.Double(value.z);
-        
-        pw.String(CONSTANT_W_FIELD_NAME);
-        pw.Double(value.w);
-        
-        pw.EndObject();
-    }
+    pw.String(CONSTANT_Y_FIELD_NAME);
+    pw.Double(value.y);
     
-    virtual void deserializeJSON(JSONObject& jo) final override {
-        LogicGraphNode::deserializeJSON(jo);
-        
-        JSONObject val = jo[VALUE_FIELD_NAME].GetObject();
-        
-        value.x = val[CONSTANT_X_FIELD_NAME].GetFloat();
-        value.y = val[CONSTANT_Y_FIELD_NAME].GetFloat();
-        value.z = val[CONSTANT_Z_FIELD_NAME].GetFloat();
-        value.w = val[CONSTANT_W_FIELD_NAME].GetFloat();
-    }
+    pw.String(CONSTANT_Z_FIELD_NAME);
+    pw.Double(value.z);
     
-    glm::vec4 value;
-};
+    pw.String(CONSTANT_W_FIELD_NAME);
+    pw.Double(value.w);
+    
+    pw.EndObject();
+}
+
+void VariableNode::deserializeJSON(JSONObject& jo) {
+    LogicGraphNode::deserializeJSON(jo);
+    
+    JSONObject val = jo[VALUE_FIELD_NAME].GetObject();
+    
+    value.x = val[CONSTANT_X_FIELD_NAME].GetFloat();
+    value.y = val[CONSTANT_Y_FIELD_NAME].GetFloat();
+    value.z = val[CONSTANT_Z_FIELD_NAME].GetFloat();
+    value.w = val[CONSTANT_W_FIELD_NAME].GetFloat();
+}
 
 class ConstantNode : public VariableNode {
 public:
@@ -1092,26 +1079,26 @@ void MaterialLogicGraph::deserializeJSON(JSONObject& jo) {
     LogicGraph::deserializeJSON(jo);
 }
 
-std::vector<MaterialNodeKey> MaterialLogicGraph::getTextureNodes() const {
-    std::vector<MaterialNodeKey> nodes;
+std::vector<const TextureInputNode*> MaterialLogicGraph::getTextureNodes() const {
+    std::vector<const TextureInputNode*> nodes;
     nodes.reserve(10);
     
     for (const auto& node : getNodes()) {
         if (node.second->getType() == MaterialNodeType::TextureInput) {
-            nodes.emplace_back(node.second->getKey());
+            nodes.emplace_back(static_cast<TextureInputNode*>(node.second));
         }
     }
     
     return nodes;
 }
 
-std::vector<MaterialNodeKey> MaterialLogicGraph::getVariableNodes() const {
-    std::vector<MaterialNodeKey> nodes;
+std::vector<const VariableNode*> MaterialLogicGraph::getVariableNodes() const {
+    std::vector<const VariableNode*> nodes;
     nodes.reserve(10);
     
     for (const auto& node : getNodes()) {
         if (node.second->getType() == MaterialNodeType::Variable) {
-            nodes.emplace_back(node.second->getKey());
+            nodes.emplace_back(static_cast<VariableNode*>(node.second));
         }
     }
     
@@ -1134,6 +1121,14 @@ inline bool ProcessDynamicDataNodeValidation(std::stringstream* ss, MaterialNode
             return false;
         }
         
+        if (!isTextureNode && util::startsWith(node->getName(), "padding")) {
+            if (ss != nullptr) {
+                (*ss) << "Names of " << name << " nodes must not start with the word \"padding\" because it is a reserved word used internally.";
+            }
+            
+            return false;
+        }
+        
         auto result = map.try_emplace(node->getName(), node);
         if (!result.second) {
             if (ss != nullptr) {
@@ -1151,7 +1146,122 @@ inline bool ProcessDynamicDataNodeValidation(std::stringstream* ss, MaterialNode
     return true;
 }
 
+// std::pair<bool, std::string> MaterialFamilyDefinition::setMaterialComponents(const std::vector<MaterialComponent>& componentList) {
+//     std::unordered_set<MaterialComponent> uniqueNames;
+//     
+//     for (const auto& c : componentList) {
+//         
+//         const auto result = uniqueNames.insert(c);
+//         if (!result.second) {
+//             std::string error = "All names of material components must be unique. \"";
+//             error.append(c.name);
+//             error.append("\" was not.");
+//             LOG_E("Material component list error: " << error);
+//             
+//             return {false, error};
+//         }
+//     }
+//     
+//     std::vector<MaterialComponent> materialComponentsSorted = componentList;
+//     if (packMaterialData(materialComponentsSorted).first != true) {
+//         std::stringstream ss;
+//         ss <<"The material has more than " << con::MaxMaterialComponents << " components." << "\n\tPlease note possible padding:";
+//         for (const auto& c : materialComponentsSorted) {
+//             ss << "\n\t\t" << c.name << "; Size: " << c.componentCount << "; Offset: " << c.offset;
+//         }
+//         
+//         const std::string error = ss.str();
+//         LOG_E("Material component packing failed: " << error);
+//         
+//         return {false, error};
+//     }
+//     
+//     materialComponents = materialComponentsSorted;
+//     
+//     return {true, ""};
+// }
+// 
+
+bool PackMaterialData(std::stringstream* ss, std::vector<VariableNodeStructField>& fields) {
+    for (const VariableNodeStructField& f : fields) {
+        if (f.isPadding()) {
+            throw std::logic_error("PackMaterialData can't be passed a padding field");
+        }
+    }
+    
+    std::sort(fields.begin(), fields.end(), [](const VariableNodeStructField& a, const VariableNodeStructField& b) {
+        return (*a.getNode()) > (*b.getNode());
+    });
+
+    std::size_t paddingCount = 0;
+    std::size_t packedCount = 0;
+    
+    // 4 component data is already aligned and stored the way we want.
+    for (std::size_t i = 0; i < fields.size(); ++i) {
+        if (fields[i].getComponentCount() == 4) {
+            packedCount++;
+        } else {
+            break;
+        }
+    }
+    
+    // When storing 3 component data, if possible, fill the remaining last gap with a 1 byte value. If not, create a padding component
+    for (std::size_t i = packedCount; i < fields.size(); ++i) {
+        if (fields[i].getComponentCount() == 3 && fields.back().getComponentCount() == 1) {
+            VariableNodeStructField last = fields.back();
+            fields.pop_back();
+            fields.insert(fields.begin() + i + 1, last);
+            
+            i++;
+        } else if (fields[i].getComponentCount() == 3) {
+            fields.insert(fields.begin() + i + 1, VariableNodeStructField());
+            paddingCount++;
+            
+            i++;
+        } else {
+            packedCount = i;
+            break;
+        }
+    }
+    
+    // Nothing to do with 2 or 1 component values
+//     // We can store two 2 component elements one after another
+//     for (std::size_t i = packedCount; i < fields.size(); ++i) {
+//         if (fields[i].getComponentCount() == 2 && i + 1 < fields.size() && fields[i + 1].getComponentCount() == 2) {
+//             i++;
+//         }
+//     }
+    
+    // Store the offsets and compute the final size. It may have increased due to padding.
+    std::size_t totalSize = 0;
+    for (auto& f : fields) {
+        f.setOffset(totalSize);
+        totalSize += f.getComponentCount();
+    }
+    
+    // See if we still fit into memory.
+    if (totalSize <= con::MaxMaterialComponents) {
+        while (totalSize < con::MaxMaterialComponents) {
+            fields.emplace_back(VariableNodeStructField());
+            totalSize++;
+        }
+        
+        return true;
+    } else {
+        if (ss != nullptr) {
+            (*ss) << "The Variable nodes won't fit into " << con::MaxMaterialComponents << " floats. Note possible padding.";
+        }
+        
+        return false;
+    }
+}
+
 bool MaterialLogicGraph::validate(std::stringstream* ss) const {
+    std::vector<VariableNodeStructField> fields;
+    return validateInternal(ss, fields);
+}
+
+bool MaterialLogicGraph::validateInternal(std::stringstream* ss, std::vector<VariableNodeStructField>& fields) const {
     if (!LogicGraph::validate(ss)) {
         return false;
     }
@@ -1176,6 +1286,17 @@ bool MaterialLogicGraph::validate(std::stringstream* ss) const {
         }
     }
     
+    if (!result) {
+        return false;
+    }
+    
+    fields.reserve(variables.size());
+    
+    for (const auto& v : variables) {
+        fields.emplace_back(static_cast<VariableNode*>(v.second));
+    }
+    
+    result = PackMaterialData(ss, fields);
     return result;
 }
 
@@ -1279,18 +1400,19 @@ void MaterialLogicGraph::constantNodeToCode(ShaderLanguage language, std::string
     
     const ConstantNode& cn = static_cast<const ConstantNode&>(mn);
     
+    glm::vec4 value = cn.getDefaultValue();
     switch (type) {
         case MaterialNodeConnectorType::Float:
-            ss << cn.value.x << ";\n";
+            ss << value.x << ";\n";
             break;
         case MaterialNodeConnectorType::Vec2:
-            ss << typeStr << "(" << cn.value.x << ", " << cn.value.y << ");\n";
+            ss << typeStr << "(" << value.x << ", " << value.y << ");\n";
             break;
         case MaterialNodeConnectorType::Vec3:
-            ss << typeStr << "(" << cn.value.x << ", " << cn.value.y << ", " << cn.value.z << ");\n";
+            ss << typeStr << "(" << value.x << ", " << value.y << ", " << value.z << ");\n";
             break;
         case MaterialNodeConnectorType::Vec4:
-            ss << typeStr << "(" << cn.value.x << ", " << cn.value.y << ", " << cn.value.z << ", " << cn.value.w << ");\n";
+            ss << typeStr << "(" << value.x << ", " << value.y << ", " << value.z << ", " << value.w << ");\n";
             break;
         default:
             throw std::runtime_error("Invalid MaterialNodeConnectorType");
@@ -1393,8 +1515,10 @@ CodeGenerationResult MaterialLogicGraph::toCode(ShaderLanguage language) const {
     
     std::stringstream ssErr;
     ssErr << "Cannot generate code because validation of the MaterialLogicGraph failed with error(s):";
-    if (!validate(&ssErr)) {
-        return CodeGenerationResult(ssErr.str(), false);
+    
+    std::vector<VariableNodeStructField> fields;
+    if (!validateInternal(&ssErr, fields)) {
+        return CodeGenerationResult(ssErr.str(), "", false);
     }
     
     std::stringstream ss;
@@ -1637,7 +1761,41 @@ CodeGenerationResult MaterialLogicGraph::toCode(ShaderLanguage language) const {
         }// MODF
     }
     
-    return CodeGenerationResult(ss.str(), true);
+    std::stringstream ssStr;
+    ssStr << "struct Material {\n";
+    std::size_t paddingCount = 0;
+    for (const auto& f : fields) {
+        ssStr << "    ";
+        
+        if (f.isPadding()) {
+            ssStr << "float padding" << paddingCount;
+            paddingCount++;
+        } else {
+            const std::size_t componentCount = f.getComponentCount();
+            
+            switch (componentCount) {
+                case 1:
+                    ssStr << "float";
+                    break;
+                case 2:
+                    ssStr << "vec2";
+                    break;
+                case 3:
+                    ssStr << "vec3";
+                    break;
+                case 4:
+                    ssStr << "vec4";
+                    break;
+            }
+            
+            ssStr << " " << f.getNode()->getName();
+        };
+        
+        ssStr << ";\n";
+    }
+    ssStr << "};\n";
+    
+    return CodeGenerationResult(ss.str(), ssStr.str(), true);
 }
 
 inline NodeEditorSettings MakeNodeEditorSettings() {
@@ -1711,7 +1869,10 @@ void MaterialEditor::onButtonClick(LogicGraphEditorButtonFlagBits button) {
             
             File output(filePath, File::OpenMode::Write);
             output.writeBytes(result.data(), result.size());
-            LOG_D(graph->toCode(ShaderLanguage::GLSLVulkan).getCode());
+            
+            CodeGenerationResult cgr = graph->toCode(ShaderLanguage::GLSLVulkan);
+            LOG_D(cgr.getCode());
+            LOG_D(cgr.getMaterialStructCode());
             break;
         }
     }
@@ -1812,10 +1973,12 @@ void ShowConstantNodeUI(MaterialNode& node) {
     
     ImGui::Text("Value");
     
-    ImGui::DragFloat("X", &(n.value.x));
-    ImGui::DragFloat("Y", &(n.value.y));
-    ImGui::DragFloat("Z", &(n.value.z));
-    ImGui::DragFloat("W", &(n.value.w));
+    glm::vec4 value = n.getDefaultValue();
+    ImGui::DragFloat("X", &(value.x));
+    ImGui::DragFloat("Y", &(value.y));
+    ImGui::DragFloat("Z", &(value.z));
+    ImGui::DragFloat("W", &(value.w));
+    n.setDefaultValue(value);
 }
 
 void ShowVariableNodeUI(MaterialNode& node) {
@@ -1825,10 +1988,12 @@ void ShowVariableNodeUI(MaterialNode& node) {
     
     ImGui::Text("Initial value");
     
-    ImGui::DragFloat("X", &(n.value.x));
-    ImGui::DragFloat("Y", &(n.value.y));
-    ImGui::DragFloat("Z", &(n.value.z));
-    ImGui::DragFloat("W", &(n.value.w));
+    glm::vec4 value = n.getDefaultValue();
+    ImGui::DragFloat("X", &(value.x));
+    ImGui::DragFloat("Y", &(value.y));
+    ImGui::DragFloat("Z", &(value.z));
+    ImGui::DragFloat("W", &(value.w));
+    n.setDefaultValue(value);
 }
 
 void ShowTextureInputNodeUI(MaterialNode& node) {
@@ -1839,7 +2004,7 @@ void ShowTextureInputNodeUI(MaterialNode& node) {
     ImGui::Text("Default texture");
     
     const float contentWidth = ImGui::GetContentRegionAvailWidth();
-    ImGui::Image(reinterpret_cast<void*>(n.defaultTexture.value()), ImVec2(contentWidth, contentWidth));
+    ImGui::Image(reinterpret_cast<void*>(n.getDefaultTexture().value()), ImVec2(contentWidth, contentWidth));
     
     if (ImGui::BeginDragDropTarget()) {
         const char* payloadName = util::GetPayloadNameForAssetType(AssetType::Texture);
@@ -1850,7 +2015,7 @@ void ShowTextureInputNodeUI(MaterialNode& node) {
             DragDropAssetPayload payloadDestination;
             std::memcpy(&payloadDestination, payload->Data, sizeof(DragDropAssetPayload));
             
-            n.defaultTexture = payloadDestination.getNameHash();
+            n.setDefaultTexture(payloadDestination.getNameHash());
         }
         
         ImGui::EndDragDropTarget();
