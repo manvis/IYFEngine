@@ -45,7 +45,13 @@ ShaderGenerationResult ShaderGenerator::generateAndReportError(ShaderGenerationR
     return {status, error};
 }
 
-ShaderGenerationResult ShaderGenerator::generateShader(RendererType rendererType, ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition) const {
+ShaderGenerationResult ShaderGenerator::generateShader(PlatformIdentifier platform, RendererType rendererType, ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const {
+    if (stage == ShaderStageFlagBits::Fragment && graph == nullptr) {
+        return ShaderGenerationResult(ShaderGenerationResult::Status::MissingMaterialLogicGraph, "The MaterialLogicGraph pointer can't be null when generating a Fragment shader.");
+    } else if (stage != ShaderStageFlagBits::Fragment && graph != nullptr) {
+        return ShaderGenerationResult(ShaderGenerationResult::Status::MaterialLogicGraphPresent, "The MaterialLogicGraph pointer must be null when generating a non-Fragment shader.");
+    }
+    
     ShaderGenerationResult result = validateFamilyDefinition(definition);
     if (result.getStatus() != ShaderGenerationResult::Status::Success) {
         return result;
@@ -53,9 +59,9 @@ ShaderGenerationResult ShaderGenerator::generateShader(RendererType rendererType
     
     switch (stage) {
         case ShaderStageFlagBits::Vertex:
-            return generateVertexShader(rendererType, definition);
+            return generateVertexShader(platform, rendererType, definition);
         case ShaderStageFlagBits::Fragment:
-            return generateFragmentShader(rendererType, definition);
+            return generateFragmentShader(platform, rendererType, definition, graph);
         default:
             throw std::runtime_error("Not implemented");
     }
@@ -107,6 +113,38 @@ ShaderGenerationResult ShaderGenerator::checkVertexDataLayoutCompatibility(const
     }
     
     return {ShaderGenerationResult::Status::Success, ""};
+}
+
+bool ShaderCompilationSettings::isMacroDefined(const std::string& macroName) const {
+    for (const auto& macro : macros) {
+        if (macroName == macro.getName()) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+const ShaderMacroWithValue* ShaderCompilationSettings::getMacro(const std::string& macroName) const {
+    for (const ShaderMacroWithValue& macro : macros) {
+        if (macroName == macro.getName()) {
+            return &macro;
+        }
+    }
+    
+    return nullptr;
+}
+
+bool ShaderCompilationSettings::isMacroDefined(ShaderMacro macro) const {
+    return isMacroDefined(GetShaderMacroName(macro));
+}
+
+const ShaderMacroWithValue* ShaderCompilationSettings::getMacro(ShaderMacro macro) const {
+    return getMacro(GetShaderMacroName(macro));
+}
+
+StringHash ShaderVariantPicker::generateIdentifier() const {
+    return StringHash(0);
 }
 
 }

@@ -113,6 +113,8 @@ struct BindingAndSet {
 
 namespace con {
 
+// WARNING: Many mobile devices support a maximum of 4 bound descriptor sets!!!
+
 /// The set and the binding that will be used for the camera and light data buffer
 const BindingAndSet CameraAndLightBuffer(0, 0);
 /// The set and the binding that will be used for the transformation data buffer
@@ -120,9 +122,11 @@ const BindingAndSet TransformationDataBuffer(0, 1);
 /// The set and the FIRST binding that will be used for renderer specific data.
 const BindingAndSet RendererDataBuffer(0, 2);
 /// The set and the binding that will be used for the material specific data buffer
+/// \remark Material data must always fit into a single buffer
 const BindingAndSet MaterialDataBuffer(0, 3);
 /// The set and the FIRST binding that will be used for material specific texture data.
-const BindingAndSet TextureDataBuffer(0, 4);
+/// \remark Texture data must always be stored in the same descriptor set as the material data
+const BindingAndSet TextureDataBuffer(1, 3);
 
 /// Maximum number of directional lights that can exist in the scene at once
 ///

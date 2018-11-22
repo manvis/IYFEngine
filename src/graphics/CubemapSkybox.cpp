@@ -141,7 +141,7 @@ void CubemapSkybox::draw(CommandBuffer* commandBuffer, const Camera* camera) con
     commandBuffer->drawIndexed(primitiveData.indexCount, 1, primitiveData.indexOffset, primitiveData.vertexOffset, 0);
 }
 
-void CubemapSkybox::update(float delta) {
+void CubemapSkybox::update(float) {
     //This type of skybox does not need updates
 }
 

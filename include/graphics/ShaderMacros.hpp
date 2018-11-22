@@ -44,15 +44,15 @@ namespace iyf {
 /// 
 /// \warning Do not change the underlying type
 enum class ShaderMacro : std::uint16_t {
-    VertexDataLayout            = 0, /// < Must be an integer that corresponds to a VertexDataLayout used in the graphics pipeline.
-    NormalMapTextureAvailable   = 1, /// < If defined, a normal map texture will be available in the fragment shader.
-    NormalMappingMode           = 2, /// < Integer. 0 - normal mapping disabled, 1 - all TBN components present, 2 - bitangent needs recovering. Depends on the VertexDataLayout
-    TextureInputCount           = 3, /// < Integer. Number of texture inputs (including the normal texture, if any). Any number between 0 and con::MaxMaterialTextures
+    VertexDataLayout            = 0, /// < DO NOT SET - set automatically by the ShaderGenerator. Must be an integer that corresponds to a VertexDataLayout used in the graphics pipeline.
+    NormalSetByMaterialGraph    = 1, /// < DO NOT SET - set automatically by the MaterialLogicGraph. If defined, normal data is set by the MaterialLogicGraph (e.g., from normal map) and there's no need to set it again.
+    NormalMappingMode           = 2, /// < DO NOT SET - set automatically by the ShaderGenerator. Integer. 0 - normal mapping disabled, 1 - all TBN components present, 2 - bitangent needs recovering. Depends on the VertexDataLayout
+    NormalTextureChannelCount   = 3, /// < DO NOT SET - set automatically by the ShaderGenerator. Number of channels in normal textures. Depends on the platform
     WorldSpacePositionAvailable = 4, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined, the vertex shader will compute a world space position and pass it to later stages.
-    NormalAvailable             = 5, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined, the vertex shader will pass the normal (or a TBN if NormalMapTextureAvailable is defined) to later stages.
+    NormalAvailable             = 5, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined, the vertex shader will pass the normal (or a TBN if NormalMapTextureAvailable is defined) to later stages. Depends on the VertexDataLayout.
     VertexColorAvailable        = 6, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined and the vertices have colors, the vertex shader will pass them to later stages.
-    TextureCoordinatesAvailable = 7, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined and the vertices have texture coordinates, the vertex shader will pass them to later stages.
-    Custom, /// < Special value, can be anything the user wants. Don't use in GetShaderMacroName().
+    TextureCoordinatesAvailable = 7, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined and the vertices have texture coordinates, the vertex shader will pass them to later stages. Depends on the VertexDataLayout.
+    Custom, /// < Special value, can be anything the user wants. Don't use in GetShaderMacroName(). Depends on the VertexDataLayout.
     COUNT = Custom
 };
 
@@ -82,6 +82,9 @@ public:
     
     /// Create a custom ShaderMacroWithValue.
     ShaderMacroWithValue(std::string name, ShaderMacroValue value = std::monostate());
+    
+    /// Empty constructor that set a special value CUSTOM
+    ShaderMacroWithValue() : ShaderMacroWithValue("CUSTOM") {}
     
     inline ShaderMacro getMacroIdentifier() const {
         return macro;

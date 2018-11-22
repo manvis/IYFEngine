@@ -52,10 +52,11 @@ enum class PlatformIdentifier : std::uint32_t {
 };
 
 struct PlatformInfo {
-    PlatformInfo(std::string name, CompressionFormatFamily preferredTextureFormat);
+    PlatformInfo(std::string name, CompressionFormatFamily preferredTextureFormat, int normalTextureChannelCount);
     
     std::string name;
     CompressionFormatFamily preferredTextureFormat;
+    int normalTextureChannelCount;
 };
 
 namespace con {

@@ -110,68 +110,68 @@ void EditorState::initialize() {
     assetBrowserPathChanged = true;
     assetDirUpdated = false;
     
-    // TODO move this to tests
-    {
-        MaterialFamilyDefinition def = con::GetMaterialFamilyDefinition(MaterialFamily::Toon);
-        {
-            VirtualFileSystemSerializer output("toon.iyfpl", File::OpenMode::Write);
-            def.serialize(output);
-        }
-        
-        MaterialFamilyDefinition empty;
-        {
-            VirtualFileSystemSerializer input("toon.iyfpl", File::OpenMode::Read);
-            empty.deserialize(input);
-        }
-        
-        LOG_D(def.getName() << " " << empty.getName());
-        LOG_D(def.getSupportedLanguages().size() << " " << empty.getSupportedLanguages().size());
-        LOG_D("Code matches? " << (def.getLightProcessingCode()[0] == empty.getLightProcessingCode()[0]) << "\n" << empty.getLightProcessingCode()[0]);
-        
-        const std::string newName = empty.getName() + "1";
-        empty.setName(newName);
-        
-        iyf::VulkanGLSLShaderGenerator vkGen(engine->getFileSystem());
-        
-        const ShaderGenerationResult vsResult = vkGen.generateShader(RendererType::ForwardClustered, ShaderStageFlagBits::Vertex, def);
-        const ShaderGenerationResult fsResult = vkGen.generateShader(RendererType::ForwardClustered, ShaderStageFlagBits::Fragment, def);
-        
-        assert(vsResult);
-        assert(fsResult);
-        
-        LOG_V("VERTEX SHADER for " << def.getName() << ":\n" << vsResult.getContents());
-//         LOG_V("VERTEX SHADER for " << empty.getName() << ":\n" << vkGen.generateShader(ShaderStageFlagBits::Vertex, empty).getContents());
-        
-        LOG_V("FRAGMENT SHADER for " << def.getName() << ":\n" << fsResult.getContents());
-//         LOG_V("FRAGMENT SHADER for " << empty.getName() << ":\n" << vkGen.generateShader(ShaderStageFlagBits::Fragment, empty).getContents());
-        
-        ShaderCompilationSettings compilationSettings;
-        compilationSettings.logAssembly = false;
-        compilationSettings.optimizationLevel = ShaderOptimizationLevel::Performance;
-        
-        const VertexDataLayout chosenLayout = VertexDataLayout::MeshVertexColored;
-        const std::int64_t vertexDataLayoutID = static_cast<std::int64_t>(chosenLayout);
-        const VertexDataLayoutDefinition& vertexDataLayoutDefinition = con::GetVertexDataLayoutDefinition(chosenLayout);
-        
-        compilationSettings.macros.emplace_back(ShaderMacro::VertexDataLayout, vertexDataLayoutID);
-        compilationSettings.macros.emplace_back(ShaderMacro::NormalMappingMode, static_cast<std::int64_t>(vertexDataLayoutDefinition.getSupportedNormalMappingMode()));
-        compilationSettings.macros.emplace_back(ShaderMacro::NormalMapTextureAvailable);
-        
-        ShaderCompilationResult vsCompilationResult =  vkGen.compileShader(ShaderStageFlagBits::Vertex, vsResult.getContents(), "vertShader", compilationSettings);
-        ShaderCompilationResult fsCompilationResult = vkGen.compileShader(ShaderStageFlagBits::Fragment, fsResult.getContents(), "fragShader", compilationSettings);
-        
-        if (vsCompilationResult) {
-            LOG_V("Vertex shader compiled successfully");
-        } else {
-            LOG_V("Failed to compile the vertex shader. Error: " << vsCompilationResult.getErrorsAndWarnings());
-        }
-        
-        if (fsCompilationResult) {
-            LOG_V("Fragment shader compiled successfully");
-        } else {
-            LOG_V("Failed to compile the fragment shader. Error: " << fsCompilationResult.getErrorsAndWarnings());
-        }
-    }
+//     // TODO move this to tests
+//     {
+//         MaterialFamilyDefinition def = con::GetMaterialFamilyDefinition(MaterialFamily::Toon);
+//         {
+//             VirtualFileSystemSerializer output("toon.iyfpl", File::OpenMode::Write);
+//             def.serialize(output);
+//         }
+//         
+//         MaterialFamilyDefinition empty;
+//         {
+//             VirtualFileSystemSerializer input("toon.iyfpl", File::OpenMode::Read);
+//             empty.deserialize(input);
+//         }
+//         
+//         LOG_D(def.getName() << " " << empty.getName());
+//         LOG_D(def.getSupportedLanguages().size() << " " << empty.getSupportedLanguages().size());
+//         LOG_D("Code matches? " << (def.getLightProcessingCode()[0] == empty.getLightProcessingCode()[0]) << "\n" << empty.getLightProcessingCode()[0]);
+//         
+//         const std::string newName = empty.getName() + "1";
+//         empty.setName(newName);
+//         
+//         iyf::VulkanGLSLShaderGenerator vkGen(engine->getFileSystem());
+//         
+//         const ShaderGenerationResult vsResult = vkGen.generateShader(RendererType::ForwardClustered, ShaderStageFlagBits::Vertex, def);
+//         const ShaderGenerationResult fsResult = vkGen.generateShader(RendererType::ForwardClustered, ShaderStageFlagBits::Fragment, def);
+//         
+//         assert(vsResult);
+//         assert(fsResult);
+//         
+//         LOG_V("VERTEX SHADER for " << def.getName() << ":\n" << vsResult.getContents());
+// //         LOG_V("VERTEX SHADER for " << empty.getName() << ":\n" << vkGen.generateShader(ShaderStageFlagBits::Vertex, empty).getContents());
+//         
+//         LOG_V("FRAGMENT SHADER for " << def.getName() << ":\n" << fsResult.getContents());
+// //         LOG_V("FRAGMENT SHADER for " << empty.getName() << ":\n" << vkGen.generateShader(ShaderStageFlagBits::Fragment, empty).getContents());
+//         
+//         ShaderCompilationSettings compilationSettings;
+//         compilationSettings.logAssembly = false;
+//         compilationSettings.optimizationLevel = ShaderOptimizationLevel::Performance;
+//         
+//         const VertexDataLayout chosenLayout = VertexDataLayout::MeshVertexColored;
+//         const std::int64_t vertexDataLayoutID = static_cast<std::int64_t>(chosenLayout);
+//         const VertexDataLayoutDefinition& vertexDataLayoutDefinition = con::GetVertexDataLayoutDefinition(chosenLayout);
+//         
+//         compilationSettings.macros.emplace_back(ShaderMacro::VertexDataLayout, vertexDataLayoutID);
+//         compilationSettings.macros.emplace_back(ShaderMacro::NormalMappingMode, static_cast<std::int64_t>(vertexDataLayoutDefinition.getSupportedNormalMappingMode()));
+//         compilationSettings.macros.emplace_back(ShaderMacro::NormalMapTextureAvailable);
+//         
+//         ShaderCompilationResult vsCompilationResult =  vkGen.compileShader(ShaderStageFlagBits::Vertex, vsResult.getContents(), "vertShader", compilationSettings);
+//         ShaderCompilationResult fsCompilationResult = vkGen.compileShader(ShaderStageFlagBits::Fragment, fsResult.getContents(), "fragShader", compilationSettings);
+//         
+//         if (vsCompilationResult) {
+//             LOG_V("Vertex shader compiled successfully");
+//         } else {
+//             LOG_V("Failed to compile the vertex shader. Error: " << vsCompilationResult.getErrorsAndWarnings());
+//         }
+//         
+//         if (fsCompilationResult) {
+//             LOG_V("Fragment shader compiled successfully");
+//         } else {
+//             LOG_V("Failed to compile the fragment shader. Error: " << fsCompilationResult.getErrorsAndWarnings());
+//         }
+//     }
     
     for (std::size_t i = 0; i < static_cast<std::size_t>(MaterialRenderMode::COUNT); ++i) {
         renderModeNames.push_back(LOC_SYS(MaterialRenderModeNames[i]));

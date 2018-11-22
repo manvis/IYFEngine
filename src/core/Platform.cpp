@@ -29,8 +29,8 @@
 #include "core/Platform.hpp"
 
 namespace iyf {
-PlatformInfo::PlatformInfo(std::string name, CompressionFormatFamily preferredTextureFormat) 
-    : name(std::move(name)), preferredTextureFormat(preferredTextureFormat) {}
+PlatformInfo::PlatformInfo(std::string name, CompressionFormatFamily preferredTextureFormat, int normalTextureChannelCount) 
+    : name(std::move(name)), preferredTextureFormat(preferredTextureFormat), normalTextureChannelCount(normalTextureChannelCount) {}
 namespace con {
 static const std::array<std::string, static_cast<std::size_t>(PlatformIdentifier::COUNT)> PlatformIdentifierToNameMap = {
     "Linux_Desktop_x86_64",       // 0
@@ -47,12 +47,12 @@ const std::string& PlatformIdentifierToName(PlatformIdentifier platformID) {
 }
 
 static const std::array<PlatformInfo, static_cast<std::size_t>(PlatformIdentifier::COUNT)> PlatformIdentifierToInfoMap = {
-    PlatformInfo(PlatformIdentifierToName(PlatformIdentifier::Linux_Desktop_x86_64), CompressionFormatFamily::BC),        // 0
-    PlatformInfo(PlatformIdentifierToName(PlatformIdentifier::Windows_Desktop_x86_64), CompressionFormatFamily::BC),      // 1
-    PlatformInfo(PlatformIdentifierToName(PlatformIdentifier::Android_Handheld_ARM_v7a), CompressionFormatFamily::ETC),   // 2
-    PlatformInfo(PlatformIdentifierToName(PlatformIdentifier::Android_Handheld_ARM64_v8a), CompressionFormatFamily::ETC), // 3
-    PlatformInfo(PlatformIdentifierToName(PlatformIdentifier::Android_Handheld_x86), CompressionFormatFamily::ETC),       // 4
-    PlatformInfo(PlatformIdentifierToName(PlatformIdentifier::Android_Handheld_x86_64), CompressionFormatFamily::ETC),    // 5
+    PlatformInfo(PlatformIdentifierToName(PlatformIdentifier::Linux_Desktop_x86_64), CompressionFormatFamily::BC, 2),        // 0
+    PlatformInfo(PlatformIdentifierToName(PlatformIdentifier::Windows_Desktop_x86_64), CompressionFormatFamily::BC, 2),      // 1
+    PlatformInfo(PlatformIdentifierToName(PlatformIdentifier::Android_Handheld_ARM_v7a), CompressionFormatFamily::ETC, 3),   // 2
+    PlatformInfo(PlatformIdentifierToName(PlatformIdentifier::Android_Handheld_ARM64_v8a), CompressionFormatFamily::ETC, 3), // 3
+    PlatformInfo(PlatformIdentifierToName(PlatformIdentifier::Android_Handheld_x86), CompressionFormatFamily::ETC, 3),       // 4
+    PlatformInfo(PlatformIdentifierToName(PlatformIdentifier::Android_Handheld_x86_64), CompressionFormatFamily::ETC, 3),    // 5
 };
 
 const PlatformInfo& PlatformIdentifierToInfo(PlatformIdentifier platformID) {

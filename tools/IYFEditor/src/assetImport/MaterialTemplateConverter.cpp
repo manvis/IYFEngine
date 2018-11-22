@@ -29,13 +29,16 @@
 #include "assetImport/MaterialTemplateConverter.hpp"
 #include "assetImport/ConverterManager.hpp"
 
-
 #include "graphics/shaderGeneration/VulkanGLSLShaderGenerator.hpp"
 
 #include "core/filesystem/File.hpp"
 #include "core/filesystem/FileSystem.hpp"
 #include "core/Logger.hpp"
 #include "format/format.h"
+
+#include "tools/MaterialEditor.hpp"
+
+#include "rapidjson/error/en.h"
 
 namespace iyf::editor {
 class MaterialTemplateConverterInternalState : public InternalConverterState {
@@ -47,8 +50,7 @@ public:
 };
 
 MaterialTemplateConverter::MaterialTemplateConverter(const ConverterManager* manager) : Converter(manager) {
-    // TODO implement me
-    //vulkanShaderGen = std::make_unique<VulkanGLSLShaderGenerator>(manager->getFileSystem());
+    vulkanShaderGen = std::make_unique<VulkanGLSLShaderGenerator>(manager->getFileSystem());
 }
 
 MaterialTemplateConverter::~MaterialTemplateConverter() {}
@@ -68,10 +70,87 @@ std::unique_ptr<ConverterState> MaterialTemplateConverter::initializeConverter(c
 }
 
 bool MaterialTemplateConverter::convert(ConverterState& state) const {
-//     MaterialTemplateConverterState& conversionState = dynamic_cast<MaterialTemplateConverterState&>(state);
-//     MaterialTemplateConverterInternalState* internalState = dynamic_cast<MaterialTemplateConverterInternalState*>(state.getInternalState());
-//     assert(internalState != nullptr);
-//     
+    MaterialTemplateConverterState& conversionState = dynamic_cast<MaterialTemplateConverterState&>(state);
+    MaterialTemplateConverterInternalState* internalState = dynamic_cast<MaterialTemplateConverterInternalState*>(state.getInternalState());
+    assert(internalState != nullptr);
+    
+    // Use whatever. It's going to be overriden when deserialized
+    std::unique_ptr<MaterialLogicGraph> mlg = std::make_unique<MaterialLogicGraph>(MaterialFamily::Toon);
+    
+    rj::Document jo;
+    rj::ParseResult parseResult = jo.Parse(internalState->code.get(), internalState->size);
+    
+    if (!parseResult) {
+        LOG_W("Failed to parse the JSON from " << state.getSourceFilePath() <<
+              "\n\tError: " << rj::GetParseError_En(parseResult.Code()) << "(" << parseResult.Offset() << ")");
+        return false;
+    }
+    
+    mlg->deserializeJSON(jo);
+    
+    //LOG_D("CODE_GEN:\n" << mlg->toCode(ShaderLanguage::GLSLVulkan).getCode());
+    
+    const ShaderGenerationResult vertResult = vulkanShaderGen->generateShader(conversionState.getPlatformIdentifier(),
+                                                                              RendererType::ForwardClustered,
+                                                                              ShaderStageFlagBits::Vertex,
+                                                                              con::GetMaterialFamilyDefinition(mlg->getMaterialFamily()),
+                                                                              nullptr);
+    if (!vertResult) {
+        LOG_W("Failed to generate the vertex shader for " << state.getSourceFilePath() <<
+              "\n\tError: " << vertResult.getContents() << ")");
+        return false;
+    }
+    
+    const ShaderGenerationResult fragResult = vulkanShaderGen->generateShader(conversionState.getPlatformIdentifier(),
+                                                                              RendererType::ForwardClustered,
+                                                                              ShaderStageFlagBits::Fragment,
+                                                                              con::GetMaterialFamilyDefinition(mlg->getMaterialFamily()),
+                                                                              mlg.get());
+    if (!fragResult) {
+        LOG_W("Failed to generate the fragment shader for " << state.getSourceFilePath() <<
+              "\n\tError: " << fragResult.getContents() << ")");
+        return false;
+    }
+    
+    LOG_D("------------------\n" << vertResult.getContents() << "----------------\n" << fragResult.getContents());
+    
+    ShaderCompilationSettings scs;
+    scs.optimizationLevel = ShaderOptimizationLevel::Performance;
+    
+    // TODO more complicated variant generation
+    
+    std::array<VertexDataLayout, 4> vertexLayouts = {
+        VertexDataLayout::MeshVertex,
+        VertexDataLayout::MeshVertexWithBones,
+        VertexDataLayout::MeshVertexColored,
+        VertexDataLayout::MeshVertexColoredWithBones
+    };
+    
+    std::size_t totalShaders = 0;
+    for (const VertexDataLayout vdl : vertexLayouts) {
+        scs.vertexDataLayout = vdl;
+        const VertexDataLayoutDefinition& layoutDefinition = con::GetVertexDataLayoutDefinition(vdl);
+        
+        // Compile the vertex shader
+        const ShaderCompilationResult scrVS = vulkanShaderGen->compileShader(ShaderStageFlagBits::Vertex, vertResult.getContents(), layoutDefinition.getName() + "VertexShader", scs);
+        if (!scrVS) {
+            LOG_W("Material template conversion failed\n\t" << scrVS.getErrorsAndWarnings());
+            return false;
+        } else if (!scrVS.getErrorsAndWarnings().empty()) {
+            LOG_W(scrVS.getErrorsAndWarnings());
+        }
+        totalShaders++;
+        
+        // Compile the fragment shader
+        const ShaderCompilationResult scrFS = vulkanShaderGen->compileShader(ShaderStageFlagBits::Fragment, fragResult.getContents(), layoutDefinition.getName() + "FragmentShader", scs);
+        if (!scrFS) {
+            LOG_W("Material template conversion failed\n\t" << scrFS.getErrorsAndWarnings());
+            return false;
+        } else if (!scrFS.getErrorsAndWarnings().empty()) {
+            LOG_W(scrFS.getErrorsAndWarnings());
+        }
+        totalShaders++;
+    }
 //     const fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
 //     
 //     FileHash hash = HF(reinterpret_cast<const char*>(content.data()), outputByteCount);
@@ -81,7 +160,8 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
 //     
 //     File fw(outputPath, File::OpenMode::Write);
 //     fw.writeBytes(content.data(), outputByteCount);
-    //throw std::runtime_error("errr");
+//     throw std::runtime_error("errr");
+    LOG_V("Compiled " << totalShaders << " shader permutations for a material template called " << state.getSourceFilePath().stem());
     LOG_W("MaterialTemplateConverter::convert() NOT YET IMPLEMENTED")
     return false;
 }

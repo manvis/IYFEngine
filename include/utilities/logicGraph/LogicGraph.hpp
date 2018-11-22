@@ -1016,7 +1016,57 @@ public:
             const NodeType* destinationNode = getNode(destination.getNodeKey());
             
             const NodeConnectionResult result = addConnection(sourceNode, source.getConnectorID(), destinationNode, destination.getConnectorID());
-            assert(result == NodeConnectionResult::Success);
+            
+            if (result != NodeConnectionResult::Success) {
+                const char* resultName = "UnknownError";
+                
+                switch (result) {
+                    case NodeConnectionResult::TypeMismatch:
+                        resultName = "Type Mismatch";
+                        break;
+                    case NodeConnectionResult::InvalidSource:
+                        resultName = "Invalid Source";
+                        break;
+                    case NodeConnectionResult::InvalidSourceOutput:
+                        resultName = "Invalid Source Output";
+                        break;
+                    case NodeConnectionResult::NullSource:
+                        resultName = "Null Source";
+                        break;
+                    case NodeConnectionResult::InvalidDestination:
+                        resultName = "Invalid Destination";
+                        break;
+                    case NodeConnectionResult::InvalidDestinationInput:
+                        resultName = "Invalid Destination Input";
+                        break;
+                    case NodeConnectionResult::DestinationIsDisabled:
+                        resultName = "Destination is Disabled";
+                        break;
+                    case NodeConnectionResult::SourceIsDisabled:
+                        resultName = "Source is Disabledh";
+                        break;
+                    case NodeConnectionResult::NullDestination:
+                        resultName = "Null Destination";
+                        break;
+                    case NodeConnectionResult::OccupiedDestination:
+                        resultName = "Occupied Destination";
+                        break;
+                    case NodeConnectionResult::InsertionFailed:
+                        resultName = "Insertion Failed";
+                        break;
+                    case NodeConnectionResult::UnableToConnectToSelf:
+                        resultName = "Can't Connect to Self";
+                        break;
+                    case NodeConnectionResult::Success:
+                        throw std::runtime_error("Impossible NodeConnectionResult value");
+                        break;
+                }
+                
+                LOG_W("A deserialized logic graph connection is invalid." <<
+                      "\n\tSource Key (connector ID): " << source.getNodeKey() << " (" << source.getConnectorID() << ")" <<
+                      "\n\tDestination Key (connector ID): " << destination.getNodeKey() << " (" << destination.getConnectorID() << ")" <<
+                      "\n\tResult: " << resultName);
+            }
         }
         
         assert(nextKey == static_cast<NodeKey>(jo[NEXT_KEY_FIELD_NAME].GetUint64()));

@@ -228,6 +228,8 @@ std::string TextLocalizer::loadResultToErrorString(LoadResult result) const {
         case LoadResult::LoadSuccessful:
             return "Strings loaded successfully";
     }
+    
+    throw std::runtime_error("Unknown LoadResult value");
 }
 
 std::string TextLocalizer::logAndReturnMissingKey(StringHash key) const {

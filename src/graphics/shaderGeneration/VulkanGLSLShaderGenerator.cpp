@@ -28,6 +28,7 @@
 
 #include "graphics/shaderGeneration/VulkanGLSLShaderGenerator.hpp"
 #include "graphics/Renderer.hpp"
+#include "graphics/MaterialLogicGraph.hpp"
 #include "core/Engine.hpp"
 #include "core/filesystem/FileSystem.hpp"
 #include "core/filesystem/File.hpp"
@@ -37,6 +38,11 @@
 #include <stdexcept>
 
 namespace iyf {
+struct PerFrameExtraData {
+    const MaterialLogicGraph* graph;
+    const CodeGenerationResult* code;
+};
+
 inline std::string GetShaderStageName(ShaderStageFlagBits stage) {
     switch (stage) {
         case ShaderStageFlagBits::Vertex:
@@ -75,28 +81,18 @@ inline std::string MakeVulkanGLSLHeader(ShaderStageFlagBits stage) {
     return ss.str();
 }
 
-inline std::string WriteMacroDefinitions(const MaterialFamilyDefinition& definition) {
-    bool anyDefinitions = false;
+inline std::string WriteMacroDefinitions(PlatformIdentifier platform, const MaterialFamilyDefinition& definition) {
+    const PlatformInfo& platforInfo = con::PlatformIdentifierToInfo(platform);
     
     std::stringstream ss;
+    ss << "#define " << GetShaderMacroName(ShaderMacro::NormalTextureChannelCount) << " " << platforInfo.normalTextureChannelCount << "\n";
+    
     if (definition.isWorldSpacePositionRequired()) {
         ss << "#define " << GetShaderMacroName(ShaderMacro::WorldSpacePositionAvailable) << "\n";
-        
-        anyDefinitions = true;
     }
     
-    if (definition.isNormalDataRequired()) {
-        ss << "#define " << GetShaderMacroName(ShaderMacro::NormalAvailable) << "\n";
-        
-        anyDefinitions = true;
-    }
-    
-    if (anyDefinitions) {
-        ss << "\n";
-        return "// Macros that depend on the MaterialFamilyDefinition go here\n" + ss.str();
-    } else {
-        return "";
-    }
+    ss << "\n";
+    return "// Macros that depend on the MaterialFamilyDefinition go here\n" + ss.str();
 }
 
 shaderc_shader_kind ShaderStageToKind(ShaderStageFlagBits shaderStage) {
@@ -266,7 +262,7 @@ fs::path VulkanGLSLShaderGenerator::getShaderStageFileExtension(ShaderStageFlagB
     throw std::logic_error("Invalid ShaderStageFlagBit");
 }
 
-ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(RendererType rendererType, const MaterialFamilyDefinition& definition) const {
+ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(PlatformIdentifier platform, RendererType rendererType, const MaterialFamilyDefinition& definition) const {
     std::size_t codeID = 0;
     for (std::size_t i = 0; i < definition.getSupportedLanguages().size(); ++i) {
         if (definition.getSupportedLanguages()[i] == getShaderLanguage()) {
@@ -277,9 +273,9 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(RendererT
     
     std::stringstream ss;
     ss << MakeVulkanGLSLHeader(ShaderStageFlagBits::Vertex);
-    ss << WriteMacroDefinitions(definition);
+    ss << WriteMacroDefinitions(platform, definition);
     
-    ss << generatePerFrameData(rendererType, definition.getVertexShaderDataSets());
+    ss << generatePerFrameData(rendererType, definition.getVertexShaderDataSets(), nullptr);
     
     ss << "\n";
     
@@ -420,8 +416,15 @@ inline std::string formatVectorDataForOutput(const std::string& dataTypeName, co
     return ss.str();
 }
 
-ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(RendererType rendererType, const MaterialFamilyDefinition& definition) const {
+ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(PlatformIdentifier platform, RendererType rendererType, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const {
+    assert(graph != nullptr);
+    
     validateFamilyDefinition(definition);
+    
+    const CodeGenerationResult codeGenResult = graph->toCode(getShaderLanguage());
+    if (!codeGenResult.isSuccessful()) {
+        return ShaderGenerationResult(ShaderGenerationResult::Status::InvalidMaterialLogicGraph, codeGenResult.getCode());
+    }
     
     std::size_t codeID = 0;
     for (std::size_t i = 0; i < definition.getSupportedLanguages().size(); ++i) {
@@ -433,7 +436,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(Rendere
     
     std::stringstream ss;
     ss << MakeVulkanGLSLHeader(ShaderStageFlagBits::Fragment);
-    ss << WriteMacroDefinitions(definition);
+    ss << WriteMacroDefinitions(platform, definition);
     
     ss << "// Data from the previous shader stages\n";
     ss << "layout (location = 0) in FragmentInput {\n";
@@ -469,8 +472,12 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(Rendere
     ss << "} fragmentInput;\n\n";
     
     ss << "layout (location = 0) out vec4 finalColor;\n\n";
+
+    PerFrameExtraData extraData;
+    extraData.graph = graph;
+    extraData.code = &codeGenResult;
     
-    ss << generatePerFrameData(rendererType, definition.getFragmentShaderDataSets());
+    ss << generatePerFrameData(rendererType, definition.getFragmentShaderDataSets(), &extraData);
     
     ss << generateLightProcessingFunctionSignature(definition) << "{\n";
     
@@ -518,9 +525,17 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(Rendere
     
     ss << "\n";
     
-    // We need inputs insead of material data
+    ss << codeGenResult.getCode();
+    
     if (definition.isNormalDataRequired()) {
-        ss << "    vec3 normal = N();\n\n";
+        ss << "    // World space normal\n";
+        ss << "#ifndef " << GetShaderMacroName(ShaderMacro::NormalSetByMaterialGraph) << "\n";
+        ss << "#if (" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0)\n";
+        ss << "    vec3 normal = normalize(fragmentInput.TBN[2]);\n";
+        ss << "#else //" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << "\n";
+        ss << "    vec3 normal = normalize(fragmentInput.normalWS);\n";
+        ss << "#endif //" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << "\n";
+        ss << "#endif //"<< GetShaderMacroName(ShaderMacro::NormalSetByMaterialGraph) << "\n";
     }
     
     if (definition.isWorldSpacePositionRequired()) {
@@ -544,7 +559,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(Rendere
     return ShaderGenerationResult(ShaderGenerationResult::Status::Success, ss.str());
 }
 
-std::string VulkanGLSLShaderGenerator::generatePerFrameData(RendererType rendererType, const ShaderDataSets& requiredDataSets) const {
+std::string VulkanGLSLShaderGenerator::generatePerFrameData(RendererType rendererType, const ShaderDataSets& requiredDataSets, const void* extraData) const {
     // First of all, the specialization constants
     std::stringstream ss;
     
@@ -640,26 +655,32 @@ std::string VulkanGLSLShaderGenerator::generatePerFrameData(RendererType rendere
     }
     
     if (requiredDataSets[static_cast<std::size_t>(PerFrameDataSet::MaterialData)]) {
-        assert(con::MaxMaterialComponents % 4 == 0);
-        const std::size_t dataVectorCount = con::MaxMaterialComponents / 4;
+        assert(extraData != nullptr);
+        
+        const PerFrameExtraData* data = static_cast<const PerFrameExtraData*>(extraData);
         
         ss << "// Material data\n";
-        ss << "struct Material {\n";
-        for (std::size_t i = 0; i < dataVectorCount; ++i) {
-            ss << "    vec4 data" << i << ";\n";
-        }
-        ss << "};\n\n";
+        ss << data->code->getMaterialStructCode();
+        ss << "\n";
         
         ss << "layout(std" << "140" << ", set = " << con::MaterialDataBuffer.set << ", binding = " << con::MaterialDataBuffer.binding << ") buffer MaterialDataBuffer {\n";
         ss << "    Material materials[" << con::MaxMaterialsConstName << "];\n";
         ss << "} materials;\n\n";
     }
     
+//     PASS WITHOUT REGENERATING CODE
     if (requiredDataSets[static_cast<std::size_t>(PerFrameDataSet::TextureData)]) {
-        for (std::size_t i = 0; i < con::MaxMaterialTextures; ++i) {
-            ss << "#if " << GetShaderMacroName(ShaderMacro::TextureInputCount) << " > " << i << "\n";
-            ss << "layout(set = " << con::TextureDataBuffer.set << ", binding = " << (con::TextureDataBuffer.binding + i) << ") uniform sampler2D Texture" << i << ";\n";
-            ss << "#endif\n\n";
+        assert(extraData != nullptr);
+        
+        const PerFrameExtraData* data = static_cast<const PerFrameExtraData*>(extraData);
+        const std::vector<const TextureInputNode*> textureNodes = data->graph->getTextureNodes();
+        
+        for (std::size_t i = 0; i < textureNodes.size(); ++i) {
+            const TextureInputNode* node = textureNodes[i];
+            assert(node->hasName());
+            
+            ss << "layout(set = " << con::TextureDataBuffer.set << ", binding = " << (con::TextureDataBuffer.binding + i) << ") uniform sampler2D " << node->getName() << ";";
+            ss << " // Key: " << node->getKey() << "\n";
         }
     }
     
@@ -894,7 +915,28 @@ ShaderCompilationResult VulkanGLSLShaderGenerator::compileShader(ShaderStageFlag
     
     compileOptions.SetOptimizationLevel(optimizationLevel);
     
-    for (const ShaderMacroWithValue& m : settings.macros) {
+    const VertexDataLayout layout = settings.vertexDataLayout;
+    const VertexDataLayoutDefinition& layoutDefinition = con::GetVertexDataLayoutDefinition(layout);
+    
+    std::vector<ShaderMacroWithValue> macros = settings.macros;
+    macros.reserve(macros.size() + 10);
+    
+    macros.emplace_back(ShaderMacro::VertexDataLayout, static_cast<std::int64_t>(layout));
+    macros.emplace_back(ShaderMacro::NormalMappingMode, static_cast<std::int64_t>(layoutDefinition.getSupportedNormalMappingMode()));
+    
+    if (layoutDefinition.hasAttribute(VertexAttributeType::Normal)) {
+        macros.emplace_back(ShaderMacro::NormalAvailable);
+    }
+    
+    if (layoutDefinition.hasAttribute(VertexAttributeType::Color)) {
+        macros.emplace_back(ShaderMacro::VertexColorAvailable);
+    }
+    
+    if (layoutDefinition.hasAttribute(VertexAttributeType::UV)) {
+        macros.emplace_back(ShaderMacro::TextureCoordinatesAvailable);
+    }
+    
+    for (const ShaderMacroWithValue& m : macros) {
         if (m.getValue().empty()) {
             compileOptions.AddMacroDefinition(m.getName());
         } else {
@@ -1026,19 +1068,28 @@ inline std::string MakeVertexShaderHelperFunctionInclude() {
 inline std::string MakeFragmentShaderHelperFunctionInclude() {
     std::stringstream ss;
     ss << "#include \"" << GetShaderIncludeName(ShaderInclude::CommonHelpers) << "\"\n";
-    ss << "#if (" << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0) && defined(" << GetShaderMacroName(ShaderMacro::NormalMapTextureAvailable) <<  ")\n"; 
-    ss << "vec3 N() {\n";
-    ss << "    vec2 normalXY = texture(NormalTexture, fragmentInput.UV).xy;\n";
+    
+    ss << "vec3 GetNormalFromTextureData(vec3 valueFromTexture) {\n";
+    ss << "#if " << GetShaderMacroName(ShaderMacro::NormalTextureChannelCount) << " == 2\n";
+    ss << "    // Normal maps are packed to two channels when using BC formats\n";
+    ss << "    vec2 normalXY = valueFromTexture.xy;\n";
     ss << "    normalXY = 2.0f * normalXY - vec2(1.0f, 1.0f);\n\n";
-    ss << "    float normalZ = sqrt(1 - (normalXY.x * normalXY.x) - (normalXY.y * normalXY.y));\n\n";
-    ss << "    vec3 finalNormal = normalize(vec3(normalXY, normalZ));\n";
+    ss << "    float normalZ = sqrt(1 - (normalXY.x * normalXY.x) - (normalXY.y * normalXY.y));\n";
+    ss << "    return normalize(vec3(normalXY, normalZ));\n";
+    ss << "#elif " << GetShaderMacroName(ShaderMacro::NormalTextureChannelCount) << " == 3\n";
+    ss << "    // The data is already in the normal map. Do nothing to it\n";
+    ss << "    return valueFromTexture;\n";
+    ss << "#else\n";
+    ss << "#error \"ShaderMacro::NormalTextureChannelCount is mandatory macro, but it wasn't set\"\n";
+    ss << "#endif\n";
+    ss << "}\n\n";
+    
+    ss << "#if " << GetShaderMacroName(ShaderMacro::NormalMappingMode) << " != 0\n";
+    ss << "vec3 ApplyNormalMap(vec3 valueFromTexture) {\n";
+    ss << "    vec3 finalNormal = GetNormalFromTextureData(valueFromTexture);\n";
     ss << "    return normalize(fragmentInput.TBN * finalNormal);\n";
     ss << "}\n";
-    ss << "#elif defined(" << GetShaderMacroName(ShaderMacro::NormalAvailable) << ")\n";
-    ss << "vec3 N() {\n";
-    ss << "    return fragmentInput.normalWS;\n";
-    ss << "}\n";
-    ss << "#endif\n";
+    ss << "#endif\n\n";
     
     return ss.str();
 }

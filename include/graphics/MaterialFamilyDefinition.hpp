@@ -279,17 +279,10 @@ public:
     
     /// Sets the number of required per vertex color data channels.
     ///
-    /// \warning For now, the maximum is 1.
+    /// \warning For now, the maximum is 0. All use of vertex color should be optional and determined with the help of a macro.
     ///
     /// \throws std::invalid_argument if the number was greater than the maximum.
-    inline bool setRequiredVertexColorChannelCount(std::uint8_t count) {
-        if (count > 1) {
-            throw std::invalid_argument("Count was greater than maximum");
-        }
-        
-        requiredVertexColorChannelCount = count;
-        return true;
-    }
+    bool setRequiredVertexColorChannelCount(std::uint8_t count);
     
     /// \see setRequiredVertexColorChannelCount()
     inline std::uint8_t getRequiredVertexColorChannelCount() const {
@@ -318,10 +311,17 @@ public:
     /// Set which data sets need to be included in the vertex shader.
     ///
     /// \remark For performance reasons, it's better to only include the ones you need.
+    /// \warning PerFrameDataSet::TextureData and PerFrameDataSet::MaterialData cannot be enabled in the vertex shader because a MaterialLogicGraph is required to
+    /// determine what is needed and it's only available for fragment shaders.
     ///
     /// \warning Don't disable the data sets that are enabled by default
-    inline void setVertexShaderDataSet(PerFrameDataSet dataSet, bool enabled) {
+    inline bool setVertexShaderDataSet(PerFrameDataSet dataSet, bool enabled) {
+        if (dataSet == PerFrameDataSet::MaterialData || dataSet == PerFrameDataSet::TextureData) {
+            return false;
+        }
+        
         vertexShaderDataSets[static_cast<std::size_t>(dataSet)] = enabled;
+        return true;
     }
     
     /// \see setVertexShaderDataSet()

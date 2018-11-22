@@ -29,6 +29,8 @@
 #ifndef IYF_MATERIAL_CONSTANTS_HPP
 #define IYF_MATERIAL_CONSTANTS_HPP
 
+#include <cstdint>
+
 namespace iyf {
 class MaterialFamilyDefinition;
 
@@ -36,7 +38,7 @@ class MaterialFamilyDefinition;
 ///
 /// \warning Feel free to add to this enum, but make sure there are no gaps and the numbers don't change.
 /// Moreover, make sure to create the appropriate MaterialFamilyDefinition for GetMaterialFamilyDefinition().
-enum class MaterialFamily {
+enum class MaterialFamily : std::uint32_t {
     Toon = 0,
     // PBR = 1, // TODO implement PBR rendering
     COUNT

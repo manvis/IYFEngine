@@ -41,12 +41,23 @@ public:
                         const fs::path& sourceAsset,
                         FileHash sourceFileHash,
                         bool systemAsset,
-                        const std::vector<std::string>& tags)
-        : MetadataBase(AssetType::MaterialTemplate, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true) {}
+                        const std::vector<std::string>& tags,
+                        MaterialFamily family,
+                        FileHash materialFamilyHash)
+        : MetadataBase(AssetType::MaterialTemplate, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true), family(family), materialFamilyHash(materialFamilyHash) {}
     
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
     
     virtual void displayInImGui() const final override;
+    
+    inline MaterialFamily getMaterialFamily() const {
+        return family;
+    }
+    
+    /// Used to determine if the MaterialFamilyDefinition has changed and the MaterialTemplate needs to be regenerated
+    inline FileHash getMaterialFamilyHash() const {
+        return materialFamilyHash;
+    }
 private:
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
     virtual void deserializeImpl(Serializer& fr, std::uint16_t version) final override;
@@ -54,6 +65,7 @@ private:
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint16_t version) final override;
     
     MaterialFamily family;
+    FileHash materialFamilyHash;
 };
 
 }

@@ -140,6 +140,15 @@ MaterialFamilyDefinition::MaterialFamilyDefinition() {
     setFragmentShaderDataSet(PerFrameDataSet::TextureData, true);
 }
 
+bool MaterialFamilyDefinition::setRequiredVertexColorChannelCount(std::uint8_t count) {
+    if (count > 0) {
+        throw std::invalid_argument("Count was greater than maximum");
+    }
+    
+    requiredVertexColorChannelCount = count;
+    return true;
+}
+
 void MaterialFamilyDefinition::setName(std::string name) {
     if (!validateName(name)) {
         throw std::invalid_argument("The name did not match the validation regex");
@@ -333,26 +342,38 @@ static MaterialFamilyDefinition createToonFamilyDefinition() {
     assert(definition.getSupportedLanguages()[0] == ShaderLanguage::GLSLVulkan);
     definition.setName("CellShaded");
     definition.setNormalDataRequired(true);
-    definition.setRequiredVertexColorChannelCount(1);
+    // Allow loading meshes without real vertex color data and handle the case separately
+    //definition.setRequiredVertexColorChannelCount(1);
     definition.setLightsSupported(true);
-    const std::string lightProcessingCode = 
-R"glsl(    float toonStep = step(1.0f - vertColor.x, dot(normal, lightDirection));
-    vec3 litDiffuse = mix(diffuseColor, tint, toonStep) * lightColor * lightIntensity;
     
-    // TODO calculate specular
-    vec3 finalColor = litDiffuse;
+    std::stringstream ss;
+    ss << "    vec3 normalizedNormal = normalize(normal);\n";
+    ss << "    float NdotL = dot(normalizedNormal, lightDirection);\n";
+    ss << "\n";
+    ss << "    vec4 clampedAdjustments = clamp(adjustments, 0.0f, 1.0f);\n";
+    ss << "    float toonStep = step(1.0f - adjustments.x, NdotL);\n"; // TODO Threshold?
+    ss << "    vec3 litDiffuse = mix(diffuseColor, tint, toonStep) * lightColor * lightIntensity;\n"; // TODO tint mix or multiply?
+    ss << "\n";
+    ss << "    vec3 halfwayVec = normalize(lightDirection + viewDirection);\n";
+    ss << "    float NdotH = dot(normalizedNormal, halfwayVec);\n";
+    ss << "    float specularIntensity = pow(max(NdotH, 0.0f), specularLightness);\n";
+    ss << "    float specularStep = step(specularCutoff, specularIntensity);\n";
+    ss << "    vec3 specularColor = lightColor * lightIntensity * specularStep;\n";
+    ss << "    // TODO ambient light and fog\n";
+    ss << "    vec3 finalColor = litDiffuse + specularColor;\n";
+    ss << "\n";
+    ss << "    return vec4(finalColor, 0.0f);";
 
-    return vec4(finalColor, 0.0f);)glsl";
-    
-    definition.setLightProcessingCode({lightProcessingCode});
+    definition.setLightProcessingCode({ss.str()});
 //     definition.additionalVertexOutputs.emplace_back("TestVar", ShaderDataType::Matrix4x2, ShaderDataFormat::Float);
     
     std::vector<LightProcessingFunctionInput> inputs;
     inputs.reserve(4);
     inputs.emplace_back("diffuseColor",      ShaderDataType::Vector3D, glm::vec4(1.0f, 0.0f, 1.0f, 0.0f));
-    inputs.emplace_back("specular",          ShaderDataType::Scalar,   glm::vec4(0.3f, 0.0f, 0.0f, 0.0f));
+    inputs.emplace_back("specularCutoff",    ShaderDataType::Scalar,   glm::vec4(0.3f, 0.0f, 0.0f, 0.0f));
     inputs.emplace_back("tint",              ShaderDataType::Vector3D, glm::vec4(0.2f, 0.2f, 0.2f, 0.0f));
     inputs.emplace_back("specularLightness", ShaderDataType::Scalar,   glm::vec4(0.5f, 0.0f, 0.0f, 0.0f));
+    inputs.emplace_back("adjustments",       ShaderDataType::Vector4D, glm::vec4(0.5f, 0.0f, 0.0f, 0.0f));
     
     definition.setLightProcessingFunctionInputs(inputs);
     

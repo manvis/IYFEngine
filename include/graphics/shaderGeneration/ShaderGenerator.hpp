@@ -32,6 +32,7 @@
 #include <cstdint>
 #include <string>
 #include <bitset>
+#include <set>
 
 #include "core/Constants.hpp"
 #include "core/Platform.hpp"
@@ -45,6 +46,7 @@
 
 namespace iyf {
 class FileSystem;
+class MaterialLogicGraph;
 
 class ShaderGenerationResult {
 public:
@@ -61,6 +63,9 @@ public:
         MissingAdditionalVertexProcessingCode,
         MissingVertexAttribute,
         CompilationFailed,
+        MissingMaterialLogicGraph,
+        MaterialLogicGraphPresent,
+        InvalidMaterialLogicGraph,
         Invalid,
     };
     
@@ -128,8 +133,33 @@ enum class ShaderOptimizationLevel : std::uint8_t {
     Performance /// < Optimize for maximum performance
 };
 
+class ShaderVariantPicker {
+public:
+    ShaderVariantPicker() : identifierNeedsRebuilding(true) {}
+    
+    inline StringHash getIdentifier() const {
+        if (identifierNeedsRebuilding) {
+            lastIdentifier = generateIdentifier();
+        }
+        
+        return lastIdentifier;
+    }
+private:
+    StringHash generateIdentifier() const;
+    
+    std::set<ShaderMacroWithValue> macros;
+    
+    mutable StringHash lastIdentifier;
+    bool identifierNeedsRebuilding;
+};
+
 struct ShaderCompilationSettings {
-    ShaderCompilationSettings() : logAssembly(false), optimizationLevel(ShaderOptimizationLevel::Performance) {}
+    ShaderCompilationSettings() : logAssembly(false), optimizationLevel(ShaderOptimizationLevel::Performance), vertexDataLayout(VertexDataLayout::MeshVertex) {}
+    
+    /// Macros that need to be defined before compiling the shader.
+    ///
+    /// \remark The order is important. If the macro is defined multiple times, the last definition wins
+    std::vector<ShaderMacroWithValue> macros;
     
     /// If this is true and the ShaderGenerator supports it, human readable shader assembly will be written to log.
     bool logAssembly;
@@ -137,8 +167,12 @@ struct ShaderCompilationSettings {
     /// The optimization level to use when commpiling the shader. Not all ShaderGenerators support all levels
     ShaderOptimizationLevel optimizationLevel;
     
-    /// Macros that need to be defined before compiling the shader.
-    std::vector<ShaderMacroWithValue> macros;
+    VertexDataLayout vertexDataLayout;
+    
+    bool isMacroDefined(const std::string& macroName) const;
+    const ShaderMacroWithValue* getMacro(const std::string& macroName) const;
+    bool isMacroDefined(ShaderMacro macro) const;
+    const ShaderMacroWithValue* getMacro(ShaderMacro macro) const;
 };
 
 /// \brief This class generates shader code based on data provided in MaterialFamilyDefinition objects.
@@ -146,18 +180,19 @@ struct ShaderCompilationSettings {
 /// \remark The methods of this class are thread safe for as long as you can ensure that different invocations write to different files.
 ///
 /// \todo Support geometry and tesselation shader generation as well.
-///
-/// \todo At the moment, vertex shaders are considered to be a part of the material. However, more often
-/// than not, MaterialFamilyDefinition::requiresAdditionalVertexProcessing is false and they can be REUSED by 
-/// different materials. Therefore, it would be nice to have a mechanism that would allow us to reuse
-/// existing shaders if they are compatible. 
 class ShaderGenerator {
 public:
     ShaderGenerator(const FileSystem* fileSystem);
     virtual ~ShaderGenerator() {}
     
     /// Generate a shader of the specified shader stage based on the provided MaterialFamilyDefinition
-    ShaderGenerationResult generateShader(RendererType rendererType, ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition) const;
+    ///
+    /// \param rendererType A renderer to generate the shader for.
+    /// \param stage A shader stage to generate for.
+    /// \param definition A MaterialFamilyDefinition that will be used to generate common code.
+    /// \param graph A pointer to a MaterialLogicGraph that will be used to generate material specific code. Must be not null if stage == ShaderStageFlagBits::Fragment
+    /// and null otherwise.
+    ShaderGenerationResult generateShader(PlatformIdentifier platform, RendererType rendererType, ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const;
     
     /// Compile the generated shader
     virtual ShaderCompilationResult compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) const = 0;
@@ -181,13 +216,13 @@ public:
     ShaderGenerationResult checkVertexDataLayoutCompatibility(const MaterialFamilyDefinition& definition, VertexDataLayout vertexDataLayout) const;
 protected:
     /// Generate the vertex shader. Called by generateShader()
-    virtual ShaderGenerationResult generateVertexShader(RendererType rendererType, const MaterialFamilyDefinition& definition) const = 0;
+    virtual ShaderGenerationResult generateVertexShader(PlatformIdentifier platform, RendererType rendererType, const MaterialFamilyDefinition& definition) const = 0;
     
     /// Generate the fragment shader. Called by generateShader()
-    virtual ShaderGenerationResult generateFragmentShader(RendererType rendererType, const MaterialFamilyDefinition& definition) const = 0;
+    virtual ShaderGenerationResult generateFragmentShader(PlatformIdentifier platform, RendererType rendererType, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const = 0;
     
     /// Generate the per frame data inputs (e.g., camera, light and material data).
-    virtual std::string generatePerFrameData(RendererType rendererType, const ShaderDataSets& requiredDataSets) const = 0;
+    virtual std::string generatePerFrameData(RendererType rendererType, const ShaderDataSets& requiredDataSets, const void* extraData) const = 0;
     
     virtual std::string generateLightProcessingFunctionCall(const MaterialFamilyDefinition& definition) const = 0;
     virtual std::string generateLightProcessingFunctionSignature(const MaterialFamilyDefinition& definition) const = 0;

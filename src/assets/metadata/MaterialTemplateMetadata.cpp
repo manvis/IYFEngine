@@ -33,24 +33,38 @@ std::uint16_t MaterialTemplateMetadata::getLatestSerializedDataVersion() const {
     return 1;
 }
 
+static const char* MATERIAL_FAMILY_FIELD_NAME = "materialFamily";
+static const char* MATERIAL_FAMILY_HASH_FIELD_NAME = "materialFamilyHash";
+
 void MaterialTemplateMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const {
     assert(version == 1);
-    //throw std::runtime_error("Method not yet implemented");
+    
+    fw.writeUInt32(static_cast<std::uint32_t>(family));
+    fw.writeUInt64(materialFamilyHash);
 }
 
 void MaterialTemplateMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
     assert(version == 1);
-    //throw std::runtime_error("Method not yet implemented");
+    
+    family = static_cast<MaterialFamily>(fr.readUInt32());
+    materialFamilyHash = FileHash(fr.readUInt64());
 }
 
 void MaterialTemplateMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
     assert(version == 1);
-    //throw std::runtime_error("Method not yet implemented");
+    
+    pw.String(MATERIAL_FAMILY_FIELD_NAME);
+    pw.Uint(static_cast<std::uint32_t>(family));
+    
+    pw.String(MATERIAL_FAMILY_HASH_FIELD_NAME);
+    pw.Uint64(materialFamilyHash);
 }
 
 void MaterialTemplateMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
     assert(version == 1);
-    //throw std::runtime_error("Method not yet implemented");
+    
+    family = static_cast<MaterialFamily>(jo[MATERIAL_FAMILY_FIELD_NAME].GetUint());
+    materialFamilyHash = FileHash(jo[MATERIAL_FAMILY_HASH_FIELD_NAME].GetUint64());
 }
 
 void MaterialTemplateMetadata::displayInImGui() const {
