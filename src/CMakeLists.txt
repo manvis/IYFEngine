@@ -36,7 +36,9 @@ endif()
 #     add_custom_target(compileShaders ALL DEPENDS ${compiledShaders})
 # endif()
 
-set (BUILD_FILES 
+set (BUILD_FILES
+ai/BehaviourTree.cpp
+ai/Blackboard.cpp
 #------- assets directory
 assets/AssetConstants.cpp
 assets/AssetManager.cpp

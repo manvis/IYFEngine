@@ -38,6 +38,8 @@
 #include "FileMonitorTests.hpp"
 #include "MemorySerializerTests.hpp"
 #include "CSVParserTests.hpp"
+#include "BehaviourTreeTests.hpp"
+
 //#include "did/InitState.h"
 
 // If true, some tests will output additional debug data
@@ -100,7 +102,8 @@ int main(int, char*[]) {
     
 //     ADD_TESTS(FileMonitorTests)
 //     ADD_TESTS(MemorySerializerTests)
-    ADD_TESTS(CSVParserTests)
+//    ADD_TESTS(CSVParserTests)
+    ADD_TESTS(BehaviourTreeTests)
     
     runner.runTests();
     
