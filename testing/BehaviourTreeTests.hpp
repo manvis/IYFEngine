@@ -30,15 +30,41 @@
 #define IYF_BEHAVIOUR_TREE_TESTS_HPP
 
 #include "TestBase.hpp"
-#include "localization/LocalizationCSVParser.hpp"
+#include "ai/BehaviourTreeConstants.hpp"
 
 #include <vector>
-#include <string>
 
 namespace iyf {
 class BehaviourTree;
+class Blackboard;
 
 namespace test {
+struct TestTaskResults;
+
+enum class ReportID {
+    SulkingAndWaiting,
+    GoingTowardsTheDoor,
+    UsingKey,
+    LookingForSpare,
+    EnteringThroughTheDoor,
+    GoingTowardsTheWindow,
+    OpeningWindowGently,
+    BreakingWindow,
+    BansheeScreamingAtWindow,
+    EnteringThroughTheWindow
+};
+
+struct ProgressReport {
+    inline ProgressReport(ReportID id, iyf::BehaviourTreeResult result) : id(id), result(result) {}
+    
+    ReportID id;
+    iyf::BehaviourTreeResult result;
+    
+    inline friend bool operator==(const ProgressReport& a, const ProgressReport& b) {
+        return (a.id == b.id) && (a.result == b.result);
+    }
+};
+
 
 class BehaviourTreeTests : public TestBase {
 public:
@@ -53,7 +79,10 @@ public:
     virtual TestResults run() final override;
     virtual void cleanup() final override;
 private:
-    std::unique_ptr<iyf::BehaviourTree> makeNonDecoratedTree();
+    std::unique_ptr<iyf::BehaviourTree> makeNonDecoratedTree(iyf::Blackboard* bb, std::vector<ProgressReport>* reportVector, const TestTaskResults& results);
+    std::string printReportVector(const std::vector<ProgressReport>& reportVector) const;
+    
+    TestResults runTree(iyf::BehaviourTree* tree, std::size_t maxReturnsToRoot = 1, std::size_t maxSteps = 100);
 };
 
 }

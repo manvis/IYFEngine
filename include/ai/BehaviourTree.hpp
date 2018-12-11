@@ -40,31 +40,11 @@
 
 #include "utilities/hashing/Hashing.hpp"
 #include "utilities/NonCopyable.hpp"
-#include "BlackboardCallbackListener.hpp"
-#include "BlackboardValue.hpp"
+#include "ai/BlackboardCallbackListener.hpp"
+#include "ai/BlackboardValue.hpp"
+#include "ai/BehaviourTreeConstants.hpp"
 
 namespace iyf {
-enum class BehaviourTreeResult : std::uint8_t {
-    Failure = 0,
-    Success = 1,
-    Running = 2
-};
-
-enum class BehaviourTreeNodeType : std::uint8_t {
-    Composite = 0,
-    Service   = 1,
-    Decorator = 2,
-    Task      = 3,
-    Root      = 4,
-    COUNT
-};
-
-enum class AbortMode : std::uint8_t {
-    None,
-    OwnSubtree,
-    LowerPriority,
-    Both
-};
 
 class Blackboard;
 class BehaviourTree;
@@ -426,11 +406,15 @@ private:
 
 class BehaviourTree : public BlackboardCallbackListener {
 public:
-    BehaviourTree(Blackboard* blackboard, std::int32_t seed = std::numeric_limits<std::int32_t>::max());
+    /// \param verboseOutput Should the BehaviourTree log every step? Is ignored if the Engine was built without defining IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+    BehaviourTree(Blackboard* blackboard, bool verboseOutput = false, std::int32_t seed = std::numeric_limits<std::int32_t>::max());
     
     virtual ~BehaviourTree();
     
     void update(float delta);
+    
+    /// Abort the running subtree, all services and start from root next time update() is called. This will not consume any pending notifications from the Blackboard.
+    void abort();
     
     virtual void valueUpdated(StringHash nameHash) final override;
     virtual void availabilityUpdated(StringHash nameHash, bool available) final override;
@@ -513,6 +497,20 @@ public:
     
     inline Blackboard* getBlackboard() const {
         return blackboard;
+    }
+    /// \remark For internal use, use in tests and debugging
+    inline bool returnedToRoot() const {
+        return activeBranch.empty();
+    }
+    
+    /// \remark For use in tests and debugging
+    inline BehaviourTreeNode* getNextNodeToExecute() const {
+        return nextNodeToExecute;
+    }
+    
+    /// \remark For use in tests and debugging
+    inline BehaviourTreeNode* getLastExecutedNode() const {
+        return lastExecutedNode;
     }
 private:
     void walkTree(BehaviourTreeNode* node, std::function<void(BehaviourTreeNode*)> function, bool childrenFirst = false);
@@ -601,6 +599,7 @@ private:
     
     float lastDelta;
     bool treeBuilt;
+    bool verboseOutput;
 };
 
 inline Blackboard* BehaviourTreeNode::getBlackboard() const {
