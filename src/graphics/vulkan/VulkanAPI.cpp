@@ -1115,7 +1115,7 @@ Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info
         sr.baseArrayLayer = 0;
         sr.layerCount     = 1;
         
-        setImageLayout(imageUploadCommandBuffer, image.getHandle().toNative<VkImage>(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, sr);
+        setImageLayout(imageUploadCommandBuffer, image.getHandle().toNative<VkImage>(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, sr, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
         checkResult(vkEndCommandBuffer(imageUploadCommandBuffer), "Failed to end a command buffer.");
         
@@ -1170,9 +1170,9 @@ Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info
         sr.baseArrayLayer = 0;
         sr.layerCount     = 1;
 
-        setImageLayout(imageUploadCommandBuffer, image.getHandle().toNative<VkImage>(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, sr);
+        setImageLayout(imageUploadCommandBuffer, image.getHandle().toNative<VkImage>(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, sr, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
         vkCmdCopyBufferToImage(imageUploadCommandBuffer, stagingData.first, image.getHandle().toNative<VkImage>(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bics.size(), bics.data());
-        setImageLayout(imageUploadCommandBuffer, image.getHandle().toNative<VkImage>(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sr);
+        setImageLayout(imageUploadCommandBuffer, image.getHandle().toNative<VkImage>(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sr, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 
         checkResult(vkEndCommandBuffer(imageUploadCommandBuffer), "Failed to end a command buffer.");
 

@@ -286,8 +286,8 @@ BehaviourResultNextNodePair CompareValuesDecoratorNode::update() {
     return {currentResult, nullptr};
 }
 
-BehaviourTree::BehaviourTree(Blackboard* blackboard, bool verboseOutput, std::int32_t seed) 
-        : blackboard(blackboard), root(nullptr), step(0), nextNodeToExecute(nullptr), lastExecutedNode(nullptr), lastDelta(0.0f), treeBuilt(false), verboseOutput(verboseOutput)
+BehaviourTree::BehaviourTree(Blackboard* blackboard, std::int32_t seed) 
+        : blackboard(blackboard), root(nullptr), step(0), nextNodeToExecute(nullptr), lastExecutedNode(nullptr), lastDelta(0.0f), treeBuilt(false), loggingEnabled(false)
 {
     if (seed == std::numeric_limits<std::int32_t>::max()) {
         randomNumberEngine = std::mt19937(seed);
@@ -309,6 +309,24 @@ BehaviourTree::~BehaviourTree() {
         node->dispose();
         delete node;
     }, true);
+}
+
+bool BehaviourTree::isLoggingEnabled() const {
+#ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+    return loggingEnabled;
+#else // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+    return false;
+#endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+}
+
+bool BehaviourTree::setLoggingEnabled(bool enabled) {
+    loggingEnabled = enabled;
+
+#ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+    return true;
+#else // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+    return false;
+#endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
 }
 
 std::string BehaviourTree::toString() const {
@@ -478,10 +496,15 @@ bool BehaviourTree::buildTree() {
 void BehaviourTree::update(float delta) {
     lastDelta = delta;
     
+    // First of all, update services and let them change the blackboard
+    for (ServiceNode* service : activeServices) {
+        service->update();
+    }
+    
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
         std::stringstream ssLog;
         
-        if (verboseOutput) {
+        if (loggingEnabled) {
             ssLog << "STEP: " << step << "\n\tACTIVE SERVICE IDs: ";
             for (const ServiceNode* service : activeServices) {
                 ssLog << service->getPriority() << " ";
@@ -490,16 +513,65 @@ void BehaviourTree::update(float delta) {
         }
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
 
-    // First of all, process all pending notifications.
+    // Next, process all pending blackboard value change notifications.
     for (const auto& n : pendingNotifications) {
         auto result = decoratorSubscriptionRegistry.equal_range(n.first);
+
         for (auto it = result.first; it != result.second; ++it) {
+#ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+            bool ownSubtreeAborted = false;
+            bool lowerPriorityAborted = false;
+            std::size_t abortedOwnSubtreeNodeCount = 0;
+            std::size_t abortedLowerPriorityNodeCount = 0;
+#endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+        
             DecoratorNode* processedDecorator = it->second;
             processedDecorator->onObservedValueChange(n.first, n.second.availabilityChange, n.second.available);
             
             const AbortMode abortMode = processedDecorator->getAbortMode();
             
-            DecoratableNode* decoratable = static_cast<DecoratableNode*>(processedDecorator->getParent());
+            BehaviourTreeNode* parent = processedDecorator->getParent();
+            DecoratableNode* decoratable = static_cast<DecoratableNode*>(parent);
+            
+            auto decoratableIterator = activeBranch.end();
+            
+            // If we need to abort something, we need to check if the decoratable is in the active branch or not
+            if (abortMode != AbortMode::None) {
+                for (auto n = activeBranch.begin(); n != activeBranch.end() ; ++n) {
+                    if ((*n) == parent) {
+                        decoratableIterator = n;
+                    }
+                }
+            }
+            
+            // We can only abort own subtree if it's being executed now
+            if ((abortMode == AbortMode::OwnSubtree || abortMode == AbortMode::Both) && decoratableIterator != activeBranch.end()) {
+                [[maybe_unused]] std::size_t abortedNodeCount = abort(decoratableIterator);
+                
+#ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+                abortedOwnSubtreeNodeCount = abortedNodeCount;
+                ownSubtreeAborted = true;
+#endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+                
+                nextNodeToExecute = decoratable->getParent();
+                
+                // TODO is returning failure really our best option here?
+                nextNodeToExecute->returnFromChild(BehaviourTreeResult::Failure);
+                
+                lastExecutedNode = decoratable;
+            }
+            
+            // We should only abort lower priority nodes if they 
+            if ((abortMode == AbortMode::LowerPriority || abortMode == AbortMode::Both) && decoratableIterator == activeBranch.end()) {
+                //const std::uint32_t priority = decoratable->getPriority();
+                LOG_E("NOT YET IMPLEMENTED")
+                //abort(decoratableIterator);
+                [[maybe_unused]] std::size_t abortedNodeCount = 0;// abort;
+#ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+                abortedLowerPriorityNodeCount = abortedNodeCount;
+                lowerPriorityAborted = true;
+#endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+            }
             
             // Update the cached result so that we wouldn't need to go through all the decorators each time we try to process a node.
             bool cachedDecoratorResult = true;
@@ -513,21 +585,37 @@ void BehaviourTree::update(float delta) {
             
             decoratable->cachedDecoratorResult = cachedDecoratorResult;
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
-            if (verboseOutput) {
-                ssLog << "\tDECORATOR: \"" << processedDecorator->getName() <<"\" got notified about a value change.\n"
-                        "\t\t   Can \"" << decoratable->getName() << "\" run after decorator update? " <<
-                        std::boolalpha << cachedDecoratorResult << "\n";
+            const char* modeStr = nullptr;
+            switch (abortMode) {
+                case AbortMode::None:
+                    modeStr = "FALSE";
+                    break;
+                case AbortMode::LowerPriority:
+                    modeStr = "LOWER PRIORITY";
+                    break;
+                case AbortMode::OwnSubtree:
+                    modeStr = "OWN SUBTREE";
+                    break;
+                case AbortMode::Both:
+                    modeStr = "OWN SUBTREE AND LOWER PRIORITY";
+                    break;
             }
+            
+            if (loggingEnabled) {
+                ssLog << "\tDECORATOR: \"" << processedDecorator->getName() <<"\" got notified about a value change.\n"
+                        "\t\t   Can \"" << decoratable->getName() << "\" run after decorator update? " << std::boolalpha << cachedDecoratorResult << "\n" <<
+                        "\t\t   Node abort requested? " << modeStr << "\n" <<
+                        "\t\t   Own subtree aborted? " << std::boolalpha << ownSubtreeAborted << " (" << abortedOwnSubtreeNodeCount << " node(s))\n" <<
+                        "\t\t   Lower priority nodes aborted? " << std::boolalpha << lowerPriorityAborted << " (" << abortedLowerPriorityNodeCount << " node(s))\n" <<
+                        "\t\t   Next node to execute is: \"" << nextNodeToExecute->getName() << "\"\n";
+            }
+            
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
             // TODO figure out where to put branch abandonments
         }
     }
     
     pendingNotifications.clear();
-
-    for (ServiceNode* service : activeServices) {
-        service->update();
-    }
 
     do {
         assert(nextNodeToExecute != nullptr);
@@ -539,7 +627,7 @@ void BehaviourTree::update(float delta) {
             result = {BehaviourTreeResult::Failure, nextNodeToExecute->getParent()};
             
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
-            if (verboseOutput) {
+            if (loggingEnabled) {
                 logNodeAndResult(ssLog, nextNodeToExecute, result.first, true);
             }
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
@@ -550,7 +638,7 @@ void BehaviourTree::update(float delta) {
             result = nextNodeToExecute->update();
             
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
-            if (verboseOutput) {
+            if (loggingEnabled) {
                 logNodeAndResult(ssLog, nextNodeToExecute, result.first, false);
             }
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
@@ -608,7 +696,7 @@ void BehaviourTree::update(float delta) {
             }
         }
 /*#ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
-    if (verboseOutput) {
+    if (loggingEnabled) {
         ssLog << "\t\tBRANCH: ";
         for (BehaviourTreeNode* node : activeBranch) {
             ssLog << node->getPriority() << " ";
@@ -619,14 +707,75 @@ void BehaviourTree::update(float delta) {
     } while (lastExecutedNode->getType() != BehaviourTreeNodeType::Task && !returnedToRoot());
     step++;
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
-    if (verboseOutput) {
+    if (loggingEnabled) {
         LOG_D(ssLog.str());
     }
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
 }
 
-void BehaviourTree::abort() {
-    throw std::runtime_error("Not yet implemented");
+// void BehaviourTree::abort() {
+//     throw std::runtime_error("Not yet implemented");
+// }
+
+std::size_t BehaviourTree::abort(std::vector<BehaviourTreeNode*>::iterator lastItemToAbort) {
+    if ((*lastItemToAbort)->getType() == BehaviourTreeNodeType::Root) {
+        throw std::logic_error("Cannot abort root");
+    }
+    
+    if (lastItemToAbort == activeBranch.end()) {
+        return 0;
+    }
+    
+    std::size_t abortedNodeCount = 0;
+    for (auto i = --activeBranch.end(); i >= lastItemToAbort;) {
+        BehaviourTreeNode* node = (*i);
+        node->abort();
+        
+#ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+        if (loggingEnabled) {
+            LOG_D("Aborting Node: \"" << node->getName() << "\"");
+        }
+#endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+        
+        if (node->isDecoratable()) {
+            DecoratableNode* decoratableNode = static_cast<DecoratableNode*>(node);
+            
+            const auto& decorators = decoratableNode->getDecorators();
+            for (DecoratorNode* decorator : decorators) {
+                decorator->abort();
+                
+                abortedNodeCount++;
+                
+#ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+                if (loggingEnabled) {
+                    LOG_D("Aborting Decorator \"" << decorator->getName() << "\" of Node: \"" << node->getName() << "\"");
+                }
+#endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+            }
+            
+            const auto& services = decoratableNode->getServices();
+            for (ServiceNode* service : services) {
+                service->abort();
+                
+                const std::size_t removalCount = activeServices.erase(service);
+                assert(removalCount == 1);
+                abortedNodeCount += removalCount;
+                
+#ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+                if (loggingEnabled) {
+                    LOG_D("Aborting Service \"" << service->getName() << "\" of Node: \"" << node->getName() << "\"");
+                }
+#endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+            }
+        }
+        
+        i--;
+        
+        activeBranch.pop_back();
+        abortedNodeCount++;
+    }
+    
+    return abortedNodeCount;
 }
 
 void BehaviourTree::logNodeAndResult(std::stringstream& ssLog, BehaviourTreeNode* node, BehaviourTreeResult result, bool blockedByDecorator) const {

@@ -340,9 +340,9 @@ bool VulkanDeviceMemoryManager::updateImage(MemoryBatch batch, const Image& imag
     
     stagingBufferData.currentOffset = offset;
 
-    gfx->setImageLayout(uploadBuffer, vulkanImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, sr);
+    gfx->setImageLayout(uploadBuffer, vulkanImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, sr, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
     vkCmdCopyBufferToImage(uploadBuffer, stagingBufferData.buffer.handle().toNative<VkBuffer>(), vulkanImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bics.size(), bics.data());
-    gfx->setImageLayout(uploadBuffer, vulkanImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sr);
+    gfx->setImageLayout(uploadBuffer, vulkanImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sr, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
     
     if (batch == MemoryBatch::Instant) {
         executeUpload(stagingBufferData.commandBuffer);

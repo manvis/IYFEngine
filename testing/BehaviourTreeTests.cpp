@@ -36,6 +36,12 @@
 #define IYF_TEST_EMULATED_UPDATE_INTERVAL 0.1 // 100 milliseconds between "updates"
 #define IYF_VERBOSE_TREE_OUTPUT false // If enabling this does nothing, make sure IYF_LOG_BEHAVIOUR_NODE_ACTIONS is defined in BehaviourTree.cpp
 
+const std::string ONLOOKERS_PRESENT("OnlookersPresent");
+const iyf::StringHash ONLOOKERS_PRESENT_HASH = iyf::HS(ONLOOKERS_PRESENT);
+
+const std::string TRUE_VALUE("TrueValue");
+const iyf::StringHash TRUE_VALUE_HASH = iyf::HS(TRUE_VALUE);
+
 namespace iyf::test {
 inline const char* ReportIDName(ReportID id) {
     switch (id) {
@@ -59,6 +65,12 @@ inline const char* ReportIDName(ReportID id) {
             return "Banshee screaming at window";
         case ReportID::EnteringThroughTheWindow:
             return "Entering through the window";
+        case ReportID::CheckingForOnlookers:
+            return "(OLService) Checking for onlookers";
+        case ReportID::OnlookersDetected:
+            return "(OLService) Onlookers detected";
+        case ReportID::OnlookersLeft:
+            return "(OLService) Onlookers left";
     }
     
     return nullptr;
@@ -86,17 +98,66 @@ struct TestTaskResults {
     bool canBansheeScream;
 };
 
+struct ServiceReportIDs {
+    inline ServiceReportIDs(ReportID pending, ReportID revertToPre, ReportID setToPost) : pending(pending), revertToPre(revertToPre), setToPost(setToPost) {}
+    
+    ReportID pending;
+    ReportID revertToPre;
+    ReportID setToPost;
+};
+
+class TimedTriggerService : public iyf::ServiceNode {
+public:
+    TimedTriggerService(BehaviourTree* tree, float timeUntilTrigger, ServiceReportIDs reportIDs, std::vector<ProgressReport>* reports, StringHash nameHash, BlackboardValue preChangeValue, BlackboardValue postChangeValue)
+        : ServiceNode(tree), nameHash(nameHash), preChangeValue(preChangeValue), postChangeValue(postChangeValue), remainingTimeUntilTrigger(timeUntilTrigger), timeUntilTrigger(timeUntilTrigger), reports(reports), reportIDs(reportIDs)
+    {
+        Blackboard* bb = getBlackboard();
+        if (bb->getRawValue(nameHash) != preChangeValue) {
+            throw std::runtime_error("The Blackboard value must be equal to the preChangeValue");
+        }
+    }
+    
+    virtual void handleActivation() {
+        remainingTimeUntilTrigger = timeUntilTrigger;
+    }
+    
+    virtual void execute() {
+        remainingTimeUntilTrigger -= getTree()->getLastUpdateDelta();
+        
+        if (remainingTimeUntilTrigger <= 0.0f) {
+            Blackboard* bb = getBlackboard();
+            if (bb->getRawValue(nameHash) == preChangeValue) {
+                bb->setValue(nameHash, postChangeValue);
+                reports->emplace_back(reportIDs.setToPost, BehaviourTreeResult::Running);
+            } else {
+                bb->setValue(nameHash, preChangeValue);
+                reports->emplace_back(reportIDs.revertToPre, BehaviourTreeResult::Running);
+            }
+            
+            assert(std::numeric_limits<float>::has_infinity);
+            remainingTimeUntilTrigger = std::numeric_limits<float>::infinity();
+        } else {
+            reports->emplace_back(reportIDs.pending, BehaviourTreeResult::Running);
+        }
+    }
+private:
+    StringHash nameHash;
+    BlackboardValue preChangeValue;
+    BlackboardValue postChangeValue;
+    float remainingTimeUntilTrigger;
+    float timeUntilTrigger;
+    
+    std::vector<ProgressReport>* reports;
+    ServiceReportIDs reportIDs;
+};
+
 class ProgressReportingTask : public iyf::TaskNode {
 public:
     ProgressReportingTask(BehaviourTree* tree, ReportID reportID, std::vector<ProgressReport>* reports, std::size_t tickDelay, bool succeed)
-        : TaskNode(tree), reports(reports), remainingTicks(tickDelay), tickDelay(tickDelay), succeedPtr(nullptr), reportID(reportID), succeed(succeed) {
-            LOG_D("BOOL-C")
-        }
+        : TaskNode(tree), reports(reports), remainingTicks(tickDelay), tickDelay(tickDelay), succeedPtr(nullptr), reportID(reportID), succeed(succeed) {}
     
     ProgressReportingTask(BehaviourTree* tree, ReportID reportID, std::vector<ProgressReport>* reports, std::size_t tickDelay, const bool* succeedPtr)
-        : TaskNode(tree), reports(reports), remainingTicks(tickDelay), tickDelay(tickDelay), succeedPtr(succeedPtr), reportID(reportID), succeed(false) {
-            LOG_D("BOOL-P")
-        }
+        : TaskNode(tree), reports(reports), remainingTicks(tickDelay), tickDelay(tickDelay), succeedPtr(succeedPtr), reportID(reportID), succeed(false) {}
     
     virtual void onArriveFromParent() override {
         remainingTicks = tickDelay;
@@ -167,8 +228,8 @@ inline iyf::SelectorNode* MakeSelector(iyf::BehaviourTree* tree, BehaviourTreeNo
 
 #define IYF_MAKE_SELECTOR(parent, name) MakeSelector(tree.get(), parent, name);
 
-#define IYF_RUN_TREE_TEST(name, maxReturnsToRoot) \
-    if (TestResults results = runTree(nonDecoratedTree.get(), maxReturnsToRoot); !results.isSuccessful()) {\
+#define IYF_RUN_TREE_TEST(tree, name, maxReturnsToRoot) \
+    if (TestResults results = runTree(tree.get(), maxReturnsToRoot); !results.isSuccessful()) {\
         return results;\
     } else {\
         if (expectedReportVector != reportVector) {\
@@ -187,7 +248,7 @@ inline iyf::SelectorNode* MakeSelector(iyf::BehaviourTree* tree, BehaviourTreeNo
 
     
 
-std::unique_ptr<iyf::BehaviourTree> BehaviourTreeTests::makeNonDecoratedTree(iyf::Blackboard* bb, std::vector<ProgressReport>* reportVector, const TestTaskResults& results) {
+std::unique_ptr<iyf::BehaviourTree> BehaviourTreeTests::makeTestTree(iyf::Blackboard* bb, std::vector<ProgressReport>* reportVector, const TestTaskResults& results, BehaviourTreeTestStage stage) {
     std::unique_ptr<iyf::BehaviourTree> tree = std::make_unique<iyf::BehaviourTree>(bb, IYF_VERBOSE_TREE_OUTPUT);
     
     auto mainSelector = IYF_MAKE_SELECTOR(tree->getRoot(), "Main Sequence");
@@ -207,8 +268,20 @@ std::unique_ptr<iyf::BehaviourTree> BehaviourTreeTests::makeNonDecoratedTree(iyf
     IYF_MAKE_REPORTING_TASK(openWindow, "Banshee Scream at Window", ReportID::BansheeScreamingAtWindow, &results.canBansheeScream, 1);
     IYF_MAKE_REPORTING_TASK(useTheWindow, "Enter through the Window", ReportID::EnteringThroughTheWindow, true, 0);
     
-    // TODO Sulk if all else fails
-    //IYF_MAKE_REPORTING_TASK(mainSelector, "Sulk and Wait for Locksmith", ReportID::SulkAndWait, true, 0);
+    if (stage == BehaviourTreeTestStage::DecoratedAbortOwn) {
+        ServiceReportIDs onlookerCheckIDs(ReportID::CheckingForOnlookers, ReportID::OnlookersLeft, ReportID::OnlookersDetected);
+        
+        auto checkForOnlookers = tree->addNode<TimedTriggerService>(useTheWindow, 0.4f, onlookerCheckIDs, reportVector, ONLOOKERS_PRESENT_HASH, false, true);
+        checkForOnlookers->setName("Check for onlookers");
+        checkForOnlookers->setTiming(0.1f, 0.0f, true);
+        checkForOnlookers->setExecuteUpdateOnArrival(true);
+        checkForOnlookers->setRestartTimerOnArrival(false);
+        
+        auto stopBreakingIn = tree->addNode<iyf::CompareValuesDecoratorNode>(openWindow, std::vector<iyf::StringHash>{ONLOOKERS_PRESENT_HASH, TRUE_VALUE_HASH}, true, AbortMode::OwnSubtree);
+        stopBreakingIn->setName("Stop breaking in into own house");
+    } else if (stage == BehaviourTreeTestStage::DecoratedAbortLowerPriority) {
+        // TODO
+    }
     
     return tree;
 }
@@ -222,14 +295,17 @@ TestResults BehaviourTreeTests::run() {
     iyf::BlackboardInitializer bbi;
     bbi.name = "HouseEntryBlackboard";
     bbi.initialValues.reserve(3);
-    bbi.initialValues.emplace_back("a", true);
+    bbi.initialValues.emplace_back(ONLOOKERS_PRESENT, false);
+    bbi.initialValues.emplace_back(TRUE_VALUE, true);
     
     TestTaskResults ttr;
     iyf::Blackboard bb(bbi);
     std::vector<ProgressReport> reportVector;
     
-    std::unique_ptr<iyf::BehaviourTree> nonDecoratedTree = makeNonDecoratedTree(&bb, &reportVector, ttr);
+    // ----- BEGIN NON DECORATED TREE TESTS
+    std::unique_ptr<iyf::BehaviourTree> nonDecoratedTree = makeTestTree(&bb, &reportVector, ttr, BehaviourTreeTestStage::NonDecorated);
     nonDecoratedTree->buildTree();
+//     nonDecoratedTree->setLoggingEnabled(true);
     
     if (isOutputVerbose()) {
         LOG_V("Non decorated behaviour tree:\n" << nonDecoratedTree->toString());
@@ -243,7 +319,7 @@ TestResults BehaviourTreeTests::run() {
         ProgressReport(ReportID::EnteringThroughTheDoor, BehaviourTreeResult::Success),
     };
     
-    IYF_RUN_TREE_TEST("Non decorated #1", 1);
+    IYF_RUN_TREE_TEST(nonDecoratedTree, "Non decorated #1", 1);
     
     // TEST Non decorated #2 (forgotten keys, checks if selector continues after the first fail)
     ttr.hasKey = false;
@@ -257,7 +333,7 @@ TestResults BehaviourTreeTests::run() {
         ProgressReport(ReportID::EnteringThroughTheDoor, BehaviourTreeResult::Success),
     };
     
-    IYF_RUN_TREE_TEST("Non decorated #2", 1);
+    IYF_RUN_TREE_TEST(nonDecoratedTree, "Non decorated #2", 1);
     
      // TEST Non decorated #3 (spare key not found, checks if selector fails after all tasks fail and if the parent sequence fails as well)
     ttr.spareExists = false;
@@ -274,9 +350,9 @@ TestResults BehaviourTreeTests::run() {
         ProgressReport(ReportID::EnteringThroughTheWindow, BehaviourTreeResult::Success),
     };
     
-    IYF_RUN_TREE_TEST("Non decorated #3", 1);
+    IYF_RUN_TREE_TEST(nonDecoratedTree, "Non decorated #3", 1);
     
-     // TEST Non decorated #4 (Nothing works, checks if root makes us retry when all actions fail)
+    // TEST Non decorated #4 (Nothing works, checks if root makes us retry when all actions fail)
     ttr.windowNotLocked = false;
     ttr.windowBreakable = false;
     ttr.canBansheeScream = false;
@@ -300,7 +376,51 @@ TestResults BehaviourTreeTests::run() {
     expectedReportVector.reserve(size * 2);
     std::copy_n(expectedReportVector.begin(), size, std::back_inserter(expectedReportVector));
     
-    IYF_RUN_TREE_TEST("Non decorated #4", 2);
+    IYF_RUN_TREE_TEST(nonDecoratedTree, "Non decorated #4", 2);
+    
+    // ----- END NON DECORATED TREE TESTS
+    nonDecoratedTree = nullptr;
+    
+    // ----- BEGIN DECORATED TREE TESTS
+    std::unique_ptr<iyf::BehaviourTree> decoratedTree = makeTestTree(&bb, &reportVector, ttr, BehaviourTreeTestStage::DecoratedAbortOwn);
+    decoratedTree->buildTree();
+    decoratedTree->setLoggingEnabled(true);
+    
+    if (isOutputVerbose()) {
+        LOG_V("Decorated behaviour tree:\n" << decoratedTree->toString());
+    }
+    
+    // TEST Decorated #1 (Nothing works, we spot onlookers using a service and have to quit trying to break into own home (decorator aborts own subtree), onlookers stay)
+    expectedReportVector = {
+        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Success),
+        ProgressReport(ReportID::UsingKey, BehaviourTreeResult::Failure),
+        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Failure),
+        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Success),
+        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::OpeningWindowGently, BehaviourTreeResult::Failure),
+        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::BreakingWindow, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::OnlookersDetected, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Success),
+        ProgressReport(ReportID::UsingKey, BehaviourTreeResult::Failure),
+        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Failure),
+        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Success),
+        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
+    };
+    IYF_RUN_TREE_TEST(decoratedTree, "Decorated #1", 2);
+    
+    // ----- END DECORATED TREE TESTS
+    decoratedTree = nullptr;
     
     return TestResults(true, "");
 }

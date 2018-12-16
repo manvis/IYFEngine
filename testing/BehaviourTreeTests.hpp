@@ -51,7 +51,17 @@ enum class ReportID {
     OpeningWindowGently,
     BreakingWindow,
     BansheeScreamingAtWindow,
-    EnteringThroughTheWindow
+    EnteringThroughTheWindow,
+    CheckingForOnlookers,
+    OnlookersDetected,
+    OnlookersLeft
+};
+
+enum class BehaviourTreeTestStage {
+    NonDecorated, ///< Tasks, Selectors and Sequences
+    DecoratedAbortOwn, ///< Same as Tasks + Services and a decorator that aborts own subtree
+    DecoratedAbortLowerPriority, ///< Same as Tasks + Services and a decorator that aborts lower priority subtrees
+    // SimpleParallel // We don't have parallel nodes at the moment
 };
 
 struct ProgressReport {
@@ -79,7 +89,7 @@ public:
     virtual TestResults run() final override;
     virtual void cleanup() final override;
 private:
-    std::unique_ptr<iyf::BehaviourTree> makeNonDecoratedTree(iyf::Blackboard* bb, std::vector<ProgressReport>* reportVector, const TestTaskResults& results);
+    std::unique_ptr<iyf::BehaviourTree> makeTestTree(iyf::Blackboard* bb, std::vector<ProgressReport>* reportVector, const TestTaskResults& results, BehaviourTreeTestStage stage);
     std::string printReportVector(const std::vector<ProgressReport>& reportVector) const;
     
     TestResults runTree(iyf::BehaviourTree* tree, std::size_t maxReturnsToRoot = 1, std::size_t maxSteps = 100);

@@ -397,7 +397,7 @@ protected:
     void freeCommandBuffer(const VkCommandBuffer& commandBuffer);
     
     std::uint32_t getMemoryType(std::uint32_t typeBits, VkFlags properyFlags);
-    void setImageLayout(VkCommandBuffer cmd, VkImage image, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkImageSubresourceRange imageSubresourceRange, VkPipelineStageFlags srcStageFlags = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VkPipelineStageFlags destStageFlags = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+    void setImageLayout(VkCommandBuffer cmd, VkImage image, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkImageSubresourceRange imageSubresourceRange, VkPipelineStageFlags srcStageFlags, VkPipelineStageFlags destStageFlags);
     
     bool checkResult(VkResult result, const std::string& whatFailed, bool throwIfFailed = true);
     

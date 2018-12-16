@@ -151,6 +151,21 @@ public:
     }
     
     Blackboard* getBlackboard() const;
+    
+    inline friend bool operator<(const BehaviourTreeNode& a, const BehaviourTreeNode& b) {
+        assert(a.tree == b.tree);
+        
+        // Priority is lower when the number is higher
+        return a.priority < b.priority;
+    }
+    
+    inline friend bool operator==(const BehaviourTreeNode& a, const BehaviourTreeNode& b) {
+        assert(a.tree == b.tree);
+        
+        // Priority is lower when the number is higher
+        return a.priority == b.priority;
+    }
+    
 private:
     friend class BehaviourTree;
     
@@ -190,9 +205,9 @@ public:
 
 class ServiceNode : public BehaviourTreeNode {
 public:
-    ServiceNode(BehaviourTree* tree)
-        : BehaviourTreeNode(tree, BehaviourTreeNodeType::Service), timeBetweenActivations(0.5f), randomActivationDeviation(0.0f),
-          timeUntilNextActivation(0.5f), executeUpdateOnArrival(false), restartTimerOnArrival(false)
+    ServiceNode(BehaviourTree* tree, float timeBetweenActivations = 0.5f, float randomActivationDeviation = 0.0f)
+        : BehaviourTreeNode(tree, BehaviourTreeNodeType::Service), timeBetweenActivations(timeBetweenActivations), randomActivationDeviation(randomActivationDeviation),
+          timeUntilNextActivation(timeBetweenActivations), executeUpdateOnArrival(false), restartTimerOnArrival(false)
     {
         buildNewDistribution();
     }
@@ -406,15 +421,20 @@ private:
 
 class BehaviourTree : public BlackboardCallbackListener {
 public:
-    /// \param verboseOutput Should the BehaviourTree log every step? Is ignored if the Engine was built without defining IYF_LOG_BEHAVIOUR_NODE_ACTIONS
-    BehaviourTree(Blackboard* blackboard, bool verboseOutput = false, std::int32_t seed = std::numeric_limits<std::int32_t>::max());
+    BehaviourTree(Blackboard* blackboard, std::int32_t seed = std::numeric_limits<std::int32_t>::max());
+    
+    /// Is the BehaviourTree logging every step? Always returns false if the Engine was built without defining IYF_LOG_BEHAVIOUR_NODE_ACTIONS.
+    bool isLoggingEnabled() const;
+    
+    /// Tell the behaviour tree to start or stop logging. The setting is ignored and false is returned if the Engine was built without defining IYF_LOG_BEHAVIOUR_NODE_ACTIONS.
+    bool setLoggingEnabled(bool enabled);
     
     virtual ~BehaviourTree();
     
     void update(float delta);
     
-    /// Abort the running subtree, all services and start from root next time update() is called. This will not consume any pending notifications from the Blackboard.
-    void abort();
+//     /// Abort the running subtree, all services and start from root next time update() is called. This will not consume any pending notifications from the Blackboard.
+//     void abort();
     
     virtual void valueUpdated(StringHash nameHash) final override;
     virtual void availabilityUpdated(StringHash nameHash, bool available) final override;
@@ -512,7 +532,17 @@ public:
     inline BehaviourTreeNode* getLastExecutedNode() const {
         return lastExecutedNode;
     }
+    
+    /// \remark For use in tests and debugging
+    inline std::size_t getActiveServiceCount() const {
+        return activeServices.size();
+    }
 private:
+    /// Starts from the end and aborts all items up to and including lastItemToAbort.
+    ///
+    /// \warning this function assumes the lastItemToAbort exist in the vector
+    std::size_t abort(std::vector<BehaviourTreeNode*>::iterator lastItemToAbort);
+    
     void walkTree(BehaviourTreeNode* node, std::function<void(BehaviourTreeNode*)> function, bool childrenFirst = false);
     
     template <typename T, typename... Ts>
@@ -599,7 +629,7 @@ private:
     
     float lastDelta;
     bool treeBuilt;
-    bool verboseOutput;
+    bool loggingEnabled;
 };
 
 inline Blackboard* BehaviourTreeNode::getBlackboard() const {
