@@ -114,13 +114,14 @@ void ServiceNode::onArriveFromParent() {
 BehaviourResultNextNodePair ServiceNode::update() {
     timeUntilNextActivation -= getTree()->getLastUpdateDelta();
 
-    if (timeUntilNextActivation <= 0.0f) {
+    bool runsThisTime = (timeUntilNextActivation <= 0.0f);
+    if (runsThisTime) {
         execute();
         generateNextActivationTime();
     }
     
-    // This is ignored.
-    return {BehaviourTreeResult::Success, nullptr};
+    // This is ignored, unless logging is enabled
+    return {runsThisTime ? BehaviourTreeResult::Running : BehaviourTreeResult::Success, nullptr};
 }
 
 BehaviourResultNextNodePair SequenceNode::update() {
@@ -217,9 +218,9 @@ void IsAvailableDecoratorNode::initialize() {
     const BlackboardValueAvailability availability = getBlackboard()->isValueAvailable(values[0]);
     
     if (availability == BlackboardValueAvailability::Available) {
-        currentResult = invert ? BehaviourTreeResult::Failure : BehaviourTreeResult::Success;
+        currentResult = invert ? false : true;
     } else if (availability == BlackboardValueAvailability::NotAvailable) {
-        currentResult = invert ? BehaviourTreeResult::Success : BehaviourTreeResult::Failure;
+        currentResult = invert ? true : false;
     } else {
         throw std::runtime_error("Value not available");
     }
@@ -237,22 +238,79 @@ void IsAvailableDecoratorNode::onObservedValueChange(StringHash nameHash, bool a
             available = !available;
         }
         
-        currentResult = available ? BehaviourTreeResult::Success : BehaviourTreeResult::Failure;
+        currentResult = available ? true : false;
     }
+}
+
+bool IsAvailableDecoratorNode::allowExecution() {
+    return currentResult;
 }
 
 BehaviourResultNextNodePair IsAvailableDecoratorNode::update() {
-    return {currentResult, nullptr};
+    return {BehaviourTreeResult::Success, nullptr};
 }
 
-
-void CompareValuesDecoratorNode::reevaluateResult() {
-    bool equal = (a == b);
-    if (invert) {
-        equal = !equal;
+template <typename T>
+constexpr bool CompareValues(ValueCompareOperation compareOp, T a, T b) {
+    switch (compareOp) {
+        case ValueCompareOperation::Less:
+            return (a < b);
+        case ValueCompareOperation::LessOrEqual:
+            return (a <= b);
+        case ValueCompareOperation::Equal:
+            return (a == b);
+        case ValueCompareOperation::GreaterOrEqual:
+            return (a >= b);
+        case ValueCompareOperation::Greater:
+            return (a > b);
+        case ValueCompareOperation::NotEqual:
+            return (a != b);
     }
     
-    currentResult = equal ? BehaviourTreeResult::Success : BehaviourTreeResult::Failure;
+    return false;
+}
+
+CompareValuesDecoratorNode::CompareValuesDecoratorNode(BehaviourTree* tree, std::vector<StringHash> observedBlackboardValueNames, ValueCompareOperation compareOp, AbortMode abortMode) 
+    : DecoratorNode(tree, observedBlackboardValueNames, abortMode), compareOp(compareOp) {}
+
+void CompareValuesDecoratorNode::reevaluateResult() {
+    bool result = std::visit([this](auto&& a, auto&& b) -> bool {
+        using T1 = std::decay_t<decltype(a)>;
+        using T2 = std::decay_t<decltype(b)>;
+        
+        if constexpr (!std::is_same_v<T1, T2>) {
+            return false;
+        } else if constexpr (std::is_same_v<T1, bool> || std::is_same_v<T1, float> || std::is_same_v<T1, int> || std::is_same_v<T1, std::string>) {
+            return CompareValues<T1>(compareOp, a, b);
+        } else if constexpr (std::is_same_v<T1, glm::vec3>) {
+            switch (compareOp) {
+                case ValueCompareOperation::Less:
+                    return glm::all(glm::lessThan(a, b));
+                case ValueCompareOperation::LessOrEqual:
+                    return glm::all(glm::lessThanEqual(a, b));
+                case ValueCompareOperation::Equal:
+                    return glm::all(glm::equal(a, b));
+                case ValueCompareOperation::GreaterOrEqual:
+                    return glm::all(glm::greaterThanEqual(a, b));
+                case ValueCompareOperation::Greater:
+                    return glm::all(glm::greaterThan(a, b));
+                case ValueCompareOperation::NotEqual:
+                    return glm::all(glm::notEqual(a, b));
+            }
+            
+            throw std::runtime_error("Unknown ValueCompareOperation");
+        } else if constexpr (std::is_same_v<T1, void*>) {
+            if (compareOp == ValueCompareOperation::Equal) {
+                return a == b;
+            } else {
+                return false;
+            }
+        } else {
+            static_assert(FalseType<T1>::value, "Unhandled type.");
+        }
+    }, a, b);
+    
+    currentResult = result;
 }
 
 void CompareValuesDecoratorNode::initialize() {
@@ -264,6 +322,10 @@ void CompareValuesDecoratorNode::initialize() {
     const Blackboard* blackboard = getBlackboard();
     a = blackboard->getRawValue(observed[0]);
     b = blackboard->getRawValue(observed[1]);
+    
+    if (a.index() != b.index()) {
+        throw std::logic_error("The observed values must be of the same type");
+    }
     
     reevaluateResult();
 }
@@ -282,8 +344,46 @@ void CompareValuesDecoratorNode::onObservedValueChange(StringHash nameHash, bool
     reevaluateResult();
 }
 
+bool CompareValuesDecoratorNode::allowExecution() {
+    return currentResult;
+}
+
 BehaviourResultNextNodePair CompareValuesDecoratorNode::update() {
-    return {currentResult, nullptr};
+    return {BehaviourTreeResult::Success, nullptr};
+}
+
+CompareValueConstantDecoratorNode::CompareValueConstantDecoratorNode(BehaviourTree* tree, StringHash observedBlackboardValueName, BlackboardValue b, ValueCompareOperation compareOp, AbortMode abortMode) 
+    : CompareValuesDecoratorNode(tree, {observedBlackboardValueName}, compareOp, abortMode)
+{
+    this->b = b;
+}
+
+void CompareValueConstantDecoratorNode::onObservedValueChange(StringHash nameHash, bool, bool) {
+    const std::vector<StringHash>& values = getObservedBlackboardValueNames();
+    
+    assert(values.size() == 1);
+    assert(nameHash == values[0]);
+    
+    const Blackboard* blackboard = getBlackboard();
+    a = blackboard->getRawValue(nameHash);
+    
+    reevaluateResult();
+}
+
+void CompareValueConstantDecoratorNode::initialize() {
+    const auto& observed = getObservedBlackboardValueNames();
+    if (observed.size() != 1) {
+        throw std::logic_error("A single observed value must have been provided");
+    }
+    
+    const Blackboard* blackboard = getBlackboard();
+    a = blackboard->getRawValue(observed[0]);
+    
+    if (a.index() != b.index()) {
+        throw std::logic_error("The observed values must be of the same type");
+    }
+    
+    reevaluateResult();
 }
 
 BehaviourTree::BehaviourTree(Blackboard* blackboard, std::int32_t seed) 
@@ -496,11 +596,6 @@ bool BehaviourTree::buildTree() {
 void BehaviourTree::update(float delta) {
     lastDelta = delta;
     
-    // First of all, update services and let them change the blackboard
-    for (ServiceNode* service : activeServices) {
-        service->update();
-    }
-    
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
         std::stringstream ssLog;
         
@@ -512,6 +607,15 @@ void BehaviourTree::update(float delta) {
             ssLog << "\n";
         }
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+
+    // First of all, update services and let them change the blackboard
+    for (ServiceNode* service : activeServices) {
+        [[maybe_unused]] auto result = service->update();
+        
+#ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+        logNodeAndResult(ssLog, service, result.first, false);
+#endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+    }
 
     // Next, process all pending blackboard value change notifications.
     for (const auto& n : pendingNotifications) {
@@ -563,27 +667,35 @@ void BehaviourTree::update(float delta) {
             
             // We should only abort lower priority nodes if they 
             if ((abortMode == AbortMode::LowerPriority || abortMode == AbortMode::Both) && decoratableIterator == activeBranch.end()) {
-                //const std::uint32_t priority = decoratable->getPriority();
-                LOG_E("NOT YET IMPLEMENTED")
-                //abort(decoratableIterator);
-                [[maybe_unused]] std::size_t abortedNodeCount = 0;// abort;
+                const std::uint32_t priority = decoratable->getPriority();
+                
+                auto lastNodeToAbort = activeBranch.end();
+                for (auto n = activeBranch.begin(); n != activeBranch.end(); ++n) {
+                    if ((*n)->getPriority() >= priority) {
+                        lastNodeToAbort = n;
+                        break;
+                    }
+                }
+                
+                [[maybe_unused]] std::size_t abortedNodeCount = 0;
+                
+                if (lastNodeToAbort != activeBranch.end()) {
+                    abortedNodeCount = abort(lastNodeToAbort);
+                    
+                    nextNodeToExecute = (*lastNodeToAbort)->getParent();
+                    
+                    // TODO is returning failure really our best option here?
+                    nextNodeToExecute->returnFromChild(BehaviourTreeResult::Failure);
+                    
+                    lastExecutedNode = (*lastNodeToAbort);
+                }
+                
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
                 abortedLowerPriorityNodeCount = abortedNodeCount;
                 lowerPriorityAborted = true;
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
             }
             
-            // Update the cached result so that we wouldn't need to go through all the decorators each time we try to process a node.
-            bool cachedDecoratorResult = true;
-            auto& decorators = decoratable->getDecorators();
-            
-            for (DecoratorNode* d : decorators) {
-                const bool latestState = d->update().first == BehaviourTreeResult::Success;
-                
-                cachedDecoratorResult &= latestState;
-            }
-            
-            decoratable->cachedDecoratorResult = cachedDecoratorResult;
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
             const char* modeStr = nullptr;
             switch (abortMode) {
@@ -603,7 +715,6 @@ void BehaviourTree::update(float delta) {
             
             if (loggingEnabled) {
                 ssLog << "\tDECORATOR: \"" << processedDecorator->getName() <<"\" got notified about a value change.\n"
-                        "\t\t   Can \"" << decoratable->getName() << "\" run after decorator update? " << std::boolalpha << cachedDecoratorResult << "\n" <<
                         "\t\t   Node abort requested? " << modeStr << "\n" <<
                         "\t\t   Own subtree aborted? " << std::boolalpha << ownSubtreeAborted << " (" << abortedOwnSubtreeNodeCount << " node(s))\n" <<
                         "\t\t   Lower priority nodes aborted? " << std::boolalpha << lowerPriorityAborted << " (" << abortedLowerPriorityNodeCount << " node(s))\n" <<
@@ -623,7 +734,7 @@ void BehaviourTree::update(float delta) {
         BehaviourResultNextNodePair result;
         
         // If the next node has decorators, we need to make sure they allow its execution
-        if (nextNodeToExecute->isDecoratable() && !static_cast<DecoratableNode*>(nextNodeToExecute)->decoratorsAllowExecution()) {
+        if (nextNodeToExecute->isDecoratable() && !checkIfDecoratorsAllowExecution(static_cast<DecoratableNode*>(nextNodeToExecute))) {
             result = {BehaviourTreeResult::Failure, nextNodeToExecute->getParent()};
             
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
@@ -654,7 +765,7 @@ void BehaviourTree::update(float delta) {
             // popped immediately during the next iteration)
             const bool nextIsDecoratable = nextNodeToExecute->isDecoratable();
             const bool shouldNotifyArrivalToDecoratable = (nextIsDecoratable &&
-                                                           static_cast<DecoratableNode*>(nextNodeToExecute)->decoratorsAllowExecution());
+                                                           checkIfDecoratorsAllowExecution(static_cast<DecoratableNode*>(nextNodeToExecute)));
             
             if (shouldNotifyArrivalToDecoratable) {
                 const DecoratableNode* node = static_cast<DecoratableNode*>(nextNodeToExecute);
@@ -711,6 +822,17 @@ void BehaviourTree::update(float delta) {
         LOG_D(ssLog.str());
     }
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+}
+
+bool BehaviourTree::checkIfDecoratorsAllowExecution(DecoratableNode* decoratable) {
+    auto& decorators = decoratable->getDecorators();
+    bool allowExecution = true;
+    
+    for (DecoratorNode* d : decorators) {
+        allowExecution &= d->allowExecution();
+    }
+    
+    return allowExecution;
 }
 
 // void BehaviourTree::abort() {
@@ -792,11 +914,22 @@ void BehaviourTree::logNodeAndResult(std::stringstream& ssLog, BehaviourTreeNode
               << node->getPriority()
               << ", D: "
               << node->getDepth()
-              << "); RES: ";
-    if (result == BehaviourTreeResult::Failure && blockedByDecorator) {
-        ssLog << TreeResultToString(result) << " (blocked by a decorator)";
+              << ");";
+    
+    if (node->getType() == BehaviourTreeNodeType::Service) {
+        if (result == BehaviourTreeResult::Running) {
+            ssLog << " RES: Running"; 
+        } else {
+            ssLog << " RES: Sleeping"; 
+        }
     } else {
-        ssLog << TreeResultToString(result);
+        ssLog << " RES: ";
+        
+        if (result == BehaviourTreeResult::Failure && blockedByDecorator) {
+            ssLog << TreeResultToString(result) << " (blocked by a decorator)";
+        } else {
+            ssLog << TreeResultToString(result);
+        }
     }
     
     ssLog << "\n";

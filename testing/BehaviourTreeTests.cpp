@@ -36,6 +36,9 @@
 #define IYF_TEST_EMULATED_UPDATE_INTERVAL 0.1 // 100 milliseconds between "updates"
 #define IYF_VERBOSE_TREE_OUTPUT false // If enabling this does nothing, make sure IYF_LOG_BEHAVIOUR_NODE_ACTIONS is defined in BehaviourTree.cpp
 
+const std::string KEY_IN_POCKET("KeyInPocket");
+const iyf::StringHash KEY_IN_POCKET_HASH = iyf::HS(KEY_IN_POCKET);
+
 const std::string ONLOOKERS_PRESENT("OnlookersPresent");
 const iyf::StringHash ONLOOKERS_PRESENT_HASH = iyf::HS(ONLOOKERS_PRESENT);
 
@@ -66,11 +69,17 @@ inline const char* ReportIDName(ReportID id) {
         case ReportID::EnteringThroughTheWindow:
             return "Entering through the window";
         case ReportID::CheckingForOnlookers:
-            return "(OLService) Checking for onlookers";
+            return "(Onlooker Service) Checking for onlookers";
         case ReportID::OnlookersDetected:
-            return "(OLService) Onlookers detected";
+            return "(Onlooker Service) Onlookers detected";
         case ReportID::OnlookersLeft:
-            return "(OLService) Onlookers left";
+            return "(Onlooker Service) Onlookers left";
+        case ReportID::ThinkingAboutAKey:
+            return "(Key Check Service) Thinking about a key";
+        case ReportID::KeyFound:
+            return "(Key Check Service) Key Found";
+        case ReportID::ERROR:
+            return "ERROR - invalid report ID";
     }
     
     return nullptr;
@@ -90,8 +99,8 @@ inline const char* ResultName(BehaviourTreeResult result) {
 }
 
 struct TestTaskResults {
-    TestTaskResults() : hasKey(true), spareExists(true), windowNotLocked(true), windowBreakable(true), canBansheeScream(true) {}
-    bool hasKey;
+    TestTaskResults() : canUseKey(true), spareExists(true), windowNotLocked(true), windowBreakable(true), canBansheeScream(true) {}
+    bool canUseKey;
     bool spareExists;
     bool windowNotLocked;
     bool windowBreakable;
@@ -122,22 +131,22 @@ public:
     }
     
     virtual void execute() {
-        remainingTimeUntilTrigger -= getTree()->getLastUpdateDelta();
+        remainingTimeUntilTrigger -= getTimeBetweenActivations();
         
         if (remainingTimeUntilTrigger <= 0.0f) {
             Blackboard* bb = getBlackboard();
             if (bb->getRawValue(nameHash) == preChangeValue) {
                 bb->setValue(nameHash, postChangeValue);
-                reports->emplace_back(reportIDs.setToPost, BehaviourTreeResult::Running);
+                reports->emplace_back(reportIDs.setToPost, BehaviourTreeResult::Running, getTree()->getStepNumber());
             } else {
                 bb->setValue(nameHash, preChangeValue);
-                reports->emplace_back(reportIDs.revertToPre, BehaviourTreeResult::Running);
+                reports->emplace_back(reportIDs.revertToPre, BehaviourTreeResult::Running, getTree()->getStepNumber());
             }
             
             assert(std::numeric_limits<float>::has_infinity);
             remainingTimeUntilTrigger = std::numeric_limits<float>::infinity();
         } else {
-            reports->emplace_back(reportIDs.pending, BehaviourTreeResult::Running);
+            reports->emplace_back(reportIDs.pending, BehaviourTreeResult::Running, getTree()->getStepNumber());
         }
     }
 private:
@@ -165,14 +174,14 @@ public:
     
     virtual BehaviourResultNextNodePair update() override {
         if (remainingTicks > 0) {
-            reports->emplace_back(reportID, BehaviourTreeResult::Running);
+            reports->emplace_back(reportID, BehaviourTreeResult::Running, getTree()->getStepNumber());
             remainingTicks--;
             
             return {BehaviourTreeResult::Running, this};
         } else {
             const BehaviourTreeResult result = shouldSucceed() ? BehaviourTreeResult::Success : BehaviourTreeResult::Failure;
             
-            reports->emplace_back(reportID, result);
+            reports->emplace_back(reportID, result, getTree()->getStepNumber());
             return {result, getParent()};
         }
     }
@@ -244,7 +253,8 @@ inline iyf::SelectorNode* MakeSelector(iyf::BehaviourTree* tree, BehaviourTreeNo
         }\
         \
         reportVector.clear();\
-    }
+    }\
+    tree->resetStepCounter();
 
     
 
@@ -256,7 +266,7 @@ std::unique_ptr<iyf::BehaviourTree> BehaviourTreeTests::makeTestTree(iyf::Blackb
     auto useTheDoor = IYF_MAKE_SEQUENCE(mainSelector, "Use the Door Sequence");
     IYF_MAKE_REPORTING_TASK(useTheDoor, "Go Towards the Door", ReportID::GoingTowardsTheDoor, true, 1);
     auto openDoor = IYF_MAKE_SELECTOR(useTheDoor, "Open Door");
-    IYF_MAKE_REPORTING_TASK(openDoor, "Use Key", ReportID::UsingKey, &results.hasKey, 0);
+    auto useKey = IYF_MAKE_REPORTING_TASK(openDoor, "Use Key", ReportID::UsingKey, &results.canUseKey, 0);
     IYF_MAKE_REPORTING_TASK(openDoor, "Look For Spare", ReportID::LookingForSpare, &results.spareExists, 1);
     IYF_MAKE_REPORTING_TASK(useTheDoor, "Enter through the Door", ReportID::EnteringThroughTheDoor, true, 0);
     
@@ -264,7 +274,9 @@ std::unique_ptr<iyf::BehaviourTree> BehaviourTreeTests::makeTestTree(iyf::Blackb
     IYF_MAKE_REPORTING_TASK(useTheWindow, "Go Towards the Window", ReportID::GoingTowardsTheWindow, true, 1);
     auto openWindow = IYF_MAKE_SELECTOR(useTheWindow, "Open Window");
     IYF_MAKE_REPORTING_TASK(openWindow, "Gently Open the Window", ReportID::OpeningWindowGently, &results.windowNotLocked, 0);
-    IYF_MAKE_REPORTING_TASK(openWindow, "Break Window", ReportID::BreakingWindow, &results.windowBreakable, 1);
+    
+    // Extra duration is needed to check if the tasks are correctly interupted
+    IYF_MAKE_REPORTING_TASK(openWindow, "Break Window", ReportID::BreakingWindow, &results.windowBreakable, (stage == BehaviourTreeTestStage::NonDecorated) ? 1 : 2);
     IYF_MAKE_REPORTING_TASK(openWindow, "Banshee Scream at Window", ReportID::BansheeScreamingAtWindow, &results.canBansheeScream, 1);
     IYF_MAKE_REPORTING_TASK(useTheWindow, "Enter through the Window", ReportID::EnteringThroughTheWindow, true, 0);
     
@@ -277,10 +289,19 @@ std::unique_ptr<iyf::BehaviourTree> BehaviourTreeTests::makeTestTree(iyf::Blackb
         checkForOnlookers->setExecuteUpdateOnArrival(true);
         checkForOnlookers->setRestartTimerOnArrival(false);
         
-        auto stopBreakingIn = tree->addNode<iyf::CompareValuesDecoratorNode>(openWindow, std::vector<iyf::StringHash>{ONLOOKERS_PRESENT_HASH, TRUE_VALUE_HASH}, true, AbortMode::OwnSubtree);
+        auto stopBreakingIn = tree->addNode<iyf::CompareValuesDecoratorNode>(openWindow, std::vector<iyf::StringHash>{ONLOOKERS_PRESENT_HASH, TRUE_VALUE_HASH}, ValueCompareOperation::NotEqual, AbortMode::OwnSubtree);
         stopBreakingIn->setName("Stop breaking in into own house");
-    } else if (stage == BehaviourTreeTestStage::DecoratedAbortLowerPriority) {
-        // TODO
+    } else if (stage == BehaviourTreeTestStage::DecoratedAbortLowerPriority) {//DecoratedAbortLowerPriorityBlackboardCompare
+        ServiceReportIDs thinkAboutKeyIDs(ReportID::ThinkingAboutAKey, ReportID::ERROR, ReportID::KeyFound);
+        
+        auto thinkAboutAKey = tree->addNode<TimedTriggerService>(mainSelector, 0.9f, thinkAboutKeyIDs, reportVector, KEY_IN_POCKET_HASH, false, true);
+        thinkAboutAKey->setName("Think about a key");
+        thinkAboutAKey->setTiming(0.2f, 0.0f, true);
+//         thinkAboutAKey->setExecuteUpdateOnArrival(true);
+        thinkAboutAKey->setRestartTimerOnArrival(false);
+        
+        auto canUnlock = tree->addNode<iyf::CompareValueConstantDecoratorNode>(useKey, KEY_IN_POCKET_HASH, true, ValueCompareOperation::Equal, AbortMode::LowerPriority);
+        canUnlock->setName("Can unlock");
     }
     
     return tree;
@@ -296,6 +317,7 @@ TestResults BehaviourTreeTests::run() {
     bbi.name = "HouseEntryBlackboard";
     bbi.initialValues.reserve(3);
     bbi.initialValues.emplace_back(ONLOOKERS_PRESENT, false);
+    bbi.initialValues.emplace_back(KEY_IN_POCKET, false);
     bbi.initialValues.emplace_back(TRUE_VALUE, true);
     
     TestTaskResults ttr;
@@ -313,24 +335,24 @@ TestResults BehaviourTreeTests::run() {
     
     // TEST Non decorated #1 (everything OK from start)
     std::vector<ProgressReport> expectedReportVector = {
-        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Success),
-        ProgressReport(ReportID::UsingKey, BehaviourTreeResult::Success),
-        ProgressReport(ReportID::EnteringThroughTheDoor, BehaviourTreeResult::Success),
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Running, 0),
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Success, 1),
+        ProgressReport(ReportID::UsingKey,               BehaviourTreeResult::Success, 2),
+        ProgressReport(ReportID::EnteringThroughTheDoor, BehaviourTreeResult::Success, 3),
     };
     
     IYF_RUN_TREE_TEST(nonDecoratedTree, "Non decorated #1", 1);
     
     // TEST Non decorated #2 (forgotten keys, checks if selector continues after the first fail)
-    ttr.hasKey = false;
+    ttr.canUseKey = false;
     
     expectedReportVector = {
-        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Success),
-        ProgressReport(ReportID::UsingKey, BehaviourTreeResult::Failure),
-        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Success),
-        ProgressReport(ReportID::EnteringThroughTheDoor, BehaviourTreeResult::Success),
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Running, 0),
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Success, 1),
+        ProgressReport(ReportID::UsingKey,               BehaviourTreeResult::Failure, 2),
+        ProgressReport(ReportID::LookingForSpare,        BehaviourTreeResult::Running, 3),
+        ProgressReport(ReportID::LookingForSpare,        BehaviourTreeResult::Success, 4),
+        ProgressReport(ReportID::EnteringThroughTheDoor, BehaviourTreeResult::Success, 5),
     };
     
     IYF_RUN_TREE_TEST(nonDecoratedTree, "Non decorated #2", 1);
@@ -339,15 +361,15 @@ TestResults BehaviourTreeTests::run() {
     ttr.spareExists = false;
     
     expectedReportVector = {
-        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Success),
-        ProgressReport(ReportID::UsingKey, BehaviourTreeResult::Failure),
-        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Failure),
-        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Success),
-        ProgressReport(ReportID::OpeningWindowGently, BehaviourTreeResult::Success),
-        ProgressReport(ReportID::EnteringThroughTheWindow, BehaviourTreeResult::Success),
+        ProgressReport(ReportID::GoingTowardsTheDoor,      BehaviourTreeResult::Running, 0),
+        ProgressReport(ReportID::GoingTowardsTheDoor,      BehaviourTreeResult::Success, 1),
+        ProgressReport(ReportID::UsingKey,                 BehaviourTreeResult::Failure, 2),
+        ProgressReport(ReportID::LookingForSpare,          BehaviourTreeResult::Running, 3),
+        ProgressReport(ReportID::LookingForSpare,          BehaviourTreeResult::Failure, 4),
+        ProgressReport(ReportID::GoingTowardsTheWindow,    BehaviourTreeResult::Running, 5),
+        ProgressReport(ReportID::GoingTowardsTheWindow,    BehaviourTreeResult::Success, 6),
+        ProgressReport(ReportID::OpeningWindowGently,      BehaviourTreeResult::Success, 7),
+        ProgressReport(ReportID::EnteringThroughTheWindow, BehaviourTreeResult::Success, 8),
     };
     
     IYF_RUN_TREE_TEST(nonDecoratedTree, "Non decorated #3", 1);
@@ -358,23 +380,28 @@ TestResults BehaviourTreeTests::run() {
     ttr.canBansheeScream = false;
     
     expectedReportVector = {
-        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Success),
-        ProgressReport(ReportID::UsingKey, BehaviourTreeResult::Failure),
-        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Failure),
-        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Success),
-        ProgressReport(ReportID::OpeningWindowGently, BehaviourTreeResult::Failure),
-        ProgressReport(ReportID::BreakingWindow, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::BreakingWindow, BehaviourTreeResult::Failure),
-        ProgressReport(ReportID::BansheeScreamingAtWindow, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::BansheeScreamingAtWindow, BehaviourTreeResult::Failure),
+        ProgressReport(ReportID::GoingTowardsTheDoor,      BehaviourTreeResult::Running, 0),
+        ProgressReport(ReportID::GoingTowardsTheDoor,      BehaviourTreeResult::Success, 1),
+        ProgressReport(ReportID::UsingKey,                 BehaviourTreeResult::Failure, 2),
+        ProgressReport(ReportID::LookingForSpare,          BehaviourTreeResult::Running, 3),
+        ProgressReport(ReportID::LookingForSpare,          BehaviourTreeResult::Failure, 4),
+        ProgressReport(ReportID::GoingTowardsTheWindow,    BehaviourTreeResult::Running, 5),
+        ProgressReport(ReportID::GoingTowardsTheWindow,    BehaviourTreeResult::Success, 6),
+        ProgressReport(ReportID::OpeningWindowGently,      BehaviourTreeResult::Failure, 7),
+        ProgressReport(ReportID::BreakingWindow,           BehaviourTreeResult::Running, 8),
+        ProgressReport(ReportID::BreakingWindow,           BehaviourTreeResult::Failure, 9),
+        ProgressReport(ReportID::BansheeScreamingAtWindow, BehaviourTreeResult::Running, 10),
+        ProgressReport(ReportID::BansheeScreamingAtWindow, BehaviourTreeResult::Failure, 11),
     };
     
     const std::size_t size = expectedReportVector.size();
     expectedReportVector.reserve(size * 2);
     std::copy_n(expectedReportVector.begin(), size, std::back_inserter(expectedReportVector));
+    
+    for (std::size_t i = 12; i < expectedReportVector.size(); ++i) {
+        // WARNING: i + 1 is NOT a bug. The tree pauses if it gets back to root. This is done to prevent infinite loops.
+        expectedReportVector[i].step = i + 1;
+    }
     
     IYF_RUN_TREE_TEST(nonDecoratedTree, "Non decorated #4", 2);
     
@@ -384,7 +411,7 @@ TestResults BehaviourTreeTests::run() {
     // ----- BEGIN DECORATED TREE TESTS
     std::unique_ptr<iyf::BehaviourTree> decoratedTree = makeTestTree(&bb, &reportVector, ttr, BehaviourTreeTestStage::DecoratedAbortOwn);
     decoratedTree->buildTree();
-    decoratedTree->setLoggingEnabled(true);
+    //decoratedTree->setLoggingEnabled(true);
     
     if (isOutputVerbose()) {
         LOG_V("Decorated behaviour tree:\n" << decoratedTree->toString());
@@ -392,32 +419,68 @@ TestResults BehaviourTreeTests::run() {
     
     // TEST Decorated #1 (Nothing works, we spot onlookers using a service and have to quit trying to break into own home (decorator aborts own subtree), onlookers stay)
     expectedReportVector = {
-        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Success),
-        ProgressReport(ReportID::UsingKey, BehaviourTreeResult::Failure),
-        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Failure),
-        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Success),
-        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::OpeningWindowGently, BehaviourTreeResult::Failure),
-        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::BreakingWindow, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::OnlookersDetected, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::GoingTowardsTheDoor, BehaviourTreeResult::Success),
-        ProgressReport(ReportID::UsingKey, BehaviourTreeResult::Failure),
-        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::LookingForSpare, BehaviourTreeResult::Failure),
-        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
-        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Success),
-        ProgressReport(ReportID::CheckingForOnlookers, BehaviourTreeResult::Running),
+        ProgressReport(ReportID::GoingTowardsTheDoor,   BehaviourTreeResult::Running, 0),
+        ProgressReport(ReportID::GoingTowardsTheDoor,   BehaviourTreeResult::Success, 1),
+        ProgressReport(ReportID::UsingKey,              BehaviourTreeResult::Failure, 2),
+        ProgressReport(ReportID::LookingForSpare,       BehaviourTreeResult::Running, 3),
+        ProgressReport(ReportID::LookingForSpare,       BehaviourTreeResult::Failure, 4),
+        ProgressReport(ReportID::CheckingForOnlookers,  BehaviourTreeResult::Running, 5),
+        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Running, 5),
+        ProgressReport(ReportID::CheckingForOnlookers,  BehaviourTreeResult::Running, 6),
+        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Success, 6),
+        ProgressReport(ReportID::CheckingForOnlookers,  BehaviourTreeResult::Running, 7),
+        ProgressReport(ReportID::OpeningWindowGently,   BehaviourTreeResult::Failure, 7),
+        ProgressReport(ReportID::CheckingForOnlookers,  BehaviourTreeResult::Running, 8),
+        ProgressReport(ReportID::BreakingWindow,        BehaviourTreeResult::Running, 8),
+        ProgressReport(ReportID::OnlookersDetected,     BehaviourTreeResult::Running, 9),
+        ProgressReport(ReportID::GoingTowardsTheDoor,   BehaviourTreeResult::Running, 10),
+        ProgressReport(ReportID::GoingTowardsTheDoor,   BehaviourTreeResult::Success, 11),
+        ProgressReport(ReportID::UsingKey,              BehaviourTreeResult::Failure, 12),
+        ProgressReport(ReportID::LookingForSpare,       BehaviourTreeResult::Running, 13),
+        ProgressReport(ReportID::LookingForSpare,       BehaviourTreeResult::Failure, 14),
+        ProgressReport(ReportID::CheckingForOnlookers,  BehaviourTreeResult::Running, 15),
+        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Running, 15),
+        ProgressReport(ReportID::CheckingForOnlookers,  BehaviourTreeResult::Running, 16),
+        ProgressReport(ReportID::GoingTowardsTheWindow, BehaviourTreeResult::Success, 16),
+        ProgressReport(ReportID::CheckingForOnlookers,  BehaviourTreeResult::Running, 17),
     };
     IYF_RUN_TREE_TEST(decoratedTree, "Decorated #1", 2);
+    
+    // TEST Decorated #2 (Key works, but it's blocked by a decorator. We remember having a key in a different pocket using a service and quit trying to break into own home
+    // (decorator aborts lower prioriy subtree))
+    ttr.canUseKey = true;
+    
+    decoratedTree = makeTestTree(&bb, &reportVector, ttr, BehaviourTreeTestStage::DecoratedAbortLowerPriority);
+    decoratedTree->buildTree();
+//     decoratedTree->setLoggingEnabled(true);
+    
+    if (isOutputVerbose()) {
+        LOG_V("Decorated behaviour tree:\n" << decoratedTree->toString());
+    }
+    
+    expectedReportVector = {
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Running, 0),
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Success, 1),
+        ProgressReport(ReportID::ThinkingAboutAKey,      BehaviourTreeResult::Running, 2),
+        ProgressReport(ReportID::LookingForSpare,        BehaviourTreeResult::Running, 3),
+        ProgressReport(ReportID::ThinkingAboutAKey,      BehaviourTreeResult::Running, 4),
+        ProgressReport(ReportID::LookingForSpare,        BehaviourTreeResult::Failure, 4),
+        ProgressReport(ReportID::GoingTowardsTheWindow,  BehaviourTreeResult::Running, 5),
+        ProgressReport(ReportID::ThinkingAboutAKey,      BehaviourTreeResult::Running, 6),
+        ProgressReport(ReportID::GoingTowardsTheWindow,  BehaviourTreeResult::Success, 6),
+        ProgressReport(ReportID::OpeningWindowGently,    BehaviourTreeResult::Failure, 7),
+        ProgressReport(ReportID::ThinkingAboutAKey,      BehaviourTreeResult::Running, 8),
+        ProgressReport(ReportID::BreakingWindow,         BehaviourTreeResult::Running, 8),
+        ProgressReport(ReportID::BreakingWindow,         BehaviourTreeResult::Running, 9),
+        ProgressReport(ReportID::KeyFound,               BehaviourTreeResult::Running, 10),
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Running, 11),
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Success, 12),
+        ProgressReport(ReportID::ThinkingAboutAKey,      BehaviourTreeResult::Running, 13),
+        ProgressReport(ReportID::UsingKey,               BehaviourTreeResult::Success, 13),
+        ProgressReport(ReportID::EnteringThroughTheDoor, BehaviourTreeResult::Success, 14),
+        ProgressReport(ReportID::ThinkingAboutAKey,      BehaviourTreeResult::Running, 15),
+    };
+    IYF_RUN_TREE_TEST(decoratedTree, "Decorated #2", 2);
     
     // ----- END DECORATED TREE TESTS
     decoratedTree = nullptr;
@@ -449,9 +512,10 @@ TestResults BehaviourTreeTests::runTree(iyf::BehaviourTree* tree, std::size_t ma
 
 std::string BehaviourTreeTests::printReportVector(const std::vector<ProgressReport>& reportVector) const {
     std::stringstream ss;
+    ss << "\n\tN is number of the record in the vector\n\tS is the number of the tree step";
     for (std::size_t i = 0; i < reportVector.size(); ++i) {
         const ProgressReport& pr = reportVector[i];
-        ss << "\n\t" << std::setw(6) << i << ": " << ReportIDName(pr.id) << " " << ResultName(pr.result);
+        ss << "\n\tN: " << std::setw(3) << i << "; S: " << std::setw(3) << pr.step << "; " << ReportIDName(pr.id) << " " << ResultName(pr.result);
     }
     
     return ss.str();

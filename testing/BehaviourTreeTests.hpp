@@ -54,24 +54,29 @@ enum class ReportID {
     EnteringThroughTheWindow,
     CheckingForOnlookers,
     OnlookersDetected,
-    OnlookersLeft
+    OnlookersLeft,
+    ThinkingAboutAKey,
+    KeyFound,
+    ERROR
 };
 
 enum class BehaviourTreeTestStage {
     NonDecorated, ///< Tasks, Selectors and Sequences
     DecoratedAbortOwn, ///< Same as Tasks + Services and a decorator that aborts own subtree
     DecoratedAbortLowerPriority, ///< Same as Tasks + Services and a decorator that aborts lower priority subtrees
+    DecoratedAbortLowerPriorityBlackboardCompare, ///< Same as Tasks + Services and a decorator that aborts lower priority subtrees
     // SimpleParallel // We don't have parallel nodes at the moment
 };
 
 struct ProgressReport {
-    inline ProgressReport(ReportID id, iyf::BehaviourTreeResult result) : id(id), result(result) {}
+    inline ProgressReport(ReportID id, iyf::BehaviourTreeResult result, std::uint64_t step = 0) : id(id), result(result), step(step) {}
     
     ReportID id;
     iyf::BehaviourTreeResult result;
+    std::uint64_t step;
     
     inline friend bool operator==(const ProgressReport& a, const ProgressReport& b) {
-        return (a.id == b.id) && (a.result == b.result);
+        return (a.id == b.id) && (a.result == b.result) && (a.step == b.step);
     }
 };
 

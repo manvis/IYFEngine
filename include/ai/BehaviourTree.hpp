@@ -282,7 +282,16 @@ class DecoratorNode : public BehaviourTreeNode {
 public:
     DecoratorNode(BehaviourTree* tree, std::vector<StringHash> observedBlackboardValueNames, AbortMode abortMode)
         : BehaviourTreeNode(tree, BehaviourTreeNodeType::Decorator), observedBlackboardValueNames(std::move(observedBlackboardValueNames)), abortMode(abortMode) {}
-        
+    
+    /// Checks if the decorated node is allowed to execute.
+    ///
+    /// Under certain circumstances, this function may be called multiple times per frame. Therefore, it should
+    /// be as quick and simple as possible. E.g., actual logic and Blackboard updates should happen in a ServiceNode.
+    /// The Blackboard will emmit an event that will be passed to onObservedValueChange() next time the tree is updated.
+    /// Use onObservedValueChange() to perform any remaining processing and cache the value that will be returned by 
+    /// allowExecution().
+    virtual bool allowExecution() = 0;
+    
     virtual void onObservedValueChange([[maybe_unused]] StringHash nameHash, [[maybe_unused]] bool availabilityChange, [[maybe_unused]] bool available) {}
     
     virtual const std::string& getDefaultName() const override {
@@ -309,6 +318,7 @@ public:
     
     virtual void onObservedValueChange(StringHash nameHash, bool availabilityChange, bool available) final override;
     virtual BehaviourResultNextNodePair update() final override;
+    virtual bool allowExecution() final override;
     virtual void initialize() final override;
     
     virtual const std::string& getDefaultName() const final override {
@@ -316,34 +326,60 @@ public:
         return name;
     }
 private:
-    BehaviourTreeResult currentResult;
+    bool currentResult;
     bool invert;
+};
+
+enum class ValueCompareOperation {
+    Less,
+    LessOrEqual,
+    Equal,
+    GreaterOrEqual,
+    Greater,
+    NotEqual,
 };
 
 class CompareValuesDecoratorNode : public DecoratorNode {
 public:
-    CompareValuesDecoratorNode(BehaviourTree* tree, std::vector<StringHash> observedBlackboardValueNames, bool invert, AbortMode abortMode) 
-        : DecoratorNode(tree, observedBlackboardValueNames, abortMode), invert(invert) {}
+    CompareValuesDecoratorNode(BehaviourTree* tree, std::vector<StringHash> observedBlackboardValueNames, ValueCompareOperation compareOp, AbortMode abortMode);
     
-    virtual void onObservedValueChange(StringHash nameHash, bool availabilityChange, bool available) final override;
+    virtual void onObservedValueChange(StringHash nameHash, bool availabilityChange, bool available) override;
     virtual BehaviourResultNextNodePair update() final override;
-    virtual void initialize() final override;
+    virtual bool allowExecution() final override;
+    virtual void initialize() override;
     
-    virtual const std::string& getDefaultName() const final override {
+    virtual const std::string& getDefaultName() const override {
         static std::string name = "Compare Values Decorator Node";
         return name;
     }
-private:
+protected:
     void reevaluateResult();
+    
     BlackboardValue a;
     BlackboardValue b;
-    BehaviourTreeResult currentResult;
-    bool invert;
+private:
+    bool currentResult;
+    ValueCompareOperation compareOp;
+};
+
+class CompareValueConstantDecoratorNode : public CompareValuesDecoratorNode {
+public:
+    CompareValueConstantDecoratorNode(BehaviourTree* tree, StringHash observedBlackboardValueName, BlackboardValue b, ValueCompareOperation compareOp, AbortMode abortMode);
+    
+    virtual void onObservedValueChange(StringHash nameHash, bool availabilityChange, bool available) override;
+    virtual void initialize() override;
+    
+    virtual const std::string& getDefaultName() const override {
+        static std::string name = "Compare Value and Constant Decorator Node";
+        return name;
+    }
+private:
+    
 };
 
 class DecoratableNode : public BehaviourTreeNode {
 public:
-    DecoratableNode(BehaviourTree* tree, BehaviourTreeNodeType type) : BehaviourTreeNode(tree, type), cachedDecoratorResult(true) {}
+    DecoratableNode(BehaviourTree* tree, BehaviourTreeNodeType type) : BehaviourTreeNode(tree, type) {}
     
     const std::vector<ServiceNode*>& getServices() const {
         return services;
@@ -352,16 +388,10 @@ public:
     const std::vector<DecoratorNode*>& getDecorators() const {
         return decorators;
     }
-    
-    inline bool decoratorsAllowExecution() const {
-        return cachedDecoratorResult;
-    }
 private:
     friend class BehaviourTree;
     std::vector<ServiceNode*> services;
     std::vector<DecoratorNode*> decorators;
-    
-    bool cachedDecoratorResult;
 };
 
 class TaskNode : public DecoratableNode {
@@ -537,11 +567,27 @@ public:
     inline std::size_t getActiveServiceCount() const {
         return activeServices.size();
     }
+    
+    /// The number of times this tree has been executed.
+    ///
+    /// \remark For use in tests and debugging
+    inline std::uint64_t getStepNumber() const {
+        return step;
+    }
+    
+    /// Resets the step counter.
+    ///
+    /// \remark For use in tests and debugging
+    inline void resetStepCounter() {
+        step = 0;
+    }
 private:
     /// Starts from the end and aborts all items up to and including lastItemToAbort.
     ///
     /// \warning this function assumes the lastItemToAbort exist in the vector
     std::size_t abort(std::vector<BehaviourTreeNode*>::iterator lastItemToAbort);
+    
+    bool checkIfDecoratorsAllowExecution(DecoratableNode* decoratable);
     
     void walkTree(BehaviourTreeNode* node, std::function<void(BehaviourTreeNode*)> function, bool childrenFirst = false);
     
