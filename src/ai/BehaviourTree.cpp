@@ -472,11 +472,9 @@ void BehaviourTree::recursiveTreeSetup(BehaviourTreeNode* node, std::uint32_t& p
     if (isDecoratable) {
         std::vector<DecoratorNode*>& decorators = static_cast<DecoratableNode*>(node)->decorators;
         for (std::size_t i = 0; i < decorators.size(); ++i) {
-            priority++;
-            
             DecoratorNode* d = decorators[i];
             
-            d->priority = priority;
+            d->priority = priority++;
             d->depth = depth;
             
             const auto& observed = d->getObservedBlackboardValueNames();
@@ -494,15 +492,14 @@ void BehaviourTree::recursiveTreeSetup(BehaviourTreeNode* node, std::uint32_t& p
         }
     }
     
-    node->priority = priority;
+    node->priority = priority++;
     node->depth = depth;
     
     if (isDecoratable) {
         std::vector<ServiceNode*>& services = static_cast<DecoratableNode*>(node)->services;
         for (std::size_t i = 0; i < services.size(); ++i) {
-            priority++;
+            services[i]->priority = priority++;
             
-            services[i]->priority = priority;
             services[i]->depth = depth;
             services[i]->initialize();
         }
@@ -512,7 +509,6 @@ void BehaviourTree::recursiveTreeSetup(BehaviourTreeNode* node, std::uint32_t& p
     
     const std::uint16_t newDepth = depth + 1;
     for (std::size_t i = 0; i < children.size(); ++i) {
-        priority++;
         recursiveTreeSetup(children[i], priority, newDepth);
     }
 }
