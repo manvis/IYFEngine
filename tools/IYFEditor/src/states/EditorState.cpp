@@ -1648,15 +1648,15 @@ void EditorState::showAssetWindow() {
         ImGui::Separator();
 
         ImGui::EndChild();
-        ImGui::End();
     }
+    ImGui::End();
 
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSizeConstraints(ImVec2(200, 200), ImVec2(FLT_MAX, FLT_MAX), util::SquareConstraint);
     if (ImGui::Begin("Last Selected Asset Info")) {
         ImGui::Text("TODO Implement previews");
-        ImGui::End();
     }
+    ImGui::End();
 }
 
 void ImGuiLog::show(const std::string& logStr) {
