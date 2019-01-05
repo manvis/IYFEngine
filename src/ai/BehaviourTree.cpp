@@ -125,6 +125,8 @@ BehaviourResultNextNodePair ServiceNode::update() {
 }
 
 BehaviourResultNextNodePair SequenceNode::update() {
+    assert(nextChild <= getChildren().size());
+    
     if (nextChild >= getChildren().size()) {
         if (!wasReachedFromParent()) {
             // A child has returned and we have no more children to execute.
@@ -166,6 +168,8 @@ BehaviourResultNextNodePair SequenceNode::update() {
 }
 
 BehaviourResultNextNodePair SelectorNode::update() {
+    assert(nextChild <= getChildren().size());
+    
     if (nextChild >= getChildren().size()) {
         if (!wasReachedFromParent()) {
             // A child has returned and we have no more children to execute.
@@ -244,10 +248,6 @@ void IsAvailableDecoratorNode::onObservedValueChange(StringHash nameHash, bool a
 
 bool IsAvailableDecoratorNode::allowExecution() {
     return currentResult;
-}
-
-BehaviourResultNextNodePair IsAvailableDecoratorNode::update() {
-    return {BehaviourTreeResult::Success, nullptr};
 }
 
 template <typename T>
@@ -348,10 +348,6 @@ bool CompareValuesDecoratorNode::allowExecution() {
     return currentResult;
 }
 
-BehaviourResultNextNodePair CompareValuesDecoratorNode::update() {
-    return {BehaviourTreeResult::Success, nullptr};
-}
-
 CompareValueConstantDecoratorNode::CompareValueConstantDecoratorNode(BehaviourTree* tree, StringHash observedBlackboardValueName, BlackboardValue b, ValueCompareOperation compareOp, AbortMode abortMode) 
     : CompareValuesDecoratorNode(tree, {observedBlackboardValueName}, compareOp, abortMode)
 {
@@ -368,6 +364,18 @@ void CompareValueConstantDecoratorNode::onObservedValueChange(StringHash nameHas
     a = blackboard->getRawValue(nameHash);
     
     reevaluateResult();
+}
+
+BehaviourResultNextNodePair ForLoopDecorator::update() {
+    if (remainingIterations != 0) {
+        remainingIterations--;
+    }
+    
+    if (remainingIterations == 0) {
+        return {getLastChildResult(), nullptr};
+    } else {
+        return {getLastChildResult(), getParent()};
+    }
 }
 
 void CompareValueConstantDecoratorNode::initialize() {
@@ -654,11 +662,10 @@ void BehaviourTree::update(float delta) {
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
                 
                 nextNodeToExecute = decoratable->getParent();
+                lastExecutedNode = decoratable;
                 
                 // TODO is returning failure really our best option here?
-                nextNodeToExecute->returnFromChild(BehaviourTreeResult::Failure);
-                
-                lastExecutedNode = decoratable;
+                nextNodeToExecute->returnFromChild(BehaviourTreeResult::Failure, lastExecutedNode);
             }
             
             // We should only abort lower priority nodes if they 
@@ -679,11 +686,10 @@ void BehaviourTree::update(float delta) {
                     abortedNodeCount = abort(lastNodeToAbort);
                     
                     nextNodeToExecute = (*lastNodeToAbort)->getParent();
+                    lastExecutedNode = (*lastNodeToAbort);
                     
                     // TODO is returning failure really our best option here?
-                    nextNodeToExecute->returnFromChild(BehaviourTreeResult::Failure);
-                    
-                    lastExecutedNode = (*lastNodeToAbort);
+                    nextNodeToExecute->returnFromChild(BehaviourTreeResult::Failure, lastExecutedNode);
                 }
                 
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
@@ -727,31 +733,31 @@ void BehaviourTree::update(float delta) {
     do {
         assert(nextNodeToExecute != nullptr);
         
-        BehaviourResultNextNodePair result;
+        BehaviourResultNextNodePair updateResult;
         
         // If the next node has decorators, we need to make sure they allow its execution
         if (nextNodeToExecute->isDecoratable() && !checkIfDecoratorsAllowExecution(static_cast<DecoratableNode*>(nextNodeToExecute))) {
-            result = {BehaviourTreeResult::Failure, nextNodeToExecute->getParent()};
+            updateResult = {BehaviourTreeResult::Failure, nextNodeToExecute->getParent()};
             
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
             if (loggingEnabled) {
-                logNodeAndResult(ssLog, nextNodeToExecute, result.first, true);
+                logNodeAndResult(ssLog, nextNodeToExecute, updateResult.first, true);
             }
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
             
             lastExecutedNode = nextNodeToExecute;
-            nextNodeToExecute = result.second;
+            nextNodeToExecute = updateResult.second;
         } else {
-            result = nextNodeToExecute->update();
+            updateResult = nextNodeToExecute->update();
             
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
             if (loggingEnabled) {
-                logNodeAndResult(ssLog, nextNodeToExecute, result.first, false);
+                logNodeAndResult(ssLog, nextNodeToExecute, updateResult.first, false);
             }
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
             
             lastExecutedNode = nextNodeToExecute;
-            nextNodeToExecute = result.second;
+            nextNodeToExecute = updateResult.second;
         }
 
         const std::size_t nextDepth = nextNodeToExecute->getDepth();
@@ -763,7 +769,8 @@ void BehaviourTree::update(float delta) {
             const bool shouldNotifyArrivalToDecoratable = (nextIsDecoratable &&
                                                            checkIfDecoratorsAllowExecution(static_cast<DecoratableNode*>(nextNodeToExecute)));
             
-            if (shouldNotifyArrivalToDecoratable) {
+            // TODO is it OK to always poke the decorators?
+            if (nextIsDecoratable) {
                 const DecoratableNode* node = static_cast<DecoratableNode*>(nextNodeToExecute);
                 
                 const auto& decorators = node->getDecorators();
@@ -789,7 +796,61 @@ void BehaviourTree::update(float delta) {
             }
         } else if (nextDepth < lastDepth) {
             // TODO Check decorators to see if parent can run and if the decorator adjusts flow (e.g., forces us into loop)
-            nextNodeToExecute->returnFromChild(result.first);
+            if (lastExecutedNode->isDecoratable()) {
+                const DecoratableNode* node = static_cast<DecoratableNode*>(lastExecutedNode);
+                
+                const auto& decorators = node->getDecorators();
+                
+                BehaviourTreeResult overridenResult = updateResult.first;
+                bool willRepeatNode = false;
+                
+                for (auto it = decorators.rbegin(); it != decorators.rend(); ++it) {
+                    DecoratorNode* decorator = *it;
+                    decorator->returnFromChild(updateResult.first, lastExecutedNode);
+                    
+                    const BehaviourResultNextNodePair decoratorResult = decorator->update();
+                    overridenResult = decoratorResult.first;
+                    
+                    assert(decorator->getParent() == lastExecutedNode);
+                    assert((decoratorResult.second == nullptr) || (decoratorResult.second == lastExecutedNode));
+                    
+                    // One of loop decorators forces us to run a node once more
+                    if (decoratorResult.second != nullptr) {
+                        nextNodeToExecute = lastExecutedNode;
+                        willRepeatNode = true;
+                        
+#ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+                        assert(dynamic_cast<LoopingDecorator*>(decorator) != nullptr);
+                        
+                        if (loggingEnabled) {
+                            ssLog << "\tDecorator \"" << decorator->getName() << "\" wants us to run \"" << nextNodeToExecute->getName() << "\" again. \n";
+                        }
+#endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
+                        
+                        const bool nextIsDecoratable = nextNodeToExecute->isDecoratable();
+                        const bool shouldNotifyArrivalToDecoratable = (nextIsDecoratable &&
+                                                                    checkIfDecoratorsAllowExecution(static_cast<DecoratableNode*>(nextNodeToExecute)));
+                        
+                        // Make sure to not accidentally reset something if the rest of the decorators don't want the node to run
+                        if (!nextIsDecoratable || shouldNotifyArrivalToDecoratable) {
+                            nextNodeToExecute->arriveFromParent();
+                        }
+                        
+                        // Stop processing the rest of the decorators. updateResult.first no longer matters since we won't be returning to the parent
+                        // and we need to avoid activating any other loops on this node
+                        break;
+                    }
+                }
+                
+                updateResult.first = overridenResult;
+                
+                if (willRepeatNode) {
+                    // WARNING it is important to skip the rest of this branch. Otherwise, things will crash and nodes will be popped unnecesarily.
+                    continue;
+                }
+            }
+            
+            nextNodeToExecute->returnFromChild(updateResult.first, lastExecutedNode);
             activeBranch.pop_back();
 
             if (lastExecutedNode->isDecoratable()) {
@@ -797,20 +858,11 @@ void BehaviourTree::update(float delta) {
                 
                 const auto& services = node->getServices();
                 for (ServiceNode* service : services) {
-                    const std::size_t removed = activeServices.erase(service);
-                    assert(removed == 1);
+                    [[maybe_unused]]const std::size_t removed = activeServices.erase(service);
+//                     assert(removed == 1);
                 }
             }
         }
-/*#ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
-    if (loggingEnabled) {
-        ssLog << "\t\tBRANCH: ";
-        for (BehaviourTreeNode* node : activeBranch) {
-            ssLog << node->getPriority() << " ";
-        }
-        ssLog << "\n";
-    }
-#endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS */
     } while (lastExecutedNode->getType() != BehaviourTreeNodeType::Task && !returnedToRoot());
     step++;
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS

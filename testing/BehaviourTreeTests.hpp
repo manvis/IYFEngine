@@ -57,6 +57,8 @@ enum class ReportID {
     OnlookersLeft,
     ThinkingAboutAKey,
     KeyFound,
+    CheckIfKeyShouldStillTurn,
+    LockBroke,
     ERROR
 };
 
@@ -64,7 +66,10 @@ enum class BehaviourTreeTestStage {
     NonDecorated, ///< Tasks, Selectors and Sequences
     DecoratedAbortOwn, ///< Same as Tasks + Services and a decorator that aborts own subtree
     DecoratedAbortLowerPriority, ///< Same as Tasks + Services and a decorator that aborts lower priority subtrees
-    DecoratedAbortLowerPriorityBlackboardCompare, ///< Same as Tasks + Services and a decorator that aborts lower priority subtrees
+    ForceResultDecorator,
+    ForceResultDecoratorChaining,
+    ForLoop,
+    WhileLoop,
     // SimpleParallel // We don't have parallel nodes at the moment
 };
 

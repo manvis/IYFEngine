@@ -64,7 +64,7 @@ public:
     virtual void dispose() {}
     virtual void abort() {}
     virtual void onArriveFromParent() {}
-    virtual void onReturnFromChild([[maybe_unused]] BehaviourTreeResult result) {}
+    virtual void onReturnFromChild([[maybe_unused]] BehaviourTreeResult result, [[maybe_unused]] BehaviourTreeNode* returningChild) {}
     virtual BehaviourResultNextNodePair update() = 0;
     
     /// A name to use when no name is set
@@ -79,11 +79,11 @@ public:
     }
     
     /// Called when returning from a child node to a parent node
-    inline void returnFromChild(BehaviourTreeResult result) {
+    inline void returnFromChild(BehaviourTreeResult result, BehaviourTreeNode* returningChild) {
         lastChildResult = static_cast<std::uint8_t>(result);
         reachedFromParent = false;
         
-        onReturnFromChild(result);
+        onReturnFromChild(result, returningChild);
     }
     
     inline BehaviourTreeResult getLastChildResult() const {
@@ -294,6 +294,12 @@ public:
     
     virtual void onObservedValueChange([[maybe_unused]] StringHash nameHash, [[maybe_unused]] bool availabilityChange, [[maybe_unused]] bool available) {}
     
+    /// Decorators should return getLastChildResult() as the first value of the pair, unless they're forcing a different result.
+    /// The second value of the pair should be nullptr (nothing is forced) or equal to the decorated node (accessible via getParent()), which is used in loop decorators
+    virtual BehaviourResultNextNodePair update() override {
+        return {getLastChildResult(), nullptr};
+    }
+    
     virtual const std::string& getDefaultName() const override {
         static std::string name = "Decorator Node";
         return name;
@@ -306,9 +312,93 @@ public:
     AbortMode getAbortMode() const {
         return abortMode;
     }
+    
 private:
     std::vector<StringHash> observedBlackboardValueNames;
     AbortMode abortMode;
+};
+
+class LoopingDecorator : public DecoratorNode {
+public:
+    LoopingDecorator(BehaviourTree* tree, std::vector<StringHash> observedBlackboardValueNames, AbortMode abortMode)
+        : DecoratorNode(tree, observedBlackboardValueNames, abortMode) {}
+    
+    virtual const std::string& getDefaultName() const override {
+        static std::string name = "Looping Decorator Node";
+        return name;
+    }
+};
+
+class ForLoopDecorator : public LoopingDecorator {
+public:
+    /// \param loopCount Using loopCount == 0 will overflow to std::numeric_limits<std::uint64_t>::max(), making the loop infinite (in a sense)
+    ForLoopDecorator(BehaviourTree* tree, std::uint64_t loopCount)
+        : LoopingDecorator(tree, {}, AbortMode::None), remainingIterations(loopCount), loopCount(loopCount) {}
+    
+    virtual void onArriveFromParent() override {
+        remainingIterations = loopCount;
+    }
+    
+    virtual bool allowExecution() final override {
+        return (remainingIterations != 0);
+    }
+    
+    virtual BehaviourResultNextNodePair update() final override;
+    
+    virtual const std::string& getDefaultName() const override {
+        static std::string name = "For Loop Decorator Node";
+        return name;
+    }
+private:
+    std::uint64_t remainingIterations;
+    std::uint64_t loopCount;
+};
+
+class WhileDecorator : public LoopingDecorator {
+public:
+    WhileDecorator(BehaviourTree* tree, std::vector<StringHash> observedBlackboardValueNames)
+        : LoopingDecorator(tree, observedBlackboardValueNames, AbortMode::None) {}
+    
+    virtual bool allowExecution() final override {
+        return checkCondition();
+    }
+    
+    virtual BehaviourResultNextNodePair update() final override {
+        if (checkCondition()) {
+            return {getLastChildResult(), getParent()};
+        } else {
+            return {getLastChildResult(), nullptr};
+        }
+    }
+    
+    virtual const std::string& getDefaultName() const override {
+        static std::string name = "While Loop Decorator Node";
+        return name;
+    }
+    
+    virtual bool checkCondition() = 0;
+};
+
+class ForceResultDecorator : public DecoratorNode {
+public:
+    ForceResultDecorator(BehaviourTree* tree, bool forceSuccess = true)
+        : DecoratorNode(tree, {}, AbortMode::None), forceSuccess(forceSuccess) {}
+    
+    virtual void onObservedValueChange(StringHash, bool, bool) final override {}
+    virtual bool allowExecution() final override {
+        return true;
+    }
+    
+    virtual BehaviourResultNextNodePair update() final override {
+        return BehaviourResultNextNodePair(forceSuccess ? BehaviourTreeResult::Success : BehaviourTreeResult::Failure, nullptr);
+    }
+    
+    virtual const std::string& getDefaultName() const final override {
+        static std::string name = "Force Result Decorator Node";
+        return name;
+    }
+private:
+    bool forceSuccess;
 };
 
 class IsAvailableDecoratorNode : public DecoratorNode {
@@ -317,7 +407,6 @@ public:
         : DecoratorNode(tree, {observedBlackboardValue}, abortMode), invert(invert) {}
     
     virtual void onObservedValueChange(StringHash nameHash, bool availabilityChange, bool available) final override;
-    virtual BehaviourResultNextNodePair update() final override;
     virtual bool allowExecution() final override;
     virtual void initialize() final override;
     
@@ -344,7 +433,6 @@ public:
     CompareValuesDecoratorNode(BehaviourTree* tree, std::vector<StringHash> observedBlackboardValueNames, ValueCompareOperation compareOp, AbortMode abortMode);
     
     virtual void onObservedValueChange(StringHash nameHash, bool availabilityChange, bool available) override;
-    virtual BehaviourResultNextNodePair update() final override;
     virtual bool allowExecution() final override;
     virtual void initialize() override;
     

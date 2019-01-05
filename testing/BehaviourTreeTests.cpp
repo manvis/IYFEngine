@@ -45,6 +45,9 @@ const iyf::StringHash ONLOOKERS_PRESENT_HASH = iyf::HS(ONLOOKERS_PRESENT);
 const std::string TRUE_VALUE("TrueValue");
 const iyf::StringHash TRUE_VALUE_HASH = iyf::HS(TRUE_VALUE);
 
+const std::string KEY_SHOULD_TURN("KeyShouldTurn");
+const iyf::StringHash KEY_SHOULD_TURN_HASH = iyf::HS(KEY_SHOULD_TURN);
+
 namespace iyf::test {
 inline const char* ReportIDName(ReportID id) {
     switch (id) {
@@ -78,6 +81,10 @@ inline const char* ReportIDName(ReportID id) {
             return "(Key Check Service) Thinking about a key";
         case ReportID::KeyFound:
             return "(Key Check Service) Key Found";
+        case ReportID::CheckIfKeyShouldStillTurn:
+            return "(Turn Check Service) Checking if key should still turn";
+        case ReportID::LockBroke:
+            return "(Turn Check Service) Lock broke. Key no longer turns";
         case ReportID::ERROR:
             return "ERROR - invalid report ID";
     }
@@ -113,6 +120,31 @@ struct ServiceReportIDs {
     ReportID pending;
     ReportID revertToPre;
     ReportID setToPost;
+};
+
+class KeyTurnWhileDecorator : public WhileDecorator {
+public:
+    KeyTurnWhileDecorator(BehaviourTree* tree, std::vector<StringHash> observedBlackboardValueNames) : WhileDecorator(tree, std::move(observedBlackboardValueNames)) {}
+    
+    virtual void initialize() override {
+        assert(getObservedBlackboardValueNames().size() == 1);
+        
+        const Blackboard* bb = getBlackboard();
+        running = bb->getValue<bool>(getObservedBlackboardValueNames()[0]);
+    }
+    
+    virtual void onObservedValueChange(iyf::StringHash nameHash, bool, bool) override {
+        assert(nameHash == getObservedBlackboardValueNames()[0]);
+        
+        const Blackboard* bb = getBlackboard();
+        running = bb->getValue<bool>(getObservedBlackboardValueNames()[0]);
+    }
+    
+    virtual bool checkCondition() override {
+        return running;
+    }
+private:
+    bool running;
 };
 
 class TimedTriggerService : public iyf::ServiceNode {
@@ -280,28 +312,68 @@ std::unique_ptr<iyf::BehaviourTree> BehaviourTreeTests::makeTestTree(iyf::Blackb
     IYF_MAKE_REPORTING_TASK(openWindow, "Banshee Scream at Window", ReportID::BansheeScreamingAtWindow, &results.canBansheeScream, 1);
     IYF_MAKE_REPORTING_TASK(useTheWindow, "Enter through the Window", ReportID::EnteringThroughTheWindow, true, 0);
     
-    if (stage == BehaviourTreeTestStage::DecoratedAbortOwn) {
-        ServiceReportIDs onlookerCheckIDs(ReportID::CheckingForOnlookers, ReportID::OnlookersLeft, ReportID::OnlookersDetected);
-        
-        auto checkForOnlookers = tree->addNode<TimedTriggerService>(useTheWindow, 0.4f, onlookerCheckIDs, reportVector, ONLOOKERS_PRESENT_HASH, false, true);
-        checkForOnlookers->setName("Check for onlookers");
-        checkForOnlookers->setTiming(0.1f, 0.0f, true);
-        checkForOnlookers->setExecuteUpdateOnArrival(true);
-        checkForOnlookers->setRestartTimerOnArrival(false);
-        
-        auto stopBreakingIn = tree->addNode<iyf::CompareValuesDecoratorNode>(openWindow, std::vector<iyf::StringHash>{ONLOOKERS_PRESENT_HASH, TRUE_VALUE_HASH}, ValueCompareOperation::NotEqual, AbortMode::OwnSubtree);
-        stopBreakingIn->setName("Stop breaking in into own house");
-    } else if (stage == BehaviourTreeTestStage::DecoratedAbortLowerPriority) {//DecoratedAbortLowerPriorityBlackboardCompare
-        ServiceReportIDs thinkAboutKeyIDs(ReportID::ThinkingAboutAKey, ReportID::ERROR, ReportID::KeyFound);
-        
-        auto thinkAboutAKey = tree->addNode<TimedTriggerService>(mainSelector, 0.9f, thinkAboutKeyIDs, reportVector, KEY_IN_POCKET_HASH, false, true);
-        thinkAboutAKey->setName("Think about a key");
-        thinkAboutAKey->setTiming(0.2f, 0.0f, true);
-//         thinkAboutAKey->setExecuteUpdateOnArrival(true);
-        thinkAboutAKey->setRestartTimerOnArrival(false);
-        
-        auto canUnlock = tree->addNode<iyf::CompareValueConstantDecoratorNode>(useKey, KEY_IN_POCKET_HASH, true, ValueCompareOperation::Equal, AbortMode::LowerPriority);
-        canUnlock->setName("Can unlock");
+    switch (stage) {
+        case BehaviourTreeTestStage::NonDecorated:
+            break;
+        case BehaviourTreeTestStage::DecoratedAbortOwn: {
+                ServiceReportIDs onlookerCheckIDs(ReportID::CheckingForOnlookers, ReportID::OnlookersLeft, ReportID::OnlookersDetected);
+                
+                auto checkForOnlookers = tree->addNode<TimedTriggerService>(useTheWindow, 0.4f, onlookerCheckIDs, reportVector, ONLOOKERS_PRESENT_HASH, false, true);
+                checkForOnlookers->setName("Check for onlookers");
+                checkForOnlookers->setTiming(0.1f, 0.0f, true);
+                checkForOnlookers->setExecuteUpdateOnArrival(true);
+                checkForOnlookers->setRestartTimerOnArrival(false);
+                
+                auto stopBreakingIn = tree->addNode<iyf::CompareValuesDecoratorNode>(openWindow, std::vector<iyf::StringHash>{ONLOOKERS_PRESENT_HASH, TRUE_VALUE_HASH}, ValueCompareOperation::NotEqual, AbortMode::OwnSubtree);
+                stopBreakingIn->setName("Stop breaking in into own house");
+            }
+            
+            break;
+        case BehaviourTreeTestStage::DecoratedAbortLowerPriority: {
+                ServiceReportIDs thinkAboutKeyIDs(ReportID::ThinkingAboutAKey, ReportID::ERROR, ReportID::KeyFound);
+                
+                auto thinkAboutAKey = tree->addNode<TimedTriggerService>(mainSelector, 0.9f, thinkAboutKeyIDs, reportVector, KEY_IN_POCKET_HASH, false, true);
+                thinkAboutAKey->setName("Think about a key");
+                thinkAboutAKey->setTiming(0.2f, 0.0f, true);
+//                 thinkAboutAKey->setExecuteUpdateOnArrival(true);
+                thinkAboutAKey->setRestartTimerOnArrival(false);
+                
+                auto canUnlock = tree->addNode<iyf::CompareValueConstantDecoratorNode>(useKey, KEY_IN_POCKET_HASH, true, ValueCompareOperation::Equal, AbortMode::LowerPriority);
+                canUnlock->setName("Can unlock");
+            }
+            break;
+        case BehaviourTreeTestStage::ForceResultDecorator: {
+                auto forceSuccess = tree->addNode<iyf::ForceResultDecorator>(useKey);
+                forceSuccess->setName("Force Success");
+            }
+            break;
+        case BehaviourTreeTestStage::ForceResultDecoratorChaining: {
+                auto forceSuccess = tree->addNode<iyf::ForceResultDecorator>(useKey);
+                forceSuccess->setName("Force Success");
+                auto forceFailure = tree->addNode<iyf::ForceResultDecorator>(useKey, false);
+                forceFailure->setName("Force Failure");
+                auto forceSuccess2 = tree->addNode<iyf::ForceResultDecorator>(useKey, true);
+                forceSuccess2->setName("Force Success #2");
+            }
+            break;
+        case BehaviourTreeTestStage::ForLoop: {
+                auto turnMultipleTimes = tree->addNode<iyf::ForLoopDecorator>(useKey, 3);
+                turnMultipleTimes->setName("Turn key multiple times");
+            }
+            break;
+        case BehaviourTreeTestStage::WhileLoop: {
+                const std::vector<StringHash> shouldTurn = {KEY_SHOULD_TURN_HASH};
+                auto turnMultipleTimes = tree->addNode<KeyTurnWhileDecorator>(useKey, shouldTurn);
+                turnMultipleTimes->setName("Turn key while decorator finishes");
+                
+                ServiceReportIDs keyTurnCheckIDs(ReportID::CheckIfKeyShouldStillTurn, ReportID::ERROR, ReportID::LockBroke);
+                auto stopTurningKey = tree->addNode<TimedTriggerService>(useKey, 0.4f, keyTurnCheckIDs, reportVector, KEY_SHOULD_TURN_HASH, true, false);
+                stopTurningKey->setName("Stop turning key");
+                stopTurningKey->setTiming(0.2f, 0.0f, true);
+//                 stopTurningKey->setExecuteUpdateOnArrival(true);
+                stopTurningKey->setRestartTimerOnArrival(false);
+            }
+            break;
     }
     
     return tree;
@@ -319,6 +391,7 @@ TestResults BehaviourTreeTests::run() {
     bbi.initialValues.emplace_back(ONLOOKERS_PRESENT, false);
     bbi.initialValues.emplace_back(KEY_IN_POCKET, false);
     bbi.initialValues.emplace_back(TRUE_VALUE, true);
+    bbi.initialValues.emplace_back(KEY_SHOULD_TURN, true);
     
     TestTaskResults ttr;
     iyf::Blackboard bb(bbi);
@@ -414,7 +487,7 @@ TestResults BehaviourTreeTests::run() {
     //decoratedTree->setLoggingEnabled(true);
     
     if (isOutputVerbose()) {
-        LOG_V("Decorated behaviour tree:\n" << decoratedTree->toString());
+        LOG_V("Decorated behaviour tree (abort own):\n" << decoratedTree->toString());
     }
     
     // TEST Decorated #1 (Nothing works, we spot onlookers using a service and have to quit trying to break into own home (decorator aborts own subtree), onlookers stay)
@@ -455,7 +528,7 @@ TestResults BehaviourTreeTests::run() {
 //     decoratedTree->setLoggingEnabled(true);
     
     if (isOutputVerbose()) {
-        LOG_V("Decorated behaviour tree:\n" << decoratedTree->toString());
+        LOG_V("Decorated behaviour tree (abort lower priority):\n" << decoratedTree->toString());
     }
     
     expectedReportVector = {
@@ -484,6 +557,102 @@ TestResults BehaviourTreeTests::run() {
     
     // ----- END DECORATED TREE TESTS
     decoratedTree = nullptr;
+    
+    // ----- BEGIN ADVANCED DECORATOR TESTS
+    
+    // TEST Advanced decorators #1 (Key shouldn't work, but the use key task still succeeds because the result is forced by the decorator)
+    ttr.canUseKey = false;
+    
+    std::unique_ptr<iyf::BehaviourTree> advancedDecorator = makeTestTree(&bb, &reportVector, ttr, BehaviourTreeTestStage::ForceResultDecorator);
+    advancedDecorator->buildTree();
+    //advancedDecorator->setLoggingEnabled(true);
+    
+    if (isOutputVerbose()) {
+        LOG_V("Decorated behaviour tree (force result):\n" << advancedDecorator->toString());
+    }
+    
+    expectedReportVector = {
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Running, 0),
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Success, 1),
+        ProgressReport(ReportID::UsingKey,               BehaviourTreeResult::Failure, 2), // Node fails, but success is forced
+        ProgressReport(ReportID::EnteringThroughTheDoor, BehaviourTreeResult::Success, 3),
+    };
+    IYF_RUN_TREE_TEST(advancedDecorator, "Advanced decorators #1", 1);
+    
+    // TEST Advanced decorators #2 (Key shouldn't work, but the decorators force succes->failure->success and it still succeeds)
+    advancedDecorator = makeTestTree(&bb, &reportVector, ttr, BehaviourTreeTestStage::ForceResultDecoratorChaining);
+    advancedDecorator->buildTree();
+    //advancedDecorator->setLoggingEnabled(true);
+    
+    if (isOutputVerbose()) {
+        LOG_V("Decorated behaviour tree (force result chaining):\n" << advancedDecorator->toString());
+    }
+    
+    expectedReportVector = {
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Running, 0),
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Success, 1),
+        ProgressReport(ReportID::UsingKey,               BehaviourTreeResult::Failure, 2),
+        ProgressReport(ReportID::EnteringThroughTheDoor, BehaviourTreeResult::Success, 3),
+    };
+    IYF_RUN_TREE_TEST(advancedDecorator, "Advanced decorators #2", 1);
+    
+    // TEST Advanced decorators #3 (Key shoul work, but we need to spin it 3 times)
+    ttr.canUseKey = true;
+    
+    advancedDecorator = makeTestTree(&bb, &reportVector, ttr, BehaviourTreeTestStage::ForLoop);
+    advancedDecorator->buildTree();
+//     advancedDecorator->setLoggingEnabled(true);
+    
+    if (isOutputVerbose()) {
+        LOG_V("Decorated behaviour tree (with for loop):\n" << advancedDecorator->toString());
+    }
+    
+    expectedReportVector = {
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Running, 0),
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Success, 1),
+        ProgressReport(ReportID::UsingKey,               BehaviourTreeResult::Success, 2),
+        ProgressReport(ReportID::UsingKey,               BehaviourTreeResult::Success, 3),
+        ProgressReport(ReportID::UsingKey,               BehaviourTreeResult::Success, 4),
+        ProgressReport(ReportID::EnteringThroughTheDoor, BehaviourTreeResult::Success, 5),
+        // Runs twice to check if the counter resets, 6 skipped because it's a return to root
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Running, 7),
+        ProgressReport(ReportID::GoingTowardsTheDoor,    BehaviourTreeResult::Success, 8),
+        ProgressReport(ReportID::UsingKey,               BehaviourTreeResult::Success, 9),
+        ProgressReport(ReportID::UsingKey,               BehaviourTreeResult::Success, 10),
+        ProgressReport(ReportID::UsingKey,               BehaviourTreeResult::Success, 11),
+        ProgressReport(ReportID::EnteringThroughTheDoor, BehaviourTreeResult::Success, 12),
+    };
+    IYF_RUN_TREE_TEST(advancedDecorator, "Advanced decorators #3", 2);
+    
+    // TEST Advanced decorators #4 (tests a while loop. Spin key in lock until it breaks. Fortunately, a spare exists)
+    ttr.spareExists = true;
+    ttr.canUseKey = false;
+    
+    advancedDecorator = makeTestTree(&bb, &reportVector, ttr, BehaviourTreeTestStage::WhileLoop);
+    advancedDecorator->buildTree();
+//     advancedDecorator->setLoggingEnabled(true);
+    
+    if (isOutputVerbose()) {
+        LOG_V("Decorated behaviour tree (with while loop):\n" << advancedDecorator->toString());
+    }
+    
+    expectedReportVector = {
+        ProgressReport(ReportID::GoingTowardsTheDoor,       BehaviourTreeResult::Running, 0),
+        ProgressReport(ReportID::GoingTowardsTheDoor,       BehaviourTreeResult::Success, 1),
+        ProgressReport(ReportID::UsingKey,                  BehaviourTreeResult::Failure, 2),
+        ProgressReport(ReportID::UsingKey,                  BehaviourTreeResult::Failure, 3),
+        ProgressReport(ReportID::CheckIfKeyShouldStillTurn, BehaviourTreeResult::Running, 4),
+        ProgressReport(ReportID::UsingKey,                  BehaviourTreeResult::Failure, 4),
+        ProgressReport(ReportID::UsingKey,                  BehaviourTreeResult::Failure, 5),
+        ProgressReport(ReportID::LockBroke,                 BehaviourTreeResult::Running, 6),
+        ProgressReport(ReportID::LookingForSpare,           BehaviourTreeResult::Running, 7),
+        ProgressReport(ReportID::LookingForSpare,           BehaviourTreeResult::Success, 8),
+        ProgressReport(ReportID::EnteringThroughTheDoor,    BehaviourTreeResult::Success, 9),
+    };
+    IYF_RUN_TREE_TEST(advancedDecorator, "Advanced decorators #4", 1);
+    
+    // ----- END ADVANCED DECORATOR TESTS
+    advancedDecorator = nullptr;
     
     return TestResults(true, "");
 }
