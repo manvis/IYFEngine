@@ -521,7 +521,7 @@ void EditorState::frame(float delta) {
     ImGui::GetIO().MouseDrawCursor = (cameraMode == CameraMode::Stationary);
     
     if (world != nullptr) {
-        if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) && is->isMouseClicked(MouseButton::Left)) {
+        if (!ImGui::GetIO().WantCaptureMouse && is->isMouseClicked(MouseButton::Left)) {
             int mouseX = is->getMouseX();
             int mouseY = is->getMouseY();
             
