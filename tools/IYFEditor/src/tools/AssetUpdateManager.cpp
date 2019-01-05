@@ -43,7 +43,7 @@
 #include "imgui.h"
 
 // If defined, all received file events be logged
-//#define IYF_EDITOR_LOG_RECEIVED_FILE_EVENT_LIST
+// #define IYF_EDITOR_LOG_RECEIVED_FILE_EVENT_LIST
 
 /// How long the size of a file needs to remain stable to be considered safe for writing.
 /// Used to determine if the file is safe to import
@@ -322,6 +322,11 @@ bool AssetUpdateManager::update() {
     }
     
     return result;
+}
+
+void AssetUpdateManager::forceReimport(const fs::path& path) {
+    FileSystemEvent event(FileSystemEventFlags::Modified, FileSystemEventOrigin::File, path, fs::path());
+    watcherCallback({std::move(event)});
 }
 
 void AssetUpdateManager::dispose() {

@@ -1534,13 +1534,11 @@ void EditorState::showAssetWindow() {
                 
                 if (a.imported) {
                     if (ImGui::Selectable("Re-import Asset")) {
-                        // TODO implement me
-                        LOG_W("NOT YET IMPLEMENTED")
+                        assetUpdateManager->forceReimport(engine->getProject()->getRootPath() / a.path);
                     }
                 } else {
                     if (ImGui::Selectable("Import Asset")) {
-                        // TODO implement me
-                        LOG_W("NOT YET IMPLEMENTED")
+                        assetUpdateManager->forceReimport(engine->getProject()->getRootPath() / a.path);
                     }
                 }
                 
