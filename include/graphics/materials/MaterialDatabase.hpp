@@ -29,8 +29,8 @@
 #ifndef IYF_MATERIAL_DATABASE_HPP
 #define IYF_MATERIAL_DATABASE_HPP
 
-#include "graphics/MaterialFamilyDefinition.hpp"
-#include "graphics/MaterialInstanceDefinition.hpp"
+#include "graphics/materials/MaterialFamilyDefinition.hpp"
+#include "graphics/materials/MaterialInstanceDefinition.hpp"
 #include "utilities/hashing/Hashing.hpp"
 
 #include <string>

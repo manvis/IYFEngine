@@ -28,7 +28,7 @@
 
 #include "graphics/shaderGeneration/VulkanGLSLShaderGenerator.hpp"
 #include "graphics/Renderer.hpp"
-#include "graphics/MaterialLogicGraph.hpp"
+#include "graphics/materials/MaterialLogicGraph.hpp"
 #include "core/Engine.hpp"
 #include "core/filesystem/FileSystem.hpp"
 #include "core/filesystem/File.hpp"

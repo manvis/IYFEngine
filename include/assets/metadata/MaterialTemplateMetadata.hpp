@@ -30,7 +30,7 @@
 #define IYF_MATERIAL_TEMPLATE_METADATA_HPP
 
 #include "assets/metadata/MetadataBase.hpp"
-#include "graphics/MaterialConstants.hpp"
+#include "graphics/materials/MaterialConstants.hpp"
 
 namespace iyf {
 class MaterialTemplateMetadata : public MetadataBase {

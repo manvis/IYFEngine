@@ -26,7 +26,7 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "graphics/MaterialInstanceDefinition.hpp"
+#include "graphics/materials/MaterialInstanceDefinition.hpp"
 #include "core/filesystem/File.hpp"
 #include "utilities/hashing/HashCombine.hpp"
 

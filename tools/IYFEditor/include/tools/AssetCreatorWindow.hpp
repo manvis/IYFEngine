@@ -32,7 +32,7 @@
 #include <string>
 
 #include "assets/AssetConstants.hpp"
-#include "graphics/MaterialConstants.hpp"
+#include "graphics/materials/MaterialConstants.hpp"
 
 namespace iyf {
 class Engine;

@@ -32,7 +32,12 @@
 #include "assets/Asset.hpp"
 
 namespace iyf {
-/// A MaterialTemplate Asset contains everything that's needed to build actual material instances.
+
+/// A MaterialTemplate is an Asset created by processing a MaterialLogicGraph.
+///
+/// In a sense, MaterialFamilyDefinitions serve as bases for MaterialTemplates. The MaterialFamilyDefinitions define the light
+/// processing functions and their parameters. On the other hand, MaterialLogicGraphs and, by extension, MaterialTemplates
+/// tell the engine how to pass the parameters (constants, texture data, variables, etc.) to the light processing functions.
 class MaterialTemplate : public Asset {
     virtual AssetType getType() const final override {
         return AssetType::MaterialTemplate;

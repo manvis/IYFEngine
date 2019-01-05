@@ -33,7 +33,7 @@
 #include "core/Component.hpp"
 #include "assets/AssetManager.hpp"
 #include "assets/assetTypes/Mesh.hpp"
-#include "graphics/Material.hpp"
+#include "graphics/materials/Material.hpp"
 #include "graphics/RenderDataKey.hpp"
 #include "graphics/culling/BoundingVolumes.hpp"
 

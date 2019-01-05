@@ -39,7 +39,7 @@
 #include "graphics/GraphicsAPIConstants.hpp"
 #include "graphics/VertexDataLayouts.hpp"
 #include "graphics/Lights.hpp"
-#include "graphics/MaterialFamilyDefinition.hpp"
+#include "graphics/materials/MaterialFamilyDefinition.hpp"
 #include "graphics/ShaderMacros.hpp"
 #include "graphics/RendererProperties.hpp"
 #include "core/interfaces/Serializable.hpp"

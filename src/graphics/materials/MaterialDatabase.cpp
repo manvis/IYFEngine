@@ -26,17 +26,33 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_MATERIAL_HPP
-#define IYF_MATERIAL_HPP
-
-#include "graphics/MaterialInstanceDefinition.hpp"
+#include "graphics/materials/MaterialDatabase.hpp"
+#include "core/Engine.hpp"
 
 namespace iyf {
-class Material {
-public:
-    // 
-};
+MaterialDatabase::MaterialDatabase(Engine* engine) : engine(engine), isInit(false) {
+    editorMode = engine->isEditorMode();
 }
 
-#endif // IYF_MATERIAL_HPP
+void MaterialDatabase::initialize() {
+    if (isInit) {
+        return;
+    }
+    
+    rebuildFromFilesystem();
+    
+    isInit = true;
+}
 
+void MaterialDatabase::dispose() {
+    isInit = false;
+}
+
+void MaterialDatabase::removeNonSystemData() {
+    //
+}
+
+void MaterialDatabase::rebuildFromFilesystem() {
+    //
+}
+}

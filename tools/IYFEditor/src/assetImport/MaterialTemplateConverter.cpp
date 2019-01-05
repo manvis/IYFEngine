@@ -74,7 +74,7 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     MaterialTemplateConverterInternalState* internalState = dynamic_cast<MaterialTemplateConverterInternalState*>(state.getInternalState());
     assert(internalState != nullptr);
     
-    // Use whatever. It's going to be overriden when deserialized
+    // Use any MaterialFamily here. Everything's going to be overriden when deserialization completes anyway.
     std::unique_ptr<MaterialLogicGraph> mlg = std::make_unique<MaterialLogicGraph>(MaterialFamily::Toon);
     
     rj::Document jo;
@@ -90,6 +90,7 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     
     //LOG_D("CODE_GEN:\n" << mlg->toCode(ShaderLanguage::GLSLVulkan).getCode());
     
+    // Use the MaterialLogicGraph to build the ubershaders with tons of #ifdef cases
     const ShaderGenerationResult vertResult = vulkanShaderGen->generateShader(conversionState.getPlatformIdentifier(),
                                                                               RendererType::ForwardClustered,
                                                                               ShaderStageFlagBits::Vertex,
@@ -114,6 +115,7 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     
     LOG_D("------------------\n" << vertResult.getContents() << "----------------\n" << fragResult.getContents());
     
+    // Compile all variants of the ubershaders
     ShaderCompilationSettings scs;
     scs.optimizationLevel = ShaderOptimizationLevel::Performance;
     

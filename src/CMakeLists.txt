@@ -100,10 +100,6 @@ graphics/DebugRenderer.cpp
 graphics/GraphicsAPI.cpp
 graphics/GraphicsAPIConstants.cpp
 graphics/GraphicsSystem.cpp
-graphics/MaterialDatabase.cpp
-graphics/MaterialFamilyDefinition.cpp
-graphics/MaterialInstanceDefinition.cpp
-graphics/MaterialLogicGraph.cpp
 graphics/Renderer.cpp
 graphics/RendererProperties.cpp
 graphics/ShaderConstants.cpp
@@ -124,6 +120,11 @@ graphics/imgui/imgui.cpp
 graphics/imgui/imgui_demo.cpp
 graphics/imgui/imgui_draw.cpp
 graphics/imgui/imguiCustom.cpp
+#--------------------- materials
+graphics/materials/MaterialDatabase.cpp
+graphics/materials/MaterialFamilyDefinition.cpp
+graphics/materials/MaterialInstanceDefinition.cpp
+graphics/materials/MaterialLogicGraph.cpp
 #--------------------- shader generation
 graphics/shaderGeneration/ShaderGenerator.cpp
 graphics/shaderGeneration/VulkanGLSLShaderGenerator.cpp

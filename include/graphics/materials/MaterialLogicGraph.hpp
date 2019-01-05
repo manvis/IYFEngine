@@ -29,7 +29,7 @@
 #ifndef IYF_MATERIAL_LOGIC_GRAPH_HPP
 #define IYF_MATERIAL_LOGIC_GRAPH_HPP
 
-#include "graphics/MaterialFamilyDefinition.hpp"
+#include "graphics/materials/MaterialFamilyDefinition.hpp"
 
 #include "utilities/logicGraph/LogicGraph.hpp"
 

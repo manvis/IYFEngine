@@ -36,7 +36,7 @@
 
 #include "core/Constants.hpp"
 #include "core/interfaces/Serializable.hpp"
-#include "graphics/MaterialConstants.hpp"
+#include "graphics/materials/MaterialConstants.hpp"
 #include "graphics/ShaderConstants.hpp"
 #include "utilities/hashing/Hashing.hpp"
 
@@ -153,9 +153,18 @@ private:
     ShaderVariable variable;
 };
 
-/// Each material family is a set of materials based on a specific light processing function that gives them a certain
-/// look. E.g., the light processing function of a toon material family is designed to give materials derived from it a
-/// cell shaded look.
+/// A material family acts as a base for material templates that, in turn, can be used to actually instantiate the materials.
+///
+/// Each material family is defined by a set of properties:
+/// * a unique name
+/// * a unique light processing function that gives them a certain look (e.g., the light processing function of a
+/// toon material family is designed to give materials derived from it a cell shaded look; PBR material family is used to
+/// create realistic materials, etc.)
+/// * a list of parameters required by the light processing function
+/// * other specific requirements (e.g., a toon material family can only work with meshes that have vertex color data)
+///
+/// MaterialFamilyDefinitions may be used to generate shader source code. To compile the code, apporpirate macro definitions
+/// must be provided.
 class MaterialFamilyDefinition : public Serializable {
 public:
     /// The current version of this class. Should be updated whenever the layout changes.

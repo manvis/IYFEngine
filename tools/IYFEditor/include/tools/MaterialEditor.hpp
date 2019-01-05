@@ -29,7 +29,7 @@
 #ifndef IYF_MATERIAL_EDITOR_HPP
 #define IYF_MATERIAL_EDITOR_HPP
 
-#include "graphics/MaterialLogicGraph.hpp"
+#include "graphics/materials/MaterialLogicGraph.hpp"
 #include "utilities/logicGraph/LogicGraphEditor.hpp"
 
 namespace iyf::editor {

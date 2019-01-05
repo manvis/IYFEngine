@@ -32,7 +32,7 @@
 #include "graphics/Camera.hpp"
 #include "graphics/CameraAndLightBufferLayout.hpp"
 #include "graphics/TransformationBufferLayout.hpp"
-#include "graphics/MaterialBufferLayout.hpp"
+#include "graphics/materials/MaterialBufferLayout.hpp"
 #include "graphics/Skybox.hpp"
 #include "graphics/DebugRenderer.hpp"
 
