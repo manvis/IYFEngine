@@ -139,4 +139,35 @@ std::int64_t MemorySerializer::readString(std::string& string, StringLengthIndic
     
     return readByteCount + lengthIncrement;
 }
+
+std::int64_t MemorySerializer::writeBytes(const void* bytes, std::uint64_t count) {
+    if (getMode() == Serializer::OpenMode::Read) {
+        throw SerializerException("Cannot write to a buffer that was opened in read mode");
+    }
+    
+    if (bytes == nullptr || count == 0) {
+        return 0;
+    }
+    
+    std::size_t newPosition = position + count;
+    
+    if (newPosition > bufferCapacity) {
+        std::size_t newCapacity = bufferCapacity * CapacityGrowthMultiplier;
+        while (newCapacity < newPosition) {
+            newCapacity *= CapacityGrowthMultiplier;
+        }
+        
+        reserve(newCapacity);
+    }
+    
+    if (newPosition > bufferSize) {
+        bufferSize = newPosition;
+    }
+    
+    std::memcpy(buffer + position, bytes, count);
+    
+    position = newPosition;
+    
+    return count;
+}
 }

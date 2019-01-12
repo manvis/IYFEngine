@@ -101,9 +101,9 @@ int main(int, char*[]) {
 //     //gameEngine.changeState(GameInitState::instance());
     
 //     ADD_TESTS(FileMonitorTests)
-//     ADD_TESTS(MemorySerializerTests)
+    ADD_TESTS(MemorySerializerTests)
 //    ADD_TESTS(CSVParserTests)
-    ADD_TESTS(BehaviourTreeTests)
+//     ADD_TESTS(BehaviourTreeTests)
     
     runner.runTests();
     

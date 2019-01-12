@@ -144,7 +144,7 @@ TestResults MemorySerializerTests::checkSizePositionCapacity(const MemorySeriali
 }
 
 TestResults MemorySerializerTests::run() {
-    static_assert(MemorySerializer::CapacityGrowthMultiplier == 2, "This test was prepare for a multiplier that == 2");
+    static_assert(MemorySerializer::CapacityGrowthMultiplier == 2, "This test was prepared for a multiplier that == 2");
     std::size_t expectedCapacity = 16;
     
     MemorySerializer ms(expectedCapacity);
@@ -226,7 +226,7 @@ TestResults MemorySerializerTests::run() {
     SPC_TEST(ms, 34, 34, expectedCapacity);
     
     // Reset to start
-    std::size_t seekPos = 0;
+    std::int64_t seekPos = 0;
     if (ms.seek(seekPos) != seekPos) {
         return TestResults(false, "Failed to seek to a specified position.");
     }
@@ -353,6 +353,12 @@ TestResults MemorySerializerTests::run() {
     if (tempStr != TestString) {
         return TestResults(false, "The string that was read did not match the string that was written");
     }
+    
+    /// The serializer didn't know how to resize multiple times before this
+    MemorySerializer ms2(2);
+    ms2.writeUInt64(65);
+    SPC_TEST(ms2, 8, 8, 8);
+    
     
     return TestResults(true, "");
 }

@@ -112,27 +112,7 @@ public:
     virtual std::int64_t writeString(const std::string_view& stringView, StringLengthIndicator indicator = StringLengthIndicator::None) final override;
     virtual std::int64_t writeString(const char* string, std::size_t length, StringLengthIndicator indicator = StringLengthIndicator::None) final override;
     
-    virtual std::int64_t writeBytes(const void* bytes, std::uint64_t count) final override {
-        if (getMode() == Serializer::OpenMode::Read) {
-            throw SerializerException("Cannot write to a buffer that was opened in read mode");
-        }
-        
-        std::size_t newPosition = position + count;
-        
-        if (newPosition > bufferCapacity) {
-            reserve(bufferCapacity * CapacityGrowthMultiplier);
-        }
-        
-        if (newPosition > bufferSize) {
-            bufferSize = newPosition;
-        }
-        
-        std::memcpy(buffer + position, bytes, count);
-        
-        position = newPosition;
-        
-        return count;
-    }
+    virtual std::int64_t writeBytes(const void* bytes, std::uint64_t count) final override;
     
     virtual bool writeInt8(std::int8_t val) final override {
         return writeBytes(&val, 1) == 1;
