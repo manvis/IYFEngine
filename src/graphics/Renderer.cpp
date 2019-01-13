@@ -73,4 +73,12 @@ const RendererProperties& Renderer::GetRendererProperties(RendererType type) {
     return (*properties[static_cast<std::size_t>(type)]);
 }
 
+const std::vector<RendererType>& Renderer::GetAvailableRenderers() {
+    static std::vector<RendererType> renderers = {
+        RendererType::ForwardClustered,
+    };
+    
+    return renderers;
+}
+
 }

@@ -130,6 +130,10 @@ public:
         return file.writeFloat(val);
     }
     
+    virtual bool writeDouble(double val) final override {
+        return file.writeDouble(val);
+    }
+    
     // Read methods ------------------------------
     
     virtual std::int64_t readString(std::string& string, StringLengthIndicator indicator, std::uint64_t count) final override {
@@ -174,6 +178,10 @@ public:
     
     virtual float readFloat() final override {
         return file.readFloat();
+    }
+    
+    virtual double readDouble() final override {
+        return file.readDouble();
     }
     
 private:

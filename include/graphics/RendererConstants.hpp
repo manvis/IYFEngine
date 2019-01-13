@@ -34,6 +34,27 @@ enum class RendererType {
     ForwardClustered = 0,
     COUNT
 };
+
+/// Shadowing modes supported by the Engine.
+///
+/// \warning Do not remove or re-arrange values. They must also be sequential.
+enum class ShadowMode {
+    NoShadows = 0,
+    CascadedShadowMap = 1,
+    COUNT
+};
+
+/// Fog modes supported by the Engine.
+///
+/// \warning Do not remove or re-arrange values. They must also be sequential.
+enum class FogMode {
+    NoFog = 0,
+    Linear = 1,
+    Exponential = 2,
+    ExponentialSquared = 3,
+    COUNT
+};
+
 }
 
 #endif // IYF_RENDERER_CONSTANTS_HPP

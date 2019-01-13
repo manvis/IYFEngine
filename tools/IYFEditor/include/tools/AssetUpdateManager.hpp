@@ -73,6 +73,7 @@ public:
     void dispose();
     
     bool update();
+    void forceReimport(const fs::path& path);
 private:
     void watcherCallback(std::vector<FileSystemEvent> eventList);
     

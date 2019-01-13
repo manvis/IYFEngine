@@ -74,6 +74,7 @@ public:
     virtual bool writeInt64(std::int64_t val) = 0;
     virtual bool writeUInt64(std::uint64_t val) = 0;
     virtual bool writeFloat(float val) = 0;
+    virtual bool writeDouble(double val) = 0;
     
     // Read methods ------------------------------
     
@@ -88,6 +89,7 @@ public:
     virtual std::int64_t readInt64() = 0;
     virtual std::uint64_t readUInt64() = 0;
     virtual float readFloat() = 0;
+    virtual double readDouble() = 0;
     
 private:
     OpenMode mode;

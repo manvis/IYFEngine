@@ -29,6 +29,7 @@
 #include "graphics/ShaderMacros.hpp"
 
 #include "core/Constants.hpp"
+#include "graphics/RendererConstants.hpp"
 #include "graphics/VertexDataLayouts.hpp"
 
 #include <stdexcept>
@@ -36,7 +37,7 @@
 #include <type_traits>
 
 namespace iyf {
-std::string GetShaderMacroName(ShaderMacro macro) {
+const char* GetShaderMacroName(ShaderMacro macro) {
     switch (macro) {
 //         case ShaderMacro:::
 //             return;
@@ -56,6 +57,12 @@ std::string GetShaderMacroName(ShaderMacro macro) {
             return "VERTEX_COLOR_AVAILABLE";
         case ShaderMacro::TextureCoordinatesAvailable:
             return "TEXTURE_COORDINATES_AVAILABLE";
+        case ShaderMacro::Renderer:
+            return "RENDERER";
+        case ShaderMacro::ShadowMode:
+            return "SHADOW_MODE";
+        case ShaderMacro::FogMode:
+            return "FOG_MODE";
         case ShaderMacro::Custom:
             throw std::logic_error("Custom or COUNT must not be used in GetShaderMacroName()");
     }
@@ -63,7 +70,8 @@ std::string GetShaderMacroName(ShaderMacro macro) {
     throw std::logic_error("Invalid macro ID");
 }
 
-std::string GetShaderIncludeName(ShaderInclude include) {
+const char* GetShaderIncludeName(ShaderInclude include) {
+    /// WARNING: must not be longer than 64 bytes (including null terminator)
     switch (include) {
         case ShaderInclude::CommonHelpers:
             return "common_helpers.incl";
@@ -122,6 +130,12 @@ bool ValidateShaderMacroValue(ShaderMacro macro, const ShaderMacroValue& value) 
             return ValidateValueImpl<std::monostate>(value, EmptyValidator);
         case ShaderMacro::TextureCoordinatesAvailable: // Must be defined or not.
             return ValidateValueImpl<std::monostate>(value, EmptyValidator);
+        case ShaderMacro::Renderer:
+            return ValidateValueImpl<std::int64_t>(value, MakeIntervalValidator<std::int64_t>(0, static_cast<std::int64_t>(RendererType::COUNT), false));
+        case ShaderMacro::ShadowMode:
+            return ValidateValueImpl<std::int64_t>(value, MakeIntervalValidator<std::int64_t>(0, static_cast<std::int64_t>(ShadowMode::COUNT), false));
+        case ShaderMacro::FogMode:
+            return ValidateValueImpl<std::int64_t>(value, MakeIntervalValidator<std::int64_t>(0, static_cast<std::int64_t>(FogMode::COUNT), false));
         case ShaderMacro::Custom:
             throw std::logic_error("Custom or COUNT must not be used in GetShaderMacroName()");
     }
@@ -129,28 +143,7 @@ bool ValidateShaderMacroValue(ShaderMacro macro, const ShaderMacroValue& value) 
     throw std::logic_error("Invalid macro ID");
 }
 
-/// Used in std::visit. Based on sample from https://en.cppreference.com/w/cpp/utility/variant/visit
-template<class T>
-struct AlwaysFalseType : std::false_type {};
-
-inline std::string StringifyShaderMacroValue(const ShaderMacroValue& value) {
-    return std::visit([](auto&& arg) {
-        using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, std::monostate>) {
-            return std::string("");
-        } else if constexpr (std::is_same_v<T, double>) {
-            return std::to_string(arg);
-        } else if constexpr (std::is_same_v<T, std::int64_t>) {
-            return std::to_string(arg);
-        } else if constexpr (std::is_same_v<T, std::string>) {
-            return arg;
-        } else {
-            static_assert(AlwaysFalseType<T>::value, "Unhandled value");
-        }
-    }, value);
-}
-
-ShaderMacroWithValue::ShaderMacroWithValue(ShaderMacro macro, ShaderMacroValue value) : macro(macro), name(GetShaderMacroName(macro)) {
+ShaderMacroWithValue::ShaderMacroWithValue(ShaderMacro macro, ShaderMacroValue value) : macro(macro), name(GetShaderMacroName(macro)), value(value) {
     if (macro >= ShaderMacro::Custom) {
         throw std::logic_error("Invalid shader macro value.");
     }
@@ -159,11 +152,24 @@ ShaderMacroWithValue::ShaderMacroWithValue(ShaderMacro macro, ShaderMacroValue v
         throw std::invalid_argument("Invalid shader macro value.");
     }
     
-    // We have to stringify the value
-    this->value = StringifyShaderMacroValue(value);
+    nameLength = std::strlen(name);
 }
 
-ShaderMacroWithValue::ShaderMacroWithValue(std::string name, ShaderMacroValue value) : macro(ShaderMacro::Custom), name(name){
-    this->value = StringifyShaderMacroValue(value);
+ShaderMacroWithValue::ShaderMacroWithValue(const std::string& nameString, ShaderMacroValue value) : ShaderMacroWithValue(nameString.c_str(), nameString.length(), value) {}
+
+ShaderMacroWithValue::ShaderMacroWithValue(const char* nameString, std::size_t length, ShaderMacroValue value) : macro(ShaderMacro::Custom), value(value) {
+    char* newName = new char[length + 1];
+    
+    std::strncpy(newName, nameString, length);
+    newName[length] = '\0';
+    
+    name = newName;
 }
+
+ShaderMacroWithValue::~ShaderMacroWithValue() {
+    if (macro == ShaderMacro::Custom) {
+        delete[] name;
+    }
+}
+
 }

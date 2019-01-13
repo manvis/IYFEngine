@@ -262,7 +262,7 @@ fs::path VulkanGLSLShaderGenerator::getShaderStageFileExtension(ShaderStageFlagB
     throw std::logic_error("Invalid ShaderStageFlagBit");
 }
 
-ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(PlatformIdentifier platform, RendererType rendererType, const MaterialFamilyDefinition& definition) const {
+ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(PlatformIdentifier platform, const MaterialFamilyDefinition& definition) const {
     std::size_t codeID = 0;
     for (std::size_t i = 0; i < definition.getSupportedLanguages().size(); ++i) {
         if (definition.getSupportedLanguages()[i] == getShaderLanguage()) {
@@ -275,7 +275,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(PlatformI
     ss << MakeVulkanGLSLHeader(ShaderStageFlagBits::Vertex);
     ss << WriteMacroDefinitions(platform, definition);
     
-    ss << generatePerFrameData(rendererType, definition.getVertexShaderDataSets(), nullptr);
+    ss << generatePerFrameData(definition.getVertexShaderDataSets(), nullptr);
     
     ss << "\n";
     
@@ -416,7 +416,7 @@ inline std::string formatVectorDataForOutput(const std::string& dataTypeName, co
     return ss.str();
 }
 
-ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(PlatformIdentifier platform, RendererType rendererType, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const {
+ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(PlatformIdentifier platform, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const {
     assert(graph != nullptr);
     
     validateFamilyDefinition(definition);
@@ -477,7 +477,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(Platfor
     extraData.graph = graph;
     extraData.code = &codeGenResult;
     
-    ss << generatePerFrameData(rendererType, definition.getFragmentShaderDataSets(), &extraData);
+    ss << generatePerFrameData(definition.getFragmentShaderDataSets(), &extraData);
     
     ss << generateLightProcessingFunctionSignature(definition) << "{\n";
     
@@ -547,8 +547,14 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(Platfor
     std::string lightProcessingFunctionCall = generateLightProcessingFunctionCall(definition);
     
     if (definition.areLightsSupported()) {
-        const RendererProperties& rendererProperties = Renderer::GetRendererProperties(rendererType);
-        ss << rendererProperties.makeLightLoops(getShaderLanguage(), lightProcessingFunctionCall);
+        for (const RendererType rendererType : Renderer::GetAvailableRenderers()) {
+            ss << "#if " << GetShaderMacroName(ShaderMacro::Renderer) << " == " << static_cast<std::int64_t>(rendererType) << "\n";
+            
+            const RendererProperties& rendererProperties = Renderer::GetRendererProperties(rendererType);
+            ss << rendererProperties.makeLightLoops(getShaderLanguage(), lightProcessingFunctionCall);
+            
+            ss << "#endif // " << GetShaderMacroName(ShaderMacro::Renderer) << " == " << static_cast<std::int64_t>(rendererType) << "\n\n";
+        }
     } else {
         ss << "   " << lightProcessingFunctionCall << "\n\n";
     }
@@ -559,39 +565,48 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(Platfor
     return ShaderGenerationResult(ShaderGenerationResult::Status::Success, ss.str());
 }
 
-std::string VulkanGLSLShaderGenerator::generatePerFrameData(RendererType rendererType, const ShaderDataSets& requiredDataSets, const void* extraData) const {
+std::string VulkanGLSLShaderGenerator::generatePerFrameData(const ShaderDataSets& requiredDataSets, const void* extraData) const {
     // First of all, the specialization constants
     std::stringstream ss;
     
-    const RendererProperties& rendererProperties = Renderer::GetRendererProperties(rendererType);
-    const std::vector<SpecializationConstant>& constants = rendererProperties.getShaderSpecializationConstants();
-    ss << "// Engine constants\n";
-    
-    std::size_t rendererConstantStart = (constants.size() == con::DefaultSpecializationConstants.size()) ? static_cast<std::size_t>(-1) : con::DefaultSpecializationConstants.size();
-    for (std::size_t i = 0; i < constants.size(); ++i) {
-        if (i == rendererConstantStart) {
-            ss << "\n// Renderer constants\n";
-        }
-        const std::string type = MakeVulkanGLSLDataType(constants[i].format);
+    for (const RendererType rendererType : Renderer::GetAvailableRenderers()) {
+        ss << "#if " << GetShaderMacroName(ShaderMacro::Renderer) << " == " << static_cast<std::int64_t>(rendererType) << "\n";
         
-        std::string value;
-        //std::int32_t, std::uint32_t, float, double
-        switch (constants[i].value.index()) {
-            case 0:
-                value = std::to_string(std::get<std::int32_t>(constants[i].value));
-                break;
-            case 1:
-                value = std::to_string(std::get<std::uint32_t>(constants[i].value));
-                break;
-            case 2:
-                value = std::to_string(std::get<float>(constants[i].value));
-                break;
-            case 3:
-                value = std::to_string(std::get<double>(constants[i].value));
-                break;
+        const RendererProperties& rendererProperties = Renderer::GetRendererProperties(rendererType);
+        const std::vector<SpecializationConstant>& constants = rendererProperties.getShaderSpecializationConstants();
+        ss << "// Engine constants\n";
+        
+        std::size_t rendererConstantStart = (constants.size() == con::DefaultSpecializationConstants.size()) ? static_cast<std::size_t>(-1) : con::DefaultSpecializationConstants.size();
+        for (std::size_t i = 0; i < constants.size(); ++i) {
+            if (i == rendererConstantStart) {
+                ss << "\n// Renderer constants\n";
+            }
+            const std::string type = MakeVulkanGLSLDataType(constants[i].format);
+            
+            std::string value;
+            switch (constants[i].value.index()) {
+                case 0:
+                    value = std::to_string(std::get<std::int32_t>(constants[i].value));
+                    break;
+                case 1:
+                    value = std::to_string(std::get<std::uint32_t>(constants[i].value));
+                    break;
+                case 2:
+                    value = std::to_string(std::get<float>(constants[i].value));
+                    break;
+                case 3:
+                    value = std::to_string(std::get<double>(constants[i].value));
+                    break;
+            }
+            ss << "layout (constant_id = " <<  i << ") const " << type << " " << constants[i].name << " = " << value << ";\n";
         }
-        ss << "layout (constant_id = " <<  i << ") const " << type << " " << constants[i].name << " = " << value << ";\n";
+        
+        ss << "#endif // " << GetShaderMacroName(ShaderMacro::Renderer) << " == " << static_cast<std::int64_t>(rendererType) << "\n\n";
     }
+    
+    ss << "#ifndef " << GetShaderMacroName(ShaderMacro::Renderer) << "\n";
+    ss << "#error \"No valid renderer has been set\"\n";
+    ss << "#endif // " << GetShaderMacroName(ShaderMacro::Renderer) << "\n";
     
     ss << "\nlayout(std140, push_constant) uniform IDPushConstants {\n";
     ss << "    uint transformation;\n";
@@ -650,8 +665,15 @@ std::string VulkanGLSLShaderGenerator::generatePerFrameData(RendererType rendere
         ss << "} transformations; \n\n";
     }
     
-    if (requiredDataSets[static_cast<std::size_t>(PerFrameDataSet::RendererData)]) {
-        ss << rendererProperties.makeRenderDataSet(getShaderLanguage()) << "\n";
+    for (const RendererType rendererType : Renderer::GetAvailableRenderers()) {
+        ss << "#if " << GetShaderMacroName(ShaderMacro::Renderer) << " == " << static_cast<std::int64_t>(rendererType) << "\n";
+        
+        if (requiredDataSets[static_cast<std::size_t>(PerFrameDataSet::RendererData)]) {
+            const RendererProperties& rendererProperties = Renderer::GetRendererProperties(rendererType);
+            ss << rendererProperties.makeRenderDataSet(getShaderLanguage()) << "\n";
+        }
+        
+        ss << "#endif // " << GetShaderMacroName(ShaderMacro::Renderer) << " == " << static_cast<std::int64_t>(rendererType) << "\n\n";
     }
     
     if (requiredDataSets[static_cast<std::size_t>(PerFrameDataSet::MaterialData)]) {
@@ -937,10 +959,13 @@ ShaderCompilationResult VulkanGLSLShaderGenerator::compileShader(ShaderStageFlag
     }
     
     for (const ShaderMacroWithValue& m : macros) {
-        if (m.getValue().empty()) {
-            compileOptions.AddMacroDefinition(m.getName());
+        const std::string stringifiedValue = m.getStringifiedValue();
+        std::string_view name = m.getName();
+        
+        if (stringifiedValue.empty()) {
+            compileOptions.AddMacroDefinition(name.data(), name.length(), nullptr, 0);
         } else {
-            compileOptions.AddMacroDefinition(m.getName(), m.getValue());
+            compileOptions.AddMacroDefinition(name.data(), name.length(), stringifiedValue.data(), stringifiedValue.length());
         }
     }
     
@@ -987,7 +1012,7 @@ shaderc_include_result* VulkanGLSLIncluder::GetInclude(const char* requested_sou
 //     LOG_V(FragmentShaderHelperFunctions);
     
     // TODO start using an unordered_map if the number of includes grows even more
-    if (requested_source == GetShaderIncludeName(ShaderInclude::CommonHelpers)) {
+    if (std::strncmp(requested_source, GetShaderIncludeName(ShaderInclude::CommonHelpers), 64) == 0) {
         const char* name = "CommonHelpers";
         const std::size_t nameLength = strlen(name);
         
@@ -996,7 +1021,7 @@ shaderc_include_result* VulkanGLSLIncluder::GetInclude(const char* requested_sou
         
         includeResult->content = CommonHelperFunctions.data();
         includeResult->content_length = CommonHelperFunctions.size();
-    } else if (requested_source == GetShaderIncludeName(ShaderInclude::VertexShaderHelpers)) {
+    } else if (std::strncmp(requested_source, GetShaderIncludeName(ShaderInclude::VertexShaderHelpers), 64) == 0) {
         const char* name = "VertexShaderHelpers";
         const std::size_t nameLength = strlen(name);
         
@@ -1005,7 +1030,7 @@ shaderc_include_result* VulkanGLSLIncluder::GetInclude(const char* requested_sou
         
         includeResult->content = VertexShaderHelperFunctions.data();
         includeResult->content_length = VertexShaderHelperFunctions.size();
-    } else if (requested_source == GetShaderIncludeName(ShaderInclude::FragmentShaderHelpers)) {
+    } else if (std::strncmp(requested_source, GetShaderIncludeName(ShaderInclude::FragmentShaderHelpers), 64) == 0) {
         const char* name = "FragmentShaderHelpers";
         const std::size_t nameLength = strlen(name);
         

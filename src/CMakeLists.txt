@@ -127,6 +127,7 @@ graphics/materials/MaterialInstanceDefinition.cpp
 graphics/materials/MaterialLogicGraph.cpp
 #--------------------- shader generation
 graphics/shaderGeneration/ShaderGenerator.cpp
+graphics/shaderGeneration/ShaderMacroCombiner.cpp
 graphics/shaderGeneration/VulkanGLSLShaderGenerator.cpp
 #--------------------- Vulkan graphics backend
 graphics/vulkan/VulkanAPI.cpp

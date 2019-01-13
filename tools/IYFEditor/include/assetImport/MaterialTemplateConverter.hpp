@@ -31,11 +31,17 @@
 
 #include "Converter.hpp"
 
+#include <optional>
+
 namespace iyf {
 class VulkanGLSLShaderGenerator;
+class ShaderCompilationSettings;
+class MemorySerializer;
 }
 
 namespace iyf::editor {
+struct AvailableShaderCombos;
+
 class MaterialTemplateConverter : public Converter {
 public:
     MaterialTemplateConverter(const ConverterManager* manager);
@@ -44,7 +50,12 @@ public:
     virtual std::unique_ptr<ConverterState> initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const final override;
     virtual bool convert(ConverterState& state) const final override;
 private:
+    /// Compiles a shader variant into bytecode fit for driver consumption
+    /// \returns A lookup StringHash that combines the macroHash together with a hash of the shader stage and VertexDataLayout
+    std::optional<StringHash> compileShader(StringHash macroHash, ShaderStageFlagBits stage, const std::string& shaderCode, const std::string& name, const ShaderCompilationSettings& settings, MemorySerializer& serializer) const;
+    
     std::unique_ptr<VulkanGLSLShaderGenerator> vulkanShaderGen;
+    std::unique_ptr<AvailableShaderCombos> availableShaderCombos;
 };
 
 }

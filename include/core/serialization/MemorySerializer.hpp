@@ -36,6 +36,8 @@
 #include <cassert>
 #include <memory>
 
+#include "utilities/Endianess.hpp"
+
 namespace iyf {
 /// A serializer that serializes or deserializes data to or from a memory buffer
 class MemorySerializer : public Serializer {
@@ -178,6 +180,14 @@ public:
         return writeBytes(&val, 4) == 4;
     }
     
+    virtual bool writeDouble(double val) final override {
+        #if SDL_BYTEORDER == SDL_BIG_ENDIAN
+            val = util::SwapDouble(val);
+        #endif
+        
+        return writeBytes(&val, 8) == 8;
+    }
+    
     // Read methods ------------------------------
     
     virtual std::int64_t readString(std::string& string, StringLengthIndicator indicator, std::uint64_t count) final override;
@@ -235,6 +245,10 @@ public:
     
     virtual float readFloat() final override {
         return SDL_SwapFloatLE(numberRead<float>());
+    }
+    
+    virtual double readDouble() final override {
+        return SwapDoubleLE(numberRead<double>());
     }
 private:
     template <typename T>

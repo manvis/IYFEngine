@@ -31,10 +31,16 @@
 
 #include "assets/metadata/MetadataBase.hpp"
 #include "graphics/materials/MaterialConstants.hpp"
+#include "graphics/ShaderMacros.hpp"
 
 namespace iyf {
 class MaterialTemplateMetadata : public MetadataBase {
 public:
+    struct SupportedMacroValues {
+        ShaderMacroValue defaultValue;
+        std::vector<ShaderMacroValue> supportedValues;
+    };
+    
     inline MaterialTemplateMetadata() : MetadataBase(AssetType::MaterialTemplate) {}
     
     inline MaterialTemplateMetadata(FileHash fileHash,
@@ -43,8 +49,11 @@ public:
                         bool systemAsset,
                         const std::vector<std::string>& tags,
                         MaterialFamily family,
-                        FileHash materialFamilyHash)
-        : MetadataBase(AssetType::MaterialTemplate, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true), family(family), materialFamilyHash(materialFamilyHash) {}
+                        FileHash materialFamilyHash,
+                        StringHash macroComboHash,
+                        std::unordered_map<ShaderMacro, SupportedMacroValues> supportedMacrosAndValues)
+        : MetadataBase(AssetType::MaterialTemplate, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true), family(family),
+          materialFamilyHash(materialFamilyHash), macroComboHash(macroComboHash), supportedMacrosAndValues(std::move(supportedMacrosAndValues)) {}
     
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
     
@@ -58,6 +67,16 @@ public:
     inline FileHash getMaterialFamilyHash() const {
         return materialFamilyHash;
     }
+    
+    /// Used to determine if the macro combos supported by the engine changed and the MaterialTemplate needs to be regenerated
+    inline StringHash getMaterialComboHash() const {
+        return macroComboHash;
+    }
+    
+    /// Used to determine what shader varians are supported
+    inline const std::unordered_map<ShaderMacro, SupportedMacroValues>& getSupportedMacrosAndValues() const {
+        return supportedMacrosAndValues;
+    }
 private:
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
     virtual void deserializeImpl(Serializer& fr, std::uint16_t version) final override;
@@ -66,6 +85,9 @@ private:
     
     MaterialFamily family;
     FileHash materialFamilyHash;
+    
+    StringHash macroComboHash;
+    std::unordered_map<ShaderMacro, SupportedMacroValues> supportedMacrosAndValues;
 };
 
 }

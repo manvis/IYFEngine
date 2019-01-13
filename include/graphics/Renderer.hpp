@@ -54,6 +54,10 @@ class Renderer : private NonCopyable {
 public:
     static const RendererProperties& GetRendererProperties(RendererType type);
     
+    /// At the moment, only a single RendererType is available, however, in the future it should be possible to have different
+    /// renderers and it should also be possible to only compile the one(s) you need for release builds.
+    static const std::vector<RendererType>& GetAvailableRenderers();
+    
     virtual void initialize() = 0;
     virtual void dispose() = 0;
     

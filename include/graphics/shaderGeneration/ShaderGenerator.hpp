@@ -187,12 +187,11 @@ public:
     
     /// Generate a shader of the specified shader stage based on the provided MaterialFamilyDefinition
     ///
-    /// \param rendererType A renderer to generate the shader for.
     /// \param stage A shader stage to generate for.
     /// \param definition A MaterialFamilyDefinition that will be used to generate common code.
     /// \param graph A pointer to a MaterialLogicGraph that will be used to generate material specific code. Must be not null if stage == ShaderStageFlagBits::Fragment
     /// and null otherwise.
-    ShaderGenerationResult generateShader(PlatformIdentifier platform, RendererType rendererType, ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const;
+    ShaderGenerationResult generateShader(PlatformIdentifier platform, ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const;
     
     /// Compile the generated shader
     virtual ShaderCompilationResult compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) const = 0;
@@ -216,13 +215,13 @@ public:
     ShaderGenerationResult checkVertexDataLayoutCompatibility(const MaterialFamilyDefinition& definition, VertexDataLayout vertexDataLayout) const;
 protected:
     /// Generate the vertex shader. Called by generateShader()
-    virtual ShaderGenerationResult generateVertexShader(PlatformIdentifier platform, RendererType rendererType, const MaterialFamilyDefinition& definition) const = 0;
+    virtual ShaderGenerationResult generateVertexShader(PlatformIdentifier platform, const MaterialFamilyDefinition& definition) const = 0;
     
     /// Generate the fragment shader. Called by generateShader()
-    virtual ShaderGenerationResult generateFragmentShader(PlatformIdentifier platform, RendererType rendererType, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const = 0;
+    virtual ShaderGenerationResult generateFragmentShader(PlatformIdentifier platform, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const = 0;
     
     /// Generate the per frame data inputs (e.g., camera, light and material data).
-    virtual std::string generatePerFrameData(RendererType rendererType, const ShaderDataSets& requiredDataSets, const void* extraData) const = 0;
+    virtual std::string generatePerFrameData(const ShaderDataSets& requiredDataSets, const void* extraData) const = 0;
     
     virtual std::string generateLightProcessingFunctionCall(const MaterialFamilyDefinition& definition) const = 0;
     virtual std::string generateLightProcessingFunctionSignature(const MaterialFamilyDefinition& definition) const = 0;

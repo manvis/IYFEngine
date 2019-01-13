@@ -26,8 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef FILE_H
-#define FILE_H
+#ifndef IYF_FILE_HPP
+#define IYF_FILE_HPP
 
 #include <string>
 #include <cstdint>
@@ -40,6 +40,7 @@
 #include "core/exceptions/FileException.hpp"
 #include "core/StringLengthIndicator.hpp"
 #include "utilities/NonCopyable.hpp"
+#include "utilities/Endianess.hpp"
 
 namespace iyf {
 
@@ -269,6 +270,23 @@ public:
             throw FileException("Failed to read from file ", path.generic_string());
         }
     }
+    inline bool readDouble(double* val) {
+        if (readBytes(val, sizeof(double)) != sizeof(double)) {
+            return false;
+        }
+
+        *val = SwapDoubleLE(*val);
+        return true;
+    }
+
+    inline double readDouble() {
+        double temp;
+        if (readDouble(&temp)) {
+            return temp;
+        } else {
+            throw FileException("Failed to read from file ", path.generic_string());
+        }
+    }
     
     /// Reads the entire file into a memory buffer and returns a buffer and size pair. The actual size of the buffer is 
     /// size + 1 and it is null terminated. However, do not rely on that when reading binary files because they may contain
@@ -345,6 +363,18 @@ public:
 
         return true;
     }
+
+    inline bool writeDouble(double val) {
+        // Files store doubles in little endian. Swapping using our own thing since SDL and PhysFS lack a double write method
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+        val = SwapDouble(val);
+#endif
+        if (writeBytes(&val, sizeof(double)) != sizeof(double)) {
+            return false;
+        }
+
+        return true;
+    }
 protected:
     PHYSFS_File* file;
     fs::path path;
@@ -354,4 +384,4 @@ protected:
 
 }
 
-#endif // FILE_H
+#endif // IYF_FILE_HPP

@@ -45,7 +45,7 @@ ShaderGenerationResult ShaderGenerator::generateAndReportError(ShaderGenerationR
     return {status, error};
 }
 
-ShaderGenerationResult ShaderGenerator::generateShader(PlatformIdentifier platform, RendererType rendererType, ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const {
+ShaderGenerationResult ShaderGenerator::generateShader(PlatformIdentifier platform, ShaderStageFlagBits stage, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const {
     if (stage == ShaderStageFlagBits::Fragment && graph == nullptr) {
         return ShaderGenerationResult(ShaderGenerationResult::Status::MissingMaterialLogicGraph, "The MaterialLogicGraph pointer can't be null when generating a Fragment shader.");
     } else if (stage != ShaderStageFlagBits::Fragment && graph != nullptr) {
@@ -59,9 +59,9 @@ ShaderGenerationResult ShaderGenerator::generateShader(PlatformIdentifier platfo
     
     switch (stage) {
         case ShaderStageFlagBits::Vertex:
-            return generateVertexShader(platform, rendererType, definition);
+            return generateVertexShader(platform, definition);
         case ShaderStageFlagBits::Fragment:
-            return generateFragmentShader(platform, rendererType, definition, graph);
+            return generateFragmentShader(platform, definition, graph);
         default:
             throw std::runtime_error("Not implemented");
     }

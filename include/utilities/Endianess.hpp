@@ -26,25 +26,33 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef TYPEHELPERS_HPP
-#define TYPEHELPERS_HPP
+#ifndef IYF_ENDIANESS_HPP
+#define IYF_ENDIANESS_HPP
 
-#include <type_traits>
+#include <SDL2/SDL_endian.h>
+#include <cstdint>
 
-namespace iyf {
-namespace util {
-
-template<typename T, typename C, typename... Vals>
-struct is_type_one_of : std::integral_constant<bool, std::conditional<std::is_same<T, C>::value, std::true_type, is_type_one_of<T, Vals...>>::type::value> {};
-
-template<typename T, typename C>
-struct is_type_one_of<T, C> : std::is_same<T, C>::type {};
-
-template<typename T>
-struct always_false_type : std::false_type {};
-
+namespace iyf::util {
+#if SDL_BYTEORDER == SDL_LIL_ENDIAN
+#define SwapDoubleLE(d)  (d)
+#define SwapDoubleBE(d)  SwapDouble(d)
+#else
+#define SwapDoubleLE(d)  SwapDouble(d)
+#define SwapDoubleBE(d)  (d)
+#endif
+    
+/// SDL lacks a swap double function, hence this
+inline double SwapDouble(double d) {
+    union
+    {
+        double f;
+        std::uint64_t i;
+    } swapper;
+    
+    swapper.f = d;
+    swapper.i = SDL_Swap64(swapper.i);
+    return swapper.f;
 }
 }
 
-#endif /* TYPEHELPERS_HPP */
-
+#endif // IYF_ENDIANESS_HPP

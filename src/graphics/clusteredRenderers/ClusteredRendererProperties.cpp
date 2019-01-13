@@ -51,7 +51,7 @@ std::string ClusteredRendererProperties::makeRenderDataSet(ShaderLanguage langua
     ss << "    vec4 gridParameters;\n";
     ss << "    Cluster clusters[" << MaxClustersName << "];\n";
     ss << "    uint lightIDs[" << MaxLightIDsName << "];\n";
-    ss << "} clusterData; \n\n";
+    ss << "} clusterData;\n";
     
     return ss.str();
 }

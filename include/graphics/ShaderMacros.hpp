@@ -31,7 +31,11 @@
 
 #include <variant>
 #include <string>
+#include <string_view>
 #include <cstdint>
+
+#include "utilities/hashing/Hashing.hpp"
+#include "utilities/TypeHelpers.hpp"
 
 namespace iyf {
 /// Identifiers for all shader macros used by the engine.
@@ -52,6 +56,9 @@ enum class ShaderMacro : std::uint16_t {
     NormalAvailable             = 5, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined, the vertex shader will pass the normal (or a TBN if NormalMapTextureAvailable is defined) to later stages. Depends on the VertexDataLayout.
     VertexColorAvailable        = 6, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined and the vertices have colors, the vertex shader will pass them to later stages.
     TextureCoordinatesAvailable = 7, /// < DO NOT SET - set automatically by the ShaderGenerator. If defined and the vertices have texture coordinates, the vertex shader will pass them to later stages. Depends on the VertexDataLayout.
+    Renderer                    = 8, /// < Integer in interval [0; RendererType::COUNT). Should be set to the renderer that will be used with the shader. Done automatically in most cases. Some RendererTypes may also be disabled in the final build, so be careful.
+    ShadowMode                  = 9, /// < Integer in interval [0; ShadowMode::COUNT).
+    FogMode                     = 10, /// < Integer in interval [0; FogMode::COUNT).
     Custom, /// < Special value, can be anything the user wants. Don't use in GetShaderMacroName(). Depends on the VertexDataLayout.
     COUNT = Custom
 };
@@ -59,7 +66,7 @@ enum class ShaderMacro : std::uint16_t {
 /// Returns a macro name that's used in the shader.
 ///
 /// \warning Make sure to update shader helper includes if you change the names returned by this function
-std::string GetShaderMacroName(ShaderMacro macro);
+const char* GetShaderMacroName(ShaderMacro macro);
 
 enum class ShaderInclude : std::uint16_t {
     CommonHelpers         = 0, /// < Common helper functions that get included by other helpers
@@ -67,9 +74,9 @@ enum class ShaderInclude : std::uint16_t {
     FragmentShaderHelpers = 2, /// < Helper functions that get included in the fragment shader
 };
 
-std::string GetShaderIncludeName(ShaderInclude include);
+const char* GetShaderIncludeName(ShaderInclude include);
 
-using ShaderMacroValue = std::variant<std::monostate, double, std::int64_t, std::string>;
+using ShaderMacroValue = std::variant<std::monostate, double, std::int64_t>;
 bool ValidateShaderMacroValue(ShaderMacro macro, const ShaderMacroValue& value);
 
 class ShaderMacroWithValue {
@@ -81,26 +88,78 @@ public:
     ShaderMacroWithValue(ShaderMacro macro, ShaderMacroValue value = std::monostate());
     
     /// Create a custom ShaderMacroWithValue.
-    ShaderMacroWithValue(std::string name, ShaderMacroValue value = std::monostate());
+    ShaderMacroWithValue(const std::string& nameString, ShaderMacroValue value = std::monostate());
+    
+    /// Create a custom ShaderMacroWithValue.
+    ShaderMacroWithValue(const char* nameString, std::size_t length, ShaderMacroValue value = std::monostate());
     
     /// Empty constructor that set a special value CUSTOM
     ShaderMacroWithValue() : ShaderMacroWithValue("CUSTOM") {}
+    
+    ~ShaderMacroWithValue();
     
     inline ShaderMacro getMacroIdentifier() const {
         return macro;
     }
     
-    inline const std::string& getName() const {
-        return name;
+    inline const std::string_view getName() const {
+        return std::string_view(name, nameLength);
     }
     
-    inline const std::string getValue() const {
+    inline StringHash getNameHash() const {
+        return HS(name);
+    }
+    
+    inline ShaderMacroValue getRawValue() const {
         return value;
+    }
+    
+    template <typename T>
+    inline T getValue() const {
+        return std::get<T>(value);
+    }
+    
+   std::string getStringifiedValue() const {
+        return StringifyShaderMacroValue(value);
+    }
+    
+    StringHash getValueHash() const {
+        ShaderMacroValue temp = value;
+        return std::visit([](auto&& arg) -> StringHash {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, std::monostate>) {
+                return HS("", 0);
+            } else if constexpr (std::is_same_v<T, double>) {
+                return HS(reinterpret_cast<const char*>(&arg), sizeof(double));
+            } else if constexpr (std::is_same_v<T, std::int64_t>) {
+                return HS(reinterpret_cast<const char*>(&arg), sizeof(std::int64_t));
+            } else {
+                static_assert(util::always_false_type<T>::value, "Unhandled value");
+            }
+        }, temp);
+    }
+
+    inline static std::string StringifyShaderMacroValue(const ShaderMacroValue& value) {
+        return std::visit([](auto&& arg) {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, std::monostate>) {
+                return std::string("");
+            } else if constexpr (std::is_same_v<T, double>) {
+                return std::to_string(arg);
+            } else if constexpr (std::is_same_v<T, std::int64_t>) {
+                return std::to_string(arg);
+            } else {
+                static_assert(util::always_false_type<T>::value, "Unhandled value");
+            }
+        }, value);
     }
 private:
     ShaderMacro macro;
-    std::string name;
-    std::string value;
+    
+    const char* name;
+    std::size_t nameLength;
+    
+    ShaderMacroValue value;
 };
 }
 

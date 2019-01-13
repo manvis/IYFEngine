@@ -29,18 +29,56 @@
 #include "assetImport/MaterialTemplateConverter.hpp"
 #include "assetImport/ConverterManager.hpp"
 
+#include "graphics/Renderer.hpp"
+#include "graphics/shaderGeneration/ShaderMacroCombiner.hpp"
 #include "graphics/shaderGeneration/VulkanGLSLShaderGenerator.hpp"
 
 #include "core/filesystem/File.hpp"
 #include "core/filesystem/FileSystem.hpp"
 #include "core/Logger.hpp"
+#include "core/serialization/MemorySerializer.hpp"
 #include "format/format.h"
 
 #include "tools/MaterialEditor.hpp"
 
+#include "utilities/DataSizes.hpp"
+#include "utilities/hashing/HashCombine.hpp"
+
 #include "rapidjson/error/en.h"
 
+//#define IYF_PRINT_MACRO_LIST_AND_COMBOS
+
 namespace iyf::editor {
+struct AvailableShaderCombos {
+    StringHash versionHash;
+    /// Sorted vector, used for consitent hash generation
+    std::vector<std::vector<ShaderMacroWithValue>> macrosWithAllowedValues;
+    
+    /// Unordered map used for quick lookups
+    std::unordered_map<ShaderMacro, MaterialTemplateMetadata::SupportedMacroValues> macrosWithAllowedValuesMap;
+    
+    std::vector<std::pair<StringHash, std::vector<ShaderMacroWithValue>>> allAvailableCombos;
+    
+    inline void makeMap() {
+        macrosWithAllowedValuesMap.reserve(macrosWithAllowedValues.size());
+        for (const auto& smvs : macrosWithAllowedValues) {
+            assert(!smvs.empty());
+            
+            // Value 0 is the default, as the docs say.
+            auto insertionResult = macrosWithAllowedValuesMap.emplace(smvs[0].getMacroIdentifier(), MaterialTemplateMetadata::SupportedMacroValues());
+            assert(insertionResult.second);
+            
+            MaterialTemplateMetadata::SupportedMacroValues& supportedMacroValues = insertionResult.first->second;
+            supportedMacroValues.defaultValue = smvs[0].getRawValue();
+            
+            supportedMacroValues.supportedValues.reserve(smvs.size());
+            for (const ShaderMacroWithValue& v : smvs) {
+                supportedMacroValues.supportedValues.emplace_back(v.getRawValue());
+            }
+        }
+    }
+};
+
 class MaterialTemplateConverterInternalState : public InternalConverterState {
 public:
     MaterialTemplateConverterInternalState(const Converter* converter) : InternalConverterState(converter) {}
@@ -51,6 +89,41 @@ public:
 
 MaterialTemplateConverter::MaterialTemplateConverter(const ConverterManager* manager) : Converter(manager) {
     vulkanShaderGen = std::make_unique<VulkanGLSLShaderGenerator>(manager->getFileSystem());
+    availableShaderCombos = std::make_unique<AvailableShaderCombos>();
+    
+    availableShaderCombos->macrosWithAllowedValues = ShaderMacroCombiner::MakeMacroAndValueVectors();
+    
+    ShaderMacroCombiner::MacroCombos combos = ShaderMacroCombiner::MakeAllCombinations(availableShaderCombos->macrosWithAllowedValues);
+    availableShaderCombos->versionHash = combos.versionHash;
+    availableShaderCombos->allAvailableCombos = std::move(combos.combos);
+    
+    availableShaderCombos->makeMap();
+    
+#ifdef IYF_PRINT_MACRO_LIST_AND_COMBOS
+    std::stringstream ss;
+    ss << "##VERSION##\n";
+    ss << "\t\t" << availableShaderCombos->versionHash << "\n\n";
+    
+    ss << "\t##MACROS##\n";
+    for (const auto& macroWithAllowedValues : availableShaderCombos->macrosWithAllowedValues) {
+        for (const auto& m : macroWithAllowedValues) {
+            ss << "\t\t" << m.getName() << " " << m.getStringifiedValue() << " " << m.getNameHash() << "\n";
+        }
+        
+        ss << "\n";
+    }
+    
+    ss << "\n\t##COMBOS##\n";
+    for (const auto& combo : availableShaderCombos->allAvailableCombos) {
+        for (const auto& m : combo.second) {
+            ss << "\t\t" << m.getName() << " " << m.getStringifiedValue() << " " << m.getNameHash() << "\n";
+        }
+        
+        ss << "\n";
+    }
+    
+    LOG_D(ss.str())
+#endif // IYF_PRINT_MACRO_LIST_AND_COMBOS
 }
 
 MaterialTemplateConverter::~MaterialTemplateConverter() {}
@@ -92,7 +165,6 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     
     // Use the MaterialLogicGraph to build the ubershaders with tons of #ifdef cases
     const ShaderGenerationResult vertResult = vulkanShaderGen->generateShader(conversionState.getPlatformIdentifier(),
-                                                                              RendererType::ForwardClustered,
                                                                               ShaderStageFlagBits::Vertex,
                                                                               con::GetMaterialFamilyDefinition(mlg->getMaterialFamily()),
                                                                               nullptr);
@@ -103,7 +175,6 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     }
     
     const ShaderGenerationResult fragResult = vulkanShaderGen->generateShader(conversionState.getPlatformIdentifier(),
-                                                                              RendererType::ForwardClustered,
                                                                               ShaderStageFlagBits::Fragment,
                                                                               con::GetMaterialFamilyDefinition(mlg->getMaterialFamily()),
                                                                               mlg.get());
@@ -121,51 +192,145 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     
     // TODO more complicated variant generation
     
-    std::array<VertexDataLayout, 4> vertexLayouts = {
+    constexpr std::size_t VertexLayoutCount = 4;
+    constexpr std::size_t ShaderStageCount = 2;
+    
+    const std::array<VertexDataLayout, VertexLayoutCount> vertexLayouts = {
         VertexDataLayout::MeshVertex,
         VertexDataLayout::MeshVertexWithBones,
         VertexDataLayout::MeshVertexColored,
         VertexDataLayout::MeshVertexColoredWithBones
     };
     
+    const std::array<ShaderStageFlagBits, ShaderStageCount> shaderStages = {
+        ShaderStageFlagBits::Vertex,
+        ShaderStageFlagBits::Fragment,
+    };
+    
     std::size_t totalShaders = 0;
-    for (const VertexDataLayout vdl : vertexLayouts) {
-        scs.vertexDataLayout = vdl;
-        const VertexDataLayoutDefinition& layoutDefinition = con::GetVertexDataLayoutDefinition(vdl);
+    std::size_t estimatedTotalShaders = availableShaderCombos->allAvailableCombos.size() * VertexLayoutCount * ShaderStageCount;
+    
+    std::uint64_t size = Bytes(Mebibytes(2)).count();
+    MemorySerializer ms(size);
+    
+    const std::array<char, 5> magicNumber = {'I', 'Y', 'F', 'M', 'T'};
+    ms.writeBytes(magicNumber.data(), magicNumber.size());
+    ms.writeUInt16(1); // Version
+    ms.writeUInt32(estimatedTotalShaders);
+
+#ifndef NDEBUG
+    std::unordered_set<StringHash> finalHashes;
+    std::stringstream ssc;
+#endif // NDEBUG
+    
+    for (const auto& combo : availableShaderCombos->allAvailableCombos) {
+        scs.macros = combo.second;
         
-        // Compile the vertex shader
-        const ShaderCompilationResult scrVS = vulkanShaderGen->compileShader(ShaderStageFlagBits::Vertex, vertResult.getContents(), layoutDefinition.getName() + "VertexShader", scs);
-        if (!scrVS) {
-            LOG_W("Material template conversion failed\n\t" << scrVS.getErrorsAndWarnings());
-            return false;
-        } else if (!scrVS.getErrorsAndWarnings().empty()) {
-            LOG_W(scrVS.getErrorsAndWarnings());
+        for (std::size_t i = 0; i < vertexLayouts.size(); ++i) {
+            const VertexDataLayout vdl = vertexLayouts[i];
+            
+            scs.vertexDataLayout = vdl;
+            
+            const VertexDataLayoutDefinition& layoutDefinition = con::GetVertexDataLayoutDefinition(vdl);
+            
+            for (ShaderStageFlagBits stage : shaderStages) {
+                const std::string* code = nullptr;
+                switch (stage) {
+                    case ShaderStageFlagBits::Vertex:
+                        code = &vertResult.getContents();
+                        break;
+                    case ShaderStageFlagBits::Fragment:
+                        code = &fragResult.getContents();
+                        break;
+                    default:
+                        throw std::runtime_error("The MaterialTemplateConverter can't handle this shader stage");
+                }
+                
+                std::optional<StringHash> compilationResult = compileShader(combo.first, stage, *code, layoutDefinition.getName(), scs, ms); ;
+                if (!compilationResult) {
+                    return false;
+                }
+                
+#ifndef NDEBUG
+                auto uniqueCheck = finalHashes.emplace(*compilationResult);
+                assert(uniqueCheck.second);
+#endif // NDEBUG
+                
+                totalShaders++;
+            }
         }
-        totalShaders++;
-        
-        // Compile the fragment shader
-        const ShaderCompilationResult scrFS = vulkanShaderGen->compileShader(ShaderStageFlagBits::Fragment, fragResult.getContents(), layoutDefinition.getName() + "FragmentShader", scs);
-        if (!scrFS) {
-            LOG_W("Material template conversion failed\n\t" << scrFS.getErrorsAndWarnings());
-            return false;
-        } else if (!scrFS.getErrorsAndWarnings().empty()) {
-            LOG_W(scrFS.getErrorsAndWarnings());
-        }
-        totalShaders++;
     }
-//     const fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
-//     
-//     FileHash hash = HF(reinterpret_cast<const char*>(content.data()), outputByteCount);
-//     MaterialTemplateMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags());
-//     ImportedAssetData iad(state.getType(), metadata, outputPath);
-//     state.getImportedAssets().push_back(std::move(iad));
-//     
-//     File fw(outputPath, File::OpenMode::Write);
-//     fw.writeBytes(content.data(), outputByteCount);
-//     throw std::runtime_error("errr");
-    LOG_V("Compiled " << totalShaders << " shader permutations for a material template called " << state.getSourceFilePath().stem());
-    LOG_W("MaterialTemplateConverter::convert() NOT YET IMPLEMENTED")
-    return false;
+    assert(estimatedTotalShaders == totalShaders);
+    
+     const fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
+     
+    FileHash hash = HF(ms.data(), ms.size());
+    
+    MaterialFamily materialFamily = mlg->getMaterialFamily();
+    const MaterialFamilyDefinition& materialFamilyDefinition = con::GetMaterialFamilyDefinition(materialFamily);
+    MaterialTemplateMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags(), materialFamily,
+                                      materialFamilyDefinition.computeHash(), availableShaderCombos->versionHash, availableShaderCombos->macrosWithAllowedValuesMap);
+    ImportedAssetData iad(state.getType(), metadata, outputPath);
+    state.getImportedAssets().push_back(std::move(iad));
+    
+    File fw(outputPath, File::OpenMode::Write);
+    fw.writeBytes(ms.data(), ms.size());
+    
+    LOG_D("!!!!!!!!!!!FINISH THE MAP");
+    return true;
+}
+
+std::optional<StringHash> MaterialTemplateConverter::compileShader(StringHash macroHash, ShaderStageFlagBits stage, const std::string& shaderCode, const std::string& name, const ShaderCompilationSettings& settings, MemorySerializer& serializer) const {
+    const char* stageName = nullptr;
+    std::uint8_t stageID = 255;
+    
+    switch (stage) {
+        case ShaderStageFlagBits::Vertex:
+            stageName = "VertexShader";
+            stageID = 0;
+            break;
+        case ShaderStageFlagBits::Geometry:
+            stageName = "GeometryShader";
+            stageID = 1;
+            break;
+        case ShaderStageFlagBits::TessControl:
+            stageName = "TessControlShader";
+            stageID = 2;
+            break;
+        case ShaderStageFlagBits::TessEvaluation:
+            stageName = "TessEvaluationShader";
+            stageID = 3;
+            break;
+        case ShaderStageFlagBits::Fragment:
+            stageName = "FragmentShader";
+            stageID = 4;
+            break;
+        default:
+            break;
+    }
+    
+    assert(stageName != nullptr && stageID != 255);
+    
+    const ShaderCompilationResult compResult = vulkanShaderGen->compileShader(stage, shaderCode, name + stageName, settings);
+    if (!compResult) {
+        LOG_W("Material template conversion failed\n\t" << compResult.getErrorsAndWarnings());
+        return {};
+    } else if (!compResult.getErrorsAndWarnings().empty()) {
+        LOG_W(compResult.getErrorsAndWarnings());
+    }
+    
+    StringHash lookupHash(macroHash);
+    util::HashCombine(lookupHash, HS(reinterpret_cast<const char*>(&settings.vertexDataLayout), sizeof(settings.vertexDataLayout)));
+    util::HashCombine(lookupHash, HS(reinterpret_cast<const char*>(&stage), sizeof(ShaderStageFlagBits)));
+    
+    serializer.writeUInt8(static_cast<std::uint8_t>(settings.vertexDataLayout));
+    serializer.writeUInt8(stageID);
+    serializer.writeUInt64(macroHash);
+    serializer.writeUInt64(lookupHash);
+    serializer.writeUInt32(compResult.getBytecode().size());
+    serializer.writeBytes(compResult.getBytecode().data(), compResult.getBytecode().size());
+    
+    return lookupHash;
 }
 
 }

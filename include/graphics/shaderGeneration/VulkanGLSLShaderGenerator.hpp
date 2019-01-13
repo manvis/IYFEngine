@@ -78,10 +78,10 @@ public:
     
     virtual fs::path getShaderStageFileExtension(ShaderStageFlagBits stage) const final override;
 protected:
-    virtual ShaderGenerationResult generateVertexShader(PlatformIdentifier platform, RendererType rendererType, const MaterialFamilyDefinition& definition) const final override;
-    virtual ShaderGenerationResult generateFragmentShader(PlatformIdentifier platform, RendererType rendererType, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const final override;
+    virtual ShaderGenerationResult generateVertexShader(PlatformIdentifier platform, const MaterialFamilyDefinition& definition) const final override;
+    virtual ShaderGenerationResult generateFragmentShader(PlatformIdentifier platform, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const final override;
     
-    virtual std::string generatePerFrameData(RendererType rendererType, const ShaderDataSets& requiredDataSets, const void* extraData) const final override;
+    virtual std::string generatePerFrameData(const ShaderDataSets& requiredDataSets, const void* extraData) const final override;
     
     virtual std::string generateLightProcessingFunctionCall(const MaterialFamilyDefinition& definition) const final override;
     

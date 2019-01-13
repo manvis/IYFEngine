@@ -168,7 +168,11 @@ bool Project::CreateImportsDirectory(const fs::path& path) {
 
 Project::Project(fs::path root, bool deserializeFile) : root(std::move(root)) {
     if (deserializeFile && !deserialize()) {
-        LOG_E("Failed to deserialize the project file" << " from " << (root / con::ProjectFile()));
+        LOG_E("Failed to deserialize the project file" << " from " << (this->root / con::ProjectFile()));
+        throw std::runtime_error("Failed to deserialize the project file");
+    }
+    
+    if (!CreateImportedAssetDirectories(this->root, con::GetCurrentPlatform()) || !CreateImportsDirectory(this->root)) {
         throw std::runtime_error("Failed to deserialize the project file");
     }
 }

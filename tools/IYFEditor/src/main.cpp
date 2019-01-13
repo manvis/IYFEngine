@@ -46,7 +46,7 @@
 const char MAGIC_NUMBER[4] = {'I', 'Y', 'F', 'M'};
 
 void recursivePass(const aiScene* scene, const aiNode* node, int depth) {
-    for (std::size_t i = 0; i < depth; ++i) {
+    for (int i = 0; i < depth; ++i) {
         std::cout << " ";
     }
     
