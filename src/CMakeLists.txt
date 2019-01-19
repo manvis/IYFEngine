@@ -51,6 +51,7 @@ assets/metadata/AudioMetadata.cpp
 assets/metadata/FontMetadata.cpp
 assets/metadata/MaterialTemplateMetadata.cpp
 assets/metadata/MeshMetadata.cpp
+assets/metadata/Metadata.cpp
 assets/metadata/MetadataBase.cpp
 assets/metadata/CustomMetadata.cpp
 assets/metadata/TextureMetadata.cpp

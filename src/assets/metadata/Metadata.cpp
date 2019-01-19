@@ -26,9 +26,6 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_METADATA_HPP
-#define IYF_METADATA_HPP
-
 #include "assets/metadata/AnimationMetadata.hpp"
 #include "assets/metadata/MeshMetadata.hpp"
 #include "assets/metadata/TextureMetadata.hpp"
@@ -40,22 +37,17 @@
 #include "assets/metadata/StringMetadata.hpp"
 #include "assets/metadata/CustomMetadata.hpp"
 #include "assets/metadata/MaterialTemplateMetadata.hpp"
-#include "utilities/ForceInline.hpp"
-
-#include <variant>
 
 namespace iyf {
-/// We use a variant here because the Metadata is stored in a frequently accessed std::unordered_map. Using polymorphism would require pointers and, by
-/// extension, an extra layer of indirection.
-/// 
-/// \warning The order of metadata elements must match con::AssetType
-using Metadata = std::variant<AnimationMetadata, MeshMetadata, TextureMetadata, FontMetadata, AudioMetadata, VideoMetadata, ScriptMetadata,
-                              ShaderMetadata, StringMetadata, CustomMetadata, MaterialTemplateMetadata>;
-
-IYF_FORCE_INLINE bool MetadataCorrespondsToAssetType(const Metadata& metadata, AssetType type) {
-    return static_cast<std::size_t>(type) == metadata.index();
+    static_assert(alignof(AnimationMetadata) == 8);
+    static_assert(alignof(MeshMetadata) == 8);
+    static_assert(alignof(TextureMetadata) == 8);
+    static_assert(alignof(FontMetadata) == 8);
+    static_assert(alignof(AudioMetadata) == 8);
+    static_assert(alignof(VideoMetadata) == 8);
+    static_assert(alignof(ScriptMetadata) == 8);
+    static_assert(alignof(ShaderMetadata) == 8);
+    static_assert(alignof(StringMetadata) == 8);
+    static_assert(alignof(CustomMetadata) == 8);
+    static_assert(alignof(MaterialTemplateMetadata) == 8);
 }
-}
-
-#endif // IYF_METADATA_HPP
-

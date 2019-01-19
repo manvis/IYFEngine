@@ -32,6 +32,7 @@
 #include "assets/metadata/MetadataBase.hpp"
 #include "graphics/materials/MaterialConstants.hpp"
 #include "graphics/ShaderMacros.hpp"
+#include "graphics/VertexDataLayouts.hpp"
 
 namespace iyf {
 class MaterialTemplateMetadata : public MetadataBase {
@@ -87,6 +88,7 @@ private:
     FileHash materialFamilyHash;
     
     StringHash macroComboHash;
+    std::vector<VertexDataLayout> vertexDataLayouts;
     std::unordered_map<ShaderMacro, SupportedMacroValues> supportedMacrosAndValues;
 };
 

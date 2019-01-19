@@ -33,8 +33,11 @@
 #include <stdexcept>
 #include <cassert>
 
-#include "utilities/ChunkedVectorIterator.hpp"
-#include "utilities/NonCopyable.hpp"
+#ifdef CREATION_MODE
+#include <iostream>
+#endif
+
+#include "ChunkedVectorIterator.hpp"
 
 namespace iyf {
 
@@ -51,12 +54,12 @@ namespace iyf {
 /// You may also use getChunkStart() and getChunkEnd() to access chunk memory directly. That's what the ChunkedVectorIterator uses
 /// under the hood.
 template <typename T, size_t chunkSize>
-class ChunkedVector : private NonCopyable {
+class ChunkedVector { // TODO  : private NonCopyable
 public:
     inline constexpr ChunkedVector() : capacityVal(0), sizeVal(0) {}
     
-    using iterator = ChunkedVectorIterator<T, chunkSize>;
-    using const_iterator = ChunkedVectorConstIterator<T, chunkSize>;
+    using iterator = ChunkedVectorIterator<ChunkedVector<T, chunkSize>, T, chunkSize>;
+    using const_iterator = ChunkedVectorIterator<const ChunkedVector<T, chunkSize>, const T, chunkSize>;
     
     friend iterator;
     friend const_iterator;
@@ -128,7 +131,15 @@ public:
     
     inline void reserve(std::size_t newCapacity) {
         while (capacityVal < newCapacity) {
-            char* newChunk = new char[sizeof(T) * chunkSize];
+            constexpr std::size_t size = sizeof(T);
+            const std::size_t arraySize = size * chunkSize;
+            
+            #ifdef CREATION_MODE
+            //std::cout << "NEW ChunkedVector. New Call: " << size << " " << alignment << " " << finalSize << " " << arraySize << "\n";
+            std::cout << "NEW ChunkedVector. New Call: " << size << " " << arraySize << "\n";
+            #endif
+            
+            char* newChunk = new char[arraySize];
             chunks.push_back(newChunk);
             capacityVal += chunkSize;
         }
@@ -277,13 +288,13 @@ protected:
     inline T* getPtr(std::size_t id) {
         char* chunk = chunks[id / chunkSize];
         
-        return static_cast<T*>(static_cast<void*>(chunk + (id % chunkSize) * sizeof(T)));
+        return std::launder(reinterpret_cast<T*>(chunk + (id % chunkSize) * sizeof(T)));
     }
     
     inline const T* getPtr(std::size_t id) const {
         char* chunk = chunks[id / chunkSize];
         
-        return static_cast<T*>(static_cast<void*>(chunk + (id % chunkSize) * sizeof(T)));
+        return std::launder(reinterpret_cast<T*>(chunk + (id % chunkSize) * sizeof(T)));
     }
     
     std::vector<char*> chunks;

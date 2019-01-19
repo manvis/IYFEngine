@@ -38,7 +38,7 @@ class ChunkedVector;
 /// Iterator for ChunkedVector
 ///
 /// \todo Maybe merge this with ChunkedVectorConstIterator using the magic of templates.
-template <typename T, size_t chunkSize>
+template <typename A, typename T, size_t chunkSize>
 class ChunkedVectorIterator {
 public:
     using difference_type = std::ptrdiff_t;
@@ -47,9 +47,10 @@ public:
     using reference = T&;
     using iterator_category = std::forward_iterator_tag;
     
-    ChunkedVectorIterator(std::size_t pos = static_cast<std::size_t>(-1), ChunkedVector<T, chunkSize>* container = nullptr) : container(container) {
+    ChunkedVectorIterator(std::size_t pos = static_cast<std::size_t>(-1), A* container = nullptr) : container(container) {
         if (container != nullptr && pos != static_cast<std::size_t>(-1)) {
-            if (container->size() == 0) {
+            const std::size_t containerSize = container->size();
+            if (containerSize == 0 || pos == containerSize) {
                 current = nullptr;
                 
                 return;
@@ -93,72 +94,9 @@ public:
     }
 private:
     std::size_t currentChunkID;
-    ChunkedVector<T, chunkSize>* container;
+    A* container;
     T* current;
     T* nextSwitch;
-};
-
-/// Iterator for ChunkedVector
-///
-/// \todo Maybe merge this with ChunkedVectorIterator using the magic of templates.
-template <typename T, size_t chunkSize>
-class ChunkedVectorConstIterator {
-public:
-    using difference_type = std::ptrdiff_t;
-    using value_type = T;
-    using pointer = T*;
-    using reference = T&;
-    using iterator_category = std::forward_iterator_tag;
-    
-    ChunkedVectorConstIterator(std::size_t pos = static_cast<std::size_t>(-1), const ChunkedVector<T, chunkSize>* container = nullptr) : container(container) {
-        if (container != nullptr && pos != static_cast<std::size_t>(-1)) {
-            if (container->size() == 0) {
-                current = nullptr;
-                
-                return;
-            }
-            
-            currentChunkID = pos / chunkSize;
-            nextSwitch = container->getChunkEnd(currentChunkID);
-            
-            current = container->getPtr(pos);
-        }
-    }
-    
-    ChunkedVectorConstIterator& operator++() {
-        current++;
-        if (current == nextSwitch) {
-            currentChunkID++;
-            current = container->getChunkStart(currentChunkID);
-            
-            nextSwitch = container->getChunkEnd(currentChunkID);
-        }
-        
-        return *this;
-    }
-    
-    ChunkedVectorConstIterator operator++(int) {
-        ChunkedVectorConstIterator temp = *this;
-        ++(*this);
-        return temp;
-    }
-    
-    bool operator==(const ChunkedVectorConstIterator& other) const {
-        return current == other.current;
-    }
-    
-    bool operator!=(const ChunkedVectorConstIterator& other) const {
-        return !(*this == other);
-    }
-    
-    const T& operator*() const {
-        return *current;
-    }
-private:
-    std::size_t currentChunkID;
-    const ChunkedVector<T, chunkSize>* container;
-    const T* current;
-    const T* nextSwitch;
 };
 }
 
