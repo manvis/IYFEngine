@@ -28,6 +28,18 @@
 
 #include "assets/AssetManager.hpp"
 #include "assets/loaders/MeshLoader.hpp"
+#include "assets/metadata/AnimationMetadata.hpp"
+#include "assets/metadata/MeshMetadata.hpp"
+#include "assets/metadata/TextureMetadata.hpp"
+#include "assets/metadata/FontMetadata.hpp"
+#include "assets/metadata/AudioMetadata.hpp"
+#include "assets/metadata/VideoMetadata.hpp"
+#include "assets/metadata/ScriptMetadata.hpp"
+#include "assets/metadata/ShaderMetadata.hpp"
+#include "assets/metadata/StringMetadata.hpp"
+#include "assets/metadata/CustomMetadata.hpp"
+#include "assets/metadata/MaterialTemplateMetadata.hpp"
+
 #include "graphics/MeshComponent.hpp"
 #include "core/Constants.hpp"
 #include "core/Logger.hpp"
@@ -35,6 +47,7 @@
 #include "core/Engine.hpp"
 #include "core/filesystem/FileSystem.hpp"
 #include "core/serialization/VirtualFileSystemSerializer.hpp"
+#include "core/interfaces/TextSerializable.hpp"
 #include "assets/typeManagers/TypeManager.hpp"
 #include "assets/typeManagers/FontTypeManager.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
@@ -59,6 +72,25 @@ AssetManager::AssetManager(Engine* engine) : engine(engine), asyncLoadWindow(con
     } else {
         LOG_W("std::uint32_t is NOT lock free on this system");
     }
+    
+    AssetType biggestAssetMetadata = AssetType::COUNT;
+    std::size_t maxSize = 0;
+    
+    std::stringstream ss;
+    ss << "Metadata type sizes: ";
+    for (std::uint64_t i = 0; i < static_cast<std::uint64_t>(AssetType::COUNT); ++i) {
+        const AssetType type = static_cast<AssetType>(i);
+        const std::size_t size = Metadata::GetAssetMetadataSize(type);
+        
+        ss << "\n\t" << con::AssetTypeToTranslationString(type) << " " << size;
+        
+        if (size > maxSize) {
+            maxSize = size;
+            biggestAssetMetadata = type;
+        }
+    }
+    ss << "\n\tBIGGEST METADATA OBJECT: " << con::AssetTypeToTranslationString(biggestAssetMetadata) << ", " << maxSize << " bytes.";
+    LOG_D(ss.str())
     
     editorMode = engine->isEditorMode();
 }
@@ -307,7 +339,7 @@ inline AssetManager::ManifestElement buildManifestElement(AssetType type, bool i
             throw std::runtime_error("COUNT is not an asset type");
     }
     
-    std::visit([&me](auto&& arg){me.systemAsset = arg.isSystemAsset();}, me.metadata);
+    me.systemAsset = me.metadata.getBase().isSystemAsset();
     
     return me;
 }
@@ -417,7 +449,7 @@ bool AssetManager::serializeMetadata(StringHash nameHash, Serializer& file) {
     }
     
     const Metadata& meta = (*result).second.metadata;
-    std::visit([&file](auto&& v){ v.serialize(file); }, meta);
+    meta.getBase().serialize(file);
     
     return true;
 }
@@ -670,13 +702,11 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
     fileMoves.reserve(64);
     
     for (auto& me : manifest) {
-        fs::path currentSourceAssetPath;
-        const bool inDir = std::visit([&sourcePath, &currentSourceAssetPath](auto&& meta) {
-            assert(meta.getMetadataSource() == MetadataSource::JSON);
-            
-            currentSourceAssetPath = meta.getSourceAssetPath();
-            return util::FileInDir(sourcePath, currentSourceAssetPath);
-        }, me.second.metadata);
+        MetadataBase& meta = me.second.metadata.getBase();
+        assert(meta.getMetadataSource() == MetadataSource::JSON);
+        
+        const fs::path currentSourceAssetPath = meta.getSourceAssetPath();
+        const bool inDir = util::FileInDir(sourcePath, currentSourceAssetPath);
         
         const std::string currentSourceAssetPathString = currentSourceAssetPath.generic_string();
         const std::string sourceDirectoryString = sourcePath.generic_string();
@@ -752,15 +782,11 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
             
             // Update the paths stored in the metadata object
             me.second.path = postMoveAssetPath;
-            std::visit([&fullNewPath](auto&& meta) {
-                meta.sourceAsset = fullNewPath;
-            }, me.second.metadata);
+            meta.sourceAsset = fullNewPath;
             
             // Save the updated metadata
             if (textMetadataExists || (!textMetadataExists && !binaryMetadataExists)) {
-                const std::string jsonString = std::visit([](auto&& meta) {
-                    return meta.getJSONString();
-                }, me.second.metadata);
+                const std::string jsonString = meta.getJSONString();
                 
                 const fs::path newMetadataPath = MakeMetadataPathName(moveDestinationVirtualFS, false);
                 File metadataOutput(newMetadataPath, File::OpenMode::Write);
@@ -768,9 +794,7 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
             } else {
                 const fs::path newMetadataPath = MakeMetadataPathName(moveDestinationVirtualFS, true);
                 VirtualFileSystemSerializer serializer(newMetadataPath, File::OpenMode::Write);
-                std::visit([&serializer](auto&& meta) {
-                    meta.serialize(serializer);
-                }, me.second.metadata);
+                meta.serialize(serializer);
             }
 
             auto loadedAsset = loadedAssets.find(currentSourceHash);
@@ -805,7 +829,7 @@ void AssetManager::appendAssetToManifest(StringHash nameHash, const fs::path& pa
     }
     
     std::lock_guard<std::mutex> manifestLock(manifestMutex);
-    manifest[nameHash] = {path, static_cast<AssetType>(metadata.index()), false, metadata};
+    manifest[nameHash] = {path, metadata.getAssetType(), false, metadata};
 }
 
 void AssetManager::removeAssetFromManifest(StringHash nameHash) {
@@ -864,7 +888,7 @@ std::optional<fs::path> AssetManager::checkForHashCollision(StringHash nameHash,
 std::optional<fs::path> AssetManager::checkForHashCollisionImpl(StringHash nameHash, const fs::path& checkPath) const {
     auto result = manifest.find(nameHash);
     if (result != manifest.end()) {
-        const fs::path foundPath = std::visit([](auto&& arg){return arg.getSourceAssetPath();}, result->second.metadata);
+        const fs::path foundPath = result->second.metadata.getBase().getSourceAssetPath();
         if (foundPath != checkPath) {
             return foundPath;
         }

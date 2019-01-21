@@ -189,11 +189,13 @@ const char* FileSystem::getLastErrorText() const {
 
 std::string FileSystem::logSearchPath(const std::string& pathSeparator) const {
     std::stringstream ss;
-    char **i;
+    char **j = PHYSFS_getSearchPath();
 
-    for (i = PHYSFS_getSearchPath(); *i != NULL; i++) {
+    for (char **i = j; *i != NULL; i++) {
         ss << *i << pathSeparator;
     }
+    
+    PHYSFS_freeList(j);
     
     return ss.str();
 }

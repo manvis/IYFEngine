@@ -129,7 +129,9 @@ void SystemAssetPacker::recursiveExport(const fs::path& path, const editor::Conv
             }
             
             for (const auto& a : converterState->getImportedAssets()) {
-                std::visit([](auto&& f) { if (f.getFileHash() == 0) { throw std::runtime_error("Failed to examine the metadata of an imported asset");}}, a.getMetadata());
+                if (a.getMetadata().getBase().getFileHash() == 0) {
+                    throw std::runtime_error("Failed to examine the metadata of an imported asset");
+                }
             }
         }
     }

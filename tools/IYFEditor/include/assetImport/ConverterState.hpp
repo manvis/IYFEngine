@@ -286,7 +286,6 @@ private:
 
 class ShaderConverterState : public ConverterState {
 public:
-    ShaderPurpose purpose;
     /// Manually adjustable value. Should typically match the determinedStage. 
     ShaderStageFlagBits stage;
     

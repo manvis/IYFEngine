@@ -44,6 +44,7 @@
 namespace iyf {
 class Engine;
 class MeshLoader;
+class Serializer;
 
 class AssetManager;
 class TypeManager;

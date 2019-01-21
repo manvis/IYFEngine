@@ -27,6 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assets/typeManagers/TextureTypeManager.hpp"
+#include "assets/metadata/TextureMetadata.hpp"
 #include "core/Engine.hpp"
 #include "core/filesystem/File.hpp"
 #include "core/Logger.hpp"
@@ -51,7 +52,7 @@ std::unique_ptr<LoadedAssetData> TextureTypeManager::readFile(StringHash, const 
 }
 
 void TextureTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool canBatch) {
-    const TextureMetadata& textureMeta = std::get<TextureMetadata>(loadedAssetData->metadata);
+    const TextureMetadata& textureMeta = loadedAssetData->metadata.get<TextureMetadata>();
     Texture& assetData = static_cast<Texture&>(loadedAssetData->assetData);
     
     DeviceMemoryManager* memoryManager = gfx->getDeviceMemoryManager();
@@ -109,7 +110,7 @@ AssetsToEnableResult TextureTypeManager::hasAssetsToEnable() const {
 }
 
 std::uint64_t TextureTypeManager::estimateUploadSize(const Metadata& meta) const {
-    const TextureMetadata& textureMeta = std::get<TextureMetadata>(meta);
+    const TextureMetadata& textureMeta = meta.get<TextureMetadata>();
     return textureMeta.getSize();
 }
 }

@@ -27,6 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assets/typeManagers/ShaderTypeManager.hpp"
+#include "assets/metadata/ShaderMetadata.hpp"
 #include "core/Engine.hpp"
 #include "core/filesystem/File.hpp"
 #include "core/Logger.hpp"
@@ -50,11 +51,10 @@ std::unique_ptr<LoadedAssetData> ShaderTypeManager::readFile(StringHash, const f
 }
 
 void ShaderTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool) {
-    const ShaderMetadata& shaderMeta = std::get<ShaderMetadata>(loadedAssetData->metadata);
+    const ShaderMetadata& shaderMeta = loadedAssetData->metadata.get<ShaderMetadata>();
     Shader& assetData = static_cast<Shader&>(loadedAssetData->assetData);
     
     assetData.handle = api->createShader(shaderMeta.getShaderStage(), loadedAssetData->rawData.first.get(), loadedAssetData->rawData.second);
-    assetData.purpose = shaderMeta.getShaderPurpose();
     assetData.stage = shaderMeta.getShaderStage();
     assetData.setLoaded(true);
 }

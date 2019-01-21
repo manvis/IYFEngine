@@ -43,17 +43,12 @@ public:
                           FileHash sourceFileHash,
                           bool systemAsset,
                           const std::vector<std::string>& tags,
-                          ShaderStageFlags stage,
-                          ShaderPurpose purpose)
+                          ShaderStageFlags stage)
         : MetadataBase(AssetType::Shader, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true),
-          stage(stage), purpose(purpose) {}
+          stage(stage) {}
         
     inline ShaderStageFlags getShaderStage() const {
         return stage;
-    }
-    
-    inline ShaderPurpose getShaderPurpose() const {
-        return purpose;
     }
     
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
@@ -66,7 +61,6 @@ private:
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint16_t version) final override;
     
     ShaderStageFlags stage;
-    ShaderPurpose purpose;
 };
 }
 

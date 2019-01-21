@@ -28,6 +28,7 @@
 
 #include "assetImport/ShaderConverter.hpp"
 #include "assetImport/ConverterManager.hpp"
+#include "assets/metadata/ShaderMetadata.hpp"
 
 #include "core/filesystem/File.hpp"
 #include "core/Logger.hpp"
@@ -62,7 +63,6 @@ std::unique_ptr<ConverterState> ShaderConverter::initializeConverter(const fs::p
     
     const FileHash shaderFileHash = HF(internalState->code.get(), internalState->size);
     auto converterState = std::unique_ptr<ShaderConverterState>(new ShaderConverterState(platformID, std::move(internalState), inPath, shaderFileHash));
-    converterState->purpose = ShaderPurpose::Surface;
     converterState->stage = StageBitsFromPath(inPath);
     converterState->determinedStage = converterState->stage;
     return converterState;
@@ -129,7 +129,7 @@ bool ShaderConverter::convert(ConverterState& state) const {
     const fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
     
     FileHash hash = HF(reinterpret_cast<const char*>(content.data()), outputByteCount);
-    ShaderMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags(), shaderStage, conversionState.purpose);
+    ShaderMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags(), shaderStage);
     ImportedAssetData iad(state.getType(), metadata, outputPath);
     state.getImportedAssets().push_back(std::move(iad));
     

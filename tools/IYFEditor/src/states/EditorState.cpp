@@ -86,7 +86,9 @@ EditorState::EditorState(iyf::Engine* engine) : GameState(engine),
     editorUI->doSomething();
 }
 
-EditorState::~EditorState() { }
+EditorState::~EditorState() {
+    LOG_D("!!!!" << assetList.size())
+}
 
 void EditorState::initialize() {
     IYFT_PROFILE(EditorInitialize, iyft::ProfilerTag::Editor)
@@ -1473,6 +1475,8 @@ void EditorState::showAssetWindow() {
         if (ImGui::TreeNode("Search and Filtering")) {
             ImGui::Text("TODO implement");
             ImGui::TreePop();
+            
+            ImGui::Text("%lu", assetList.size());
         }
         
         ImGui::BeginChild("assetDataColumns", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);

@@ -30,7 +30,6 @@
 #include <stdexcept>
 
 namespace iyf {
-static const char* PURPOSE_FIELD_NAME = "purpose";
 static const char* STAGE_FLAGS_FIELD_NAME = "stageFlags";
 
 std::uint16_t ShaderMetadata::getLatestSerializedDataVersion() const {
@@ -41,21 +40,16 @@ void ShaderMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const 
     assert(version == 1);
     
     fw.writeUInt32(std::uint32_t(stage));
-    fw.writeUInt8(static_cast<std::uint8_t>(purpose));
 }
 
 void ShaderMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
     assert(version == 1);
     
     stage = ShaderStageFlags(static_cast<ShaderStageFlagBits>(fr.readUInt32()));
-    purpose = static_cast<ShaderPurpose>(fr.readUInt8());
 }
 
 void ShaderMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
     assert(version == 1);
-    
-    pw.String(PURPOSE_FIELD_NAME);
-    pw.Uint(static_cast<std::uint8_t>(purpose));
     
     pw.String(STAGE_FLAGS_FIELD_NAME);
     pw.Uint(std::uint32_t(stage));
@@ -64,7 +58,6 @@ void ShaderMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t ver
 void ShaderMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
     assert(version == 1);
     
-    purpose = static_cast<ShaderPurpose>(jo[PURPOSE_FIELD_NAME].GetUint());
     stage = ShaderStageFlags(static_cast<ShaderStageFlagBits>(jo[STAGE_FLAGS_FIELD_NAME].GetUint()));
 }
 

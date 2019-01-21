@@ -35,6 +35,8 @@
 #include "core/Logger.hpp"
 #include "graphics/culling/BoundingVolumes.hpp"
 
+#include "assets/metadata/MeshMetadata.hpp"
+
 #include <vector>
 #include <cstring>
 
@@ -156,9 +158,9 @@ MeshLoader::MemoryRequirements MeshLoader::getMemoryRequirementsV1(File& fr) con
 }
 
 MeshLoader::MemoryRequirements MeshLoader::getMeshMemoryRequirements(const Metadata& metadata) const {
-    assert(metadata.index() == static_cast<std::size_t>(AssetType::Mesh));
+    assert(metadata.getAssetType() == AssetType::Mesh);
     
-    const MeshMetadata& meshMetadata = std::get<MeshMetadata>(metadata);
+    const MeshMetadata& meshMetadata = metadata.get<MeshMetadata>();
     
     switch (meshMetadata.getMeshFormatVersion()) {
     case 1:

@@ -28,6 +28,7 @@
 
 #include "assetImport/FontConverter.hpp"
 
+#include "assets/metadata/FontMetadata.hpp"
 #include "assetImport/ConverterManager.hpp"
 #include "core/Logger.hpp"
 #include "core/filesystem/File.hpp"

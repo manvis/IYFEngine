@@ -50,6 +50,8 @@ public:
     inline MetadataBase(AssetType assetType, FileHash fileHash, const fs::path& sourceAsset, FileHash sourceFileHash, bool systemAsset, const std::vector<std::string>& tags, bool complete) 
         : assetType(assetType), metadataSource(MetadataSource::Constructor), complete(complete), systemAsset(systemAsset), tags(tags), fileHash(fileHash), sourceAsset(sourceAsset), sourceFileHash(sourceFileHash) {}
     
+    virtual ~MetadataBase() { }
+    
     AssetType getAssetType() const {
         return assetType;
     }

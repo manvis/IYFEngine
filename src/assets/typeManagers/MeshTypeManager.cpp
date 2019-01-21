@@ -273,7 +273,7 @@ void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetDa
     
     MeshLoader::LoadedMeshData& lmd = loadedData->loadedMeshData;
     std::memcpy(vboRangeResult.data, loadedData->vbo.get(), requirements.vertexSize.count());
-    std::memcpy(iboRangeResult.data, loadedData->ibo.get(), requirements.vertexSize.count());
+    std::memcpy(iboRangeResult.data, loadedData->ibo.get(), requirements.indexSize.count());
     
     assetData.vboID = vboRangeResult.bufferID;
     assetData.iboID = iboRangeResult.bufferID;

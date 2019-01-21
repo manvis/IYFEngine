@@ -40,6 +40,9 @@
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#include "assets/metadata/AnimationMetadata.hpp"
+#include "assets/metadata/MeshMetadata.hpp"
+
 #include "assetImport/MeshConverter.hpp"
 #include "graphics/VertexDataLayouts.hpp"
 #include "graphics/AnimationDataStructures.hpp"

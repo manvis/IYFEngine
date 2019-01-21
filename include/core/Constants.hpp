@@ -40,17 +40,6 @@
 /// This file stores constants commonly used by many of the engine's classes
 namespace iyf {
 /// \warning Updating these values may break existing projects.
-enum class ShaderPurpose : std::uint8_t {
-    System = 0,
-    UI = 1,
-    Skybox = 2,
-    Particles = 3,
-    Surface = 4,
-    Compute = 5,
-    COUNT
-};
-
-/// \warning Updating these values may break existing projects.
 enum class TextureFilteringMethod : std::uint8_t {
     None = 0,
     Bilinear = 1,

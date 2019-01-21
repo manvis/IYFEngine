@@ -196,7 +196,7 @@ bool ConverterManager::convert(ConverterState& state) const {
         PrettyStringWriter pw(sb);
         
         pw.SetIndent('\t', 1);
-        std::visit([&pw](auto&& metadata){ metadata.serializeJSON(pw); }, asset.getMetadata());
+        asset.getMetadata().getBase().serializeJSON(pw);
         
         const char* jsonString = sb.GetString();
         std::size_t jsonByteCount = sb.GetSize();

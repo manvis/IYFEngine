@@ -31,6 +31,7 @@
 
 #include "assets/Asset.hpp"
 #include "graphics/GraphicsAPIHandles.hpp"
+#include "graphics/GraphicsAPIConstants.hpp"
 
 namespace iyf {
 /// \brief a shader Asset
@@ -44,7 +45,6 @@ public:
     
     ShaderHnd handle;
     ShaderStageFlags stage;
-    ShaderPurpose purpose;
 };
 }
 

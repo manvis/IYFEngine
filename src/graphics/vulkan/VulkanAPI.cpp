@@ -972,8 +972,8 @@ Image VulkanAPI::createImage(const ImageCreateInfo& info) {
     aci.flags = VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
     aci.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     
+    std::string temp = info.debugName;
     if (!info.debugName.empty()) {
-        std::string temp = info.debugName;
         aci.pUserData = &temp[0];
     }
     
@@ -1383,8 +1383,9 @@ Buffer VulkanAPI::createBuffer(const BufferCreateInfo& info) {
             break;
     }
     
+    
+    std::string temp = info.debugName;
     if (!info.debugName.empty()) {
-        std::string temp = info.debugName;
         aci.pUserData = &temp[0];
     }
     

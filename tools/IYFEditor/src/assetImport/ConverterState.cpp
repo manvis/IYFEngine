@@ -226,7 +226,6 @@ void FontConverterState::deserializeJSONImpl(JSONObject&, std::uint64_t version)
     // not needed, for now
 }
 
-static const char* PURPOSE_FIELD_NAME = "purpose";
 static const char* STAGAE_FIELD_NAME = "stage";
 
 std::uint64_t ShaderConverterState::getLatestSerializedDataVersion() const {
@@ -236,9 +235,6 @@ std::uint64_t ShaderConverterState::getLatestSerializedDataVersion() const {
 void ShaderConverterState::serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const {
     assert(version == 1);
     
-    pw.String(PURPOSE_FIELD_NAME);
-    pw.Uint(static_cast<unsigned int>(purpose));
-    
     pw.String(STAGAE_FIELD_NAME);
     pw.Uint(static_cast<unsigned int>(stage));
 }
@@ -246,7 +242,6 @@ void ShaderConverterState::serializeJSONImpl(PrettyStringWriter& pw, std::uint64
 void ShaderConverterState::deserializeJSONImpl(JSONObject& jo, std::uint64_t version) {
     assert(version == 1);
     
-    purpose = static_cast<ShaderPurpose>(jo[PURPOSE_FIELD_NAME].GetUint());
     stage = static_cast<ShaderStageFlagBits>(jo[STAGAE_FIELD_NAME].GetUint());
 }
 

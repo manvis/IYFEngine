@@ -28,6 +28,7 @@
 
 #include "assetImport/MaterialTemplateConverter.hpp"
 #include "assetImport/ConverterManager.hpp"
+#include "assets/metadata/MaterialTemplateMetadata.hpp"
 
 #include "graphics/Renderer.hpp"
 #include "graphics/shaderGeneration/ShaderMacroCombiner.hpp"

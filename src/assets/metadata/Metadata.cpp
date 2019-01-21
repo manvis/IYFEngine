@@ -26,6 +26,7 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "assets/metadata/Metadata.hpp"
 #include "assets/metadata/AnimationMetadata.hpp"
 #include "assets/metadata/MeshMetadata.hpp"
 #include "assets/metadata/TextureMetadata.hpp"
@@ -38,16 +39,126 @@
 #include "assets/metadata/CustomMetadata.hpp"
 #include "assets/metadata/MaterialTemplateMetadata.hpp"
 
+#include "core/Logger.hpp"
+
+#include <new>
+
 namespace iyf {
-    static_assert(alignof(AnimationMetadata) == 8);
-    static_assert(alignof(MeshMetadata) == 8);
-    static_assert(alignof(TextureMetadata) == 8);
-    static_assert(alignof(FontMetadata) == 8);
-    static_assert(alignof(AudioMetadata) == 8);
-    static_assert(alignof(VideoMetadata) == 8);
-    static_assert(alignof(ScriptMetadata) == 8);
-    static_assert(alignof(ShaderMetadata) == 8);
-    static_assert(alignof(StringMetadata) == 8);
-    static_assert(alignof(CustomMetadata) == 8);
-    static_assert(alignof(MaterialTemplateMetadata) == 8);
+// WARNING: When adding new metadata types, simply add a new COMMAND line to the IYF_METADATA_SWITCH macro
+    
+#define IYF_METADATA_SWITCH(SWITCH_ON, COMMAND) \
+    switch (SWITCH_ON) { \
+        COMMAND(Animation, AnimationMetadata)\
+        COMMAND(Mesh, MeshMetadata)\
+        COMMAND(Texture, TextureMetadata)\
+        COMMAND(Font, FontMetadata)\
+        COMMAND(Audio, AudioMetadata)\
+        COMMAND(Video, VideoMetadata)\
+        COMMAND(Script, ScriptMetadata)\
+        COMMAND(Shader, ShaderMetadata)\
+        COMMAND(Strings, StringMetadata)\
+        COMMAND(Custom, CustomMetadata)\
+        COMMAND(MaterialTemplate, MaterialTemplateMetadata)\
+        case AssetType::COUNT:\
+            break;\
+    }
+
+#define IYF_METADATA_OBJECT_CHECK(objType) \
+    static_assert(alignof(objType) == Metadata::Alignment, "Incorret alignment of object " #objType); \
+    static_assert(sizeof(objType) <= Metadata::Size, "Incorret size of object " #objType);
+
+#define IYF_DETERMINE_SIZE_CASE(EnumType, MetaType) \
+    case AssetType::EnumType: { \
+            IYF_METADATA_OBJECT_CHECK(MetaType) \
+            typeSize = sizeof(MetaType); \
+        } \
+        break;
+
+#define IYF_CONSTRUCT_METADATA_COPY_CASE(EnumType, MetaType) \
+    case AssetType::EnumType: { \
+            const MetaType& otherData = other.get<MetaType>();\
+            MetaType* obj = new(data) MetaType(otherData); \
+            type = obj->getAssetType(); \
+        } \
+        break;
+
+#define IYF_CONSTRUCT_METADATA_MOVE_CASE(EnumType, MetaType) \
+    case AssetType::EnumType: { \
+            MetaType& otherData = other.get<MetaType>();\
+            MetaType* obj = new(data) MetaType(std::move(otherData)); \
+            type = obj->getAssetType(); \
+        } \
+        break;
+        
+#define IYF_CONSTRUCT_METADATA_COPY(SWITCH_ON) \
+    IYF_METADATA_SWITCH(SWITCH_ON, IYF_CONSTRUCT_METADATA_COPY_CASE)
+    
+#define IYF_CONSTRUCT_METADATA_MOVE(SWITCH_ON) \
+    IYF_METADATA_SWITCH(SWITCH_ON, IYF_CONSTRUCT_METADATA_MOVE_CASE)
+
+#define IYF_GET_METADATA_SIZE(SWITCH_ON) \
+    IYF_METADATA_SWITCH(SWITCH_ON, IYF_DETERMINE_SIZE_CASE)
+
+Metadata::Metadata(const Metadata& other) {
+    if (other.hasValidValue()) {
+        IYF_CONSTRUCT_METADATA_COPY(other.getAssetType());
+    } else {
+        type = AssetType::COUNT;
+    }
+}
+
+Metadata& Metadata::operator=(const Metadata& other) {
+    if (&other != this && other.hasValidValue()) {
+        destroyContents();
+        IYF_CONSTRUCT_METADATA_COPY(other.getAssetType());
+    } else {
+        type = AssetType::COUNT;
+    }
+    
+    return *this;
+}
+
+Metadata::Metadata(Metadata&& other) {
+    if (other.hasValidValue()) {
+        IYF_CONSTRUCT_METADATA_MOVE(other.getAssetType());
+        other.destroyContents();
+    } else {
+        type = AssetType::COUNT;
+    }
+}
+
+Metadata& Metadata::operator=(Metadata&& other) {
+    if (&other != this && other.hasValidValue()) {
+        destroyContents();
+        IYF_CONSTRUCT_METADATA_MOVE(other.getAssetType());
+        other.destroyContents();
+    } else {
+        type = AssetType::COUNT;
+    }
+    
+    return *this;
+}
+
+void Metadata::destroyContents() {
+    if (hasValidValue()) {
+        MetadataBase* base = std::launder(reinterpret_cast<MetadataBase*>(&data[0]));
+        
+        LOG_D(reinterpret_cast<std::uintptr_t>(&data[0]) << " " << reinterpret_cast<std::uintptr_t>(&base) << " " << static_cast<std::size_t>(type));
+        
+        assert(&data[0] != nullptr);
+        assert(base != nullptr);
+        base->~MetadataBase();
+        type = AssetType::ANY;
+    }
+}
+
+Metadata::~Metadata() {
+    destroyContents();
+}
+
+std::size_t Metadata::GetAssetMetadataSize(AssetType type) {
+    std::size_t typeSize = 0;
+    IYF_GET_METADATA_SIZE(type);
+    return typeSize;
+}
 }

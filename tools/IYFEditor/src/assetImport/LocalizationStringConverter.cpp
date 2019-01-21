@@ -28,6 +28,7 @@
 
 #include "assetImport/LocalizationStringConverter.hpp"
 #include "assetImport/ConverterManager.hpp"
+#include "assets/metadata/StringMetadata.hpp"
 #include "core/filesystem/File.hpp"
 #include "core/Logger.hpp"
 #include "core/serialization/MemorySerializer.hpp"

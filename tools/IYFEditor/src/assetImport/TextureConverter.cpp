@@ -28,6 +28,8 @@
 
 #include "assetImport/TextureConverter.hpp"
 
+#include "assets/metadata/TextureMetadata.hpp"
+
 #include "core/Engine.hpp"
 #include "core/Logger.hpp"
 #include "core/filesystem/FileSystem.hpp"

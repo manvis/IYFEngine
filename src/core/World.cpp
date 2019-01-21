@@ -27,7 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/World.hpp"
-
+#include "assets/metadata/MeshMetadata.hpp"
 #include "core/Engine.hpp"
 #include "graphics/GraphicsSystem.hpp"
 #include "physics/PhysicsSystem.hpp"
@@ -102,12 +102,12 @@ void World::addStaticMesh(StringHash nameHash) {
         return;
     }
     
-    if (!MetadataCorrespondsToAssetType(*metadata, AssetType::Mesh)) {
+    if (metadata->getAssetType() != AssetType::Mesh) {
         LOG_W("The asset with nameHash " << nameHash << " is not a mesh.");
         return;
     }
     
-    const MeshMetadata& meshMetadata = std::get<MeshMetadata>(*metadata);
+    const MeshMetadata& meshMetadata = metadata->get<MeshMetadata>();
     mc.setMesh(assetManager->load<Mesh>(nameHash, false));
     
 #if IYF_BOUNDING_VOLUME == IYF_SPHERE_BOUNDS
@@ -143,12 +143,12 @@ void World::addDynamicMesh(StringHash nameHash) {
         return;
     }
     
-    if (!MetadataCorrespondsToAssetType(*metadata, AssetType::Mesh)) {
+    if (metadata->getAssetType() != AssetType::Mesh) {
         LOG_W("The asset with nameHash " << nameHash << " is not a mesh.");
         return;
     }
     
-    const MeshMetadata& meshMetadata = std::get<MeshMetadata>(*metadata);
+    const MeshMetadata& meshMetadata = metadata->get<MeshMetadata>();
     mc.setMesh(assetManager->load<Mesh>(nameHash, false));
     
 #if IYF_BOUNDING_VOLUME == IYF_SPHERE_BOUNDS
