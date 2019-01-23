@@ -49,6 +49,7 @@ assets/loaders/TextureLoader.cpp
 assets/metadata/AnimationMetadata.cpp
 assets/metadata/AudioMetadata.cpp
 assets/metadata/FontMetadata.cpp
+assets/metadata/MaterialInstanceMetadata.cpp
 assets/metadata/MaterialTemplateMetadata.cpp
 assets/metadata/MeshMetadata.cpp
 assets/metadata/Metadata.cpp

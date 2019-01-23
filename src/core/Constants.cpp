@@ -69,6 +69,8 @@ std::size_t CompressedTextureMipmapLevelSize(TextureCompressionFormat format, st
         case TextureCompressionFormat::COUNT:
             throw std::runtime_error("COUNT is not a valid TextureCompressionFormat value");
     }
+    
+    throw std::runtime_error("Unknown TextureCompressionFormat");
 }
 
 }

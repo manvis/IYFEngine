@@ -207,11 +207,11 @@ void World::setPhysicsDebugDrawn(bool newValue) {
     physicsDebugDrawn = newValue;
 }
 
-void World::serialize(Serializer& fw) const {
-    // 
+void World::serialize(Serializer& /*fw*/) const {
+    throw std::runtime_error("Not yet implemented");
 }
 
-void World::deserialize(Serializer& fr) {
-    //
+void World::deserialize(Serializer& /*fr*/) {
+    throw std::runtime_error("Not yet implemented");
 }
 }

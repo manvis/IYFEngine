@@ -26,35 +26,36 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assets/metadata/FontMetadata.hpp"
+#include "assets/metadata/MaterialInstanceMetadata.hpp"
 #include <stdexcept>
 
 namespace iyf {
-std::uint16_t FontMetadata::getLatestSerializedDataVersion() const {
+std::uint16_t MaterialInstanceMetadata::getLatestSerializedDataVersion() const {
     return 1;
 }
 
-void FontMetadata::serializeImpl(Serializer& /*fw*/, std::uint16_t version) const {
+void MaterialInstanceMetadata::serializeImpl(Serializer& /*fw*/, std::uint16_t version) const {
     assert(version == 1);
-    //throw std::runtime_error("Method not yet implemented");
+    throw std::runtime_error("Method not yet implemented");
 }
 
-void FontMetadata::deserializeImpl(Serializer& /*fr*/, std::uint16_t version) {
+void MaterialInstanceMetadata::deserializeImpl(Serializer& /*fr*/, std::uint16_t version) {
     assert(version == 1);
-    //throw std::runtime_error("Method not yet implemented");
+    throw std::runtime_error("Method not yet implemented");
 }
 
-void FontMetadata::serializeJSONImpl(PrettyStringWriter& /*pw*/, std::uint16_t version) const {
+void MaterialInstanceMetadata::serializeJSONImpl(PrettyStringWriter& /*pw*/, std::uint16_t version) const {
     assert(version == 1);
-    //throw std::runtime_error("Method not yet implemented");
+    throw std::runtime_error("Method not yet implemented");
 }
 
-void FontMetadata::deserializeJSONImpl(JSONObject& /*jo*/, std::uint16_t version) {
+void MaterialInstanceMetadata::deserializeJSONImpl(JSONObject& /*jo*/, std::uint16_t version) {
     assert(version == 1);
-    //throw std::runtime_error("Method not yet implemented");
+    throw std::runtime_error("Method not yet implemented");
 }
 
-void FontMetadata::displayInImGui() const {
+void MaterialInstanceMetadata::displayInImGui() const {
     throw std::runtime_error("Method not yet implemented");
 }
 }
+

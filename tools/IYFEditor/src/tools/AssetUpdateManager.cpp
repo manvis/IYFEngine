@@ -75,9 +75,7 @@ void AssetUpdateManager::initialize() {
     
     lastFileSystemUpdate = std::chrono::steady_clock::now();
     fileSystemWatcher = FileSystemWatcher::MakePlatformFilesystemWatcher(fsci);
-        LOG_D("HELLO? AM I ALIVE?")
     fileSystemWatcherThread = std::thread([this](){
-        LOG_D("HELLO? AM I ALIVE?")
         IYFT_PROFILER_NAME_THREAD("FileSystemWatcher");
         
         while (watcherThreadRunning) {

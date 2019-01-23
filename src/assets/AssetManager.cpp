@@ -39,6 +39,7 @@
 #include "assets/metadata/StringMetadata.hpp"
 #include "assets/metadata/CustomMetadata.hpp"
 #include "assets/metadata/MaterialTemplateMetadata.hpp"
+#include "assets/metadata/MaterialInstanceMetadata.hpp"
 
 #include "graphics/MeshComponent.hpp"
 #include "core/Constants.hpp"
@@ -334,6 +335,9 @@ inline AssetManager::ManifestElement buildManifestElement(AssetType type, bool i
             break;
         case AssetType::MaterialTemplate:
             me.metadata = loadMetadata<MaterialTemplateMetadata>(metadataPath, isJSON);
+            break;
+        case AssetType::MaterialInstance:
+            me.metadata = loadMetadata<MaterialInstanceMetadata>(metadataPath, isJSON);
             break;
         case AssetType::COUNT:
             throw std::runtime_error("COUNT is not an asset type");

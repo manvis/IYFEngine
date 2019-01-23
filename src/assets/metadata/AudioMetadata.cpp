@@ -34,22 +34,22 @@ std::uint16_t AudioMetadata::getLatestSerializedDataVersion() const {
     return 1;
 }
 
-void AudioMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const {
+void AudioMetadata::serializeImpl(Serializer& /*fw*/, std::uint16_t version) const {
     assert(version == 1);
     throw std::runtime_error("Method not yet implemented");
 }
 
-void AudioMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
+void AudioMetadata::deserializeImpl(Serializer& /*fr*/, std::uint16_t version) {
     assert(version == 1);
     throw std::runtime_error("Method not yet implemented");
 }
 
-void AudioMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
+void AudioMetadata::serializeJSONImpl(PrettyStringWriter& /*pw*/, std::uint16_t version) const {
     assert(version == 1);
     throw std::runtime_error("Method not yet implemented");
 }
 
-void AudioMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
+void AudioMetadata::deserializeJSONImpl(JSONObject& /*jo*/, std::uint16_t version) {
     assert(version == 1);
     throw std::runtime_error("Method not yet implemented");
 }

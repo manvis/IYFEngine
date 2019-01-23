@@ -31,8 +31,11 @@
 
 #include "assets/metadata/MetadataBase.hpp"
 #include "graphics/materials/MaterialConstants.hpp"
+#include "graphics/materials/MaterialInputs.hpp"
 #include "graphics/ShaderMacros.hpp"
 #include "graphics/VertexDataLayouts.hpp"
+
+#include <bitset>
 
 namespace iyf {
 class MaterialTemplateMetadata : public MetadataBase {
@@ -52,9 +55,12 @@ public:
                         MaterialFamily family,
                         FileHash materialFamilyHash,
                         StringHash macroComboHash,
-                        std::unordered_map<ShaderMacro, SupportedMacroValues> supportedMacrosAndValues)
+                        std::bitset<64> vertexDataLayouts,
+                        std::vector<MaterialInputVariable> requiredVariables,
+                        std::vector<MaterialInputTexture> requiredTextures)
         : MetadataBase(AssetType::MaterialTemplate, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true), family(family),
-          materialFamilyHash(materialFamilyHash), macroComboHash(macroComboHash), supportedMacrosAndValues(std::move(supportedMacrosAndValues)) {}
+          materialFamilyHash(materialFamilyHash), macroComboHash(macroComboHash), vertexDataLayouts(vertexDataLayouts),
+          requiredVariables(std::move(requiredVariables)), requiredTextures(std::move(requiredTextures)) {}
     
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
     
@@ -74,9 +80,16 @@ public:
         return macroComboHash;
     }
     
-    /// Used to determine what shader varians are supported
-    inline const std::unordered_map<ShaderMacro, SupportedMacroValues>& getSupportedMacrosAndValues() const {
-        return supportedMacrosAndValues;
+    inline std::bitset<64> getSupportedVertexDataLayouts() const {
+        return vertexDataLayouts;
+    }
+    
+    inline const std::vector<MaterialInputVariable>& getRequiredVariables() const {
+        return requiredVariables;
+    }
+    
+    inline const std::vector<MaterialInputTexture>& getRequiredTextures() const {
+        return requiredTextures;
     }
 private:
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
@@ -88,8 +101,12 @@ private:
     FileHash materialFamilyHash;
     
     StringHash macroComboHash;
-    std::vector<VertexDataLayout> vertexDataLayouts;
-    std::unordered_map<ShaderMacro, SupportedMacroValues> supportedMacrosAndValues;
+    std::bitset<64> vertexDataLayouts;
+    
+    std::vector<MaterialInputVariable> requiredVariables;
+    std::vector<MaterialInputTexture> requiredTextures;
+    
+    static_assert(static_cast<std::uint64_t>(VertexDataLayout::COUNT) <= 64, "Only 64 VertexDataLayouts are supported");
 };
 
 }

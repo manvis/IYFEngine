@@ -92,7 +92,7 @@ void MeshImporterState::step() {
     }
 }
 
-void MeshImporterState::frame(float delta) {
+void MeshImporterState::frame(float) {
     //
 }
 

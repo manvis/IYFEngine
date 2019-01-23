@@ -90,10 +90,16 @@ std::uint16_t MaterialTemplateMetadata::getLatestSerializedDataVersion() const {
 static const char* MATERIAL_FAMILY_FIELD_NAME = "materialFamily";
 static const char* MATERIAL_FAMILY_HASH_FIELD_NAME = "materialFamilyHash";
 static const char* MACRO_COMBO_HASH_FIELD_NAME = "macroComboHash";
-static const char* SUPPORTED_MACROS_FIELD_NAME = "supportedMacros";
-static const char* SUPPORTED_VALUES_FIELD_NAME = "supportedValues";
-static const char* MACRO_ID_FIELD_NAME = "macroID";
-static const char* MACRO_DEFAULT_VALUE_FIELD_NAME = "macroDefault";
+static const char* SUPPORTED_VERTEX_DATA_LAYOUTS_FIELD_NAME = "supportedVertexLayouts";
+static const char* REQUIRED_TEXTURES_FIELD_NAME = "requiredTextures";
+static const char* REQUIRED_VARIABLES_FIELD_NAME = "requiredVariables";
+static const char* NAME_FIELD_NAME = "name";
+static const char* X_FIELD_NAME = "x";
+static const char* Y_FIELD_NAME = "y";
+static const char* Z_FIELD_NAME = "z";
+static const char* W_FIELD_NAME = "w";
+static const char* COMPONENT_COUNT_FIELD_NAME = "componentCount";
+static const char* DEFAULT_VALUE_FIELD_NAME = "defaultValue";
 
 void MaterialTemplateMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const {
     assert(version == 1);
@@ -101,17 +107,25 @@ void MaterialTemplateMetadata::serializeImpl(Serializer& fw, std::uint16_t versi
     fw.writeUInt32(static_cast<std::uint32_t>(family));
     fw.writeUInt64(materialFamilyHash);
     fw.writeUInt64(macroComboHash);
+    fw.writeUInt64(vertexDataLayouts.to_ullong());
     
-    fw.writeUInt64(supportedMacrosAndValues.size());
-    for (const auto& v : supportedMacrosAndValues) {
-        fw.writeUInt16(static_cast<std::uint16_t>(v.first));
+    fw.writeUInt16(requiredVariables.size());
+    for (MaterialInputVariable miv : requiredVariables) {
+        assert(miv.isValid());
+        fw.writeString(miv.getName(), StringLengthIndicator::UInt8);
+        fw.writeUInt8(miv.getComponentCount());
         
-        SerializeMacroValue(fw, v.second.defaultValue);
-        
-        fw.writeUInt16(v.second.supportedValues.size());
-        for (const auto& sv : v.second.supportedValues) {
-            SerializeMacroValue(fw, sv);
-        }
+        fw.writeFloat(miv.getDefaultValue().x);
+        fw.writeFloat(miv.getDefaultValue().y);
+        fw.writeFloat(miv.getDefaultValue().z);
+        fw.writeFloat(miv.getDefaultValue().w);
+    }
+    
+    fw.writeUInt16(requiredTextures.size());
+    for (MaterialInputTexture mit : requiredTextures) {
+        assert(mit.isValid());
+        fw.writeString(mit.getName(), StringLengthIndicator::UInt8);
+        fw.writeUInt64(mit.getDefaultTexture());
     }
 }
 
@@ -121,25 +135,37 @@ void MaterialTemplateMetadata::deserializeImpl(Serializer& fr, std::uint16_t ver
     family = static_cast<MaterialFamily>(fr.readUInt32());
     materialFamilyHash = FileHash(fr.readUInt64());
     macroComboHash = StringHash(fr.readUInt64());
+    vertexDataLayouts = std::bitset<64>(fr.readUInt64());
     
-    std::uint64_t supportedValueCount = fr.readUInt64();
-    supportedMacrosAndValues.clear();
-    supportedMacrosAndValues.reserve(supportedValueCount);
+    const std::size_t inputVariableCount = fr.readUInt16();
+    requiredVariables.clear();
+    requiredVariables.reserve(inputVariableCount);
     
-    for (std::uint64_t i = 0; i < supportedValueCount; ++i) {
-        const ShaderMacro macro = static_cast<ShaderMacro>(fr.readUInt16());
+    for (std::size_t i = 0; i < inputVariableCount; ++i) {
+        std::string name;
+        fr.readString(name, StringLengthIndicator::UInt8);
+        const std::uint8_t componentCount = fr.readUInt8();
         
-        auto insertionResult = supportedMacrosAndValues.emplace(macro, SupportedMacroValues());
-        assert(insertionResult.second);
+        glm::vec4 defaultValue;
+        defaultValue.x = fr.readFloat();
+        defaultValue.y = fr.readFloat();
+        defaultValue.z = fr.readFloat();
+        defaultValue.w = fr.readFloat();
         
-        SupportedMacroValues& values = insertionResult.first->second;
-        values.defaultValue = DeserializeMacroValue(fr);
+        requiredVariables.emplace_back(name, defaultValue, componentCount);
+    }
+    
+    
+    const std::size_t inputTextureCount = fr.readUInt16();
+    requiredTextures.clear();
+    requiredTextures.reserve(inputTextureCount);
+    
+    for (std::size_t i = 0; i < inputTextureCount; ++i) {
+        std::string name;
+        fr.readString(name, StringLengthIndicator::UInt8);
+        const StringHash defaultTexture(fr.readUInt64());
         
-        std::uint16_t valueCount = fr.readUInt16();
-        values.supportedValues.reserve(valueCount);
-        for (std::size_t v = 0; v < valueCount; ++v) {
-            values.supportedValues.emplace_back(DeserializeMacroValue(fr));
-        }
+        requiredTextures.emplace_back(name, defaultTexture);
     }
 }
 
@@ -155,26 +181,49 @@ void MaterialTemplateMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::ui
     pw.String(MACRO_COMBO_HASH_FIELD_NAME);
     pw.Uint64(macroComboHash);
     
-    pw.String(SUPPORTED_MACROS_FIELD_NAME);
-    pw.StartArray();
+    pw.String(SUPPORTED_VERTEX_DATA_LAYOUTS_FIELD_NAME);
+    pw.Uint64(vertexDataLayouts.to_ullong());
     
-    for (const auto& v : supportedMacrosAndValues) {
+    pw.String(REQUIRED_VARIABLES_FIELD_NAME);
+    pw.StartArray();
+    for (const auto& v : requiredVariables) {
         pw.StartObject();
         
-        pw.String(MACRO_ID_FIELD_NAME);
-        pw.Uint64(static_cast<std::uint64_t>(v.first));
+        pw.String(NAME_FIELD_NAME);
+        pw.String(v.getName().data(), v.getName().size(), true);
         
-        pw.String(MACRO_DEFAULT_VALUE_FIELD_NAME);
-        SerializeMacroValueJSON(pw, v.second.defaultValue);
+        pw.String(COMPONENT_COUNT_FIELD_NAME);
+        pw.Uint(v.getComponentCount());
         
-        pw.String(SUPPORTED_VALUES_FIELD_NAME);
-        pw.StartArray();
+        pw.String(DEFAULT_VALUE_FIELD_NAME);
+        pw.StartObject();
+        pw.String(X_FIELD_NAME);
+        pw.Double(v.getDefaultValue().x);
         
-        for (const auto& sv : v.second.supportedValues) {
-            SerializeMacroValueJSON(pw, sv);
-        }
+        pw.String(Y_FIELD_NAME);
+        pw.Double(v.getDefaultValue().y);
         
-        pw.EndArray();
+        pw.String(Z_FIELD_NAME);
+        pw.Double(v.getDefaultValue().z);
+        
+        pw.String(W_FIELD_NAME);
+        pw.Double(v.getDefaultValue().w);
+        pw.EndObject();
+        
+        pw.EndObject();
+    }
+    pw.EndArray();
+    
+    pw.String(REQUIRED_TEXTURES_FIELD_NAME);
+    pw.StartArray();
+    for (const auto& t : requiredTextures) {
+        pw.StartObject();
+        
+        pw.String(NAME_FIELD_NAME);
+        pw.String(t.getName().data(), t.getName().size(), true);
+        
+        pw.String(DEFAULT_VALUE_FIELD_NAME);
+        pw.Uint64(t.getDefaultTexture());
         
         pw.EndObject();
     }
@@ -187,28 +236,30 @@ void MaterialTemplateMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t
     family = static_cast<MaterialFamily>(jo[MATERIAL_FAMILY_FIELD_NAME].GetUint());
     materialFamilyHash = FileHash(jo[MATERIAL_FAMILY_HASH_FIELD_NAME].GetUint64());
     macroComboHash = StringHash(jo[MACRO_COMBO_HASH_FIELD_NAME].GetUint64());
+    vertexDataLayouts = std::bitset<64>(jo[SUPPORTED_VERTEX_DATA_LAYOUTS_FIELD_NAME].GetUint64());
     
-    supportedMacrosAndValues.clear();
+    const auto inputVariableArray = jo[REQUIRED_VARIABLES_FIELD_NAME].GetArray();
+    const std::size_t inputVariableCount = inputVariableArray.Size();
+    requiredVariables.clear();
+    requiredVariables.reserve(inputVariableCount);
     
-    rj::GenericArray macroArray = jo[SUPPORTED_MACROS_FIELD_NAME].GetArray();
-    supportedMacrosAndValues.reserve(macroArray.Size());
+    for (const auto& e : inputVariableArray) {
+        glm::vec4 defaultValue;
+        defaultValue.x = e[DEFAULT_VALUE_FIELD_NAME][X_FIELD_NAME].GetFloat();
+        defaultValue.y = e[DEFAULT_VALUE_FIELD_NAME][Y_FIELD_NAME].GetFloat();
+        defaultValue.z = e[DEFAULT_VALUE_FIELD_NAME][Z_FIELD_NAME].GetFloat();
+        defaultValue.w = e[DEFAULT_VALUE_FIELD_NAME][W_FIELD_NAME].GetFloat();
+        
+        requiredVariables.emplace_back(e[NAME_FIELD_NAME].GetString(), defaultValue, e[COMPONENT_COUNT_FIELD_NAME].GetUint());
+    }
     
-    for (const auto& v : macroArray) {
-        const ShaderMacro macro = static_cast<ShaderMacro>(v[MACRO_ID_FIELD_NAME].GetUint64());
-        
-        auto insertionResult = supportedMacrosAndValues.emplace(macro, SupportedMacroValues());
-        assert(insertionResult.second);
-        
-        SupportedMacroValues& values = insertionResult.first->second;
-        values.defaultValue = DeserializeMacroValueJSON(v[MACRO_DEFAULT_VALUE_FIELD_NAME]);
-        
-        rj::GenericArray valueArray = v[SUPPORTED_VALUES_FIELD_NAME].GetArray();
-        std::uint16_t valueCount = valueArray.Size();
-        
-        values.supportedValues.reserve(valueCount);
-        for (const auto& sv : valueArray) {
-            values.supportedValues.emplace_back(DeserializeMacroValueJSON(sv));
-        }
+    const auto inputTextureArray = jo[REQUIRED_TEXTURES_FIELD_NAME].GetArray();
+    const std::size_t inputTextureCount = inputTextureArray.Size();
+    requiredTextures.clear();
+    requiredTextures.reserve(inputTextureCount);
+    
+    for (const auto& e : inputTextureArray) {
+        requiredTextures.emplace_back(e[NAME_FIELD_NAME].GetString(), StringHash(e[DEFAULT_VALUE_FIELD_NAME].GetUint64()));
     }
 }
 

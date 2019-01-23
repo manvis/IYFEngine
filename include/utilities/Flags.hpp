@@ -36,19 +36,20 @@ namespace iyf {
     
 /// A wrapper class that is used to implement flags based on enum class flag constants
 /// \tparam T enum class to use
-template <typename T>
+/// \tparam U the storage type to use (e.g., uint64_t, uint32_t...)
+template <typename T, typename UT = std::underlying_type_t<T>>// TODO operator U(), default value (once all changes are done)
 class Flags {
 public:
-    using U = typename std::underlying_type<T>::type;
+    using U = UT;
     
-    static_assert(std::is_enum<T>::value, "Parameter used in Flags template is not an enum");
-    // TODO 32 bit flags match what Vulkan uses, but what about other APIs?
-    static_assert(std::is_same<U, std::uint32_t>::value, "Parameter used in Flags template must have a 32 bit unsigned integer underlying type");
+    static_assert(std::is_enum<T>::value, "Parameter T used in Flags template must be an enum");
+    static_assert(std::is_integral<U>::value, "U must be an integral type");
+    static_assert(sizeof(U) >= sizeof(std::underlying_type_t<T>), "std::underlying_type_t<T> doesn't fit in U");
 
     Flags() : flags(0) {}
     Flags(T flagBits) : flags(static_cast<U>(flagBits)) {}
-    Flags(Flags<T> const& right) : flags(right.flags) {}
-    Flags<T>& operator=(Flags<T> const& right) {
+    Flags(Flags<T, U> const& right) : flags(right.flags) {}
+    Flags<T, U>& operator=(Flags<T, U> const& right) {
         flags = right.flags;
         return *this;
     }
@@ -65,50 +66,50 @@ public:
         return !!flags;
     }
     
-    Flags<T> operator&(const Flags<T>& right) const {
-        Flags<T> result(*this);
+    Flags<T, U> operator&(const Flags<T, U>& right) const {
+        Flags<T, U> result(*this);
         result &= right;
         return result;
     }
 
-    Flags<T>& operator&=(const Flags<T>& right) {
+    Flags<T, U>& operator&=(const Flags<T, U>& right) {
         flags &= right.flags;
         return *this;
     }
 
-    Flags<T> operator^(const Flags<T>& right) const {
-        Flags<T> result(*this);
+    Flags<T, U> operator^(const Flags<T, U>& right) const {
+        Flags<T, U> result(*this);
         result ^= right;
         return result;
     }
 
-    Flags<T>& operator^=(const Flags<T>& right) {
+    Flags<T, U>& operator^=(const Flags<T, U>& right) {
         flags ^= right.flags;
         return *this;
     }
 
-    Flags<T> operator|(const Flags<T>& right) const {
-        Flags<T> result(*this);
+    Flags<T, U> operator|(const Flags<T, U>& right) const {
+        Flags<T, U> result(*this);
         result |= right;
         return result;
     }
 
-    Flags<T>& operator|=(const Flags<T>& right) {
+    Flags<T, U>& operator|=(const Flags<T, U>& right) {
         flags |= right.flags;
         return *this;
     }
 
-    Flags<T> operator~() const {
-        Flags<T> result(*this);
+    Flags<T, U> operator~() const {
+        Flags<T, U> result(*this);
         result.flags ^= static_cast<U>(0);
         return result;
     }
 
-    bool operator!=(const Flags<T>& right) const {
+    bool operator!=(const Flags<T, U>& right) const {
         return flags != right.flags;
     }
 
-    bool operator==(const Flags<T>& right) const {
+    bool operator==(const Flags<T, U>& right) const {
         return flags == right.flags;
     }
 private:

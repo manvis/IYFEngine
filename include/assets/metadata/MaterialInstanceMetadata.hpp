@@ -26,35 +26,33 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assets/metadata/FontMetadata.hpp"
-#include <stdexcept>
+#ifndef IYF_MATERIAL_INSTANCE_METADATA_HPP
+#define IYF_MATERIAL_INSTANCE_METADATA_HPP
+
+#include "assets/metadata/MetadataBase.hpp"
 
 namespace iyf {
-std::uint16_t FontMetadata::getLatestSerializedDataVersion() const {
-    return 1;
+class MaterialInstanceMetadata : public MetadataBase {
+public:
+    inline MaterialInstanceMetadata() : MetadataBase(AssetType::MaterialInstance) {}
+    
+    inline MaterialInstanceMetadata(FileHash fileHash,
+                                    const fs::path& sourceAsset,
+                                    FileHash sourceFileHash,
+                                    bool systemAsset,
+                                    const std::vector<std::string>& tags)
+        : MetadataBase(AssetType::MaterialInstance, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true) {}
+    
+    virtual std::uint16_t getLatestSerializedDataVersion() const final override;
+    
+    virtual void displayInImGui() const final override;
+private:
+    virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
+    virtual void deserializeImpl(Serializer& fr, std::uint16_t version) final override;
+    virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const final override;
+    virtual void deserializeJSONImpl(JSONObject& jo, std::uint16_t version) final override;
+};
 }
 
-void FontMetadata::serializeImpl(Serializer& /*fw*/, std::uint16_t version) const {
-    assert(version == 1);
-    //throw std::runtime_error("Method not yet implemented");
-}
+#endif // IYF_MATERIAL_INSTANCE_METADATA_HPP
 
-void FontMetadata::deserializeImpl(Serializer& /*fr*/, std::uint16_t version) {
-    assert(version == 1);
-    //throw std::runtime_error("Method not yet implemented");
-}
-
-void FontMetadata::serializeJSONImpl(PrettyStringWriter& /*pw*/, std::uint16_t version) const {
-    assert(version == 1);
-    //throw std::runtime_error("Method not yet implemented");
-}
-
-void FontMetadata::deserializeJSONImpl(JSONObject& /*jo*/, std::uint16_t version) {
-    assert(version == 1);
-    //throw std::runtime_error("Method not yet implemented");
-}
-
-void FontMetadata::displayInImGui() const {
-    throw std::runtime_error("Method not yet implemented");
-}
-}

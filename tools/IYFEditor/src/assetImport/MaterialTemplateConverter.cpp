@@ -47,9 +47,40 @@
 
 #include "rapidjson/error/en.h"
 
+#include "glm/gtx/string_cast.hpp"
+
+#include <bitset>
+
 //#define IYF_PRINT_MACRO_LIST_AND_COMBOS
 
 namespace iyf::editor {
+constexpr std::size_t VertexLayoutCount = 4;
+constexpr std::size_t ShaderStageCount = 2;
+
+constexpr std::array<VertexDataLayout, VertexLayoutCount> VertexLayouts = {
+    VertexDataLayout::MeshVertex,
+    VertexDataLayout::MeshVertexWithBones,
+    VertexDataLayout::MeshVertexColored,
+    VertexDataLayout::MeshVertexColoredWithBones
+};
+
+constexpr std::array<ShaderStageFlagBits, ShaderStageCount> ShaderStages = {
+    ShaderStageFlagBits::Vertex,
+    ShaderStageFlagBits::Fragment,
+};
+
+constexpr std::bitset<64> VertexDataLayoutsToBitset() {
+    std::uint64_t result = 0;
+    
+    for (VertexDataLayout vdl : VertexLayouts) {
+        result |= 1 << static_cast<std::size_t>(vdl);
+    }
+    
+    return std::bitset<64>(result);
+}
+
+constexpr std::bitset<64> SupportedVertexLayouts = VertexDataLayoutsToBitset();
+
 struct AvailableShaderCombos {
     StringHash versionHash;
     /// Sorted vector, used for consitent hash generation
@@ -162,6 +193,28 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     
     mlg->deserializeJSON(jo);
     
+    // Input variables
+    std::vector<const VariableNode*> variables = mlg->getVariableNodes();
+    std::sort(variables.begin(), variables.end(), [](const VariableNode* a, const VariableNode* b) {
+        return a->getName() < b->getName();
+    });
+    
+    std::vector<MaterialInputVariable> inputVariables;
+    for (const VariableNode* vn : variables) {
+        inputVariables.emplace_back(vn->getName(), vn->getDefaultValue(), vn->getComponentCount());
+    }
+    
+    // Input textures
+    std::vector<const TextureInputNode*> textures = mlg->getTextureNodes();
+    std::sort(textures.begin(), textures.end(), [](const TextureInputNode* a, const TextureInputNode* b) {
+        return a->getName() < b->getName();
+    });
+    
+    std::vector<MaterialInputTexture> inputTextures;
+    for (const TextureInputNode* tn : textures) {
+        inputTextures.emplace_back(tn->getName(), tn->getDefaultTexture());
+    }
+    
     //LOG_D("CODE_GEN:\n" << mlg->toCode(ShaderLanguage::GLSLVulkan).getCode());
     
     // Use the MaterialLogicGraph to build the ubershaders with tons of #ifdef cases
@@ -191,23 +244,6 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     ShaderCompilationSettings scs;
     scs.optimizationLevel = ShaderOptimizationLevel::Performance;
     
-    // TODO more complicated variant generation
-    
-    constexpr std::size_t VertexLayoutCount = 4;
-    constexpr std::size_t ShaderStageCount = 2;
-    
-    const std::array<VertexDataLayout, VertexLayoutCount> vertexLayouts = {
-        VertexDataLayout::MeshVertex,
-        VertexDataLayout::MeshVertexWithBones,
-        VertexDataLayout::MeshVertexColored,
-        VertexDataLayout::MeshVertexColoredWithBones
-    };
-    
-    const std::array<ShaderStageFlagBits, ShaderStageCount> shaderStages = {
-        ShaderStageFlagBits::Vertex,
-        ShaderStageFlagBits::Fragment,
-    };
-    
     std::size_t totalShaders = 0;
     std::size_t estimatedTotalShaders = availableShaderCombos->allAvailableCombos.size() * VertexLayoutCount * ShaderStageCount;
     
@@ -227,14 +263,14 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     for (const auto& combo : availableShaderCombos->allAvailableCombos) {
         scs.macros = combo.second;
         
-        for (std::size_t i = 0; i < vertexLayouts.size(); ++i) {
-            const VertexDataLayout vdl = vertexLayouts[i];
+        for (std::size_t i = 0; i < VertexLayouts.size(); ++i) {
+            const VertexDataLayout vdl = VertexLayouts[i];
             
             scs.vertexDataLayout = vdl;
             
             const VertexDataLayoutDefinition& layoutDefinition = con::GetVertexDataLayoutDefinition(vdl);
             
-            for (ShaderStageFlagBits stage : shaderStages) {
+            for (ShaderStageFlagBits stage : ShaderStages) {
                 const std::string* code = nullptr;
                 switch (stage) {
                     case ShaderStageFlagBits::Vertex:
@@ -270,14 +306,12 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     MaterialFamily materialFamily = mlg->getMaterialFamily();
     const MaterialFamilyDefinition& materialFamilyDefinition = con::GetMaterialFamilyDefinition(materialFamily);
     MaterialTemplateMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags(), materialFamily,
-                                      materialFamilyDefinition.computeHash(), availableShaderCombos->versionHash, availableShaderCombos->macrosWithAllowedValuesMap);
+                                      materialFamilyDefinition.computeHash(), availableShaderCombos->versionHash, SupportedVertexLayouts, inputVariables, inputTextures);
     ImportedAssetData iad(state.getType(), metadata, outputPath);
     state.getImportedAssets().push_back(std::move(iad));
     
     File fw(outputPath, File::OpenMode::Write);
     fw.writeBytes(ms.data(), ms.size());
-    
-    LOG_D("!!!!!!!!!!!FINISH THE MAP");
     return true;
 }
 

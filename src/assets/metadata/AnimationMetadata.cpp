@@ -49,19 +49,32 @@ void AnimationMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
     
     duration = fr.readFloat();
     ticksPerSecond = fr.readFloat();
-    animationFormatVersion = fr.readFloat();
+    animationFormatVersion = fr.readUInt16();
 }
+
+constexpr const char* DURATION_FIELD_NAME = "duration";
+constexpr const char* TICKS_PER_SECOND_FIELD_NAME = "ticksPerSecond";
+constexpr const char* FORMAT_VERSION_FIELD_NAME = "formatVersion";
 
 void AnimationMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
     assert(version == 1);
     
-    throw std::runtime_error("Method not yet implemented");
+    pw.String(DURATION_FIELD_NAME);
+    pw.Double(duration);
+    
+    pw.String(TICKS_PER_SECOND_FIELD_NAME);
+    pw.Double(ticksPerSecond);
+    
+    pw.String(FORMAT_VERSION_FIELD_NAME);
+    pw.Double(animationFormatVersion);
 }
 
 void AnimationMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
     assert(version == 1);
     
-    throw std::runtime_error("Method not yet implemented");
+    duration = jo[DURATION_FIELD_NAME].GetFloat();
+    ticksPerSecond = jo[TICKS_PER_SECOND_FIELD_NAME].GetFloat();
+    animationFormatVersion = jo[FORMAT_VERSION_FIELD_NAME].GetUint();
 }
 
 void AnimationMetadata::displayInImGui() const {

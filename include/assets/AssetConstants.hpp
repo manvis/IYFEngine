@@ -49,7 +49,7 @@ enum class AssetsToEnableResult {
 ///   - update the names of asset specific directories;
 ///   - update the extensions
 ///   - update the importers.
-///   - update the Metadata variant
+///   - update the Metadata.cpp (include the changes in the switch)
 ///
 /// \warning Updating these values may break existing projects.
 enum class AssetType : std::uint8_t {
@@ -64,6 +64,7 @@ enum class AssetType : std::uint8_t {
     Strings = 8,
     Custom = 9,
     MaterialTemplate = 10,
+    MaterialInstance = 11,
     COUNT,
     /// Any is equal to COUNT
     ANY = COUNT

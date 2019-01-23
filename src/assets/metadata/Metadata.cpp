@@ -38,6 +38,7 @@
 #include "assets/metadata/StringMetadata.hpp"
 #include "assets/metadata/CustomMetadata.hpp"
 #include "assets/metadata/MaterialTemplateMetadata.hpp"
+#include "assets/metadata/MaterialInstanceMetadata.hpp"
 
 #include "core/Logger.hpp"
 
@@ -59,6 +60,7 @@ namespace iyf {
         COMMAND(Strings, StringMetadata)\
         COMMAND(Custom, CustomMetadata)\
         COMMAND(MaterialTemplate, MaterialTemplateMetadata)\
+        COMMAND(MaterialInstance, MaterialInstanceMetadata)\
         case AssetType::COUNT:\
             break;\
     }
@@ -142,8 +144,6 @@ Metadata& Metadata::operator=(Metadata&& other) {
 void Metadata::destroyContents() {
     if (hasValidValue()) {
         MetadataBase* base = std::launder(reinterpret_cast<MetadataBase*>(&data[0]));
-        
-        LOG_D(reinterpret_cast<std::uintptr_t>(&data[0]) << " " << reinterpret_cast<std::uintptr_t>(&base) << " " << static_cast<std::size_t>(type));
         
         assert(&data[0] != nullptr);
         assert(base != nullptr);

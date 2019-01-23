@@ -52,6 +52,8 @@ const char* GetPayloadNameForAssetType(AssetType type) {
             return "pldStrAss";
         case AssetType::MaterialTemplate:
             return "pldMatTem";
+        case AssetType::MaterialInstance:
+            return "pldMatIns";
         case AssetType::Custom:
             return "pldCustAss";
         case AssetType::ANY:

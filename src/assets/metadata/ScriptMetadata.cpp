@@ -34,22 +34,22 @@ std::uint16_t ScriptMetadata::getLatestSerializedDataVersion() const {
     return 1;
 }
 
-void ScriptMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const {
+void ScriptMetadata::serializeImpl(Serializer& /*fw*/, std::uint16_t version) const {
     assert(version == 1);
     throw std::runtime_error("Method not yet implemented");
 }
 
-void ScriptMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
+void ScriptMetadata::deserializeImpl(Serializer& /*fr*/, std::uint16_t version) {
     assert(version == 1);
     throw std::runtime_error("Method not yet implemented");
 }
 
-void ScriptMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
+void ScriptMetadata::serializeJSONImpl(PrettyStringWriter& /*pw*/, std::uint16_t version) const {
     assert(version == 1);
     throw std::runtime_error("Method not yet implemented");
 }
 
-void ScriptMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
+void ScriptMetadata::deserializeJSONImpl(JSONObject& /*jo*/, std::uint16_t version) {
     assert(version == 1);
     throw std::runtime_error("Method not yet implemented");
 }

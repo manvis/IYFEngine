@@ -27,6 +27,7 @@ pipeline,,Pipeline
 string,,String
 custom,,Custom
 materialTemplate,,Material Template
+materialInstance,,Material Instance
 any,,Any
 cannot_delete,logic_graph_editor,You cannot delete this node.
 material_editor,material_nodes,Material Template Editor - {0}###MatEdWindow

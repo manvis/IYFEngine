@@ -64,7 +64,8 @@ const fs::path& AssetTypeToPath(AssetType type) {
     static const fs::path ShaderPath = BaseAssetPath() / u8"shaders";
     static const fs::path StringPath = BaseAssetPath() / u8"strings";
     static const fs::path CustomPath = BaseAssetPath() / u8"custom";
-    static const fs::path MaterialTemplatePath = BaseAssetPath() / u8"materials";
+    static const fs::path MaterialTemplatePath = BaseAssetPath() / u8"material_templates";
+    static const fs::path MaterialInstancePath = BaseAssetPath() / u8"materials";
     
 //     static const fs::path WorldPath = BaseAssetPath() / u8"worlds";
 
@@ -80,23 +81,25 @@ const fs::path& AssetTypeToPath(AssetType type) {
         StringPath,           // 8
         CustomPath,           // 9
         MaterialTemplatePath, // 10
+        MaterialInstancePath,  // 11
     };
 
     return AssetTypeToPathMap[static_cast<std::size_t>(type)];
 }
 
 static const std::array<std::string, static_cast<std::size_t>(AssetType::COUNT) + 1> AssetTypeToTranslationStringMap = {
-    "animation",       // 0
-    "mesh",            // 1
-    "texture",         // 2
-    "font",            // 3
-    "audio",           // 4
-    "video",           // 5
-    "script",          // 6
-    "shader",          // 7
-    "string",          // 8
-    "custom",          // 9
+    "animation",        // 0
+    "mesh",             // 1
+    "texture",          // 2
+    "font",             // 3
+    "audio",            // 4
+    "video",            // 5
+    "script",           // 6
+    "shader",           // 7
+    "string",           // 8
+    "custom",           // 9
     "materialTemplate", // 10
+    "materialInstance", // 11
     "any",       // COUNT/ANY
 };
 

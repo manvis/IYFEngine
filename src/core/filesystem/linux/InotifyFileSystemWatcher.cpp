@@ -68,7 +68,7 @@ InotifyFileSystemWatcher::InotifyFileSystemWatcher(FileSystemWatcherCreateInfo c
     }
 }
 
-bool InotifyFileSystemWatcher::addDirectoryImplNoLock(const fs::path& path, FileSystemEventFlags flags) {
+bool InotifyFileSystemWatcher::addDirectoryImplNoLock(const fs::path& path, FileSystemEventFlags /*flags*/) {
     auto existingLookupResult = pathToDescriptor.find(path.string());
     if (existingLookupResult != pathToDescriptor.end()) {
         LOG_W("INOTIFY tried to re-add a tracked path");

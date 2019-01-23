@@ -36,6 +36,11 @@
 #include <string>
 
 namespace iyf {
+// WARNING: most flag enums, especially those that are passed to graphics APIs, must use 32 bit underlying types!!!
+
+template <typename T>
+using GraphicsAPIFlags = Flags<T, std::uint32_t>;
+
 // Forward declare an enum
 enum class TextureCompressionFormat : std::uint16_t;
 
@@ -62,13 +67,13 @@ enum class AccessFlagBits : std::uint32_t {
     MemoryRead                  = 0x08000,
     MemoryWrite                 = 0x10000
 };
-using AccessFlags = Flags<AccessFlagBits>;
+using AccessFlags = GraphicsAPIFlags<AccessFlagBits>;
 IYF_DEFINE_ENUM_FLAG_OPS(AccessFlagBits)
 
 enum class AttachmentDescriptionFlagBits : std::uint32_t {
     MayAlias = 0x1
 };
-using AttachmentDescriptionFlags = Flags<AttachmentDescriptionFlagBits>;
+using AttachmentDescriptionFlags = GraphicsAPIFlags<AttachmentDescriptionFlagBits>;
 IYF_DEFINE_ENUM_FLAG_OPS(AttachmentDescriptionFlagBits)
 
 enum class AttachmentLoadOp {
@@ -153,7 +158,7 @@ enum class BufferUsageFlagBits : std::uint32_t {
     IndirectBuffer      = 0x100
 };
 
-using BufferUsageFlags = Flags<BufferUsageFlagBits>;
+using BufferUsageFlags = GraphicsAPIFlags<BufferUsageFlagBits>;
 IYF_DEFINE_ENUM_FLAG_OPS(BufferUsageFlagBits)
 
 enum class ImageUsageFlagBits : std::uint32_t {
@@ -167,7 +172,7 @@ enum class ImageUsageFlagBits : std::uint32_t {
     InputAttachment        = 0x080,
 };
 
-using ImageUsageFlags = Flags<ImageUsageFlagBits>;
+using ImageUsageFlags = GraphicsAPIFlags<ImageUsageFlagBits>;
 IYF_DEFINE_ENUM_FLAG_OPS(ImageUsageFlagBits)
 
 enum class CommandBufferUsageFlagBits : std::uint32_t  {
@@ -175,7 +180,7 @@ enum class CommandBufferUsageFlagBits : std::uint32_t  {
     RenderPassContinue = 0x02,
     SimultaneousUse    = 0x04
 };
-using CommandBufferUsageFlags = Flags<CommandBufferUsageFlagBits>;
+using CommandBufferUsageFlags = GraphicsAPIFlags<CommandBufferUsageFlagBits>;
 IYF_DEFINE_ENUM_FLAG_OPS(CommandBufferUsageFlagBits)
 
 enum class CompareOp {                                // X11 defines 'Always', Vulkan pulls X11, things go boom, TODO #undef?
@@ -207,7 +212,7 @@ enum class ColorWriteMaskFlagBits : std::uint32_t {
     Blue  = 0x04,
     Alpha = 0x08
 };
-using ColorWriteMaskFlags = Flags<ColorWriteMaskFlagBits>;
+using ColorWriteMaskFlags = GraphicsAPIFlags<ColorWriteMaskFlagBits>;
 IYF_DEFINE_ENUM_FLAG_OPS(ColorWriteMaskFlagBits)
 
 enum class CullModeFlagBits : std::uint32_t {
@@ -217,13 +222,13 @@ enum class CullModeFlagBits : std::uint32_t {
     None         = 0x00,
     FrontAndBack = 0x03
 };
-using CullModeFlags = Flags<CullModeFlagBits>;
+using CullModeFlags = GraphicsAPIFlags<CullModeFlagBits>;
 IYF_DEFINE_ENUM_FLAG_OPS(CullModeFlagBits)
 
 enum class DependencyFlagBits : std::uint32_t {
     ByRegion = 0x1,
 };
-using DependencyFlags = Flags<DependencyFlagBits>;
+using DependencyFlags = GraphicsAPIFlags<DependencyFlagBits>;
 IYF_DEFINE_ENUM_FLAG_OPS(DependencyFlagBits)
 
 enum class DescriptorType {
@@ -471,7 +476,7 @@ enum class ImageAspectFlagBits : std::uint32_t {
     Stencil  = 0x04,
     Metadata = 0x08
 };
-using ImageAspectFlags = Flags<ImageAspectFlagBits>;
+using ImageAspectFlags = GraphicsAPIFlags<ImageAspectFlagBits>;
 IYF_DEFINE_ENUM_FLAG_OPS(ImageAspectFlagBits)
 
 enum class ImageLayout {
@@ -568,7 +573,7 @@ enum class PipelineStageFlagBits : std::uint32_t {
     AllGraphics           = 0x08000,
     AllCommands           = 0x10000
 };
-using PipelineStageFlags = Flags<PipelineStageFlagBits>;
+using PipelineStageFlags = GraphicsAPIFlags<PipelineStageFlagBits>;
 IYF_DEFINE_ENUM_FLAG_OPS(PipelineStageFlagBits)
 
 enum class PolygonMode {
@@ -609,7 +614,7 @@ enum class SampleCountFlagBits : std::uint32_t {
     X64 = 0x40,
     COUNT = 7
 };
-using SampleCountFlags = Flags<SampleCountFlagBits>;
+using SampleCountFlags = GraphicsAPIFlags<SampleCountFlagBits>;
 IYF_DEFINE_ENUM_FLAG_OPS(SampleCountFlagBits)
 
 enum class SamplerAddressMode {
@@ -640,7 +645,7 @@ enum class ShaderStageFlagBits : std::uint32_t {
     Compute        = 0x20,
     COUNT          = 6
 };
-using ShaderStageFlags = Flags<ShaderStageFlagBits>;
+using ShaderStageFlags = GraphicsAPIFlags<ShaderStageFlagBits>;
 IYF_DEFINE_ENUM_FLAG_OPS(ShaderStageFlagBits)
 
 namespace con {

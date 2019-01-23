@@ -1444,7 +1444,7 @@ bool VulkanAPI::readHostVisibleBuffer(const Buffer& buffer, const std::vector<Bu
     return true;
 }
 
-CommandPool* VulkanAPI::createCommandPool(QueueType type, std::uint32_t queueId) {
+CommandPool* VulkanAPI::createCommandPool(QueueType /*type*/, std::uint32_t /*queueId*/) {
     VkCommandPool pool;
     VkResult result;
     
