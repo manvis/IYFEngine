@@ -26,8 +26,9 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assetImport/MaterialTemplateConverter.hpp"
+#include "assetImport/converters/MaterialTemplateConverter.hpp"
 #include "assetImport/ConverterManager.hpp"
+#include "assetImport/converterStates/MaterialTemplateConverterState.hpp"
 #include "assets/metadata/MaterialTemplateMetadata.hpp"
 
 #include "graphics/Renderer.hpp"

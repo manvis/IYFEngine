@@ -26,43 +26,43 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assets/metadata/MaterialInstanceMetadata.hpp"
-#include <stdexcept>
+#ifndef TEXTURECONVERTER_HPP
+#define TEXTURECONVERTER_HPP
+
+#include "assetImport/Converter.hpp"
 
 namespace iyf {
-std::uint16_t MaterialInstanceMetadata::getLatestSerializedDataVersion() const {
-    return 1;
-}
+namespace editor {
+class TextureConverterState;
 
-void MaterialInstanceMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const {
-    assert(version == 1);
+class TextureConverter : public Converter {
+public:
+    struct MipmapLevelData {
+        MipmapLevelData() : width(0), height(0), data(nullptr) {}
+        MipmapLevelData(std::size_t width, std::size_t height, std::unique_ptr<float[]> data) : width(width), height(height), data(std::move(data)) {}
+        
+        std::size_t width;
+        std::size_t height;
+        std::unique_ptr<float[]> data;
+    };
     
-    fw.writeUInt64(materialTemplateDefinition);
-}
-
-void MaterialInstanceMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
-    assert(version == 1);
+    TextureConverter(const ConverterManager* manager);
+    ~TextureConverter();
     
-    materialTemplateDefinition = StringHash(fr.readUInt64());
-}
-
-constexpr const char* MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME = "materialTemplateDefinition";
-
-void MaterialInstanceMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
-    assert(version == 1);
+    virtual std::unique_ptr<ConverterState> initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const final override;
     
-    pw.String(MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME);
-    pw.Uint64(materialTemplateDefinition);
+    /// \brief Reads a texture file and converts it to a format optimized for this engine.
+    virtual bool convert(ConverterState& state) const final override;
+protected:
+
+    bool importCompressed(const fs::path& inPath, std::vector<ImportedAssetData>& importedAssets) const;
+    TextureCompressionFormat compressonatorDetermineFormat(const TextureConverterState& textureState) const;
+    bool compressonatorCompress(Serializer& serializer, std::vector<MipmapLevelData>& mipMapLevelData, const TextureConverterState& textureState,
+                                std::size_t face, std::size_t level) const;
+    bool writeMipmapLevel(Serializer& serializer, std::uint8_t* bytes, std::size_t count) const;
+};
+}
 }
 
-void MaterialInstanceMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
-    assert(version == 1);
-    
-    materialTemplateDefinition = StringHash(jo[MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME].GetUint64());
-}
-
-void MaterialInstanceMetadata::displayInImGui() const {
-    throw std::runtime_error("Method not yet implemented");
-}
-}
+#endif /* TEXTURECONVERTER_HPP */
 

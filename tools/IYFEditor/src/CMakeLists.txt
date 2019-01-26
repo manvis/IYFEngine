@@ -21,19 +21,28 @@ add_library(IYFTools STATIC
     EditorUI.cpp
     states/EditorState.cpp
     states/EditorWelcomeState.cpp
+    assetImport/converterStates/FontConverterState.cpp
+    assetImport/converterStates/LocalizationStringConverterState.cpp
+    assetImport/converterStates/MaterialInstanceConverterState.cpp
+    assetImport/converterStates/MaterialTemplateConverterState.cpp
+    assetImport/converterStates/MeshConverterState.cpp
+    assetImport/converterStates/ShaderConverterState.cpp
+    assetImport/converterStates/TextureConverterState.cpp
     assetImport/ConverterState.cpp
     assetImport/Converter.cpp
-    assetImport/LocalizationStringConverter.cpp
-    assetImport/MaterialTemplateConverter.cpp
-    assetImport/MeshConverter.cpp
-    assetImport/ShaderConverter.cpp
-    assetImport/TextureConverter.cpp
-    assetImport/FontConverter.cpp
+    assetImport/converters/LocalizationStringConverter.cpp
+    assetImport/converters/MaterialTemplateConverter.cpp
+    assetImport/converters/MaterialInstanceConverter.cpp
+    assetImport/converters/MeshConverter.cpp
+    assetImport/converters/ShaderConverter.cpp
+    assetImport/converters/TextureConverter.cpp
+    assetImport/converters/FontConverter.cpp
     tools/AssetCreatorWindow.cpp
     tools/AssetUpdateManager.cpp
     tools/Compressonator_Test_Helpers.cpp
     tools/MaterialEditor.cpp
     tools/MaterialFamilyEditor.cpp
+    tools/MaterialInstanceEditor.cpp
     ../../../testing/TestState.cpp
     ../../../dependencies/tinyfiledialogs/tinyfiledialogs.c)
 

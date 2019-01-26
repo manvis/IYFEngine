@@ -263,6 +263,20 @@ void MaterialTemplateMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t
     }
 }
 
+std::unordered_map<StringHash, std::string> MaterialTemplateMetadata::getNameMap() const {
+    std::unordered_map<StringHash, std::string> nm;
+    
+    for (const auto& e : requiredTextures) {
+        nm.emplace(HS(e.getName()), e.getName());
+    }
+    
+    for (const auto& e : requiredVariables) {
+        nm.emplace(HS(e.getName()), e.getName());
+    }
+    
+    return nm;
+}
+
 void MaterialTemplateMetadata::displayInImGui() const {
     throw std::runtime_error("Method not yet implemented");
 }

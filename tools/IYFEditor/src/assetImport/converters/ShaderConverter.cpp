@@ -26,8 +26,9 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assetImport/ShaderConverter.hpp"
+#include "assetImport/converters/ShaderConverter.hpp"
 #include "assetImport/ConverterManager.hpp"
+#include "assetImport/converterStates/ShaderConverterState.hpp"
 #include "assets/metadata/ShaderMetadata.hpp"
 
 #include "core/filesystem/File.hpp"

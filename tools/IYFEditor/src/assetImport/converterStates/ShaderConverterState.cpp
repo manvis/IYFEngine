@@ -1,3 +1,4 @@
+
 // The IYFEngine
 //
 // Copyright (C) 2015-2018, Manvydas Šliamka
@@ -26,42 +27,26 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef TEXTURECONVERTER_HPP
-#define TEXTURECONVERTER_HPP
+#include "assetImport/converterStates/ShaderConverterState.hpp"
 
-#include "Converter.hpp"
+namespace iyf::editor {
+static const char* STAGAE_FIELD_NAME = "stage";
 
-namespace iyf {
-
-namespace editor {
-class TextureConverter : public Converter {
-public:
-    struct MipmapLevelData {
-        MipmapLevelData() : width(0), height(0), data(nullptr) {}
-        MipmapLevelData(std::size_t width, std::size_t height, std::unique_ptr<float[]> data) : width(width), height(height), data(std::move(data)) {}
-        
-        std::size_t width;
-        std::size_t height;
-        std::unique_ptr<float[]> data;
-    };
-    
-    TextureConverter(const ConverterManager* manager);
-    ~TextureConverter();
-    
-    virtual std::unique_ptr<ConverterState> initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const final override;
-    
-    /// \brief Reads a texture file and converts it to a format optimized for this engine.
-    virtual bool convert(ConverterState& state) const final override;
-protected:
-
-    bool importCompressed(const fs::path& inPath, std::vector<ImportedAssetData>& importedAssets) const;
-    TextureCompressionFormat compressonatorDetermineFormat(const TextureConverterState& textureState) const;
-    bool compressonatorCompress(Serializer& serializer, std::vector<MipmapLevelData>& mipMapLevelData, const TextureConverterState& textureState,
-                                std::size_t face, std::size_t level) const;
-    bool writeMipmapLevel(Serializer& serializer, std::uint8_t* bytes, std::size_t count) const;
-};
-}
+std::uint64_t ShaderConverterState::getLatestSerializedDataVersion() const {
+    return 1;
 }
 
-#endif /* TEXTURECONVERTER_HPP */
+void ShaderConverterState::serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const {
+    assert(version == 1);
+    
+    pw.String(STAGAE_FIELD_NAME);
+    pw.Uint(static_cast<unsigned int>(stage));
+}
+
+void ShaderConverterState::deserializeJSONImpl(JSONObject& jo, std::uint64_t version) {
+    assert(version == 1);
+    
+    stage = static_cast<ShaderStageFlagBits>(jo[STAGAE_FIELD_NAME].GetUint());
+}
+}
 

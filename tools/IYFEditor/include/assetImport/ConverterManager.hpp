@@ -26,8 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef CONVERTERMANAGER_HPP
-#define CONVERTERMANAGER_HPP
+#ifndef IYF_CONVERTER_MANAGER_HPP
+#define IYF_CONVERTER_MANAGER_HPP
 
 #include "Converter.hpp"
 #include <unordered_map>
@@ -35,6 +35,7 @@
 
 namespace iyf {
 namespace editor {
+
 class MeshConverter;
 class TextureConverter;
 
@@ -110,8 +111,9 @@ protected:
     const FileSystem* fileSystem;
     fs::path assetDestination;
 };
+
 }
 }
 
-#endif /* CONVERTERMANAGER_HPP */
+#endif // IYF_CONVERTER_MANAGER_HPP
 

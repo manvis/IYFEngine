@@ -38,6 +38,7 @@
 #include "utilities/Compression.hpp"
 
 #include "assetImport/ConverterManager.hpp"
+#include "assetImport/converterStates/LocalizationStringConverterState.hpp"
 
 namespace iyf {
 const std::string WrongDirError = "Failed to find required directories. Are you sure you're running the SystemAssetPacker from the build folder?";

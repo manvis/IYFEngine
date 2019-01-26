@@ -60,7 +60,8 @@ public:
                         std::vector<MaterialInputTexture> requiredTextures)
         : MetadataBase(AssetType::MaterialTemplate, fileHash, sourceAsset, sourceFileHash, systemAsset, tags, true), family(family),
           materialFamilyHash(materialFamilyHash), macroComboHash(macroComboHash), vertexDataLayouts(vertexDataLayouts),
-          requiredVariables(std::move(requiredVariables)), requiredTextures(std::move(requiredTextures)) {}
+          requiredVariables(std::move(requiredVariables)), requiredTextures(std::move(requiredTextures)) {
+        }
     
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
     
@@ -91,11 +92,15 @@ public:
     inline const std::vector<MaterialInputTexture>& getRequiredTextures() const {
         return requiredTextures;
     }
+    
+    std::unordered_map<StringHash, std::string> getNameMap() const;
 private:
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
     virtual void deserializeImpl(Serializer& fr, std::uint16_t version) final override;
     virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const final override;
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint16_t version) final override;
+    
+    void buildNameMap();
     
     MaterialFamily family;
     FileHash materialFamilyHash;

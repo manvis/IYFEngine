@@ -37,7 +37,7 @@
 
 //#include "core/Engine.hpp"
 #include "MeshImporterState.h"
-#include "assetImport/MeshConverter.hpp"
+#include "assetImport/converters/MeshConverter.hpp"
 #include "utilities/hashing/crc64.hpp"
 
 #include "utilities/hashing/Hashing.hpp"

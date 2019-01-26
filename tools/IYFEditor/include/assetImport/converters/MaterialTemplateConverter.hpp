@@ -29,7 +29,8 @@
 #ifndef IYF_MATERIAL_TYPE_CONVERTER_HPP
 #define IYF_MATERIAL_TYPE_CONVERTER_HPP
 
-#include "Converter.hpp"
+#include "assetImport/Converter.hpp"
+#include "graphics/GraphicsAPIConstants.hpp"
 
 #include <optional>
 

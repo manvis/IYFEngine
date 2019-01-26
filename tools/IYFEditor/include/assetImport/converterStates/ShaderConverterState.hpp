@@ -26,43 +26,36 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assets/metadata/MaterialInstanceMetadata.hpp"
-#include <stdexcept>
+#ifndef IYF_SHADER_CONVERTER_STATE_HPP
+#define IYF_SHADER_CONVERTER_STATE_HPP
 
-namespace iyf {
-std::uint16_t MaterialInstanceMetadata::getLatestSerializedDataVersion() const {
-    return 1;
-}
+#include "assetImport/ConverterState.hpp"
+#include "graphics/GraphicsAPIConstants.hpp"
 
-void MaterialInstanceMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const {
-    assert(version == 1);
+namespace iyf::editor {
+class ShaderConverterState : public ConverterState {
+public:
+    /// Manually adjustable value. Should typically match the determinedStage. 
+    ShaderStageFlagBits stage;
     
-    fw.writeUInt64(materialTemplateDefinition);
-}
-
-void MaterialInstanceMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
-    assert(version == 1);
+    virtual std::uint64_t getLatestSerializedDataVersion() const final override;
     
-    materialTemplateDefinition = StringHash(fr.readUInt64());
-}
-
-constexpr const char* MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME = "materialTemplateDefinition";
-
-void MaterialInstanceMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
-    assert(version == 1);
+    virtual AssetType getType() const final override {
+        return AssetType::Shader;
+    }
+private:
+    friend class ShaderConverter;
     
-    pw.String(MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME);
-    pw.Uint64(materialTemplateDefinition);
-}
-
-void MaterialInstanceMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
-    assert(version == 1);
+    /// As determined by the importer. May be overriden by setting the public stage variable
+    ShaderStageFlagBits determinedStage;
     
-    materialTemplateDefinition = StringHash(jo[MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME].GetUint64());
+    virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
+    virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
+    
+    ShaderConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash) :
+        ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash) {}
+};
 }
 
-void MaterialInstanceMetadata::displayInImGui() const {
-    throw std::runtime_error("Method not yet implemented");
-}
-}
+#endif // IYF_SHADER_CONVERTER_STATE_HPP
 

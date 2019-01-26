@@ -26,7 +26,9 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assetImport/LocalizationStringConverter.hpp"
+#include "assetImport/converters/LocalizationStringConverter.hpp"
+#include "assetImport/converterStates/LocalizationStringConverterState.hpp"
+
 #include "assetImport/ConverterManager.hpp"
 #include "assets/metadata/StringMetadata.hpp"
 #include "core/filesystem/File.hpp"

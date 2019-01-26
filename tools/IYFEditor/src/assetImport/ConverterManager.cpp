@@ -29,12 +29,13 @@
 #include "assetImport/ConverterManager.hpp"
 #include "core/Logger.hpp"
 
-#include "assetImport/MaterialTemplateConverter.hpp"
-#include "assetImport/MeshConverter.hpp"
-#include "assetImport/TextureConverter.hpp"
-#include "assetImport/FontConverter.hpp"
-#include "assetImport/ShaderConverter.hpp"
-#include "assetImport/LocalizationStringConverter.hpp"
+#include "assetImport/converters/MaterialInstanceConverter.hpp"
+#include "assetImport/converters/MaterialTemplateConverter.hpp"
+#include "assetImport/converters/MeshConverter.hpp"
+#include "assetImport/converters/TextureConverter.hpp"
+#include "assetImport/converters/FontConverter.hpp"
+#include "assetImport/converters/ShaderConverter.hpp"
+#include "assetImport/converters/LocalizationStringConverter.hpp"
 
 #include <algorithm>
 #include <variant>
@@ -57,6 +58,7 @@ ConverterManager::ConverterManager(const FileSystem* fileSystem, fs::path assetD
     typeToConverter[AssetType::Shader] = std::make_unique<ShaderConverter>(this);
     typeToConverter[AssetType::Strings] = std::make_unique<LocalizationStringConverter>(this);
     typeToConverter[AssetType::MaterialTemplate] = std::make_unique<MaterialTemplateConverter>(this);
+    typeToConverter[AssetType::MaterialInstance] = std::make_unique<MaterialInstanceConverter>(this);
 }
 
 ConverterManager::~ConverterManager() {}

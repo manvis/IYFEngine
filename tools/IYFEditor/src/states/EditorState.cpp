@@ -47,6 +47,7 @@
 #include "assets/loaders/MeshLoader.hpp"
 #include "localization/TextLocalization.hpp"
 #include "tools/MaterialEditor.hpp"
+#include "tools/MaterialInstanceEditor.hpp"
 #include "tools/AssetCreatorWindow.hpp"
 #include "tools/AssetUpdateManager.hpp"
 
@@ -78,8 +79,8 @@ namespace iyf::editor {
 
 EditorState::EditorState(iyf::Engine* engine) : GameState(engine),
         newLevelDialogRequested(false), levelName("test_level_name"), levelDescription("test_level_desc"), isPickPlaceMode(false), 
-        pickOrPlaceModeId(0), worldType(0), entityName("a"), cameraMode(CameraMode::Stationary), materialFamilyEditorOpen(true), materialEditorOpen(false),
-        currentlyPickedAssetType(0), maxClipboardElements(5), logWindow(engine) {
+        pickOrPlaceModeId(0), worldType(0), entityName("a"), cameraMode(CameraMode::Stationary), materialFamilyEditorOpen(true), materialTemplateEditorOpen(false),
+        materialInstanceEditorOpen(false), currentlyPickedAssetType(0), maxClipboardElements(5), logWindow(engine) {
     
     pickPlaceModeDrawFunction = drawNothing;
     debugDataUnit = DebugDataUnit::Mebibytes;
@@ -107,7 +108,7 @@ void EditorState::initialize() {
     world->addCamera(false);
     
     materialFamilyEditor = std::make_unique<MaterialFamilyEditor>(engine, engine->getRenderer(), this);
-    materialEditor = std::make_unique<MaterialEditor>();
+    materialTemplateEditor = std::make_unique<MaterialEditor>();
     
     assetBrowserPathChanged = true;
     assetDirUpdated = false;
@@ -176,7 +177,7 @@ void EditorState::initialize() {
 //     }
     
     for (std::size_t i = 0; i < static_cast<std::size_t>(MaterialRenderMode::COUNT); ++i) {
-        renderModeNames.push_back(LOC_SYS(MaterialRenderModeNames[i]));
+        renderModeNames.push_back(LOC_SYS(con::GetMaterialRenderModeLocalizationHandle(static_cast<MaterialRenderMode>(i))));
     }
     
     // Include the last one
@@ -485,8 +486,12 @@ void EditorState::frame(float delta) {
         //materialFamilyEditor->show(&materialFamilyEditorOpen);
     }
     
-    if (materialEditorOpen) {
-        materialEditor->show(&materialEditorOpen);
+    if (materialTemplateEditorOpen) {
+        materialTemplateEditor->show(&materialTemplateEditorOpen);
+    }
+    
+    if (materialInstanceEditorOpen) {
+        materialInstanceEditor->show(&materialInstanceEditorOpen);
     }
     
     showAssetWindow();
@@ -1391,12 +1396,10 @@ void EditorState::showAssetWindow() {
             
             ImGui::Separator();
             
-            if (ImGui::Selectable("Material")) {
-                // TODO implement me
-                LOG_W("NOT YET IMPLEMENTED");
-//                 assert(assetCreatorWindow == nullptr);
-//                 assetCreatorWindow = std::make_unique<AssetCreatorWindow>(engine, currentlyOpenDir.generic_string(), AssetType::Material);
-//                 needToOpenCreatorWindow = true;
+            if (ImGui::Selectable("Material Instance Definition")) {
+                assert(assetCreatorWindow == nullptr);
+                assetCreatorWindow = std::make_unique<AssetCreatorWindow>(engine, currentlyOpenDir.generic_string(), AssetType::MaterialInstance);
+                needToOpenCreatorWindow = true;
             }
             
             if (ImGui::Selectable("Material Template")) {
@@ -1531,9 +1534,18 @@ void EditorState::showAssetWindow() {
                 ImGui::Separator();
                 
                 const AssetType type = AssetManager::GetAssetTypeFromExtension(a.path);
-                if ((type == AssetType::MaterialTemplate) && ImGui::Selectable("Edit")) {
-                    materialEditorOpen = true;
-                    materialEditor->setPath(a.path);
+                if (type == AssetType::MaterialTemplate) {
+                    if (ImGui::Selectable("Edit")) {
+                        materialTemplateEditorOpen = true;
+                        materialTemplateEditor->setPath(a.path);
+                    }
+                }
+                
+                if (type == AssetType::MaterialInstance) {
+                    if (ImGui::Selectable("Edit")) {
+                        materialInstanceEditorOpen = true;
+                        materialInstanceEditor->setPath(a.path);
+                    }
                 }
                 
                 if (a.imported) {

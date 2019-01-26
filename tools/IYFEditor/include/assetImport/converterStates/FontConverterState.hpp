@@ -26,43 +26,31 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assets/metadata/MaterialInstanceMetadata.hpp"
-#include <stdexcept>
+#ifndef IYF_FONT_CONVERTER_STATE_HPP
+#define IYF_FONT_CONVERTER_STATE_HPP
 
-namespace iyf {
-std::uint16_t MaterialInstanceMetadata::getLatestSerializedDataVersion() const {
-    return 1;
-}
+#include "assetImport/ConverterState.hpp"
 
-void MaterialInstanceMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const {
-    assert(version == 1);
+namespace iyf::editor {
+class FontConverterState : public ConverterState {
+public:
+    virtual std::uint64_t getLatestSerializedDataVersion() const final override;
     
-    fw.writeUInt64(materialTemplateDefinition);
-}
-
-void MaterialInstanceMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
-    assert(version == 1);
+    virtual AssetType getType() const final override {
+        return AssetType::Font;
+    }
+private:
+    friend class FontConverter;
     
-    materialTemplateDefinition = StringHash(fr.readUInt64());
-}
-
-constexpr const char* MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME = "materialTemplateDefinition";
-
-void MaterialInstanceMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
-    assert(version == 1);
+    virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
+    virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
     
-    pw.String(MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME);
-    pw.Uint64(materialTemplateDefinition);
+    FontConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash) :
+        ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash) {}
+};
 }
 
-void MaterialInstanceMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
-    assert(version == 1);
-    
-    materialTemplateDefinition = StringHash(jo[MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME].GetUint64());
-}
+#endif // IYF_FONT_CONVERTER_STATE_HPP
 
-void MaterialInstanceMetadata::displayInImGui() const {
-    throw std::runtime_error("Method not yet implemented");
-}
-}
+
 

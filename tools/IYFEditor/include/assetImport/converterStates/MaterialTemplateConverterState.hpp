@@ -26,25 +26,30 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_SHADER_CONVERTER_HPP
-#define IYF_SHADER_CONVERTER_HPP
+#ifndef IYF_MATERIAL_TEMPLATE_CONVERTER_STATE_HPP
+#define IYF_MATERIAL_TEMPLATE_CONVERTER_STATE_HPP
 
-#include "Converter.hpp"
-#include "libshaderc/shaderc.hpp"
+#include "assetImport/ConverterState.hpp"
 
 namespace iyf::editor {
-
-class ShaderConverter : public Converter {
+class MaterialTemplateConverterState : public ConverterState {
 public:
-    ShaderConverter(const ConverterManager* manager);
+    virtual std::uint64_t getLatestSerializedDataVersion() const final override;
     
-    virtual std::unique_ptr<ConverterState> initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const final override;
-    virtual bool convert(ConverterState& state) const final override;
+    virtual AssetType getType() const final override {
+        return AssetType::MaterialTemplate;
+    }
 private:
-    shaderc::Compiler compiler;
-    shaderc::CompileOptions compilerOptions;
+    friend class MaterialTemplateConverter;
+    
+    virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
+    virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
+    
+    MaterialTemplateConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash) :
+        ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash) {}
 };
-
 }
 
-#endif // IYF_SHADER_CONVERTER_HPP
+#endif // IYF_MATERIAL_TEMPLATE_CONVERTER_STATE_HPP
+
+

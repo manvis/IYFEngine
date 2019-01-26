@@ -26,43 +26,38 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assets/metadata/MaterialInstanceMetadata.hpp"
-#include <stdexcept>
+#ifndef IYF_MESH_CONVERTER_STATE_HPP
+#define IYF_MESH_CONVERTER_STATE_HPP
 
-namespace iyf {
-std::uint16_t MaterialInstanceMetadata::getLatestSerializedDataVersion() const {
-    return 1;
-}
+#include "assetImport/ConverterState.hpp"
 
-void MaterialInstanceMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const {
-    assert(version == 1);
+namespace iyf::editor {
+class MeshConverterState : public ConverterState {
+public:
+    // TODO FIXME these parameters do nothing at the moment
+    bool convertAnimations;
+    bool use32bitIndices;
+    float scale;
     
-    fw.writeUInt64(materialTemplateDefinition);
-}
-
-void MaterialInstanceMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
-    assert(version == 1);
+    // TODO expose Assimp optimization options instead of going with the default
+    // TODO allow to only import certain animations
+    // TODO generate materials based on data retrieved from file
     
-    materialTemplateDefinition = StringHash(fr.readUInt64());
-}
-
-constexpr const char* MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME = "materialTemplateDefinition";
-
-void MaterialInstanceMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
-    assert(version == 1);
+    virtual AssetType getType() const final override {
+        return AssetType::Mesh;
+    }
     
-    pw.String(MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME);
-    pw.Uint64(materialTemplateDefinition);
-}
-
-void MaterialInstanceMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
-    assert(version == 1);
+    virtual std::uint64_t getLatestSerializedDataVersion() const final override;
+private:
+    friend class MeshConverter;
     
-    materialTemplateDefinition = StringHash(jo[MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME].GetUint64());
+    virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
+    virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
+    
+    MeshConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash)
+        : ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash), convertAnimations(true), scale(1.0f) {}
+};
+
 }
 
-void MaterialInstanceMetadata::displayInImGui() const {
-    throw std::runtime_error("Method not yet implemented");
-}
-}
-
+#endif // IYF_MESH_CONVERTER_STATE_HPP

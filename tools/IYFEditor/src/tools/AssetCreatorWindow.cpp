@@ -33,6 +33,7 @@
 #include "core/Constants.hpp"
 #include "tools/AssetCreatorWindow.hpp"
 #include "tools/MaterialEditor.hpp"
+#include "tools/MaterialInstanceEditor.hpp"
 #include "imgui.h"
 #include "utilities/Regexes.hpp"
 #include "utilities/ImGuiUtils.hpp"
@@ -45,6 +46,9 @@ AssetCreatorWindow::AssetCreatorWindow(Engine* engine, std::string basePath, Ass
     if (type == AssetType::MaterialTemplate) {
         windowName = "New Material Template";
         extension = con::MaterialTemplateFormatExtension();
+    } else if (type == AssetType::MaterialInstance) {
+        windowName = "New Material Instance Definition";
+        extension = con::MaterialInstanceFormatExtension();
     } else if (type == AssetType::COUNT) {
         windowName = "New Directory";
     } else {
@@ -67,9 +71,19 @@ void AssetCreatorWindow::executeOperation() {
         
         fs->createDirectory(finalPath);
     } else {
-        const std::string json = MaterialEditor::CreateNewGraph(family);
+        std::string json;
         
-        finalPath += con::MaterialTemplateFormatExtension();
+        if (type == AssetType::MaterialTemplate) {
+            json = MaterialEditor::CreateNewGraph(family);
+            finalPath += con::MaterialTemplateFormatExtension();
+        } else if (type == AssetType::MaterialInstance) {
+            json = MaterialInstanceEditor::CreateNew();
+            finalPath += con::MaterialInstanceFormatExtension();
+        }
+        
+        if (json.empty()) {
+            throw std::runtime_error("Failed to create a new empty asset");
+        }
         
         File out(finalPath, File::OpenMode::Write);
         out.writeBytes(json.data(), json.size());
@@ -108,6 +122,8 @@ bool AssetCreatorWindow::show() {
             }
             
             util::DisplayFlagPicker<MaterialFamily, MaterialFamilyCount>("Family", family, MaterialFamily::COUNT, names);
+        } else if (type == AssetType::MaterialInstance) {
+            //
         }
         
         ImGui::Spacing();

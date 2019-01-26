@@ -32,7 +32,7 @@
 #include <cstdint>
 #include <memory>
 
-#include "Converter.hpp"
+#include "assetImport/Converter.hpp"
 
 class aiMesh;
 

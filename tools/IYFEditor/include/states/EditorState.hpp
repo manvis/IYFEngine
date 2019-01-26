@@ -64,6 +64,7 @@ class EditorUI;
 class MaterialEditor;
 class AssetUpdateManager;
 class AssetCreatorWindow;
+class MaterialInstanceEditor;
 
 class ImGuiLog {
 public:
@@ -213,8 +214,12 @@ protected:
     std::unique_ptr<MaterialFamilyEditor> materialFamilyEditor;
     bool materialFamilyEditorOpen;
     
-    std::unique_ptr<MaterialEditor> materialEditor;
-    bool materialEditorOpen;
+    std::unique_ptr<MaterialEditor> materialTemplateEditor;
+    bool materialTemplateEditorOpen;
+    
+    
+    std::unique_ptr<MaterialInstanceEditor> materialInstanceEditor;
+    bool materialInstanceEditorOpen;
 // FILE MANAGEMENT -------------------------------------------------------------
     void showAssetWindow();
     void updateProjectFiles();

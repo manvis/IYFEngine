@@ -32,7 +32,10 @@
 #include "utilities/hashing/Hashing.hpp"
 #include "core/Constants.hpp"
 #include "core/interfaces/Serializable.hpp"
+#include "core/interfaces/TextSerializable.hpp"
 #include "localization/TextLocalization.hpp"
+
+#include "glm/vec4.hpp"
 
 #include <vector>
 
@@ -46,137 +49,74 @@ enum class MaterialRenderMode : std::uint8_t {
     // TODO cutout, wireframe
     COUNT
 };
+namespace con {
+/// \remark This function does not return a user friendly name. Use GetMaterialRenderModeLocalizationHandle() and the localization DB if you
+/// need one.
+/// \return the name of the MaterialRenderMode.
+const std::string& GetMaterialRenderModeName(MaterialRenderMode renderMode);
 
-extern const std::array<LocalizationHandle, static_cast<std::size_t>(MaterialRenderMode::COUNT)> MaterialRenderModeNames;
+const LocalizationHandle& GetMaterialRenderModeLocalizationHandle(MaterialRenderMode renderMode);
+}
 
 /// This class stores material data and metadata for editing, serializes it into files and is used by the World objects to 
 /// instantiate Material objects that contain data used by the GPU during rendering.
-class MaterialInstanceDefinition : public Serializable {
+class MaterialInstanceDefinition : public Serializable, public TextSerializable {
 public:
-    enum class DataType : std::uint8_t {
-        TextureID = 1,
-        ColorData = 2
-    };
-    
-    /// Default constructor that initializes all hashes to 0
-    MaterialInstanceDefinition() : familyID(0), familyVariant(0), renderMode(MaterialRenderMode::Opaque), name("NewMaterial"), id(0), idNeedsRecompute(true) {}
-    
-    /// \brief Compute and retrieve a hash that uniquely identifies this MaterialInstanceDefinition.
-    ///
-    /// \warning This value is a combination of other fields (except for the name) and IT WILL CHANGE if any field is changed, so make sure
-    /// to only call this function after all other fields are set and you are sure that they won't change
-    /// 
-    /// This function is fairly cheap to call since the class keeps track of changes and only re-computes the ID if any setters or non-const ???
-    /// 
-    /// \return Unique identifier for this MaterialInstanceDefinition
-    inline StringHash getID() {
-        if (idNeedsRecompute) {
-            recomputeID();
-        }
-        
-        return id;
-    }
-    
-    /// \brief Get a human readable name assigned to this MaterialInstanceDefinition
-    inline std::string getName() const {
-        return name;
+    MaterialInstanceDefinition() : materialTemplateDefinition(0), renderMode(MaterialRenderMode::Opaque) {}
+
+    /// \brief Get a StringHash of a MaterialTemplateDefinition that this MaterialInstanceDefinition is based on.
+    inline StringHash getMaterialTemplateDefinition() const {
+        return materialTemplateDefinition;
     }
 
-    /// \brief Assign a new human readable name to this MaterialInstanceDefinition
-    inline void setName(std::string newName) {
-        name = newName;
+    /// \brief Associate a new MaterialTemplateDefinition with this MaterialInstanceDefinition.
+    inline void setMaterialTemplateDefinition(StringHash newMaterialTemplateDefinition,
+                                              std::vector<std::pair<StringHash, glm::vec4>> variables,
+                                              std::vector<std::pair<StringHash, StringHash>> textures) {
+        materialTemplateDefinition = newMaterialTemplateDefinition;
+        this->variables = std::move(variables);
+        this->textures = std::move(textures);
     }
 
-    /// \brief Get an ID of a family that's currently associated with this MaterialInstanceDefinition
-    inline StringHash getFamilyID() const {
-        return familyID;
-    }
-
-    /// \brief Associate a new family with this MaterialInstanceDefinition
-    ///
-    /// \warning Calling this will invalidate and potentially change the ID. It will be recomputed the next time getID() is called.
-    inline void setFamilyID(StringHash newFamilyID) {
-        familyID = newFamilyID;
-        idNeedsRecompute = true;
-    }
-
-    /// \brief Get a family variant that is associated with this MaterialInstanceDefinition
-    inline StringHash getFamilyVariant() const {
-        return familyVariant;
-    }
-
-    /// \brief Associate a new family variant with this Material definition
-    ///
-    /// \warning Calling this will invalidate and potentially change the ID. It will be recomputed the next time getID() is called.
-    inline void setFamilyVariant(StringHash newFamilyVariant) {
-        familyVariant = newFamilyVariant;
-        idNeedsRecompute = true;
-    }
-
-    /// \brief Get a MaterialRenderMode that is used by Materials created from this MaterialInstanceDefinition
+    /// \brief Get a MaterialRenderMode that is used by MaterialInstances created from this MaterialInstanceDefinition
     inline MaterialRenderMode getRenderMode() const {
         return renderMode;
     }
 
-    /// \brief Set a new MaterialRenderMode that will be used by Materials created from this MaterialInstanceDefinition
+    /// \brief Set a new MaterialRenderMode that will be used by MaterialInstances created from this MaterialInstanceDefinition
     ///
     /// \warning Calling this will invalidate and potentially change the ID. It will be recomputed the next time getID() is called.
     ///
     /// \todo since I'm planning to make familyVariant carry more data, the render mode should PROBABLY be a part of it
     inline void setRenderMode(MaterialRenderMode newRenderMode) {
         renderMode = newRenderMode;
-        idNeedsRecompute = true;
     }
     
-    /// \brief Get a modifiable reference to a vector of material components
-    ///
-    /// \warning Calling this will invalidate the ID. It will be recomputed the next time getID() is called.
-    std::vector<std::pair<DataType, std::uint32_t>>& getComponents() {
-        idNeedsRecompute = true;
-        return components;
+    inline const std::vector<std::pair<StringHash, glm::vec4>>& getVariables() const {
+        return variables;
     }
     
-    /// \brief Get a const vector of material components for reading. Does not invalidate the ID
-    const std::vector<std::pair<DataType, std::uint32_t>>& getComponents() const {
-        return components;
+    inline const std::vector<std::pair<StringHash, StringHash>>& getTextures() const {
+        return textures;
     }
     
-    // Serializable interface
-    /// \warning Make sure to ALWAYS call getID before calling this to get the class finalized
-    /// \todo maybe use a finalize method instead of relying on getID?
-    virtual void serialize(Serializer& fw) const override;
-    virtual void deserialize(Serializer& fr) override;
+    virtual void serialize(Serializer& fw) const final override;
+    virtual void deserialize(Serializer& fr) final override;
     
-    // Separate serialization of name string
-    virtual void serializeName(Serializer& fw) const;
-    virtual void deserializeName(Serializer& fr);
+    virtual void serializeJSON(PrettyStringWriter& pw) const final override;
+    virtual void deserializeJSON(JSONObject& jo) final override;
+    
+    virtual bool makesJSONRoot() const final override {
+        return true;
+    }
 protected:
-    void recomputeID();
+    StringHash materialTemplateDefinition;
     
-    /// ID of a material family that's used by this material
-    StringHash familyID;
-    
-    /// ID of a variant of the said material family. These typically indicate permutations of shaders (e.g. one may use a flat color albedo while another uses a texture) or their
-    /// combinations (e.g. one has a tessellation shader while another does not)
-    /// \todo replace with something that carries more information about the variant
-    StringHash familyVariant;
+    std::vector<std::pair<StringHash, glm::vec4>> variables;
+    std::vector<std::pair<StringHash, StringHash>> textures;
     
     /// Used to determine if an Entity object that uses a Material created from this definition should be stored in "opaque objects" draw list or in "transparent objects" draw list
     MaterialRenderMode renderMode;
-    
-    /// This vector stores material components. The first element indicates if a color (packed into std::uint32_t) or a texture ID is stored in the second element. The required size 
-    /// of this vector, the order of its elements and requirements for them (e.g., the number of color channels) depend on the associated family and its variant. The 
-    /// appropriate family also stores the human readable names for these elements.
-    ///
-    /// \warning Make sure to always have exactly as many material components as the family requires and NEVER create a MaterialInstanceDefinition with more than MaxMaterialComponents 
-    /// components or exceptions will be thrown at various different stages
-    std::vector<std::pair<DataType, std::uint32_t>> components;
-    
-    /// Human readable name of the material. Stored separately (check serializeName()) so that it could be stripped from release builds
-    std::string name;
-    
-    StringHash id;
-    bool idNeedsRecompute;
 };
 }
 

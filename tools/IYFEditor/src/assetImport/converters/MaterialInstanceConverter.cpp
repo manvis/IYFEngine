@@ -26,68 +26,67 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assetImport/FontConverter.hpp"
+#include "assetImport/converters/MaterialInstanceConverter.hpp"
+#include "assetImport/converterStates/MaterialInstanceConverterState.hpp"
 
-#include "assets/metadata/FontMetadata.hpp"
+#include "assets/metadata/MaterialInstanceMetadata.hpp"
+#include "graphics/materials/MaterialInstanceDefinition.hpp"
 #include "assetImport/ConverterManager.hpp"
 #include "core/Logger.hpp"
 #include "core/filesystem/File.hpp"
-
-#include "stb_truetype.h"
+#include "core/serialization/MemorySerializer.hpp"
 
 namespace iyf::editor {
-class FontConverterInternalState : public InternalConverterState {
+class MaterialInstanceInternalState : public InternalConverterState {
 public:
-    FontConverterInternalState(const Converter* converter) : InternalConverterState(converter) {}
+    MaterialInstanceInternalState(const Converter* converter) : InternalConverterState(converter) {}
     
-    std::unique_ptr<unsigned char[]> data;
+    std::unique_ptr<char[]> data;
     std::size_t size;
 };
 
-std::unique_ptr<ConverterState> FontConverter::initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const {
-    std::unique_ptr<FontConverterInternalState> internalState = std::make_unique<FontConverterInternalState>(this);
+std::unique_ptr<ConverterState> MaterialInstanceConverter::initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const {
+    std::unique_ptr<MaterialInstanceInternalState> internalState = std::make_unique<MaterialInstanceInternalState>(this);
     
-    // This is done to check if the file is a valid font file.
     File inFile(inPath, File::OpenMode::Read);
     std::size_t size = inFile.seek(0, File::SeekFrom::End);
     inFile.seek(0, File::SeekFrom::Start);
     
-    internalState->data = std::make_unique<unsigned char[]>(size);
+    internalState->data = std::make_unique<char[]>(size);
     internalState->size = size;
-    unsigned char* buffer = internalState->data.get();
+    char* buffer = internalState->data.get();
     
     inFile.readBytes(buffer, size);
     
-    int numFonts = stbtt_GetNumberOfFonts(buffer);
-    if (numFonts < 1) {
-        LOG_W("The file " << inPath << " is not a valid .ttf/.otf font file");
-        return nullptr;
-    }
-    
-    if (numFonts > 1) {
-        LOG_W("The file " << inPath << " has too many fonts. Only one font per file is supported by the engine");
-        return nullptr;
-    }
-    
     const FileHash sourceFileHash = HF(reinterpret_cast<const char*>(internalState->data.get()), internalState->size);
     
-    return std::unique_ptr<FontConverterState>(new FontConverterState(platformID, std::move(internalState), inPath, sourceFileHash));
+    return std::unique_ptr<MaterialInstanceConverterState>(new MaterialInstanceConverterState(platformID, std::move(internalState), inPath, sourceFileHash));
 }
 
-bool FontConverter::convert(ConverterState& state) const {
-    FontConverterInternalState* internalState = dynamic_cast<FontConverterInternalState*>(state.getInternalState());
+bool MaterialInstanceConverter::convert(ConverterState& state) const {
+    MaterialInstanceInternalState* internalState = dynamic_cast<MaterialInstanceInternalState*>(state.getInternalState());
     assert(internalState != nullptr);
     
     fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
     
+    rj::Document document;
+    document.Parse(internalState->data.get(), internalState->size);
+    
+    MaterialInstanceDefinition mid;
+    mid.deserializeJSON(document);
+    
     FileHash hash = HF(reinterpret_cast<const char*>(internalState->data.get()), internalState->size);
-    FontMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags());
+    MaterialInstanceMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags(), mid.getMaterialTemplateDefinition());
     ImportedAssetData iad(state.getType(), metadata, outputPath);
     state.getImportedAssets().push_back(std::move(iad));
     
+    MemorySerializer ms(4096);
+    mid.serialize(ms);
+    
     File fw(outputPath, File::OpenMode::Write);
-    fw.writeBytes(internalState->data.get(), internalState->size);
+    fw.writeBytes(ms.data(), ms.size());
     
     return true;
 }
 }
+

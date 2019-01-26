@@ -67,7 +67,11 @@ namespace iyf {
 
 #define IYF_METADATA_OBJECT_CHECK(objType) \
     static_assert(alignof(objType) == Metadata::Alignment, "Incorret alignment of object " #objType); \
-    static_assert(sizeof(objType) <= Metadata::Size, "Incorret size of object " #objType);
+    static_assert(sizeof(objType) <= Metadata::Size, "Incorret size of object " #objType);\
+    static_assert(std::is_copy_constructible_v<objType>, "#objType is not copy constructible");\
+    static_assert(std::is_copy_assignable_v<objType>, "#objType is not copy assignable");\
+    static_assert(std::is_move_constructible_v<objType>, "#objType is not move constructible");\
+    static_assert(std::is_move_constructible_v<objType>, "#objType is not move assignable");\
 
 #define IYF_DETERMINE_SIZE_CASE(EnumType, MetaType) \
     case AssetType::EnumType: { \

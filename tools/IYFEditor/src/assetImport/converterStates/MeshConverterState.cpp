@@ -26,43 +26,42 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assets/metadata/MaterialInstanceMetadata.hpp"
-#include <stdexcept>
+#include "assetImport/converterStates/MeshConverterState.hpp"
 
-namespace iyf {
-std::uint16_t MaterialInstanceMetadata::getLatestSerializedDataVersion() const {
+namespace iyf::editor {
+static const char* USE_32_BIT_INDICES_FIELD_NAME = "use32BitIndices";
+static const char* CONVERT_ANIMATIONS_FIELD_NAME = "exportAnimations";
+static const char* MESH_SCALE_FIELD_NAME = "scale";
+
+std::uint64_t MeshConverterState::getLatestSerializedDataVersion() const {
     return 1;
 }
 
-void MaterialInstanceMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const {
+void MeshConverterState::serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const {
     assert(version == 1);
     
-    fw.writeUInt64(materialTemplateDefinition);
+    pw.String(USE_32_BIT_INDICES_FIELD_NAME);
+    pw.Bool(use32bitIndices);
+    
+    pw.String(CONVERT_ANIMATIONS_FIELD_NAME);
+    pw.Bool(convertAnimations);
+    
+    pw.String(MESH_SCALE_FIELD_NAME);
+    pw.Double(scale);
+    
+    // TODO serialize the not yet created fields
+    // if (version == 2) {}
 }
 
-void MaterialInstanceMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
+void MeshConverterState::deserializeJSONImpl(JSONObject& jo, std::uint64_t version) {
     assert(version == 1);
     
-    materialTemplateDefinition = StringHash(fr.readUInt64());
-}
-
-constexpr const char* MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME = "materialTemplateDefinition";
-
-void MaterialInstanceMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
-    assert(version == 1);
+    use32bitIndices = jo[USE_32_BIT_INDICES_FIELD_NAME].GetBool();
+    convertAnimations = jo[CONVERT_ANIMATIONS_FIELD_NAME].GetBool();
+    scale = jo[MESH_SCALE_FIELD_NAME].GetFloat();
     
-    pw.String(MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME);
-    pw.Uint64(materialTemplateDefinition);
-}
-
-void MaterialInstanceMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
-    assert(version == 1);
-    
-    materialTemplateDefinition = StringHash(jo[MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME].GetUint64());
-}
-
-void MaterialInstanceMetadata::displayInImGui() const {
-    throw std::runtime_error("Method not yet implemented");
+    // TODO deserialize the not yet created fields
+    // if (version == 2) {}
 }
 }
 

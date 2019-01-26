@@ -137,6 +137,7 @@ AssetType AssetManager::GetAssetTypeFromExtension(const fs::path& pathToFile) {
         {".comp", AssetType::Shader},
         {".csv", AssetType::Strings},
         {con::MaterialTemplateFormatExtension(), AssetType::MaterialTemplate},
+        {con::MaterialInstanceFormatExtension(), AssetType::MaterialInstance},
     };
     std::string extension = pathToFile.extension().string();
     

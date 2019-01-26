@@ -35,15 +35,16 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-#include <glm/gtc/packing.hpp>
-#include <glm/vec4.hpp>
-#include <glm/gtx/matrix_decompose.hpp>
-#include <glm/gtx/string_cast.hpp>
+#include "glm/gtc/packing.hpp"
+#include "glm/vec4.hpp"
+#include "glm/gtx/matrix_decompose.hpp"
+#include "glm/gtx/string_cast.hpp"
 
 #include "assets/metadata/AnimationMetadata.hpp"
 #include "assets/metadata/MeshMetadata.hpp"
 
-#include "assetImport/MeshConverter.hpp"
+#include "assetImport/converters/MeshConverter.hpp"
+#include "assetImport/converterStates/MeshConverterState.hpp"
 #include "graphics/VertexDataLayouts.hpp"
 #include "graphics/AnimationDataStructures.hpp"
 #include "graphics/culling/BoundingVolumes.hpp"

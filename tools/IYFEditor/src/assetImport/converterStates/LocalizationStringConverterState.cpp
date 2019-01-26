@@ -26,43 +26,25 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assets/metadata/MaterialInstanceMetadata.hpp"
-#include <stdexcept>
+#include "assetImport/converterStates/LocalizationStringConverterState.hpp"
 
-namespace iyf {
-std::uint16_t MaterialInstanceMetadata::getLatestSerializedDataVersion() const {
+namespace iyf::editor {
+static const char* PRIORITY_FIELD_NAME = "priority";
+
+std::uint64_t LocalizationStringConverterState::getLatestSerializedDataVersion() const {
     return 1;
 }
 
-void MaterialInstanceMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const {
+void LocalizationStringConverterState::serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const {
     assert(version == 1);
     
-    fw.writeUInt64(materialTemplateDefinition);
+    pw.String(PRIORITY_FIELD_NAME);
+    pw.Uint(priority);
 }
 
-void MaterialInstanceMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
+void LocalizationStringConverterState::deserializeJSONImpl(JSONObject& jo, std::uint64_t version) {
     assert(version == 1);
     
-    materialTemplateDefinition = StringHash(fr.readUInt64());
-}
-
-constexpr const char* MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME = "materialTemplateDefinition";
-
-void MaterialInstanceMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
-    assert(version == 1);
-    
-    pw.String(MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME);
-    pw.Uint64(materialTemplateDefinition);
-}
-
-void MaterialInstanceMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
-    assert(version == 1);
-    
-    materialTemplateDefinition = StringHash(jo[MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME].GetUint64());
-}
-
-void MaterialInstanceMetadata::displayInImGui() const {
-    throw std::runtime_error("Method not yet implemented");
+    priority = jo[PRIORITY_FIELD_NAME].GetUint();
 }
 }
-
