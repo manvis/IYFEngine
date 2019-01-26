@@ -59,6 +59,12 @@ public:
     inline bool isValid() const {
         return componentCount != 0;
     }
+    
+    friend bool operator==(const MaterialInputVariable& a, const MaterialInputVariable& b) {
+        return (a.defaultValue == b.defaultValue) &&
+               (a.name == b.name) &&
+               (a.componentCount == b.componentCount);
+    }
 private:
     glm::vec4 defaultValue;
     std::string name;
@@ -82,6 +88,11 @@ public:
     /// \warning If this returns false, no other getters can be used safely and this MaterialInputVariable should just be ignored
     inline bool isValid() const {
         return (defaultTexture != 0) && (!name.empty());
+    }
+    
+    friend bool operator==(const MaterialInputTexture& a, const MaterialInputTexture& b) {
+        return (a.defaultTexture == b.defaultTexture) &&
+               (a.name == b.name);
     }
 private:
     std::string name;

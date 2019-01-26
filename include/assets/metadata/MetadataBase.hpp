@@ -118,7 +118,17 @@ public:
     inline MetadataSource getMetadataSource() const {
         return metadataSource;
     }
-    
+protected:
+    inline bool equals(const MetadataBase& other) const {
+        return (assetType == other.assetType) &&
+               (metadataSource == other.metadataSource) &&
+               (complete == other.complete) &&
+               (systemAsset == other.systemAsset) &&
+               (tags == other.tags) &&
+               (fileHash == other.fileHash) &&
+               (sourceAsset == other.sourceAsset) &&
+               (sourceFileHash == other.sourceFileHash);
+    }
 private:
     friend class AssetManager;
     

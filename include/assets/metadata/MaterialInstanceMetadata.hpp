@@ -53,6 +53,11 @@ public:
     StringHash getMaterialTemplateDefinition() const {
         return materialTemplateDefinition;
     }
+    
+    friend bool operator==(const MaterialInstanceMetadata& a, const MaterialInstanceMetadata& b) {
+        return a.equals(b) &&
+               (a.materialTemplateDefinition == b.materialTemplateDefinition);
+    }
 private:
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
     virtual void deserializeImpl(Serializer& fr, std::uint16_t version) final override;

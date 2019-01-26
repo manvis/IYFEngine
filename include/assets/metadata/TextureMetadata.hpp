@@ -156,6 +156,24 @@ public:
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
     
     virtual void displayInImGui() const final override;
+    
+    friend bool operator==(const TextureMetadata& a, const TextureMetadata& b) {
+        return a.equals(b) &&
+               (a.compressionFormat == b.compressionFormat) &&
+               (a.issRGBVal == b.issRGBVal) &&
+               (a.faces == b.faces) &&
+               (a.channels == b.channels) &&
+               (a.levels == b.levels) &&
+               (a.filter == b.filter) &&
+               (a.tileX == b.tileX) &&
+               (a.tileY == b.tileY) &&
+               (a.width == b.width) &&
+               (a.height == b.height) &&
+               (a.depth == b.depth) &&
+               (a.layers == b.layers) &&
+               (a.size == b.size) &&
+               (a.anisotropy == b.anisotropy);
+    }
 private:
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
     virtual void deserializeImpl(Serializer& fr, std::uint16_t version) final override;

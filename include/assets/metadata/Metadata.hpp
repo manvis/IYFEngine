@@ -119,9 +119,14 @@ public:
         return *this;
     }
     
+    friend bool operator==(const Metadata& a, const Metadata& b) {
+        return a.equals(b);
+    }
+    
     ~Metadata();
 private:
     void destroyContents();
+    bool equals(const Metadata& other) const;
     
     alignas(Alignment) unsigned char data[Size];
     AssetType type;

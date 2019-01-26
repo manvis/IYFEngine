@@ -57,6 +57,12 @@ public:
     std::int32_t getPriority() const {
         return priority;
     }
+    
+    friend bool operator==(const StringMetadata& a, const StringMetadata& b) {
+        return a.equals(b) &&
+               (a.locale == b.locale) &&
+               (a.priority == b.priority);
+    }
 private:
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
     virtual void deserializeImpl(Serializer& fr, std::uint16_t version) final override;

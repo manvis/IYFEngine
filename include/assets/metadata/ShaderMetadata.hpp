@@ -54,6 +54,11 @@ public:
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
     
     virtual void displayInImGui() const final override;
+    
+    friend bool operator==(const ShaderMetadata& a, const ShaderMetadata& b) {
+        return a.equals(b) &&
+               (a.stage == b.stage);
+    }
 private:
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
     virtual void deserializeImpl(Serializer& fr, std::uint16_t version) final override;

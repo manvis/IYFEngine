@@ -95,7 +95,14 @@ namespace iyf {
             type = obj->getAssetType(); \
         } \
         break;
-        
+
+#define IYF_PERFORM_COMPARISON_CASE(EnumType, MetaType) \
+    case AssetType::EnumType: { \
+            const MetaType& realA = get<MetaType>();\
+            const MetaType& realB = other.get<MetaType>();\
+            return realA == realB;\
+        }
+    
 #define IYF_CONSTRUCT_METADATA_COPY(SWITCH_ON) \
     IYF_METADATA_SWITCH(SWITCH_ON, IYF_CONSTRUCT_METADATA_COPY_CASE)
     
@@ -104,6 +111,9 @@ namespace iyf {
 
 #define IYF_GET_METADATA_SIZE(SWITCH_ON) \
     IYF_METADATA_SWITCH(SWITCH_ON, IYF_DETERMINE_SIZE_CASE)
+
+#define IYF_PERFORM_COMPARISON(SWITCH_ON) \
+    IYF_METADATA_SWITCH(SWITCH_ON, IYF_PERFORM_COMPARISON_CASE)
 
 Metadata::Metadata(const Metadata& other) {
     if (other.hasValidValue()) {
@@ -164,5 +174,18 @@ std::size_t Metadata::GetAssetMetadataSize(AssetType type) {
     std::size_t typeSize = 0;
     IYF_GET_METADATA_SIZE(type);
     return typeSize;
+}
+
+bool Metadata::equals(const Metadata& other) const {
+    if ((type == AssetType::ANY) || (other.type == AssetType::ANY)) {
+        return false;
+    }
+    
+    if (type != other.type) {
+        return false;
+    }
+    
+    IYF_PERFORM_COMPARISON(type);
+    return false;
 }
 }

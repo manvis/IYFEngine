@@ -94,6 +94,17 @@ public:
     }
     
     std::unordered_map<StringHash, std::string> getNameMap() const;
+    
+    
+    friend bool operator==(const MaterialTemplateMetadata& a, const MaterialTemplateMetadata& b) {
+        return a.equals(b) &&
+               (a.family == b.family) &&
+               (a.materialFamilyHash == b.materialFamilyHash) &&
+               (a.macroComboHash == b.macroComboHash) &&
+               (a.vertexDataLayouts == b.vertexDataLayouts) &&
+               (a.requiredVariables == b.requiredVariables) &&
+               (a.requiredTextures == b.requiredTextures);
+    }
 private:
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
     virtual void deserializeImpl(Serializer& fr, std::uint16_t version) final override;

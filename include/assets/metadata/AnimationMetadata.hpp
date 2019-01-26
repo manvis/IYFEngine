@@ -62,6 +62,13 @@ public:
     virtual std::uint16_t getLatestSerializedDataVersion() const final override;
     
     virtual void displayInImGui() const final override;
+    
+    friend bool operator==(const AnimationMetadata& a, const AnimationMetadata& b) {
+        return a.equals(b) &&
+               (a.duration == b.duration) &&
+               (a.ticksPerSecond == b.ticksPerSecond) &&
+               (a.animationFormatVersion == b.animationFormatVersion);
+    }
 private:
     virtual void serializeImpl(Serializer& fw, std::uint16_t version) const final override;
     virtual void deserializeImpl(Serializer& fr, std::uint16_t version) final override;
