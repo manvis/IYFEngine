@@ -33,7 +33,7 @@
 #include "utilities/StringUtilities.hpp"
 #include "utilities/Regexes.hpp"
 
-#include "format/format.h"
+#include "fmt/format.h"
 
 #include <algorithm>
 #include <unordered_set>

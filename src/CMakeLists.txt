@@ -93,8 +93,6 @@ core/filesystem/File.cpp
 core/filesystem/FileSystem.cpp
 core/filesystem/FileSystemWatcher.cpp
 core/filesystem/linux/InotifyFileSystemWatcher.cpp
-#------- format directory
-format/format.cc
 #------- graphics directory
 graphics/Camera.cpp
 graphics/CubemapSkybox.cpp
@@ -221,14 +219,14 @@ if(WIN32)
     #TODO GLEW_BUILD + GLEW_STATIC definitions, Microsoft kompiliatoriams
     
     if (GRAPHICS_BACKEND MATCHES "Vulkan")
-        target_link_libraries(IYFEngine vulkan ${SDL2_LIBRARY} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
+        target_link_libraries(IYFEngine fmt vulkan ${SDL2_LIBRARY} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
     elseif (GRAPHICS_BACKEND MATCHES "OpenGL")
-        target_link_libraries(IYFEngine ${OPENGL_LIBRARIES} ${SDL2_LIBRARY} ${GLEW_LIB_LOC} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
+        target_link_libraries(IYFEngine fmt ${OPENGL_LIBRARIES} ${SDL2_LIBRARY} ${GLEW_LIB_LOC} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
     endif ()
 else(WIN32)
     if (GRAPHICS_BACKEND MATCHES "Vulkan")
-        target_link_libraries(IYFEngine ${X11_LIBRARIES} vulkan libshaderc_combined.a ${SDL2_LIBRARY} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
+        target_link_libraries(IYFEngine fmt ${X11_LIBRARIES} vulkan libshaderc_combined.a ${SDL2_LIBRARY} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
     else (GRAPHICS_BACKEND MATCHES "OpenGL")
-        target_link_libraries(IYFEngine ${OPENGL_LIBRARIES} ${SDL2_LIBRARY} ${GLEW_LIB_LOC} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
+        target_link_libraries(IYFEngine fmt ${OPENGL_LIBRARIES} ${SDL2_LIBRARY} ${GLEW_LIB_LOC} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
     endif ()
 endif(WIN32)

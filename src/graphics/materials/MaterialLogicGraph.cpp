@@ -32,7 +32,7 @@
 #include "utilities/Regexes.hpp"
 #include "utilities/StringUtilities.hpp"
 
-#include "format/format.h"
+#include "fmt/format.h"
 
 #include "imgui.h"
 

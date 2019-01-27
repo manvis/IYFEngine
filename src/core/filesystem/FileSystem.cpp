@@ -40,7 +40,7 @@
 #include "core/Logger.hpp"
 #include "core/Project.hpp"
 #include "core/Constants.hpp"
-#include "format/format.h"
+#include "fmt/format.h"
 
 namespace iyf {
 FileSystem::FileSystem(bool editorMode, char* argv, bool skipSystemPackageMounting) : editorMode(editorMode) {

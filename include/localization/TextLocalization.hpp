@@ -41,7 +41,7 @@
 #include "utilities/ForceInline.hpp"
 #include "localization/LocalizationHandle.hpp"
 #include "core/Constants.hpp"
-#include "format/format.h"
+#include "fmt/format.h"
 
 #define THROW_IF_MISSING
 

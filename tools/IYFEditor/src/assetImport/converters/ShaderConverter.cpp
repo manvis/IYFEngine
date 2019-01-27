@@ -33,7 +33,7 @@
 
 #include "core/filesystem/File.hpp"
 #include "core/Logger.hpp"
-#include "format/format.h"
+#include "fmt/format.h"
 
 namespace iyf::editor {
 static ShaderStageFlagBits StageBitsFromPath(const fs::path& path) {

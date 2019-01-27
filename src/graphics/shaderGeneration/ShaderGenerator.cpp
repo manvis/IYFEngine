@@ -31,7 +31,7 @@
 #include "core/filesystem/FileSystem.hpp"
 #include "core/Logger.hpp"
 #include "core/filesystem/File.hpp"
-#include "format/format.h"
+#include "fmt/format.h"
 #include "utilities/StringUtilities.hpp"
 
 #include <unordered_set>

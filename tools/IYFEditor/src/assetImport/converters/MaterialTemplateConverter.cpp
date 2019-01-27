@@ -39,7 +39,7 @@
 #include "core/filesystem/FileSystem.hpp"
 #include "core/Logger.hpp"
 #include "core/serialization/MemorySerializer.hpp"
-#include "format/format.h"
+#include "fmt/format.h"
 
 #include "tools/MaterialEditor.hpp"
 

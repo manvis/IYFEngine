@@ -145,8 +145,6 @@ endif (USE_BOOST)
 include_directories(include/graphics/imgui)
 # stb
 include_directories(include/stb)
-# fmt
-include_directories(include/format)
 # miniz
 include_directories(include/miniz)
 
@@ -171,6 +169,9 @@ include_directories(dependencies/recastnavigation/DetourTileCache/Include)
 include_directories(dependencies/recastnavigation/DebugUtils/Include)
 # sqlite
 include_directories(dependencies/sqlite)
+# fmt
+add_subdirectory(dependencies/fmt)
+include_directories(dependencies/fmt/include/)
 
 option(GLEW_DYNAMIC "Look for and link a dynamic version of the glew library, only valid when using OpenGL" OFF)
 
