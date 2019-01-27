@@ -95,6 +95,9 @@ public:
     
     std::unordered_map<StringHash, std::string> getNameMap() const;
     
+    friend bool operator!=(const MaterialTemplateMetadata& a, const MaterialTemplateMetadata& b) {
+        return !(a == b);
+    }
     
     friend bool operator==(const MaterialTemplateMetadata& a, const MaterialTemplateMetadata& b) {
         return a.equals(b) &&

@@ -39,6 +39,7 @@
 #include "MemorySerializerTests.hpp"
 #include "CSVParserTests.hpp"
 #include "BehaviourTreeTests.hpp"
+#include "MetadataSerializationTests.hpp"
 
 //#include "did/InitState.h"
 
@@ -101,9 +102,10 @@ int main(int, char*[]) {
 //     //gameEngine.changeState(GameInitState::instance());
     
 //     ADD_TESTS(FileMonitorTests)
-    ADD_TESTS(MemorySerializerTests)
+//    ADD_TESTS(MemorySerializerTests)
 //    ADD_TESTS(CSVParserTests)
 //     ADD_TESTS(BehaviourTreeTests)
+    ADD_TESTS(MetadataSerializationTests)
     
     runner.runTests();
     

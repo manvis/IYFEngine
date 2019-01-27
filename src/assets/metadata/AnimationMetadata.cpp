@@ -66,7 +66,7 @@ void AnimationMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t 
     pw.Double(ticksPerSecond);
     
     pw.String(FORMAT_VERSION_FIELD_NAME);
-    pw.Double(animationFormatVersion);
+    pw.Uint(animationFormatVersion);
 }
 
 void AnimationMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {

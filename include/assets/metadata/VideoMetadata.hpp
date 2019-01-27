@@ -47,6 +47,10 @@ public:
     
     virtual void displayInImGui() const final override;
     
+    friend bool operator!=(const VideoMetadata& a, const VideoMetadata& b) {
+        return !(a == b);
+    }
+    
     friend bool operator==(const VideoMetadata& a, const VideoMetadata& b) {
         return a.equals(b);
     }

@@ -157,6 +157,10 @@ public:
     
     virtual void displayInImGui() const final override;
     
+    friend bool operator!=(const TextureMetadata& a, const TextureMetadata& b) {
+        return !(a == b);
+    }
+    
     friend bool operator==(const TextureMetadata& a, const TextureMetadata& b) {
         return a.equals(b) &&
                (a.compressionFormat == b.compressionFormat) &&

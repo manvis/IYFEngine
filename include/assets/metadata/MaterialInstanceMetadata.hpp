@@ -54,6 +54,10 @@ public:
         return materialTemplateDefinition;
     }
     
+    friend bool operator!=(const MaterialInstanceMetadata& a, const MaterialInstanceMetadata& b) {
+        return !(a == b);
+    }
+    
     friend bool operator==(const MaterialInstanceMetadata& a, const MaterialInstanceMetadata& b) {
         return a.equals(b) &&
                (a.materialTemplateDefinition == b.materialTemplateDefinition);

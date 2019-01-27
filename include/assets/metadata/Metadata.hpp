@@ -119,6 +119,10 @@ public:
         return *this;
     }
     
+    friend bool operator!=(const Metadata& a, const Metadata& b) {
+        return !(a == b);
+    }
+    
     friend bool operator==(const Metadata& a, const Metadata& b) {
         return a.equals(b);
     }

@@ -101,6 +101,10 @@ public:
     
     virtual void displayInImGui() const final override;
     
+    friend bool operator!=(const MeshMetadata& a, const MeshMetadata& b) {
+        return !(a == b);
+    }
+    
     friend bool operator==(const MeshMetadata& a, const MeshMetadata& b) {
         return a.equals(b) && 
                (a.numSubMeshes == b.numSubMeshes) &&

@@ -26,166 +26,62 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef LOGGER_H
-#define LOGGER_H
+#ifndef IYF_LOGGER_HPP
+#define IYF_LOGGER_HPP
 
 #include <string>
-#include <memory>
-#include <ctime>
 #include <sstream>
-#include <mutex>
-#include <fstream>
 
-//#include "localization/Localization.hpp"
+#include "utilities/NonCopyable.hpp"
 
 namespace iyf {
 
 // Inspired by
 // http://stackoverflow.com/questions/8337300/c11-how-do-i-implement-convenient-logging-without-a-singleton
 
-class LoggerOutput {
+class LoggerOutput : private NonCopyable {
 public:
     virtual void output(const std::string& message) = 0;
     virtual ~LoggerOutput() {};
+    
+    /// \return true if this LoggerOutput logs to a memory buffer that can be retrieved and displayed
+    virtual bool logsToBuffer() const = 0;
+    
+    /// Combines getLogBuffer() and clearLogBuffer(). Usually better because you avoid locking the mutex two times.
+    /// \warning Calling this function when logsToBuffer() == false is an error.
+    /// \return the contents of the log buffer.
+    virtual std::string getAndClearLogBuffer() = 0;
+    
+    /// \warning Calling this function when logsToBuffer() == false is an error.
+    /// \return the contents of the log buffer.
+    virtual std::string getLogBuffer() const = 0;
+    
+    /// Clear the log buffer.
+    /// \warning Calling this function when logsToBuffer() == false is an error.
+    virtual void clearLogBuffer() = 0;
 };
 
-class StringLoggerOutput : public LoggerOutput {
-public:
-    virtual void output(const std::string &message) override final {
-        std::lock_guard<std::mutex> lock(stringMutex);
-        logString.append(message).append("\n");
-    }
-    
-    std::string getAndClear() {
-        std::lock_guard<std::mutex> lock(stringMutex);
-        std::string temp = logString;
-        logString.clear();
-        
-        return temp;
-    }
-    
-private:
-    std::mutex stringMutex;
-    std::string logString;
+
+enum class LogLevel {
+    Verbose, Info, Debug, Warning, Error
 };
 
-class FileLoggerOutput : public LoggerOutput {
+class Logger : private NonCopyable {
 public:
-    FileLoggerOutput(const std::string& filePath) {
-#ifdef APPEND_TO_LOG
-        file.open(filePath, std::ofstream::app);
-#else
-        file.open(filePath, std::ofstream::trunc);
-#endif
-        if (!file.good()) {
-            throw std::runtime_error("Failed to open log file.");
-        }
-    }
-
-    virtual void output(const std::string &message) override final {
-        std::lock_guard<std::mutex> lock(fileMutex);
-        file << message << "\n";
-        file.flush();
-    }
-
-    virtual ~FileLoggerOutput() {
-        file.close();
-    };
-private:
-    std::mutex fileMutex;
-    std::ofstream file;
-};
-
-class LogSplitter : public LoggerOutput {
-public:
-    LogSplitter(std::unique_ptr<LoggerOutput> logOut1, std::unique_ptr<LoggerOutput> logOut2) : logOut1(std::move(logOut1)), logOut2(std::move(logOut2)) {}
-    
-    virtual void output(const std::string &message) override final {
-        logOut1->output(message);
-        logOut2->output(message);
-    }
-    
-    LoggerOutput* getObserverToLog1() {
-        return logOut1.get();
-    }
-    
-    LoggerOutput* getObserverToLog2() {
-        return logOut2.get();
-    }
-private:
-    std::unique_ptr<LoggerOutput> logOut1;
-    std::unique_ptr<LoggerOutput> logOut2;
-};
-
-class Logger {
-public:
-    enum class LogLevel {
-        Verbose, Info, Debug, Warning, Error
-    };
-
-    Logger(std::unique_ptr<LoggerOutput> logOut)
-        : output(std::move(logOut)) {}
+    Logger(LoggerOutput* logOut);
+    ~Logger();
 
     void operator() (const std::string& logMessage,
                      LogLevel logLevel,
                      const char* functionName,
                      const char* fileName,
-                     int fileLine)
-    {
-        char out[25];
-        std::time_t timeobj = std::time(nullptr);
-        std::strftime(out, 25, "%Y-%m-%d %H:%M:%S ", std::localtime(&timeobj));
-        std::ostringstream ss;
-
-        switch (logLevel) {
-            case LogLevel::Verbose :
-                ss << out << verbose
-                   << ": \n\t" << logMessage;
-                output->output(ss.str());
-
-                break;
-            case LogLevel::Info :
-                ss << out << info
-                   << ": \n\t" << logMessage;
-                output->output(ss.str());
-
-                break;
-            case LogLevel::Debug :
-                ss << out << debug
-                   << " in FUNCTION " << functionName
-                   << ", FILE " << fileName
-                   << ", LINE " << fileLine
-                   << ": \n\t" << logMessage;
-                output->output(ss.str());
-
-                break;
-            case LogLevel::Warning :
-                ss << out << warning
-                   << ": \n\t" << logMessage;
-                output->output(ss.str());
-
-                break;
-            case LogLevel::Error :
-                ss << out << error
-                   << ": \n\t" << logMessage;
-                output->output(ss.str());
-
-                break;
-        }
-    }
+                     int fileLine);
     
     LoggerOutput* getOutputObserver() {
-        return output.get();
+        return output;
     }
-
 private:
-    const std::string verbose = "VERBOSE";
-    const std::string info = "INFO";
-    const std::string debug = "DEBUG";
-    const std::string warning = "WARNING";
-    const std::string error = "ERROR";
-
-    std::unique_ptr<LoggerOutput> output;
+    LoggerOutput* output;
 };
 
 Logger& DefaultLog();
@@ -204,19 +100,19 @@ Logger& DefaultLog();
     );
 
 
-#define LOG_V(Message_) LOG(iyf::DefaultLog(), iyf::Logger::LogLevel::Verbose, Message_)
-#define LOG_I(Message_) LOG(iyf::DefaultLog(), iyf::Logger::LogLevel::Info, Message_)
-#define LOG_W(Message_) LOG(iyf::DefaultLog(), iyf::Logger::LogLevel::Warning, Message_)
-#define LOG_E(Message_) LOG(iyf::DefaultLog(), iyf::Logger::LogLevel::Error, Message_)
+#define LOG_V(Message_) LOG(iyf::DefaultLog(), iyf::LogLevel::Verbose, Message_)
+#define LOG_I(Message_) LOG(iyf::DefaultLog(), iyf::LogLevel::Info, Message_)
+#define LOG_W(Message_) LOG(iyf::DefaultLog(), iyf::LogLevel::Warning, Message_)
+#define LOG_E(Message_) LOG(iyf::DefaultLog(), iyf::LogLevel::Error, Message_)
 
 // Debug logging gets disabled in release builds that have assertions disabled
 #ifdef NDEBUG
     #define LOG_D(_) do {} while(0);
 #else
-    #define LOG_D(Message_) LOG(iyf::DefaultLog(), iyf::Logger::LogLevel::Debug, Message_)
+    #define LOG_D(Message_) LOG(iyf::DefaultLog(), iyf::LogLevel::Debug, Message_)
 #endif // NDEBUG
 //
 //// Localized logger
 //#define LLOG_V(Message_)
 
-#endif // LOGGER_H
+#endif // IYF_LOGGER_HPP

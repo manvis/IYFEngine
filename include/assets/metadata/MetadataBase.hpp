@@ -120,8 +120,8 @@ public:
     }
 protected:
     inline bool equals(const MetadataBase& other) const {
+        // WARNING: Do not include metadataSource in comparison.
         return (assetType == other.assetType) &&
-               (metadataSource == other.metadataSource) &&
                (complete == other.complete) &&
                (systemAsset == other.systemAsset) &&
                (tags == other.tags) &&

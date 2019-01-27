@@ -38,6 +38,7 @@ static const char* SOURCE_ASSET_FIELD_NAME = "sourceAsset";
 static const char* SERIALIZED_DATA_VERSION_FIELD_NAME = "serializedDataVersion";
 static const char* IS_SYSTEM_ASSET_FIELD_NAME = "isSystemAsset";
 static const char* TAGS_FIELD_NAME = "tags";
+static const char* SOURCE_FILE_HASH_FIELD_NAME = "sourceFileHash";
 
 //static const std::array<char, 4> MAGIC_NUMBER = {'I', 'Y', 'F', 'D'};
 
@@ -52,6 +53,7 @@ void MetadataBase::serialize(Serializer& fw) const {
     fw.writeUInt16(getLatestSerializedDataVersion());
     fw.writeUInt64(fileHash.value());
     fw.writeString(sourceAsset.generic_string(), StringLengthIndicator::UInt16);
+    fw.writeUInt64(sourceFileHash);
     
     fw.writeUInt8(tags.size());
     
@@ -79,10 +81,12 @@ void MetadataBase::deserialize(Serializer& fr)  {
     fr.readString(temp, StringLengthIndicator::UInt16, 0);
     sourceAsset = std::move(temp);
     
+    sourceFileHash = FileHash(fr.readUInt64());
+    
     const std::size_t tagCount = fr.readUInt8();
     
     tags.clear();
-    tags.reserve(tagCount);
+    tags.resize(tagCount);
     
     for (std::size_t i = 0; i < tagCount; ++i) {
         fr.readString(tags[i], StringLengthIndicator::UInt8, 0);
@@ -109,6 +113,9 @@ void MetadataBase::serializeJSON(PrettyStringWriter& pw) const  {
     
     pw.String(SOURCE_ASSET_FIELD_NAME);
     pw.String(sourceAsset.generic_string().c_str(), sourceAsset.generic_string().length(), true);
+    
+    pw.String(SOURCE_FILE_HASH_FIELD_NAME);
+    pw.Uint64(sourceFileHash);
     
     pw.String(SERIALIZED_DATA_VERSION_FIELD_NAME);
     pw.Uint(getLatestSerializedDataVersion());
@@ -140,6 +147,7 @@ void MetadataBase::deserializeJSON(JSONObject& jo) {
     
     fileHash = FileHash(jo[FILE_HASH_FIELD_NAME].GetUint64());
     sourceAsset = fs::path(jo[SOURCE_ASSET_FIELD_NAME].GetString());
+    sourceFileHash = FileHash(jo[SOURCE_FILE_HASH_FIELD_NAME].GetUint64());
     
     std::uint16_t version = jo[SERIALIZED_DATA_VERSION_FIELD_NAME].GetInt();
     

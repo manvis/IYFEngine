@@ -28,22 +28,236 @@
 
 #include "core/Logger.hpp"
 
+#include <mutex>
+#include <fstream>
+#include <ctime>
+
 namespace iyf
 {
 #define IYF_LOG_TO_BOTH
     
+constexpr const char* LOG_LVL_VERBOSE = "VERBOSE";
+constexpr const char* LOG_LVL_INFO  = "INFO";
+constexpr const char* LOG_LVL_DEBUG  = "DEBUG";
+constexpr const char* LOG_LVL_WARNING  = "WARNING";
+constexpr const char* LOG_LVL_ERROR  = "ERROR";
+
+class StringLoggerOutput : public LoggerOutput {
+public:
+    virtual void output(const std::string &message) override final {
+        std::lock_guard<std::mutex> lock(stringMutex);
+        logString.append(message).append("\n");
+    }
+    
+    virtual std::string getAndClearLogBuffer() final override {
+        std::lock_guard<std::mutex> lock(stringMutex);
+        
+        std::string temp = logString;
+        logString.clear();
+        
+        return temp;
+    }
+    
+    virtual bool logsToBuffer() const final override {
+        return true;
+    }
+    
+    virtual std::string getLogBuffer() const final override {
+        std::lock_guard<std::mutex> lock(stringMutex);
+        
+        return logString;
+    }
+    
+    virtual void clearLogBuffer() final override {
+        std::lock_guard<std::mutex> lock(stringMutex);
+        
+        logString.clear();
+    }
+private:
+    mutable std::mutex stringMutex;
+    std::string logString;
+};
+
+class FileLoggerOutput : public LoggerOutput {
+public:
+    FileLoggerOutput(const std::string& filePath) {
+#ifdef APPEND_TO_LOG
+        file.open(filePath, std::ofstream::app);
+#else
+        file.open(filePath, std::ofstream::trunc);
+#endif
+        if (!file.good()) {
+            throw std::runtime_error("Failed to open log file.");
+        }
+    }
+
+    virtual void output(const std::string &message) final override {
+        std::lock_guard<std::mutex> lock(fileMutex);
+        file << message << "\n";
+        file.flush();
+    }
+
+    virtual ~FileLoggerOutput() {
+        file.close();
+    };
+    
+    virtual bool logsToBuffer() const final override {
+        return false;
+    }
+    
+    virtual std::string getAndClearLogBuffer() final override {
+        throw std::logic_error("Can't get and clear a log buffer from FileLoggerOutput because it doesn't have one");
+    }
+    
+    virtual std::string getLogBuffer() const final override {
+        throw std::logic_error("Can't get a log buffer from FileLoggerOutput because it doesn't have one");
+    }
+    
+    virtual void clearLogBuffer() final override {
+        throw std::logic_error("Can't clear a log buffer in FileLoggerOutput because it doesn't have one");
+    }
+private:
+    std::mutex fileMutex;
+    std::ofstream file;
+};
+
+class LogSplitter : public LoggerOutput {
+public:
+    LogSplitter(LoggerOutput* logOut1, LoggerOutput* logOut2) : logOut1(logOut1), logOut2(logOut2) {
+        if (logOut1 == nullptr || logOut2 == nullptr) {
+            throw std::runtime_error("Log splitter inputs can't be nullptr");
+        }
+    }
+    
+    ~LogSplitter() {
+        delete logOut1;
+        delete logOut2;
+    }
+    
+    virtual void output(const std::string &message) override final {
+        logOut1->output(message);
+        logOut2->output(message);
+    }
+    
+    LoggerOutput* getObserverToLog1() {
+        return logOut1;
+    }
+    
+    LoggerOutput* getObserverToLog2() {
+        return logOut2;
+    }
+    
+    virtual bool logsToBuffer() const final override {
+        return logOut1->logsToBuffer() || logOut2->logsToBuffer();
+    }
+    
+    virtual std::string getAndClearLogBuffer() final override {
+        if (logOut1->logsToBuffer()) {
+            return logOut1->getAndClearLogBuffer();
+        } else if (logOut2->logsToBuffer()) {
+            return logOut2->getAndClearLogBuffer();
+        } else {
+            throw std::logic_error("Neither child of the LogSplitter has a backing buffer");
+        }
+    }
+    
+    virtual std::string getLogBuffer() const final override {
+        if (logOut1->logsToBuffer()) {
+            return logOut1->getLogBuffer();
+        } else if (logOut2->logsToBuffer()) {
+            return logOut2->getLogBuffer();
+        } else {
+            throw std::logic_error("Neither child of the LogSplitter has a backing buffer");
+        }
+    }
+    
+    virtual void clearLogBuffer() final override {
+        if (logOut1->logsToBuffer()) {
+            return logOut1->clearLogBuffer();
+        } else if (logOut2->logsToBuffer()) {
+            return logOut2->clearLogBuffer();
+        } else {
+            throw std::logic_error("Neither child of the LogSplitter has a backing buffer");
+        }
+    }
+private:
+    LoggerOutput* logOut1;
+    LoggerOutput* logOut2;
+};
+
 Logger& DefaultLog() {
 #if defined(IYF_LOG_TO_BOTH)
-    static std::unique_ptr<LoggerOutput> stringLogger = std::unique_ptr<LoggerOutput>(new StringLoggerOutput());
-    static std::unique_ptr<LoggerOutput> fileLogger = std::unique_ptr<LoggerOutput>(new FileLoggerOutput("program.log"));
+    static LoggerOutput* stringLogger = new StringLoggerOutput();
+    static LoggerOutput* fileLogger = new FileLoggerOutput("program.log");
     
-    static Logger l(std::unique_ptr<LogSplitter>(new LogSplitter(std::move(stringLogger), std::move(fileLogger))));
+    static Logger l(new LogSplitter(stringLogger, fileLogger));
 #elif defined(IYF_LOG_TO_STRING)
-    static Logger l(std::unique_ptr<StringLoggerOutput>(new StringLoggerOutput()));
+    static Logger l(new StringLoggerOutput());
 #else //IYF_LOG_TO_FILE
-    static Logger l(std::unique_ptr<FileLoggerOutput>(new FileLoggerOutput("program.log")));
+    static Logger l(new FileLoggerOutput("program.log"));
 #endif
     return l;
+}
+
+Logger::Logger(LoggerOutput* logOut) : output(logOut) {
+    if (logOut == nullptr) {
+        throw new std::runtime_error("Logger output can't be nullptr");
+    }
+}
+
+Logger::~Logger() {
+    delete output;
+}
+
+void Logger::operator() (const std::string& logMessage,
+                    LogLevel logLevel,
+                    const char* functionName,
+                    const char* fileName,
+                    int fileLine)
+{
+    char out[25];
+    std::time_t timeobj = std::time(nullptr);
+    std::strftime(out, 25, "%Y-%m-%d %H:%M:%S ", std::localtime(&timeobj));
+    std::ostringstream ss;
+
+    switch (logLevel) {
+        case LogLevel::Verbose :
+            ss << out << LOG_LVL_VERBOSE
+                << ": \n\t" << logMessage;
+            output->output(ss.str());
+
+            break;
+        case LogLevel::Info :
+            ss << out << LOG_LVL_INFO
+                << ": \n\t" << logMessage;
+            output->output(ss.str());
+
+            break;
+        case LogLevel::Debug :
+            ss << out << LOG_LVL_DEBUG
+                << " in FUNCTION " << functionName
+                << ", FILE " << fileName
+                << ", LINE " << fileLine
+                << ": \n\t" << logMessage;
+            output->output(ss.str());
+
+            break;
+        case LogLevel::Warning :
+            ss << out << LOG_LVL_WARNING
+                << ": \n\t" << logMessage;
+            output->output(ss.str());
+
+            break;
+        case LogLevel::Error :
+            ss << out << LOG_LVL_ERROR
+                << " in FUNCTION " << functionName
+                << ", FILE " << fileName
+                << ", LINE " << fileLine
+                << ": \n\t" << logMessage;
+            output->output(ss.str());
+
+            break;
+    }
 }
 
 }

@@ -29,6 +29,7 @@
 #include "core/configuration/Configuration.hpp"
 
 #include <algorithm>
+#include <fstream>
 
 #include "sol/sol.hpp"
 #include "core/exceptions/ConfigurationLoadError.hpp"

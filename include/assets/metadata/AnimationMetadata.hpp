@@ -63,6 +63,10 @@ public:
     
     virtual void displayInImGui() const final override;
     
+    friend bool operator!=(const AnimationMetadata& a, const AnimationMetadata& b) {
+        return !(a == b);
+    }
+    
     friend bool operator==(const AnimationMetadata& a, const AnimationMetadata& b) {
         return a.equals(b) &&
                (a.duration == b.duration) &&

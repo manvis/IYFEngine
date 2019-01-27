@@ -63,7 +63,8 @@ add_executable(IYFTest
     ../../../testing/BehaviourTreeTests.cpp
     ../../../testing/FileMonitorTests.cpp
     ../../../testing/MemorySerializerTests.cpp
-    ../../../testing/CSVParserTests.cpp)
+    ../../../testing/CSVParserTests.cpp
+    ../../../testing/MetadataSerializationTests.cpp)
 
 target_link_libraries(IYFTest IYFTools)
 

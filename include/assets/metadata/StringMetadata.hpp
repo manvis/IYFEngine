@@ -58,6 +58,10 @@ public:
         return priority;
     }
     
+    friend bool operator!=(const StringMetadata& a, const StringMetadata& b) {
+        return !(a == b);
+    }
+    
     friend bool operator==(const StringMetadata& a, const StringMetadata& b) {
         return a.equals(b) &&
                (a.locale == b.locale) &&

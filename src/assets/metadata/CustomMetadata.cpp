@@ -27,6 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assets/metadata/CustomMetadata.hpp"
+#include "core/Logger.hpp"
 #include <stdexcept>
 
 namespace iyf {
@@ -36,25 +37,25 @@ std::uint16_t CustomMetadata::getLatestSerializedDataVersion() const {
 
 void CustomMetadata::serializeImpl(Serializer& /*fw*/, std::uint16_t version) const {
     assert(version == 1);
-    throw std::runtime_error("Method not yet implemented");
+    LOG_E("Method not yet implemented");
 }
 
 void CustomMetadata::deserializeImpl(Serializer& /*fr*/, std::uint16_t version) {
     assert(version == 1);
-    throw std::runtime_error("Method not yet implemented");
+    LOG_E("Method not yet implemented");
 }
 
 void CustomMetadata::serializeJSONImpl(PrettyStringWriter& /*pw*/, std::uint16_t version) const {
     assert(version == 1);
-    throw std::runtime_error("Method not yet implemented");
+    LOG_E("Method not yet implemented");
 }
 
 void CustomMetadata::deserializeJSONImpl(JSONObject& /*jo*/, std::uint16_t version) {
     assert(version == 1);
-    throw std::runtime_error("Method not yet implemented");
+    LOG_E("Method not yet implemented");
 }
 
 void CustomMetadata::displayInImGui() const {
-    throw std::runtime_error("Method not yet implemented");
+    LOG_E("Method not yet implemented");
 }
 }

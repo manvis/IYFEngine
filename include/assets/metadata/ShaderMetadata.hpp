@@ -55,6 +55,10 @@ public:
     
     virtual void displayInImGui() const final override;
     
+    friend bool operator!=(const ShaderMetadata& a, const ShaderMetadata& b) {
+        return !(a == b);
+    }
+    
     friend bool operator==(const ShaderMetadata& a, const ShaderMetadata& b) {
         return a.equals(b) &&
                (a.stage == b.stage);

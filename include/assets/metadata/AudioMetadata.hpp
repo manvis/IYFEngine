@@ -47,6 +47,10 @@ public:
     
     virtual void displayInImGui() const final override;
     
+    friend bool operator!=(const AudioMetadata& a, const AudioMetadata& b) {
+        return !(a == b);
+    }
+    
     friend bool operator==(const AudioMetadata& a, const AudioMetadata& b) {
         return a.equals(b);
     }

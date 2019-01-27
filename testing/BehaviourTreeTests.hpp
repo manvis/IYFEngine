@@ -33,6 +33,7 @@
 #include "ai/BehaviourTreeConstants.hpp"
 
 #include <vector>
+#include <memory>
 
 namespace iyf {
 class BehaviourTree;

@@ -414,10 +414,11 @@ bool Engine::popState() {
 
 void Engine::fetchLogString() {
     LoggerOutput* output = DefaultLog().getOutputObserver();
-    LogSplitter* splitter = static_cast<LogSplitter*>(output);
-    StringLoggerOutput* strLog = static_cast<StringLoggerOutput*>(splitter->getObserverToLog1());
+    if (!output->logsToBuffer()) {
+        throw std::runtime_error("No buffer to fetch the log from");
+    }
     
-    log += strLog->getAndClear();
+    log += output->getAndClearLogBuffer();
 }
 
 //void Engine::setUpFramebuffer() {

@@ -47,6 +47,10 @@ public:
     
     virtual void displayInImGui() const final override;
     
+    friend bool operator!=(const ScriptMetadata& a, const ScriptMetadata& b) {
+        return !(a == b);
+    }
+    
     friend bool operator==(const ScriptMetadata& a, const ScriptMetadata& b) {
         return a.equals(b);
     }

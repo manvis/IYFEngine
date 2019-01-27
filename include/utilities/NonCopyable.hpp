@@ -26,8 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef NONCOPYABLE_HPP
-#define NONCOPYABLE_HPP
+#ifndef IYF_NON_COPYABLE_HPP
+#define IYF_NON_COPYABLE_HPP
 
 namespace iyf {
 /// This must be used as a private base class. The implementation is similar to what boost has,
@@ -43,5 +43,5 @@ protected:
 };
 }
 
-#endif /* NONCOPYABLE_HPP */
+#endif // IYF_NON_COPYABLE_HPP
 

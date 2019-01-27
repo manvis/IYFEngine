@@ -26,36 +26,31 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assets/metadata/ScriptMetadata.hpp"
-#include "core/Logger.hpp"
-#include <stdexcept>
+#ifndef IYF_METADATA_SERIALIZATION_TESTS_HPP
+#define IYF_METADATA_SERIALIZATION_TESTS_HPP
 
-namespace iyf {
-std::uint16_t ScriptMetadata::getLatestSerializedDataVersion() const {
-    return 1;
-}
+#include "TestBase.hpp"
 
-void ScriptMetadata::serializeImpl(Serializer& /*fw*/, std::uint16_t version) const {
-    assert(version == 1);
-    LOG_E("Method not yet implemented");
-}
+#include <vector>
+#include <string>
 
-void ScriptMetadata::deserializeImpl(Serializer& /*fr*/, std::uint16_t version) {
-    assert(version == 1);
-    LOG_E("Method not yet implemented");
-}
+namespace iyf::test {
+    
+class MetadataSerializationTests : public TestBase {
+public:
+    MetadataSerializationTests(bool verbose);
+    virtual ~MetadataSerializationTests();
+    
+    virtual std::string getName() const final override {
+        return "Metadata serialization tests";
+    }
+    
+    virtual void initialize() final override;
+    virtual TestResults run() final override;
+    virtual void cleanup() final override;
+};
 
-void ScriptMetadata::serializeJSONImpl(PrettyStringWriter& /*pw*/, std::uint16_t version) const {
-    assert(version == 1);
-    LOG_E("Method not yet implemented");
-}
-
-void ScriptMetadata::deserializeJSONImpl(JSONObject& /*jo*/, std::uint16_t version) {
-    assert(version == 1);
-    LOG_E("Method not yet implemented");
 }
 
-void ScriptMetadata::displayInImGui() const {
-    LOG_E("Method not yet implemented");
-}
-}
+#endif // IYF_METADATA_SERIALIZATION_TESTS_HPP
+
