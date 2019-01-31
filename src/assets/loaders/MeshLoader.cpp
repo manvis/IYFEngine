@@ -37,6 +37,8 @@
 
 #include "assets/metadata/MeshMetadata.hpp"
 
+#include "fmt/ostream.h"
+
 #include <vector>
 #include <cstring>
 
@@ -54,7 +56,8 @@ bool MeshLoader::loadMesh(const fs::path& path, LoadedMeshData& submeshes, void*
         auto headerData = readHeader(fr);
         
         if (!headerData.first) {
-            LOG_E("Can't load mesh from " << path << ". Magic number is not " << mf::MagicNumber)
+            LOG_E("Can't load mesh from {}. Magic number is not {}", path, mf::MagicNumber)
+            
             return false;
         }
         
@@ -62,11 +65,11 @@ bool MeshLoader::loadMesh(const fs::path& path, LoadedMeshData& submeshes, void*
         case 1:
             return loadMeshV1(fr, submeshes, vertexBuffer, indexBuffer, skeleton);
         default:
-            LOG_E("Can't load mesh from " << path << ". Unknown version number: " << headerData.second)
+            LOG_E("Can't load mesh from {}. Unknown version number: {}", headerData.second, path)
             return false;
         }
     } else {
-        LOG_E("Can't load mesh from " << path << ". File does not exist.")
+        LOG_E("Can't load mesh from {}. File does not exist.", path)
         return false;
     }
 }
@@ -80,7 +83,7 @@ bool MeshLoader::loadAnimation(const fs::path& path, Animation& buffer) const {
         auto headerData = readAnimationHeader(fr);
         
         if (!headerData.first) {
-            LOG_E("Can't load animation from " << path << ". Magic number is not " << af::MagicNumber)
+            LOG_E("Can't load animation from {}. Magic number is not {}", path, af::MagicNumber)
             return false;
         }
         
@@ -88,11 +91,11 @@ bool MeshLoader::loadAnimation(const fs::path& path, Animation& buffer) const {
         case 1:
             return loadAnimationV1(fr, buffer);
         default:
-            LOG_E("Can't load animation from " << path << ". Unknown version number: " << headerData.second)
+            LOG_E("Can't load animation from {}. Unknown version number: {}", path, headerData.second)
             return false;
         }
     } else {
-        LOG_E("Can't load animation from " << path << ". File does not exist.")
+        LOG_E("Can't load animation from {}. File does not exist.", path)
         return false;
     }
 }
@@ -106,7 +109,7 @@ MeshLoader::MemoryRequirements MeshLoader::getMeshMemoryRequirements(const fs::p
         auto headerData = readHeader(fr);
         
         if (!headerData.first) {
-            LOG_E("Can't load mesh from " << path << ". Magic number is not " << mf::MagicNumber)
+            LOG_E("Can't load mesh from {}. Magic number is not {}", path, mf::MagicNumber)
             throw std::runtime_error("Mesh file has an invalid magic number.");
         }
         
@@ -114,11 +117,11 @@ MeshLoader::MemoryRequirements MeshLoader::getMeshMemoryRequirements(const fs::p
         case 1:
             return getMemoryRequirementsV1(fr);
         default:
-            LOG_E("Can't load mesh from " << path << ". Unknown version number: " << headerData.second)
+            LOG_E("Can't load mesh from {}. Unknown version number: {}", path, headerData.second)
             throw std::runtime_error("Mesh file is of an unknown version.");
         }
     } else {
-        LOG_E("Can't load mesh from " << path << ". File does not exist.")
+        LOG_E("Can't load mesh from {}. File does not exist.", path)
         throw std::runtime_error("Mesh file does not exist.");
     }
 }
@@ -166,7 +169,7 @@ MeshLoader::MemoryRequirements MeshLoader::getMeshMemoryRequirements(const Metad
     case 1:
         return getMemoryRequirementsV1(meshMetadata);
     default:
-        LOG_E("Unknown mesh version number in Metadata object: " << meshMetadata.getMeshFormatVersion())
+        LOG_E("Unknown mesh version number in Metadata object: {}", meshMetadata.getMeshFormatVersion())
         throw std::runtime_error("Unknown mesh version.");
     }
 }

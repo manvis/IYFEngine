@@ -217,44 +217,27 @@ void Logger::operator() (const std::string& logMessage,
 {
     char out[25];
     std::time_t timeobj = std::time(nullptr);
-    std::strftime(out, 25, "%Y-%m-%d %H:%M:%S ", std::localtime(&timeobj));
-    std::ostringstream ss;
+    std::strftime(out, 25, "%Y-%m-%d %H:%M:%S", std::localtime(&timeobj));
 
     switch (logLevel) {
         case LogLevel::Verbose :
-            ss << out << LOG_LVL_VERBOSE
-                << ": \n\t" << logMessage;
-            output->output(ss.str());
+            output->output(fmt::format("{} {}:\n\t{}", out, LOG_LVL_VERBOSE, logMessage));
 
             break;
         case LogLevel::Info :
-            ss << out << LOG_LVL_INFO
-                << ": \n\t" << logMessage;
-            output->output(ss.str());
+            output->output(fmt::format("{} {}:\n\t{}", out, LOG_LVL_INFO, logMessage));
 
             break;
         case LogLevel::Debug :
-            ss << out << LOG_LVL_DEBUG
-                << " in FUNCTION " << functionName
-                << ", FILE " << fileName
-                << ", LINE " << fileLine
-                << ": \n\t" << logMessage;
-            output->output(ss.str());
+            output->output(fmt::format("{} {} in FUNCTION {}, FILE {}, LINE {}:\n\t{}\n", out, LOG_LVL_DEBUG, functionName, fileName, fileLine, logMessage));
 
             break;
         case LogLevel::Warning :
-            ss << out << LOG_LVL_WARNING
-                << ": \n\t" << logMessage;
-            output->output(ss.str());
+            output->output(fmt::format("{} {}:\n\t{}", out, LOG_LVL_WARNING, logMessage));
 
             break;
         case LogLevel::Error :
-            ss << out << LOG_LVL_ERROR
-                << " in FUNCTION " << functionName
-                << ", FILE " << fileName
-                << ", LINE " << fileLine
-                << ": \n\t" << logMessage;
-            output->output(ss.str());
+            output->output(fmt::format("{} {} in FUNCTION {}, FILE {}, LINE {}:\n\t{}\n", out, LOG_LVL_ERROR, functionName, fileName, fileLine, logMessage));
 
             break;
     }

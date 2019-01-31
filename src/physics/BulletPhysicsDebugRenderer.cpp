@@ -32,7 +32,7 @@
 namespace iyf {
 
 void BulletPhysicsDebugRenderer::reportErrorWarning(const char* warningString) {
-    LOG_W(warningString)
+    LOG_W("{}", warningString)
 }
 
 // void BulletPhysicsDebugRenderer::flushLines() {

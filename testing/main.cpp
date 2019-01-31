@@ -60,7 +60,7 @@ public:
         std::size_t count = 0;
         
         for (const auto& t : tests) {
-            LOG_V("TEST STARTING\n\t\tName:     " << t->getName());
+            LOG_V("TEST STARTING\n\t\tName:     {}", t->getName());
             
             t->initialize();
             
@@ -70,11 +70,11 @@ public:
             
             std::chrono::duration<float, std::milli> durationMS = end - start;
             
-            LOG_V("TEST FINISHED\n\t\t" << 
-                  "Name:     " << t->getName() << "\n\t\t" <<
-                  "Result:   " << (results.isSuccessful() ? "SUCCESS" : "FAILURE") << "\n\t\t" << 
-                  "Notes:    " << (results.getNotes().empty() ? "NONE" : results.getNotes()) << "\n\t\t" << 
-                  "Duration: " << durationMS.count() << "ms");
+            LOG_V("TEST FINISHED"
+                  "\n\t\tName:     {}"
+                  "\n\t\tResult:   {}"
+                  "\n\t\tNotes:    {}"
+                  "\n\t\tDuration: {}ms", t->getName(), (results.isSuccessful() ? "SUCCESS" : "FAILURE"), (results.getNotes().empty() ? "NONE" : results.getNotes()), durationMS.count());
             
             t->cleanup();
             

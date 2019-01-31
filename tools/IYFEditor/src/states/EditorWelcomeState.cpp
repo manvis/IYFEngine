@@ -49,6 +49,8 @@
 
 #include "core/filesystem/cppFilesystem.hpp"
 
+#include "fmt/ostream.h"
+
 namespace iyf::editor {
 const std::string AUTO_LOAD_PROJECT_CONFIG_NAME = "auto_load_last";
 
@@ -198,7 +200,7 @@ void EditorWelcomeState::initialize() {
         try {
             timeInt = std::stoull(time);
         } catch(std::logic_error& e) {
-            LOG_W("Could not convert time string to uint64_t for project " << path);
+            LOG_W("Could not convert time string to uint64_t for project {}", path);
             continue;
         }
         
@@ -208,7 +210,7 @@ void EditorWelcomeState::initialize() {
         data.name = name;
         
         if (!fs::exists(path)) {
-            LOG_V("Project " << name << " no longer exists in " << path << ". It will be removed from the project list.");
+            LOG_V("Project {} no longer exists in {}. It will be removed from the project list.", name, path);
             data.path.clear();
         } else {
             data.path = path;
@@ -225,7 +227,7 @@ void EditorWelcomeState::initialize() {
         return data.path.empty();
     }), lastLoadedProjects.end());
     
-    LOG_V("Number of remembered loaded projects: " << lastLoadedProjects.size())
+    LOG_V("Number of remembered loaded projects: {}", lastLoadedProjects.size())
     writeProjectList();
     
     const std::string firstName = config->getValue("user_first_name", ConfigurationValueFamily::Editor);
@@ -535,9 +537,9 @@ void EditorWelcomeState::frame(float delta) {
             auto project = std::make_unique<Project>(lastLoadedProjects[projectToLoad].path);
             FileSystem* fileSystem = engine->getFileSystem();
             
-            LOG_V("Write path before project change: " << fileSystem->getCurrentWriteDirectory());
+            LOG_V("Write path before project change: {}", fileSystem->getCurrentWriteDirectory());
             engine->setProject(std::move(project));
-            LOG_V("Write path after project change: " << fileSystem->getCurrentWriteDirectory());
+            LOG_V("Write path after project change: {}", fileSystem->getCurrentWriteDirectory());
             
             // TODO should I initialize the editor state here?
             

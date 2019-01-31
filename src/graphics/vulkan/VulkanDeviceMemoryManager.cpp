@@ -136,7 +136,7 @@ void VulkanDeviceMemoryManager::resetData(StagingBufferData& data) {
     data.currentOffset = 0;
     
     if (!firstFrame && data.batch != MemoryBatch::Instant && data.uploadCalls == 0) {
-        LOG_W("beginBatchUpload() wasn't called last frame for MemoryBatch with ID " << static_cast<std::uint32_t>(data.batch));
+        LOG_W("beginBatchUpload() wasn't called last frame for MemoryBatch with ID {}", static_cast<std::uint32_t>(data.batch));
     }
     
     data.uploadCalls = 0;

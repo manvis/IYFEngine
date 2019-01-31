@@ -1062,10 +1062,10 @@ public:
                         break;
                 }
                 
-                LOG_W("A deserialized logic graph connection is invalid." <<
-                      "\n\tSource Key (connector ID): " << source.getNodeKey() << " (" << source.getConnectorID() << ")" <<
-                      "\n\tDestination Key (connector ID): " << destination.getNodeKey() << " (" << destination.getConnectorID() << ")" <<
-                      "\n\tResult: " << resultName);
+                LOG_W("A deserialized logic graph connection is invalid."
+                      "\n\tSource Key (connector ID): {} ({})"
+                      "\n\tDestination Key (connector ID): {} ({})"
+                      "\n\tResult: ", source.getNodeKey(), source.getConnectorID(), destination.getNodeKey(), destination.getConnectorID(), resultName);
             }
         }
         

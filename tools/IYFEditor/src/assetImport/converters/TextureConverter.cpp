@@ -52,6 +52,7 @@
 #include "Compressonator.h"
 #include "tools/Compressonator_Test_Helpers.h"
 #include "glm/gtc/packing.hpp"
+#include "fmt/ostream.h"
 
 /// Same as the one used in stb_image_resize. Used to prevent alpha premultiplication from removing the color data in transparent pixels
 #define IYF_ALPHA_EPSILON ((float)1 / (1 << 20) / (1 << 20) / (1 << 20) / (1 << 20))
@@ -480,7 +481,7 @@ void throwCompressonatorError(CMP_ERROR result) {
             break;
     }
     
-    LOG_E(ss.str());
+    LOG_E("{}", ss.str());
     throw std::runtime_error(ss.str());
 }
 
@@ -500,7 +501,7 @@ bool TextureConverter::compressonatorCompress(Serializer& serializer, std::vecto
     const bool needToSwizzleRB = !(format == CMP_FORMAT_BC7 || format == CMP_FORMAT_BC6H || format == CMP_FORMAT_BC6H_SF);
     
     if (sourceDataHDR && textureState.getChannels() != 3) {
-        LOG_W("Cannot convert " << textureState.getSourceFilePath() << ". HDR images must have exactly 3 channels");
+        LOG_W("Cannot convert {}. HDR images must have exactly 3 channels", textureState.getSourceFilePath());
         return false;
     }
     
@@ -603,13 +604,15 @@ bool TextureConverter::compressonatorCompress(Serializer& serializer, std::vecto
     destinationTexture.pData = (CMP_BYTE*)malloc(destinationTexture.dwDataSize);
     
     if (textureState.isDebugOutputRequested()) {
-        LOG_V("Compressing a texture: " << textureState.getSourceFilePath() <<
+        std::stringstream ss;
+        ss << "Compressing a texture: " << textureState.getSourceFilePath() <<
               "\n\tFace: " << face <<
               "\n\tLevel: " << level <<
               "\n\tDimensions: " << destinationTexture.dwWidth << "x" << destinationTexture.dwHeight <<
               "\n\tFormat ID (is sRGB): " << static_cast<std::size_t>(CompressonatorToEngineFormat(format)) << " (" << (textureState.sRGBSource ? "true)" : "false)") << 
               "\n\tDetermined size (expected size): " << destinationTexture.dwDataSize << 
-              " (" << con::CompressedTextureMipmapLevelSize(CompressonatorToEngineFormat(format), destinationTexture.dwWidth, destinationTexture.dwHeight) << ")");
+              " (" << con::CompressedTextureMipmapLevelSize(CompressonatorToEngineFormat(format), destinationTexture.dwWidth, destinationTexture.dwHeight) << ")";
+        LOG_V("{}", ss.str());
     }
     assert(destinationTexture.dwDataSize == con::CompressedTextureMipmapLevelSize(CompressonatorToEngineFormat(format), destinationTexture.dwWidth, destinationTexture.dwHeight));
     
@@ -673,13 +676,13 @@ std::unique_ptr<ConverterState> TextureConverter::initializeConverter(const fs::
     int channels = 0;
     
     if (!stbi_info_from_memory(ucData, internalState->size, &x, &y, &channels)) {
-        LOG_W("stb_image failed to extract information from " << inPath.generic_string());
+        LOG_W("stb_image failed to extract information from {}", inPath.generic_string());
         return nullptr;
     }
     const bool sourceDataHDR = stbi_is_hdr_from_memory(ucData, internalState->size);
     
     if (x <= 0 || y <= 0) {
-        LOG_W("Cannot import a invalid texture from " << inPath.generic_string());
+        LOG_W("Cannot import a invalid texture from {}", inPath.generic_string());
         return nullptr;
     }
     
@@ -693,10 +696,10 @@ std::unique_ptr<ConverterState> TextureConverter::initializeConverter(const fs::
     const std::size_t height = y;
     if (isPowerOfTwo(width) && isPowerOfTwo(height)) {
         state->cubemap = false;
-        LOG_V("Importing a regular power of two texture: " << width << "x" << height << "; channels: " << channels);
+        LOG_V("Importing a regular power of two texture: {}x{}; channels: {}", width, height, channels);
     } else if (isPowerOfTwo(width / 6) && isPowerOfTwo(height) && (width / 6 == height)) {
         state->cubemap = true;
-        LOG_V("Importing a cubemap texture: " << width << "x" << height << "; channels: " << channels);
+        LOG_V("Importing a cubemap texture: {}x{}; channels: {}", width, height, channels);
     } else {
         LOG_W("Can only import textures with power of two dimensions or cubemaps where (width / 6 == height) && isPowerOfTwo(width / 6) && isPowerOfTwo(height)");
         return nullptr;
@@ -734,7 +737,7 @@ bool TextureConverter::convert(ConverterState& state) const {
         imageData = ImageDataPtr(stbi_loadf_from_memory(ucData, internalState->size, &x, &y, &c, 0), [](float* p){stbi_image_free(p);});
         
         if (imageData == nullptr) {
-            LOG_W("stb_image failed to load the image from " << state.getSourceFilePath().generic_string());
+            LOG_W("stb_image failed to load the image from {}", state.getSourceFilePath().generic_string());
             return false;
         }
         
@@ -750,7 +753,7 @@ bool TextureConverter::convert(ConverterState& state) const {
         stbi_uc* temp = stbi_load_from_memory(ucData, internalState->size, &x, &y, &c, 0);
         
         if (temp == nullptr) {
-            LOG_W("stb_image failed to load the image from " << state.getSourceFilePath().generic_string());
+            LOG_W("stb_image failed to load the image from {}", state.getSourceFilePath().generic_string());
             return false;
         }
         
@@ -784,7 +787,7 @@ bool TextureConverter::convert(ConverterState& state) const {
     const std::size_t topLevelWidth = textureState.width / faceCount;
     const std::size_t topLevelHeight = textureState.height;
     
-    LOG_D("TLWH: " << topLevelWidth << " " << topLevelHeight);
+    LOG_D("TLWH: {} {}", topLevelWidth, topLevelHeight);
     
     // Used to store the data received from the compressor
     MemorySerializer fw(1024 * 1024 * 8);

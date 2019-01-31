@@ -48,6 +48,8 @@
 
 #include "utilities/Regexes.hpp"
 
+#include "fmt/ostream.h"
+
 namespace iyf {
 namespace editor {
 ConverterManager::ConverterManager(const FileSystem* fileSystem, fs::path assetDestination) 
@@ -65,7 +67,7 @@ ConverterManager::~ConverterManager() {}
 
 std::unique_ptr<ConverterState> ConverterManager::initializeConverter(const fs::path& sourcePath, PlatformIdentifier platformID) const {
     if (!fileSystem->exists(sourcePath)) {
-        LOG_W("Cannot initialize the converter because file \"" << sourcePath << "\" does not exist.")
+        LOG_W("Cannot initialize the converter because file \"{}\" does not exist.", sourcePath)
         return nullptr;
     }
     
@@ -87,7 +89,7 @@ std::unique_ptr<ConverterState> ConverterManager::initializeConverter(const fs::
 
 fs::path ConverterManager::makeLocaleStringPath(const fs::path& sourcePath, const fs::path& directory, PlatformIdentifier platformID) const {
     if (!std::regex_match(sourcePath.filename().string(), SystemRegexes().LocalizationFileNameValidationRegex)) {
-        LOG_E("String files need to match a specific pattern filename.{LOCALE}.csv, where {LOCALE} is en_US, lt_LT, etc.");
+        LOG_E("String files need to match a specific pattern filename.[LOCALE].csv, where [LOCALE] is en_US, lt_LT, etc.");
         throw std::runtime_error("Invalid source path format (check log)");
     }
     

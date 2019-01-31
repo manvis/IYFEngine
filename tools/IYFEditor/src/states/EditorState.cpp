@@ -61,6 +61,8 @@
 #include "utilities/IntegerPacking.hpp"
 #include "utilities/ImGuiUtils.hpp"
 
+#include "fmt/ostream.h"
+
 #include "glm/gtx/string_cast.hpp"
 
 // TODO move the test to tests
@@ -88,7 +90,7 @@ EditorState::EditorState(iyf::Engine* engine) : GameState(engine),
 }
 
 EditorState::~EditorState() {
-    LOG_D("!!!!" << assetList.size())
+    LOG_D("!!!!{}", assetList.size())
 }
 
 void EditorState::initialize() {
@@ -255,7 +257,7 @@ void EditorState::frame(float delta) {
             deselectCurrentItem();
         } else {
             changeSelection(id);
-            LOG_V("Picked item ID: " << id);
+            LOG_V("Picked item ID: {}", id);
         }
     }
     
@@ -505,7 +507,7 @@ void EditorState::frame(float delta) {
     if (ImGui::Button("PerfTest")) {
         MeshLoader ml(engine);
         MeshLoader::MemoryRequirements mr = ml.getMeshMemoryRequirements("data/test/inData.iyfm");
-        LOG_D(mr.vertexSize << " " << mr.indexSize << " " << mr.boneCount)
+        LOG_D("{} {} {}", mr.vertexSize, mr.indexSize, mr.boneCount)
         // And what about offsets, limits, submeshes, etc?
         std::vector<char> vbo;
         vbo.resize(mr.vertexSize);
@@ -1285,12 +1287,6 @@ void EditorState::showCameraComponentEditor(Entity& entity) {
         graphicsSystem->setDrawingFrustum(true);
         graphicsSystem->setDrawnCameraFrustumID(entity.getKey().getID());
     }
-    
-    if (ImGui::Button("PRINT_TEST", ImVec2(-1, 0))) {
-        glm::mat4 VM = glm::lookAt(glm::vec3(0.0, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        
-        LOG_D(glm::to_string(VM) << "--------------------------\n\t" << glm::to_string(camera.getViewMatrix()) << "+++++++++++++++++++++\n\t" << glm::to_string(glm::mat4_cast(glm::quat(1.0f, 0.0f, 0.0f, 0.0f))));
-    }
 }
 
 void EditorState::showPhysicsComponentEditors(Entity& entity) {
@@ -1637,12 +1633,12 @@ void EditorState::showAssetWindow() {
                 if (isDir) {
                     iyf::ErrorCode ec;
                     if (fs::remove_all(realPath, ec) == static_cast<std::uintmax_t>(-1)) {
-                        LOG_W("Failed to delete " << realPath);
+                        LOG_W("Failed to delete {}", realPath);
                     }
                 } else {
                     iyf::ErrorCode ec;
                     if (!fs::remove(realPath, ec)) {
-                        LOG_W("Failed to delete " << realPath);
+                        LOG_W("Failed to delete {}", realPath);
                     }
                 }
                 

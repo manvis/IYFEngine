@@ -75,10 +75,6 @@ void PhysicsSystem::initialize() {
     btRigidBody::btRigidBodyConstructionInfo rbci(0, &worldBottomState, worldBottomShape, btVector3(0, 0, 0));
     worldBottom = new btRigidBody(rbci);
     dynamicsWorld->addRigidBody(worldBottom);
-    
-    LOG_D("STs: " << sizeof(std::size_t) << " " << sizeof(boost::optional<std::size_t>) << " " << alignof(std::size_t) << " " << alignof(boost::optional<std::size_t>))
-    LOG_D("MSs: " << sizeof(btSphereShape) << " " << sizeof(boost::optional<btSphereShape>) << " " << alignof(btSphereShape) << " " << alignof(boost::optional<btSphereShape>))
-    //LOG_D("TS: " << sizeof(std::size_t) << " " << sizeof(boost::optional<std::size_t>))
 }
 
 void PhysicsSystem::rayPick(std::uint32_t x, std::uint32_t y, const Camera& camera) {
@@ -103,7 +99,7 @@ void PhysicsSystem::rayPick(std::uint32_t x, std::uint32_t y, const Camera& came
             
             // TODO notify about picks
             if (ptr != nullptr) {
-                LOG_D("TODO NOTIFY ABOUT A PICK" << ptr)
+                LOG_D("TODO NOTIFY ABOUT A PICK {}", ptr)
             }
         }
     }

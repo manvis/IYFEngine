@@ -60,7 +60,7 @@ void DebugRenderer::initialize() {
                          true,
                          "Physics debug buffer");
     
-    LOG_D("Physics debug buffer size: " << Mebibytes(bci.size) << " MiB")
+    LOG_D("Physics debug buffer size: {} MiB", Mebibytes(bci.size))
     
     vbo = gfx->createBuffer(bci);
     

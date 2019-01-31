@@ -164,7 +164,7 @@ bool VulkanAPI::checkResult(VkResult result, const std::string& whatFailed, bool
         resultCode = "UNKNOWN";
     }
 
-    LOG_E(whatFailed << "; " << " Result code : " << resultCode)
+    LOG_E("{}; Result code : {}", whatFailed, resultCode)
     
     if (throwIfFailed) {
         throw std::runtime_error(whatFailed);
@@ -173,19 +173,23 @@ bool VulkanAPI::checkResult(VkResult result, const std::string& whatFailed, bool
     return false;
 }
 
+inline std::string buildReportString(const char* sentByLayer, const char* reportType, const char* objectType, std::uint64_t senderObject, size_t location, std::int32_t code, const char* message) {
+    return fmt::format("Vulkan validation layer called \"{}\" reported {} in {}"
+                       "\n\t\t Object: {}; Location: {}; Message code: {}"
+                       "\n\t\t MESSAGE: \n\t\t{}", sentByLayer, reportType, objectType, senderObject, location, code, message);
+}
+
 VkBool32 vulkanDebugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT type, std::uint64_t senderObject, size_t location, std::int32_t code, const char* sentByLayer, const char* message, void*) {
-    const std::string messageStart = "Vulkan validation layer called \"";
+    const std::string messageStart = " \"";
     
-    std::string layerName;
-    if (sentByLayer == nullptr || std::string(sentByLayer).empty()) {
-        layerName == "UNKNOWN";
+    const char* layerName;
+    if (sentByLayer == nullptr || std::strlen(sentByLayer) == 0) {
+        layerName = "UNKNOWN";
     } else {
-        layerName == sentByLayer;
+        layerName = sentByLayer;
     }
     
-    const std::string reported = "\" reported ";
-    
-    std::string objectType;
+    const char* objectType;
     switch (type) {
     case VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT:
         objectType = "an UNKNOWN OBJECT";
@@ -279,25 +283,15 @@ VkBool32 vulkanDebugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTyp
     }
     
     if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) {
-        LOG_E(messageStart << layerName << reported << " an ERROR in " << objectType
-              << "\n\t\t Object: " << senderObject << "; Location: " << location << "; Message code: " << code
-              << "\n\t\t MESSAGE:\n\t\t" << message);
+        LOG_E("{}", buildReportString(layerName, "an ERROR", objectType, senderObject, location, code, message));
     } else if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT) {
-        LOG_W(messageStart << layerName << reported << " a WARNING about " << objectType
-              << "\n\t\t Object: " << senderObject << "; Location: " << location << "; Message code: " << code
-              << "\n\t\t MESSAGE:\n\t\t" << message);
+        LOG_W("{}", buildReportString(layerName, "a WARNING", objectType, senderObject, location, code, message));
     } else if (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT) {
-        LOG_W(messageStart << layerName << reported << " a PERFORMANCE WARNING about " << objectType
-              << "\n\t\t Object: " << senderObject << "; Location: " << location << "; Message code: " << code
-              << "\n\t\t MESSAGE:\n\t\t" << message);
+        LOG_W("{}", buildReportString(layerName, "a PERFORMANCE WARNING", objectType, senderObject, location, code, message));
     } else if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT) {
-        LOG_I(messageStart << layerName << " sent INFORMATION about " << objectType
-              << "\n\t\t Object: " << senderObject << "; Location: " << location << "; Message code: " << code
-              << "\n\t\t MESSAGE:\n\t\t" << message);
+        LOG_I("{}", buildReportString(layerName, "INFORMATION", objectType, senderObject, location, code, message));
     } else if (flags & VK_DEBUG_REPORT_DEBUG_BIT_EXT) {
-        LOG_V(messageStart << layerName << " sent DEBUG INFORMATION about " << objectType
-              << "\n\t\t Object: " << senderObject << "; Location: " << location << "; Message code: " << code
-              << "\n\t\t MESSAGE:\n\t\t" << message);// LOG_D will get disabled when compiling in release mode 
+        LOG_V("{}", buildReportString(layerName, "DEBUG INFORMATION", objectType, senderObject, location, code, message));// LOG_D will get disabled when compiling in release mode 
     }
 
 //    if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) {

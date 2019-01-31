@@ -114,8 +114,8 @@ void MaterialEditor::onButtonClick(LogicGraphEditorButtonFlagBits button) {
             output.writeBytes(result.data(), result.size());
             
             CodeGenerationResult cgr = graph->toCode(ShaderLanguage::GLSLVulkan);
-            LOG_D(cgr.getCode());
-            LOG_D(cgr.getMaterialStructCode());
+            LOG_D("{}", cgr.getCode());
+            LOG_D("{}", cgr.getMaterialStructCode());
             break;
         }
     }

@@ -480,7 +480,7 @@ ShaderHnd VulkanAPI::createShaderFromSource(ShaderStageFlags shaderStage, const 
     
     shaderc::SpvCompilationResult result = compiler.CompileGlslToSpv(code, shaderKind, "shaderFromSource", compilerOptions);
     if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
-        LOG_E("Failed to compile a shader from source. Error: " << result.GetErrorMessage());
+        LOG_E("Failed to compile a shader from source. Error: {}", result.GetErrorMessage());
         throw std::runtime_error("Failed to compile a shader from source. Check log for more info.");
     }
     
@@ -1204,10 +1204,10 @@ Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info
         vkDestroyBuffer(logicalDevice.handle, stagingData.first, nullptr);
     }
     
-    LOG_V("Created an image:" << 
-          "\n\t\tDimensions: " << dimensions.x << "x" << dimensions.y <<
-          "\n\t\tFormat: " << getFormatName(engineFormat) <<
-          "\n\t\tOptimal tiling: " << (linearTilingRequired ? "false" : "true"));
+    LOG_V("Created an image:"
+          "\n\t\tDimensions: {} x {}"
+          "\n\t\tFormat: {}"
+          "\n\t\tOptimal tiling: {}", dimensions.x, dimensions.y, getFormatName(engineFormat), (linearTilingRequired ? "false" : "true"));
     
     return image;
 }

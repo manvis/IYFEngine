@@ -38,6 +38,8 @@
 #include "utilities/Regexes.hpp"
 #include "utilities/hashing/HashCombine.hpp"
 
+#include "fmt/ostream.h"
+
 #include <string_view>
 
 namespace iyf::editor {
@@ -80,14 +82,13 @@ bool LocalizationStringConverter::convert(ConverterState& state) const {
     auto result = parser.parse(internalState->data.get(), internalState->size, rows);
     
     if (result.first != LocalizationCSVParser::Result::Success) {
-        LOG_E("Failed to parse a localization string file " << state.getSourceFilePath() << ". Parser reported an error: "
-              << parser.resultToErrorString(result.first));
+        LOG_E("Failed to parse a localization string file {}. Parser reported an error: {}", state.getSourceFilePath(), parser.resultToErrorString(result.first));
         
         return false;
     }
     
     if (state.isDebugOutputRequested()) {
-        LOG_V("Loaded " << result.second << " strings.");
+        LOG_V("Loaded {} strings.", result.second);
     }
     
     std::unordered_map<StringHash, CSVRow> strings;
@@ -124,7 +125,7 @@ bool LocalizationStringConverter::convert(ConverterState& state) const {
                 ss << "adjust the keys or the namespaces.";
             }
             
-            LOG_W(ss.str());
+            LOG_W("{}", ss.str());
         } else {
             strings[seed] = row;
         }
@@ -146,14 +147,14 @@ bool LocalizationStringConverter::convert(ConverterState& state) const {
         ms.writeString(string.second.getValue(), StringLengthIndicator::UInt32);
     }
     
-    LOG_D("OP: " << outputPath << " " << locState.systemTranslations);
+    LOG_D("OP: {} {}", outputPath, locState.systemTranslations);
     
     const FileHash hash = HF(ms.data(), ms.size());
     StringMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags(), locState.getLocale(), locState.priority);
     ImportedAssetData iad(state.getType(), metadata, outputPath);
     state.getImportedAssets().push_back(std::move(iad));
     
-    LOG_D("OP: " << outputPath << " " << locState.systemTranslations << " " << static_cast<std::size_t>(state.getType()));
+    LOG_D("OP: {} {} {}", outputPath, locState.systemTranslations, static_cast<std::size_t>(state.getType()));
     
     File file(outputPath, File::OpenMode::Write);
     file.writeBytes(ms.data(), ms.size());

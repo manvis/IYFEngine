@@ -38,6 +38,8 @@
 #include "core/Logger.hpp"
 #include "utilities/StringUtilities.hpp"
 
+#include "fmt/ostream.h"
+
 namespace iyf {
 struct PathReplacement {
     int wd;
@@ -52,14 +54,14 @@ InotifyFileSystemWatcher::InotifyFileSystemWatcher(FileSystemWatcherCreateInfo c
         std::string errStr = "Failed to initialize inotify file change watcher. ERROR ID: ";
         errStr.append(std::to_string(errno));
         
-        LOG_E(errStr);
+        LOG_E("{}", errStr);
         throw std::runtime_error(errStr);
     }
     
     movePaths.reserve(30);
     events.reserve(30);
     
-    LOG_D("INOTIFY initializing file system watcher with " << getCreateInfo().monitoredDirectories.size() << " initial directories")
+    LOG_D("INOTIFY initializing file system watcher with {} initial directories", getCreateInfo().monitoredDirectories.size())
     
     for (const auto& d : getCreateInfo().monitoredDirectories) {
         if (!addDirectory(d)) {
@@ -129,7 +131,7 @@ bool InotifyFileSystemWatcher::addDirectoryImplNoLock(const fs::path& path, File
             ss << "; ERROR: ";
             ss << strerror(errno);
 
-            LOG_W(ss.str());
+            LOG_W("{}", ss.str());
             return false;
         }
         
@@ -137,14 +139,14 @@ bool InotifyFileSystemWatcher::addDirectoryImplNoLock(const fs::path& path, File
         descriptorToPath[wd] = path.string();
         
         if (createInfo.writeChangesToLog) {
-            LOG_V("INOTIFY-NEW-DIR\n\t\t" << path << "; WD: " << wd);
+            LOG_V("INOTIFY-NEW-DIR\n\t\t{}; WD: {}", path, wd);
         }
         
         return true;
     } else {
         std::string errorString = "Non existing path: ";
         errorString.append(path.string());
-        LOG_E(errorString)
+        LOG_E("{}", errorString)
         throw std::runtime_error(errorString);
     }
 }
@@ -176,7 +178,7 @@ bool InotifyFileSystemWatcher::addDirectory(const MonitoredDirectory& monitoredD
                 result = false;
                 
                 // TODO should I return immediately? Throw an exception
-                LOG_W("Failed to add path to inotify watch list: " << p.path());
+                LOG_W("Failed to add path to inotify watch list: {}", p.path());
             }
         }
         
@@ -231,7 +233,7 @@ std::pair<std::unordered_map<std::string, int>::iterator, bool> InotifyFileSyste
     if (descriptorNeedsDeletion) {
         int result = inotify_rm_watch(fd, descriptor);
         if (result < 0) {
-            LOG_W("INOTIFY failed to remove a path: " << resultDTP->second);
+            LOG_W("INOTIFY failed to remove a path: {}", resultDTP->second);
             
             removalSucceeded = false;
         }
@@ -309,7 +311,7 @@ void InotifyFileSystemWatcher::addNewlyCreatedOrMovedDirectories(const fs::path&
     bool result = addDirectoryImplNoLock(dir.string(), FileSystemEventFlags::All);
     
     if (!result) {
-        LOG_W("Failed to add a dir to tracked list: " << dir.string());
+        LOG_W("Failed to add a dir to tracked list: {}", dir.string());
     }
     
     for (const auto& p : fs::recursive_directory_iterator(dir)) {
@@ -318,7 +320,7 @@ void InotifyFileSystemWatcher::addNewlyCreatedOrMovedDirectories(const fs::path&
             result = addDirectoryImplNoLock(p.path().string(), FileSystemEventFlags::All);
             
             if (!result) {
-                LOG_W("Failed to add a dir to tracked list: " << p.path().string());
+                LOG_W("Failed to add a dir to tracked list: {}", p.path().string());
             }
         }
         
@@ -346,7 +348,7 @@ void InotifyFileSystemWatcher::poll() {
         std::string errStr = "pselect experienced an error while waiting for inotify. ERROR ID: ";
         errStr.append(std::to_string(errno));
 
-        LOG_E(errStr);
+        LOG_E("{}", errStr);
         throw std::runtime_error(errStr);
     } else if (result > 0) {
         int length = read(fd, eventBuffer, EVENT_BUFFER_SIZE); 
@@ -354,7 +356,7 @@ void InotifyFileSystemWatcher::poll() {
             std::string errStr = "Experienced an error while reading inotify events. ERROR ID: ";
             errStr.append(std::to_string(errno));
 
-            LOG_E(errStr);
+            LOG_E("{}", errStr);
             throw std::runtime_error(errStr);
         }
         
@@ -372,7 +374,7 @@ void InotifyFileSystemWatcher::poll() {
                 // TODO recover from this somehow?
                 std::string errStr = "Experienced an inotify event buffer overflow.";
                 
-                LOG_E(errStr);
+                LOG_E("{}", errStr);
                 throw std::runtime_error(errStr);
             }
             
@@ -532,15 +534,15 @@ void InotifyFileSystemWatcher::processEvent(struct inotify_event* e) {
         }
         
         if (e->len == 0) {
-            LOG_V("INOTIFY-EVENT\n\t\tFD:     " << e->wd << 
-                               "\n\t\tPATH:   " << descriptorToPath[e->wd] <<
-                               "\n\t\tMASK:   " << mask << 
-                               "\n\t\tCOOKIE: " << e->cookie);
+            LOG_V("INOTIFY-EVENT\n\t\tFD:     {}"
+                               "\n\t\tPATH:   {}"
+                               "\n\t\tMASK:   {}"
+                               "\n\t\tCOOKIE: {}", e->wd, descriptorToPath[e->wd], mask, e->cookie);
         } else {
-            LOG_V("INOTIFY-EVENT\n\t\tFD:     " << e->wd << 
-                               "\n\t\tPATH:   " << descriptorToPath[e->wd] << "/" << e->name <<
-                               "\n\t\tMASK:   " << mask << 
-                               "\n\t\tCOOKIE: " << e->cookie);
+            LOG_V("INOTIFY-EVENT\n\t\tFD:     {}"
+                               "\n\t\tPATH:   {}/{}"
+                               "\n\t\tMASK:   {}"
+                               "\n\t\tCOOKIE: {}", e->wd, descriptorToPath[e->wd], e->name, mask, e->cookie);
         }
     }
     

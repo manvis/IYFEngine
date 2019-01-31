@@ -36,6 +36,8 @@
 #include "core/Logger.hpp"
 #include "core/Engine.hpp"
 
+#include "fmt/ostream.h"
+
 // WARNING DO NOT TOUCH these undefs. Vulkan headers pull in X11, Project.hpp pulls in RapidJSON,
 // names clash, things explode. This solves it.
 #undef None
@@ -146,7 +148,7 @@ void VulkanAPI::findLayers(LayerType type, const std::vector<const char*>& expec
     std::string layerTypeName = (type == LayerType::Instance) ? "instance" : "device";
     
     std::uint32_t layerCount = 0;
-    LOG_V("Searching for " << layerTypeName << " layers");
+    LOG_V("Searching for {} layers", layerTypeName);
     
     VkResult result = VK_SUCCESS;
     
@@ -181,7 +183,7 @@ void VulkanAPI::findLayers(LayerType type, const std::vector<const char*>& expec
             ss << "\n\t    " << std::right << std::setw(3) << i << "." << layerProperties[i].layerName;
         }
         
-        LOG_V(ss.str())
+        LOG_V("{}", ss.str())
         
         ss = std::stringstream();
         ss << "Activated layers:";
@@ -202,16 +204,16 @@ void VulkanAPI::findLayers(LayerType type, const std::vector<const char*>& expec
                 // Throw if we're missing any layers we need
                 std::stringstream es;
                 es << "Failed to find a mandatory " << layerTypeName << " layer: " << expectedLayers[i];
-                LOG_E(es.str())
+                LOG_E("{}", es.str())
                 throw std::runtime_error(es.str());
             }
         }
         
-        LOG_V(ss.str())
+        LOG_V("{}", ss.str())
     } else {
         // Throw if debug is enabled but no layers were found
         std::string resStr = "No " + layerTypeName + " layers were found.";
-        LOG_E(resStr)
+        LOG_E("{}", resStr)
         throw std::runtime_error(resStr);
     }
 }
@@ -320,7 +322,7 @@ void VulkanAPI::choosePhysicalDevice() {
     if (gpuCount == 0) {
         throw std::runtime_error("No physical devices were found");
     } else {
-        LOG_V("Found " << gpuCount << " physical device(s).");
+        LOG_V("Found {} physical device(s).", gpuCount);
     }
     
     std::vector<VkPhysicalDevice> physicalDevices;
@@ -333,7 +335,7 @@ void VulkanAPI::choosePhysicalDevice() {
     
     // Get capabilities of each available GPU
     for (std::size_t i = 0; i < gpuCount; ++i) {
-        LOG_V("Physical device " << i);
+        LOG_V("Physical device ", i);
         
         PhysicalDevice currentDevice;
         
@@ -375,7 +377,7 @@ void VulkanAPI::choosePhysicalDevice() {
         if (compatibleGPU) {
             compatibleDevices.push_back(std::move(currentDevice));
         } else {
-            LOG_V("Gpu " << i << " is not compatible");
+            LOG_V("Physical device {} is not compatible", i);
         }
     }
     
@@ -469,7 +471,7 @@ bool VulkanAPI::evaluatePhysicalDeviceFeatures(PhysicalDevice& device) {
     checkFeature(ss, "variableMultisampleRate",                 features.variableMultisampleRate,                 false, allAvailable);
     checkFeature(ss, "inheritedQueries",                        features.inheritedQueries,                        false, allAvailable);
     
-    LOG_V(ss.str())
+    LOG_V("{}", ss.str())
     
     return allAvailable;
 }
@@ -528,7 +530,7 @@ bool VulkanAPI::evaluatePhysicalDeviceMemoryProperties(PhysicalDevice& device) {
         }
     }
 
-    LOG_V(ss.str())
+    LOG_V("{}", ss.str())
     
     return true;
 }
@@ -557,20 +559,24 @@ bool VulkanAPI::evaluatePhysicalDeviceProperties(PhysicalDevice& device) {
     std::uint32_t driverVersion = device.properties.driverVersion;
     std::uint32_t version = device.properties.apiVersion;
 
-    LOG_V("Physical device properties" << "\n\t\t" << "Vendor id: " << device.properties.vendorID 
+    std::stringstream ss;
+    ss << "Physical device properties" << "\n\t\t" << "Vendor id: " << device.properties.vendorID 
                                        << "\n\t\t" << "Device name (id): " << device.properties.deviceName << " (" << device.properties.deviceID << ")"
                                        << "\n\t\t" << "Device type: " << typeName
                                        << "\n\t\t" << "Driver version: " << VK_VERSION_MAJOR(driverVersion) << "." << VK_VERSION_MINOR(driverVersion) << "." << VK_VERSION_PATCH(driverVersion)
-                                       << "\n\t\t" << "API version: " << VK_VERSION_MAJOR(version) << "." << VK_VERSION_MINOR(version) << "." << VK_VERSION_PATCH(version));
+                                       << "\n\t\t" << "API version: " << VK_VERSION_MAJOR(version) << "." << VK_VERSION_MINOR(version) << "." << VK_VERSION_PATCH(version);
+    LOG_V("{}", ss.str());
+    ss.clear();
             
     // TODO print and evaluate all limits based on the needs of the engine
-    LOG_V("Physical device limits"
+    ss << "Physical device limits"
             << "\n\t\tMaxSamplerAllocationCount " << device.properties.limits.maxSamplerAllocationCount
             << "\n\t\tMaxVertexInputBindings " << device.properties.limits.maxVertexInputBindings
             << "\n\t\tMaxComputeSharedMemorySize " << device.properties.limits.maxComputeSharedMemorySize
             << "\n\t\tMaxComputeWorkGroupInvocations " << device.properties.limits.maxComputeWorkGroupInvocations
             << "\n\t\tMaxDescriptorSetStorageBuffers " << device.properties.limits.maxDescriptorSetStorageBuffers
-            << "\n\t\tMaxMemoryAllocationCount " << device.properties.limits.maxMemoryAllocationCount)
+            << "\n\t\tMaxMemoryAllocationCount " << device.properties.limits.maxMemoryAllocationCount;
+    LOG_V("{}", ss.str())
             
     return true;
 }
@@ -595,7 +601,7 @@ bool VulkanAPI::evaluatePhysicalDeviceExtensions(PhysicalDevice& device) {
         ss << "\n\t\t" << device.extensionProperties[e].extensionName;
     }
 
-    LOG_V("Physical device extensions:" << ss.str());
+    LOG_V("Physical device extensions: {}", ss.str());
 
     // Checking to see if all required extensions are present. Unlike layers that can be changed via config, the names of these extensions
     // are hardcoded because their presence is mandatory for the engine to function
@@ -611,7 +617,7 @@ bool VulkanAPI::evaluatePhysicalDeviceExtensions(PhysicalDevice& device) {
         }
 
         if (!found) {
-            LOG_V("Physical device is missing a required extension: " << REQUIRED_DEVICE_EXTENSIONS[e]);
+            LOG_V("Physical device is missing a required extension: {}", REQUIRED_DEVICE_EXTENSIONS[e]);
             
             return false;
         }
@@ -701,7 +707,7 @@ bool VulkanAPI::evaluatePhysicalDeviceQueueFamilies(PhysicalDevice& device) {
     device.queueFamilyProperties.resize(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device.handle, &queueFamilyCount, device.queueFamilyProperties.data());
     
-    LOG_V("Found " << queueFamilyCount << " queue families.");
+    LOG_V("Found {} queue families.", queueFamilyCount);
 
     // When selecting queue families, we need to keep a few things from Vulkan spec (1.0.42) chapter 4.1 in mind:
     //     if graphics operations are supported, then at least one queue family must support both graphics and compute operations
@@ -763,7 +769,7 @@ bool VulkanAPI::evaluatePhysicalDeviceQueueFamilies(PhysicalDevice& device) {
             ss << "\n\t\tCan present";
         }
         
-        LOG_V(ss.str())
+        LOG_V("{}", ss.str())
         
         if (mainQueueID == std::numeric_limits<std::uint32_t>::max() && hasGraphics && hasCompute) {
             mainQueueID = i;
@@ -813,7 +819,7 @@ bool VulkanAPI::evaluatePhysicalDeviceQueueFamilies(PhysicalDevice& device) {
         device.chosenPresentQueueFamilyId = device.presentCapableQueues[0];
     }
     
-    LOG_V("Chosen queue family id: " << device.chosenMainQueueFamilyId);
+    LOG_V("Chosen queue family id: {}", device.chosenMainQueueFamilyId);
     
     return true;
 }
@@ -997,7 +1003,7 @@ VkSurfaceFormatKHR VulkanAPI::chooseSwapchainImageFormat() {
             ss << "\n\t\t" << getFormatName(Format(physicalDevice.surfaceFormats[i].format));
         }
 
-        LOG_V("Supported surface formats: " << ss.str());
+        LOG_V("Supported surface formats: {}", ss.str());
         
         // Looking for an sRGB format
         bool sRGBFound = false;
@@ -1072,7 +1078,7 @@ VkPresentModeKHR VulkanAPI::chooseSwapchainPresentMode() {
         ss << "\n\t\tfifoRelaxed";
     }
     
-    LOG_V(ss.str());
+    LOG_V("{}", ss.str());
     
     // TODO Make this changeable via CONFIGURATION
     
@@ -1107,7 +1113,7 @@ VkPresentModeKHR VulkanAPI::chooseSwapchainPresentMode() {
         ss << "Unknown";
     }
 
-    LOG_V(ss.str())
+    LOG_V("{}", ss.str())
     
     return chosenPresentMode;
 }
@@ -1127,8 +1133,8 @@ void VulkanAPI::createSwapchain() {
     swapchain.imageFormat     = format.format;
     swapchain.imageColorSpace = format.colorSpace;
     
-    LOG_V("Surface extent limits.\n\t\tMIN W:" << capabilities.minImageExtent.width << " H: " << capabilities.minImageExtent.height
-                          << "\n\t\tMAX W:" << capabilities.maxImageExtent.width << " H: " << capabilities.maxImageExtent.height);
+    LOG_V("Surface extent limits.\n\t\tMIN W: {} H: {}\n\t\tMAX W: {}, H: {}",
+          capabilities.minImageExtent.width, capabilities.minImageExtent.height, capabilities.maxImageExtent.width, capabilities.maxImageExtent.height);
     
     
     VkSwapchainKHR tempSwapchain = VK_NULL_HANDLE;
@@ -1145,7 +1151,7 @@ void VulkanAPI::createSwapchain() {
     VkExtent2D swapchainExtent;
     // 0xFFFFFFFF (-1) means that size of surface will change depending on the extents of the swapchain images
     if (capabilities.currentExtent.width == static_cast<uint32_t>(-1)) {
-        LOG_V("Surface width and height depend of swapchain image extents and are currently equal to\n\tW: " << determinedSize.x << "\n\tH: " << determinedSize.y);
+        LOG_V("Surface width and height depend of swapchain image extents and are currently equal to\n\tW: {}\n\tH: {}", determinedSize.x, determinedSize.y);
                 
         swapchainExtent.width  = std::max(capabilities.minImageExtent.width,  std::min(capabilities.maxImageExtent.width,  determinedSize.x));
         swapchainExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, determinedSize.y));
@@ -1153,7 +1159,7 @@ void VulkanAPI::createSwapchain() {
         determinedSize.x  = swapchainExtent.width;
         determinedSize.y = swapchainExtent.height;
     } else {
-        LOG_V("Surface width and height are set and are equal to\n\tW: " << capabilities.currentExtent.width << "\n\tH: " << capabilities.currentExtent.height);
+        LOG_V("Surface width and height are set and are equal to\n\tW: {}\n\tH: {}", capabilities.currentExtent.width, capabilities.currentExtent.height);
         swapchainExtent = capabilities.currentExtent;
         
         determinedSize.x  = capabilities.currentExtent.width;
@@ -1173,7 +1179,7 @@ void VulkanAPI::createSwapchain() {
         numImagesToRequest = capabilities.maxImageCount;
     }
     
-    LOG_V("Number of requested swapchain images: " << numImagesToRequest);
+    LOG_V("Number of requested swapchain images: {}", numImagesToRequest);
 
     VkSurfaceTransformFlagsKHR preTransformFlags;
     if (capabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) {
@@ -1268,7 +1274,7 @@ void VulkanAPI::chooseDepthStencilFormat() {
     }
     
     std::string formatName = getFormatName(depthStencilFormatEngine);
-    LOG_V("Chosen depth stencil format: " << formatName);
+    LOG_V("Chosen depth stencil format: {}", formatName);
 }
 
 void VulkanAPI::createSwapchainImageViews() {

@@ -112,17 +112,17 @@ bool ShaderConverter::convert(ConverterState& state) const {
                                                                                       compilerOptions);
         
         if (result.GetCompilationStatus() == shaderc_compilation_status_success) {
-            LOG_V("Assembly for shader " << filePath << "\n\n" << std::string(result.begin(), result.end()));
+            LOG_V("Assembly for shader {}\n\n{}", filePath, std::string(result.begin(), result.end()));
         }
     }
     
     shaderc::SpvCompilationResult result = compiler.CompileGlslToSpv(internalState->code.get(), shaderKind, filePath.c_str(), compilerOptions);
     if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
-        LOG_E(fmt::format("Shader \"{}\" compilation failed with error {}", filePath, result.GetErrorMessage()));
+        LOG_E("Shader \"{}\" compilation failed with error {}", filePath, result.GetErrorMessage());
         return false;
     }
     
-    LOG_W("Successfully compiled a shader \"" << filePath << "\"\n\tWarnings(" << result.GetNumWarnings() << "): " << result.GetErrorMessage());
+    LOG_W("Successfully compiled a shader \"{}\"\n\tWarnings({}): {}", filePath, result.GetNumWarnings(), result.GetErrorMessage());
     
     const std::vector<std::uint32_t> content(result.begin(), result.end());
     const std::size_t outputByteCount = content.size() * sizeof(std::uint32_t);

@@ -69,6 +69,8 @@
 
 #include "../../VERSION.hpp"
 
+#include "fmt/ostream.h"
+
 namespace iyf
 {
 Engine::Engine(char* argv0, bool editorMode) : graphicsDelta(0L), ticks(std::chrono::milliseconds(TICKS)), pendingStackOperation(StackOperation::NoOperation), frameID(0), argv0(argv0) {
@@ -118,20 +120,18 @@ void Engine::init() {
     fileSystem->setResourcePathsForProject(project.get());
     
     // TODO set log direcotory here
-    LOG_V("Sanitizer(s) that the engine was built with: " << ACTIVE_SANITIZER_NAME);
+    LOG_V("Sanitizer(s) that the engine was built with: {}", ACTIVE_SANITIZER_NAME);
     
     SDL_version linked;
     SDL_GetVersion(&linked);
-    LOG_V("SDL version:" << static_cast<std::uint32_t>(linked.major) << "." << 
-                            static_cast<std::uint32_t>(linked.minor) << "." << 
-                            static_cast<std::uint32_t>(linked.patch) << "\n\t" <<
-         "SDL revision:" << SDL_GetRevision());
+    LOG_V("SDL version: {}.{}.{}\n\tSDL revision: {}",
+          static_cast<std::uint32_t>(linked.major), static_cast<std::uint32_t>(linked.minor), static_cast<std::uint32_t>(linked.patch), SDL_GetRevision());
     
     //Can't use_make unique because the constructor is private and accessed via a friend declaration.
     fs::path userConfiguration = fileSystem->getPreferenceDirectory();
     userConfiguration /= "config.lua";
     
-    LOG_D("User's configuration file path: " << userConfiguration);
+    LOG_D("User's configuration file path: {}", userConfiguration);
 //     std::cout << "ccc" << std::flush;
     std::vector<ConfigurationFilePath> configPaths;
     configPaths.reserve(2);
@@ -148,13 +148,13 @@ void Engine::init() {
     editor->commit(false);
     
     double returnedValue = config->getValue(ConfigurationValueHandle(HS("the_meaning_of_life"), ConfigurationValueFamily::Other));
-    LOG_D("Returned value: " << returnedValue);
+    LOG_D("Returned value: {}", returnedValue);
     config->serialize();
     
     std::string locale = config->getValue(ConfigurationValueHandle(HS("text_locale"), ConfigurationValueFamily::Localization));
     TextLocalizer::LoadResult result = SystemLocalizer().loadStringsForLocale(fileSystem.get(), con::SystemStringPath(), locale, false);
     if (result != TextLocalizer::LoadResult::LoadSuccessful) {
-        LOG_E("Failed to load system strings. Error: " << SystemLocalizer().loadResultToErrorString(result));
+        LOG_E("Failed to load system strings. Error: {}", SystemLocalizer().loadResultToErrorString(result));
         throw std::runtime_error("Failed to load system strings (check log)");
     }
     
@@ -169,7 +169,7 @@ void Engine::init() {
     // Can't use make_unique because the constructor is private and accessed via a friend declaration.
     inputState = std::unique_ptr<InputState>(new InputState(this, config.get()));
 
-    LOG_D(LOC_SYS(LH("test"), "Alpha", 1));
+    LOG_D("{}", LOC_SYS(LH("test"), "Alpha", 1));
 // TODO joystick management
 //	SDL_GameController *ctrl;
 //	SDL_Joystick *joy;
@@ -350,7 +350,7 @@ void Engine::executeMainLoop() {
         
         // Swap string maps if the language has changed
         if (GameLocalizer().executePendingSwap()) {
-            LOG_V("Changed the string locale to: " << GameLocalizer().getLocale());
+            LOG_V("Changed the string locale to: {}", GameLocalizer().getLocale());
         }
         
         inputState->pollInput(); //TODO really here?

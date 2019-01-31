@@ -304,7 +304,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateVertexShader(PlatformI
         compatibleVertexLayoutCount++;
     }
     
-    LOG_V("Number of compatible vertex layouts " << compatibleVertexLayoutCount);
+    LOG_V("Number of compatible vertex layouts {}", compatibleVertexLayoutCount);
     
     ss << "\n// We need to redeclare outputs because of GL_ARB_separate_shader_objects\n";
     ss << "out gl_PerVertex {\n";
@@ -975,7 +975,7 @@ ShaderCompilationResult VulkanGLSLShaderGenerator::compileShader(ShaderStageFlag
         shaderc::AssemblyCompilationResult result = compiler.CompileGlslToSpvAssembly(source, shaderKind, name.c_str(), compileOptions);
         
         if (result.GetCompilationStatus() == shaderc_compilation_status_success) {
-            LOG_V("Assembly for shader " << name << "\n\n" << std::string(result.begin(), result.end()));
+            LOG_V("Assembly for shader {}\n\n{}", name, std::string(result.begin(), result.end()));
         }
     }
     
@@ -1005,7 +1005,7 @@ shaderc_include_result* VulkanGLSLIncluder::GetInclude(const char* requested_sou
     shaderc_include_result* includeResult = new shaderc_include_result;
     
     if (debugIncludes) {
-        LOG_V("REQUESTED_SRC: " << requested_source << "; TYPE: " << type << "; REQUESTING_SRC:" << requesting_source << "; DEPTH: " << include_depth);
+        LOG_V("REQUESTED_SRC: {}; TYPE: {}; REQUESTING_SRC: {}; DEPTH: {}", requested_source, type, requesting_source, include_depth);
     }
     
 //     LOG_V(VertexShaderHelperFunctions);

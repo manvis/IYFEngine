@@ -40,7 +40,7 @@ namespace iyf {
 ShaderGenerator::ShaderGenerator(const FileSystem* fileSystem) : fileSystem(fileSystem) {}
 
 ShaderGenerationResult ShaderGenerator::generateAndReportError(ShaderGenerationResult::Status status, const std::string& error) const {
-    LOG_E("Shader generation error: " << error);
+    LOG_E("Shader generation error: {}", error);
     
     return {status, error};
 }

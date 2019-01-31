@@ -29,6 +29,8 @@
 #include "CSVParserTests.hpp"
 #include "localization/LocalizationCSVParser.hpp"
 
+#include <sstream>
+
 namespace iyf::test {
 inline std::string printRows(const std::vector<CSVRow>& rows) {
     std::stringstream ss;
@@ -201,8 +203,7 @@ TestResults CSVParserTests::run() {
         if (isOutputVerbose()) {
             std::string printedRows = printRows(rows);
             
-            LOG_V("Parsed the following CSV string:\n--\n" << CSV.csv << "\n--\n\tAs expected, the parser returned \""
-                  << parser.resultToErrorString(result.first) << "\"\n\tPARSED ROWS: " << printedRows);
+            LOG_V("Parsed the following CSV string:\n--\n{}\n--\n\tAs expected, the parser returned \"{}\"\n\tPARSED ROWS: {}", CSV.csv, parser.resultToErrorString(result.first), printedRows);
         }
     }
     

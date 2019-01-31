@@ -40,19 +40,21 @@
 #include "assetImport/ConverterManager.hpp"
 #include "assetImport/converterStates/LocalizationStringConverterState.hpp"
 
+#include "fmt/ostream.h"
+
 namespace iyf {
 const std::string WrongDirError = "Failed to find required directories. Are you sure you're running the SystemAssetPacker from the build folder?";
 
 SystemAssetPacker::SystemAssetPacker(char* argv) {
     filesystem = std::unique_ptr<FileSystem>(new FileSystem(true, argv, true));
     
-    LOG_V("Starting system asset packer. Base dir: " << filesystem->getBaseDirectory());
+    LOG_V("Starting system asset packer. Base dir: {}", filesystem->getBaseDirectory());
     
     fs::path path(filesystem->getBaseDirectory());
     path /= "..";
     path /= "system";
     
-    LOG_V("Expected asset dir: " << path.string());
+    LOG_V("Expected asset dir: {}", path.string());
     
     if (!fs::exists(path)) {
         throw std::runtime_error(WrongDirError);
@@ -71,13 +73,13 @@ void SystemAssetPacker::recursiveExport(const fs::path& path, const editor::Conv
         
         PHYSFS_Stat stat;
         if (filesystem->getFileSystemStatistics(sourcePath.generic_string(), stat) == 0) {
-            LOG_E("PHYSFS reported an error (" << filesystem->getLastErrorText() << ") when trying to stat \"" << item << "\"");
+            LOG_E("PHYSFS reported an error ({}) when trying to stat \"{}\"", filesystem->getLastErrorText(), item);
             
             throw std::runtime_error("Failed to convert system assets because of a filesystem error. (Check log)");
         }
         
         if (stat.filetype == PHYSFS_FileType::PHYSFS_FILETYPE_DIRECTORY) {
-            LOG_V("Found a system asset subdirectory: " << sourcePath);
+            LOG_V("Found a system asset subdirectory: {}", sourcePath);
             recursiveExport(sourcePath, cm, platformID);
         } else {
             assert(!sourcePath.empty());
@@ -96,16 +98,16 @@ void SystemAssetPacker::recursiveExport(const fs::path& path, const editor::Conv
             fs::path destinationPath = (type == AssetType::Strings) ? cm.makeFinalPathForSystemStrings(sourcePath, platformID)
                                                                     : cm.makeFinalPathForAsset(sourcePath, type, platformID);
             
-            LOG_V("IMPORTING FILE: " << sourcePath <<
-                  "\n\t\tHash: " << HS(sourcePath.generic_string()) <<
-                  "\n\t\tType: " << con::AssetTypeToTranslationString(type) <<
-                  "\n\t\tDestination: " << destinationPath);
+            LOG_V("IMPORTING FILE: {}"
+                  "\n\t\tHash: {}"
+                  "\n\t\tType: {}"
+                  "\n\t\tDestination: {}", sourcePath, HS(sourcePath.generic_string()), con::AssetTypeToTranslationString(type), destinationPath);
             
             std::vector<editor::ImportedAssetData> iad;
             std::unique_ptr<editor::ConverterState> converterState = cm.initializeConverter(sourcePath, platformID);
             
             if (converterState == nullptr) {
-                LOG_E("Failed to initialize the ConversionSettings for a system asset: " << sourcePath);
+                LOG_E("Failed to initialize the ConversionSettings for a system asset: {}", sourcePath);
                 throw std::runtime_error("Failed to initialize the ConversionSettings for a system asset (Check log)");
             }
             
@@ -125,7 +127,7 @@ void SystemAssetPacker::recursiveExport(const fs::path& path, const editor::Conv
             
             converterState->setSystemAsset(true);
             if (!cm.convert(*converterState)) {
-                LOG_E("Failed to convert a system asset: " << sourcePath);
+                LOG_E("Failed to convert a system asset: {}", sourcePath);
                 throw std::runtime_error("Failed to convert a system asset (Check log)");
             }
             
@@ -156,24 +158,24 @@ void SystemAssetPacker::pack() {
     if (processedPlatform == con::GetCurrentPlatform()) {
         const fs::path assetsFolder = realPlatformDataPath / con::BaseAssetPath();
         if (fs::exists(assetsFolder)) {
-            LOG_D("Removing the assets folder that was built by a previous run: " << assetsFolder);
+            LOG_D("Removing the assets folder that was built by a previous run: {}", assetsFolder);
             fs::remove_all(assetsFolder);
         }
         
         if (fs::exists(archivePath)) {
-            LOG_D("Removing the asset pack that was built by a previous run: " << archivePath);
+            LOG_D("Removing the asset pack that was built by a previous run: {}", archivePath);
             fs::remove_all(archivePath);
         }
     } else {
         if (!realPlatformDataPath.empty()) {
-            LOG_D("Removing asset data processed by a previous run from " << realPlatformDataPath);
+            LOG_D("Removing asset data processed by a previous run from {}", realPlatformDataPath);
             fs::remove_all(realPlatformDataPath);
         }
     }
     
     const fs::path pathToCreate = filesystem->getCurrentWriteDirectory() / platformDataBasePath;
     
-    LOG_D("Creating asset data directories for current platform: " << pathToCreate);
+    LOG_D("Creating asset data directories for current platform: {}", pathToCreate);
     fs::create_directories(pathToCreate);
     
     if (!Project::CreateImportedAssetDirectories(pathToCreate, processedPlatform)) {
@@ -199,15 +201,15 @@ void SystemAssetPacker::pack() {
 //     pathsToCompress.emplace_back(filesystem->getCurrentWriteDirectory() / con::ProjectBaseConfigFile, con::ProjectBaseConfigFile);
     
     if (util::CompressFileListToZip(pathsToCompress, archivePath, util::CompressionLevel::Best)) {
-        LOG_V("Successfully compressed system files for the " << con::PlatformIdentifierToName(processedPlatform) << " platform.");
+        LOG_V("Successfully compressed system files for the {} platform.", con::PlatformIdentifierToName(processedPlatform));
     } else {
-        LOG_E("Failed to compress system files for the " << con::PlatformIdentifierToName(processedPlatform) << " platform.");
+        LOG_E("Failed to compress system files for the {} platform.", con::PlatformIdentifierToName(processedPlatform));
         throw std::runtime_error("Failed to compress system files (check log)");
     }
     
     // Copy the files for the current platform next to the executable
     if (processedPlatform == con::GetCurrentPlatform()) {
-        LOG_V("Copying the files for current platfom to " << filesystem->getBaseDirectory());
+        LOG_V("Copying the files for current platfom to {}", filesystem->getBaseDirectory());
 #ifdef IYF_USE_BOOST_FILESYSTEM
         fs::copy_file(archivePath, filesystem->getBaseDirectory() / systemArchiveName, fs::copy_option::overwrite_if_exists);
 #else // IYF_USE_BOOST_FILESYSTEM
@@ -216,7 +218,7 @@ void SystemAssetPacker::pack() {
         
         // Create a project file for the editor, otherwise, it won't start.
         if (!Project::CreateProjectFile(filesystem->getBaseDirectory(), "IYFEditor", "The IYFEngine Team", "en_US", con::EditorVersion)) {
-            LOG_E("Failed to create the project file in " << filesystem->getBaseDirectory());
+            LOG_E("Failed to create the project file in {}", filesystem->getBaseDirectory());
             throw std::runtime_error("Failed to create the project file ");
         }
     }

@@ -98,12 +98,12 @@ void World::addStaticMesh(StringHash nameHash) {
     mc.setRenderMode(MaterialRenderMode::Opaque);
     const auto metadata = assetManager->getMetadataCopy(nameHash);
     if (!metadata) {
-        LOG_W("Couldn't obtain metadata for an asset with nameHash " << nameHash << ". Was it removed before loading?");
+        LOG_W("Couldn't obtain metadata for an asset with nameHash {}. Was it removed before loading?", nameHash);
         return;
     }
     
     if (metadata->getAssetType() != AssetType::Mesh) {
-        LOG_W("The asset with nameHash " << nameHash << " is not a mesh.");
+        LOG_W("The asset with nameHash {} is not a mesh.", nameHash);
         return;
     }
     
@@ -139,12 +139,12 @@ void World::addDynamicMesh(StringHash nameHash) {
     mc.setRenderMode(MaterialRenderMode::Opaque);
     const auto metadata = assetManager->getMetadataCopy(nameHash);
     if (!metadata) {
-        LOG_W("Couldn't obtain metadata for an asset with nameHash " << nameHash << ". Was it removed before loading?");
+        LOG_W("Couldn't obtain metadata for an asset with nameHash {}. Was it removed before loading?", nameHash);
         return;
     }
     
     if (metadata->getAssetType() != AssetType::Mesh) {
-        LOG_W("The asset with nameHash " << nameHash << " is not a mesh.");
+        LOG_W("The asset with nameHash {} is not a mesh.", nameHash);
         return;
     }
     

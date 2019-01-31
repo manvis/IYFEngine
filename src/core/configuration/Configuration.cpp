@@ -39,6 +39,8 @@
 #include "core/filesystem/FileSystem.hpp"
 #include "core/filesystem/File.hpp"
 
+#include "fmt/ostream.h"
+
 namespace iyf {
     
 bool operator==(const ConfigurationValue& a, const ConfigurationValue& b) {
@@ -135,12 +137,12 @@ void Configuration::fillConfigurationMaps(const std::vector<ConfigurationFilePat
                 PHYSFS_Stat stat;
                 int result = filesystem->getFileSystemStatistics(userConfigurationPath.path, stat);
                 if (!result) {
-                    LOG_E("Failed to obtain file statistics for the user's configuration file: " << userConfigurationPath.path);
+                    LOG_E("Failed to obtain file statistics for the user's configuration file: {}", userConfigurationPath.path);
                     throw std::runtime_error("Failed to obtain file statistics for the user's configuration file.");
                 }
                 
                 if (stat.readonly) {
-                    LOG_E("The user's configuration file " << userConfigurationPath.path << " exists in the virtual filesystem, but it is not writable");
+                    LOG_E("The user's configuration file {} exists in the virtual filesystem, but it is not writable", userConfigurationPath.path);
                     throw ConfigurationLoadError("The user's configuration file exists in the virtual filesystem, but it is not writable.");
                 }
             } else {
@@ -211,7 +213,7 @@ Configuration::Configuration(const std::vector<ConfigurationFilePath> paths, Mod
     
     Configuration::fillConfigurationMaps(this->paths, resolvedConfigurationValues, &systemValues, &userValues, filesystem, mode);
     
-    LOG_I("Number of loaded configuration values: " << resolvedConfigurationValues.size());
+    LOG_I("Number of loaded configuration values: {}", resolvedConfigurationValues.size());
 }
 
 void Configuration::addListener(Configurable* listener) {
@@ -281,16 +283,16 @@ bool Configuration::serialize() {
         throw ConfigurationWriteError("Failed to open configuration file " + outputPath + " for writing.");
     }
     
-    LOG_D("Writing updated configuration values to: " << outputPath);
+    LOG_D("Writing updated configuration values to: {}", outputPath);
     
     for (std::size_t i = 0; i < static_cast<std::size_t>(ConfigurationValueFamily::COUNT); ++i) {
         const std::string& familyName = con::ConfigurationFamilyNames[i];
         std::vector<ConfigurationValue>& currentFamilyValues = valuesToWrite[i];
         
         if (currentFamilyValues.size() == 0) {
-            LOG_D("Configuration value family \"" << familyName << "\" has no values that need to be written");
+            LOG_D("Configuration value family \"{}\" has no values that need to be written", familyName);
         } else {
-            LOG_D("Configuration value family \"" << familyName << "\" has " << currentFamilyValues.size() << " value(s) that need to be written");
+            LOG_D("Configuration value family \"{}\" has {} value(s) that need to be written", familyName, currentFamilyValues.size());
         }
         
         std::sort(currentFamilyValues.begin(), currentFamilyValues.end(), [](const ConfigurationValue& a, const ConfigurationValue& b) {

@@ -32,6 +32,7 @@
 #include "ai/Blackboard.hpp"
 
 #include <iomanip>
+#include <sstream>
 
 #define IYF_TEST_EMULATED_UPDATE_INTERVAL 0.1 // 100 milliseconds between "updates"
 #define IYF_VERBOSE_TREE_OUTPUT false // If enabling this does nothing, make sure IYF_LOG_BEHAVIOUR_NODE_ACTIONS is defined in BehaviourTree.cpp
@@ -403,7 +404,7 @@ TestResults BehaviourTreeTests::run() {
 //     nonDecoratedTree->setLoggingEnabled(true);
     
     if (isOutputVerbose()) {
-        LOG_V("Non decorated behaviour tree:\n" << nonDecoratedTree->toString());
+        LOG_V("Non decorated behaviour tree:\n {}", nonDecoratedTree->toString());
     }
     
     // TEST Non decorated #1 (everything OK from start)
@@ -487,7 +488,7 @@ TestResults BehaviourTreeTests::run() {
     //decoratedTree->setLoggingEnabled(true);
     
     if (isOutputVerbose()) {
-        LOG_V("Decorated behaviour tree (abort own):\n" << decoratedTree->toString());
+        LOG_V("Decorated behaviour tree (abort own):\n{}", decoratedTree->toString());
     }
     
     // TEST Decorated #1 (Nothing works, we spot onlookers using a service and have to quit trying to break into own home (decorator aborts own subtree), onlookers stay)
@@ -528,7 +529,7 @@ TestResults BehaviourTreeTests::run() {
 //     decoratedTree->setLoggingEnabled(true);
     
     if (isOutputVerbose()) {
-        LOG_V("Decorated behaviour tree (abort lower priority):\n" << decoratedTree->toString());
+        LOG_V("Decorated behaviour tree (abort lower priority):\n{}", decoratedTree->toString());
     }
     
     expectedReportVector = {
@@ -568,7 +569,7 @@ TestResults BehaviourTreeTests::run() {
     //advancedDecorator->setLoggingEnabled(true);
     
     if (isOutputVerbose()) {
-        LOG_V("Decorated behaviour tree (force result):\n" << advancedDecorator->toString());
+        LOG_V("Decorated behaviour tree (force result):\n{}", advancedDecorator->toString());
     }
     
     expectedReportVector = {
@@ -585,7 +586,7 @@ TestResults BehaviourTreeTests::run() {
     //advancedDecorator->setLoggingEnabled(true);
     
     if (isOutputVerbose()) {
-        LOG_V("Decorated behaviour tree (force result chaining):\n" << advancedDecorator->toString());
+        LOG_V("Decorated behaviour tree (force result chaining):\n{}", advancedDecorator->toString());
     }
     
     expectedReportVector = {
@@ -604,7 +605,7 @@ TestResults BehaviourTreeTests::run() {
 //     advancedDecorator->setLoggingEnabled(true);
     
     if (isOutputVerbose()) {
-        LOG_V("Decorated behaviour tree (with for loop):\n" << advancedDecorator->toString());
+        LOG_V("Decorated behaviour tree (with for loop):\n{}", advancedDecorator->toString());
     }
     
     expectedReportVector = {
@@ -633,7 +634,7 @@ TestResults BehaviourTreeTests::run() {
 //     advancedDecorator->setLoggingEnabled(true);
     
     if (isOutputVerbose()) {
-        LOG_V("Decorated behaviour tree (with while loop):\n" << advancedDecorator->toString());
+        LOG_V("Decorated behaviour tree (with while loop):\n{}", advancedDecorator->toString());
     }
     
     expectedReportVector = {

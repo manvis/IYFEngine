@@ -34,6 +34,8 @@
 #include "core/exceptions/FileOpenException.hpp"
 #include "core/filesystem/cppFilesystem.hpp"
 
+#include "fmt/ostream.h"
+
 namespace iyf {
 File::File(const fs::path& path, OpenMode openMode) : path(path), openMode(openMode), isOpen(true) {
     switch (openMode) {
@@ -212,7 +214,7 @@ bool File::close() {
         isOpen = false;
         file = nullptr;
     } else {
-        LOG_E("Failed to close a file: " << path); 
+        LOG_E("Failed to close a file: {}", path); 
     }
     
     return result;
@@ -222,7 +224,7 @@ File::~File() {
     if (isOpen) {
         int result = PHYSFS_close(file);
         if (result == 0) {
-            LOG_E("Error when closing a PHYSFS file. Path: " << path);
+            LOG_E("Error when closing a PHYSFS file. Path: {}", path);
         }
     }
 }

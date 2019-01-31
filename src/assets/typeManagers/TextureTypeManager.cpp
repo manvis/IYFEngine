@@ -42,7 +42,7 @@ TextureTypeManager::TextureTypeManager(AssetManager* manager) : ChunkedVectorTyp
 
 void TextureTypeManager::performFree(Texture& assetData) {
     if (!gfx->destroyImage(assetData.image)) {
-        LOG_W("Failed to destroy an image that was loaded from a file with hash: " << assetData.getNameHash());
+        LOG_W("Failed to destroy an image that was loaded from a file with hash: {}", assetData.getNameHash());
     }
 }
 

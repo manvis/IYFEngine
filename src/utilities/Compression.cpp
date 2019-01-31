@@ -30,6 +30,8 @@
 #include "miniz/miniz.h"
 #include "core/Logger.hpp"
 
+#include "fmt/ostream.h"
+
 namespace iyf::util {
 inline mz_uint OurCompressionLevelToMinizCompressionLevel(CompressionLevel level) {
     switch (level) {
@@ -53,7 +55,7 @@ bool CompressDirectoryToZip(const fs::path& dir, const fs::path& zipPath, Compre
     const mz_uint compressionLevel = OurCompressionLevelToMinizCompressionLevel(level);
     
     if (!mz_zip_writer_init_file_v2(&archive, zipPath.c_str(), 0, compressionLevel)) {
-        LOG_E("Failed to create a zip file located in " << zipPath << ". Miniz error:" << mz_zip_get_error_string(archive.m_last_error));
+        LOG_E("Failed to create a zip file located in {}. Miniz error: {}", zipPath, mz_zip_get_error_string(archive.m_last_error));
         return false;
     }
     
@@ -61,7 +63,7 @@ bool CompressDirectoryToZip(const fs::path& dir, const fs::path& zipPath, Compre
     for (const auto& d : fs::recursive_directory_iterator(dir)) {
         if (!fs::is_directory(d)) {
             if (d == zipPath) {
-                LOG_V("The current zip file (" << zipPath << ") was found in the file list. Skipping it.");
+                LOG_V("The current zip file ({}) was found in the file list. Skipping it.", zipPath);
                 continue;
             }
             
@@ -69,21 +71,20 @@ bool CompressDirectoryToZip(const fs::path& dir, const fs::path& zipPath, Compre
             status = mz_zip_writer_add_file(&archive, relativePath.c_str(), d.path().c_str(), nullptr, 0, compressionLevel);
             
             if (!status) {
-                LOG_E("Failed to write " << d << " to zip " << zipPath << ". Miniz error:" << mz_zip_get_error_string(archive.m_last_error));
+                LOG_E("Failed to write {} to zip {}. Miniz error: {}", d, zipPath, mz_zip_get_error_string(archive.m_last_error));
                 break;
             }
         }
     }
     
     if (!mz_zip_writer_finalize_archive(&archive)) {
-        LOG_E("Failed to finalize a" << (status ? " completely " : "n incompletely ") << "written zip file " << zipPath << 
-              ". It is likely it won't be readable. Miniz error: " << mz_zip_get_error_string(archive.m_last_error));
+        LOG_E("Failed to finalize a {} written zip file {}. It is likely it won't be readable. Miniz error: {}", (status ? " completely " : "n incompletely "), zipPath, mz_zip_get_error_string(archive.m_last_error));
         
         status = false;
     }
 
     if (!mz_zip_writer_end(&archive)) {
-        LOG_E("Failed to end the writer for a zip file located in " << zipPath << ". Miniz error:" << mz_zip_get_error_string(archive.m_last_error));
+        LOG_E("Failed to end the writer for a zip file located in {}. Miniz error: {}", zipPath, mz_zip_get_error_string(archive.m_last_error));
         
         status = false;
     }
@@ -98,7 +99,7 @@ bool CompressFileListToZip(const std::vector<PathToCompress>& paths, const fs::p
     const mz_uint compressionLevel = OurCompressionLevelToMinizCompressionLevel(level);
     
     if (!mz_zip_writer_init_file_v2(&archive, zipPath.c_str(), 0, compressionLevel)) {
-        LOG_E("Failed to create a zip file located in " << zipPath << ". Miniz error:" << mz_zip_get_error_string(archive.m_last_error));
+        LOG_E("Failed to create a zip file located in {}. Miniz error: {}", zipPath, mz_zip_get_error_string(archive.m_last_error));
         return false;
     }
     
@@ -106,25 +107,25 @@ bool CompressFileListToZip(const std::vector<PathToCompress>& paths, const fs::p
     for (const auto& p : paths) {
         auto stat = fs::status(p.filePath);
         if (!fs::exists(stat)) {
-            LOG_E("Failed to compress " << p.filePath << " to " << zipPath << ". This file does not exist.");
+            LOG_E("Failed to compress {} to {}. This file does not exist.", p.filePath, zipPath);
             status = false;
             break;
         }
         
         if (!fs::is_directory(p.filePath)) {
             if (p.filePath == zipPath) {
-                LOG_V("The current zip file (" << zipPath << ") was found in the file list. Skipping it.");
+                LOG_V("The current zip file ({}) was found in the file list. Skipping it.", zipPath);
                 continue;
             }
             
             status = mz_zip_writer_add_file(&archive, p.archivePath.c_str(), p.filePath.c_str(), nullptr, 0, compressionLevel);
             
             if (!status) {
-                LOG_E("Failed to write " << p.filePath << " to zip " << zipPath << ". Miniz error:" << mz_zip_get_error_string(archive.m_last_error));
+                LOG_E("Failed to write {} to zip {}. Miniz error: {}", p.filePath, zipPath, mz_zip_get_error_string(archive.m_last_error));
                 break;
             }
         } else {
-            LOG_E("Failed to compress " << p.filePath << ". It is a directory and CompressFileListToZip only supports files.");
+            LOG_E("Failed to compress {}. It is a directory and CompressFileListToZip only supports files.", p.filePath);
             
             status = false;
             break;
@@ -132,14 +133,13 @@ bool CompressFileListToZip(const std::vector<PathToCompress>& paths, const fs::p
     }
     
     if (!mz_zip_writer_finalize_archive(&archive)) {
-        LOG_E("Failed to finalize a" << (status ? " completely " : "n incompletely ") << "written zip file " << zipPath << 
-              ". It is likely it won't be readable. Miniz error: " << mz_zip_get_error_string(archive.m_last_error));
+        LOG_E("Failed to finalize a {} written zip file {}. It is likely it won't be readable. Miniz error: {}", (status ? " completely " : "n incompletely "), zipPath, mz_zip_get_error_string(archive.m_last_error));
         
         status = false;
     }
 
     if (!mz_zip_writer_end(&archive)) {
-        LOG_E("Failed to end the writer for a zip file located in " << zipPath << ". Miniz error:" << mz_zip_get_error_string(archive.m_last_error));
+        LOG_E("Failed to end the writer for a zip file located in {}. Miniz error: {}", zipPath, mz_zip_get_error_string(archive.m_last_error));
         
         status = false;
     }

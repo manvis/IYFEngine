@@ -867,7 +867,7 @@ void BehaviourTree::update(float delta) {
     step++;
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
     if (loggingEnabled) {
-        LOG_D(ssLog.str());
+        LOG_D("{}", ssLog.str());
     }
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
 }
@@ -903,7 +903,7 @@ std::size_t BehaviourTree::abort(std::vector<BehaviourTreeNode*>::iterator lastI
         
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
         if (loggingEnabled) {
-            LOG_D("Aborting Node: \"" << node->getName() << "\"");
+            LOG_D("Aborting Node: \"{}\"", node->getName());
         }
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
         
@@ -918,7 +918,7 @@ std::size_t BehaviourTree::abort(std::vector<BehaviourTreeNode*>::iterator lastI
                 
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
                 if (loggingEnabled) {
-                    LOG_D("Aborting Decorator \"" << decorator->getName() << "\" of Node: \"" << node->getName() << "\"");
+                    LOG_D("Aborting Decorator \"{}\" of Node: \"{}\"", decorator->getName(), node->getName());
                 }
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
             }
@@ -933,7 +933,7 @@ std::size_t BehaviourTree::abort(std::vector<BehaviourTreeNode*>::iterator lastI
                 
 #ifdef IYF_LOG_BEHAVIOUR_NODE_ACTIONS
                 if (loggingEnabled) {
-                    LOG_D("Aborting Service \"" << service->getName() << "\" of Node: \"" << node->getName() << "\"");
+                    LOG_D("Aborting Service \"{}\" of Node: \"{}\"", service->getName(), node->getName());
                 }
 #endif // IYF_LOG_BEHAVIOUR_NODE_ACTIONS
             }

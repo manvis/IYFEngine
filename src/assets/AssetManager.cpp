@@ -57,6 +57,8 @@
 #include "utilities/DataSizes.hpp"
 #include "utilities/FileInDir.hpp"
 
+#include "fmt/ostream.h"
+
 #include <climits>
 
 namespace iyf {
@@ -91,7 +93,7 @@ AssetManager::AssetManager(Engine* engine) : engine(engine), asyncLoadWindow(con
         }
     }
     ss << "\n\tBIGGEST METADATA OBJECT: " << con::AssetTypeToTranslationString(biggestAssetMetadata) << ", " << maxSize << " bytes.";
-    LOG_D(ss.str())
+    LOG_D("{}", ss.str())
     
     editorMode = engine->isEditorMode();
 }
@@ -166,7 +168,7 @@ void AssetManager::initialize() {
     BufferRangeSet brs(Bytes(64));
     brs.getFreeRange(Bytes(8), Bytes(2));
     auto fr = brs.getFreeRange(Bytes(10), Bytes(5));
-    LOG_D("Ranges " << fr.completeRange.offset.count() << " " << fr.completeRange.size.count() << " " << fr.startPadding)
+    LOG_D("Ranges {} {} {}", fr.completeRange.offset.count(), fr.completeRange.size.count(), fr.startPadding)
     
     typeManagers[static_cast<std::size_t>(AssetType::Mesh)] = std::unique_ptr<MeshTypeManager>(new MeshTypeManager(this, 2_MiB, 1_MiB));
     typeManagers[static_cast<std::size_t>(AssetType::Shader)] = std::unique_ptr<ShaderTypeManager>(new ShaderTypeManager(this));
@@ -354,7 +356,7 @@ inline AssetManager::ManifestElement buildManifestElement(AssetType type, bool i
 /// \warning Make sure this is always protected by a mutex
 inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unordered_map<StringHash, AssetManager::ManifestElement>& manifest) {
     const fs::path& baseDir = con::AssetTypeToPath(type);
-    LOG_V("Examining contents of \"" << baseDir.generic_string() << "\"");
+    LOG_V("Examining contents of \"{}\"", baseDir.generic_string());
     const auto contents = filesystem->getDirectoryContents(baseDir);
     
     // Used to detect errors.
@@ -367,7 +369,7 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
         
         const bool validName = isFileNameValid(stem);
         if (!validName) {
-            LOG_W("Found a file with a non-numeric name: " << fullPath << ". Skipping it.");
+            LOG_W("Found a file with a non-numeric name: {}. Skipping it.", fullPath);
             continue;
         }
         
@@ -376,11 +378,11 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
         const std::uint64_t parsedNumber = std::strtoull(stemPtr, &end, 10);
                 
         if (stemPtr == end) {
-            LOG_W("strtoull encountered an error when processing " << fullPath << ". Skipping it.");
+            LOG_W("strtoull encountered an error when processing {}. Skipping it.", fullPath);
         }
         
         if (errno == ERANGE) {
-            LOG_W("strtoull encountered an error when processing " << fullPath << ". Skipping it.");
+            LOG_W("strtoull encountered an error when processing {}. Skipping it.", fullPath);
             
             errno = 0;
             continue;
@@ -397,7 +399,7 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
         } else if (fullPath.extension() == con::TextMetadataExtension()) {
             findAndSetFileDiscoveryResults(results, nameHash, FileDiscoveryResults::Field::TextMetadataPath, fullPath);
         } else {
-            LOG_W("Found a file with an unexpected extension: " << fullPath << ". Skipping it.");
+            LOG_W("Found a file with an unexpected extension: {}. Skipping it.", fullPath);
         }
     }
     
@@ -408,10 +410,13 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
         const bool hasBinaryMetadata = !result.second.binaryMetadataPath.empty();
         
         if (!result.second.isComplete()) {
-            LOG_W("Couldn't add an item to the manifest. File + ONE type of metadata required, found this instead:\n\t" <<
-                  "\n\tFile: " << (hasFile ? result.second.filePath : "NOT FOUND") <<
-                  "\n\tText metadata:"  << (hasTextMetadata ? result.second.textMetadataPath : "NOT FOUND") <<
-                  "\n\tBinary metadata: " << (hasBinaryMetadata ? result.second.binaryMetadataPath : "NOT FOUND"));
+            LOG_W("Couldn't add an item to the manifest. File + ONE type of metadata required, found this instead:\n\t"
+                  "\n\tFile: {}"
+                  "\n\tText metadata: {}"
+                  "\n\tBinary metadata: {}",
+                  (hasFile ? result.second.filePath : "NOT FOUND"),
+                  (hasTextMetadata ? result.second.textMetadataPath : "NOT FOUND"),
+                  (hasBinaryMetadata ? result.second.binaryMetadataPath : "NOT FOUND"));
         }
         
         const bool isJSON = hasTextMetadata;
@@ -428,13 +433,13 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
         count++;
     }
     
-    LOG_V("Added " << count << " " << con::AssetTypeToTranslationString(type) << " file(s) to the manifest.\n\tIt now stores metadata of " << manifest.size() << " file(s).");
+    LOG_V("Added {} {} file(s) to the manifest.\n\tIt now stores metadata of {} file(s).", count, con::AssetTypeToTranslationString(type), manifest.size());
 }
 
 void AssetManager::buildManifestFromFilesystem() {
     FileSystem* filesystem = engine->getFileSystem();
     
-    LOG_V("Building the manifest using the following search path:\n\t" << filesystem->logSearchPath("\n\t"));
+    LOG_V("Building the manifest using the following search path:\n\t{}", filesystem->logSearchPath("\n\t"));
     
     // TODO automatically convert or delete items that were added or removed while the engine was off (e.g. thanks
     // to version control).
@@ -538,19 +543,19 @@ static inline std::optional<StringHash> ValidateAndHashPath(const FileSystem* fs
     }
     
     if (!path.extension().empty()) {
-        LOG_W("Couldn't process \"" << path << "\". A numeric filename without extension is required.");
+        LOG_W("Couldn't process \"{}\". A numeric filename without extension is required.", path);
         return std::nullopt;
     }
     
     const std::string stem = path.stem().generic_string();
     const bool validName = isFileNameValid(stem);
     if (!validName) {
-        LOG_W("Couldn't process \"" << path << "\". It has a non-numeric name.");
+        LOG_W("Couldn't process \"{}\". It has a non-numeric name.", path);
         return std::nullopt;
     }
     
     if (!fs->exists(path)) {
-        LOG_W("Couldn't process \"" << path << "\". File does not exist.");
+        LOG_W("Couldn't process \"{}\". File does not exist.", path);
         return std::nullopt;
     }
     
@@ -560,11 +565,11 @@ static inline std::optional<StringHash> ValidateAndHashPath(const FileSystem* fs
     const std::uint64_t parsedNumber = std::strtoull(stemPtr, &end, 10);
     
     if (stemPtr == end) {
-        LOG_W("strtoull encountered an error when processing " << path << ". Skipping it.");
+        LOG_W("strtoull encountered an error when processing {}. Skipping it.", path);
     }
     
     if (errno == ERANGE) {
-        LOG_W("When parsed the filename " << path << " does not fit in std::uint64_t. Skipping it.");
+        LOG_W("When parsed the filename {} does not fit in std::uint64_t. Skipping it.", path);
         
         errno = 0;
         return std::nullopt;
@@ -596,12 +601,12 @@ void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
     bool textMetadataExists = fs->exists(textMetadataPath);
     
     if (!(binaryMetadataExists || textMetadataExists)) {
-        LOG_W("Couldn't add \"" << path << "\" to the manifest. No metadata exists for it.");
+        LOG_W("Couldn't add \"{}\" to the manifest. No metadata exists for it.", path);
         return;
     }
     
     if (binaryMetadataExists && textMetadataExists) {
-        LOG_W("Couldn't add \"" << path << "\" to the manifest. It has both text and binary metadata and it's impossible to know which one is valid.");
+        LOG_W("Couldn't add \"{}\" to the manifest. It has both text and binary metadata and it's impossible to know which one is valid.", path);
         return;
     }
     
@@ -670,8 +675,8 @@ void AssetManager::requestAssetDeletion(const fs::path& path, [[maybe_unused]] b
         
         const auto& loadedAsset = loadedAssets.find(nameHash);
         if (loadedAsset != loadedAssets.end()) {
-            LOG_W("The file (" << path << ") that was removed had live references. If you don't find "
-                "and fix them, they will be replaced with missing assets next time you start the editor.");
+            LOG_W("The file ({}) that was removed had live references. If you don't find "
+                "and fix them, they will be replaced with missing assets next time you start the editor.", path);
         }
         
         // All metadata operations are synchronous in editor mode
@@ -700,7 +705,7 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
     std::lock_guard<std::mutex> manifestLock(manifestMutex);
     std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
     
-    LOG_D("Beginning asset data move for " << (isDir ? "directory" : "file") << ". Moving from " << sourcePath << " to " << destinationPath);
+    LOG_D("Beginning asset data move for {}. Moving from {} to {}", (isDir ? "directory" : "file"), sourcePath, destinationPath);
     
     // Can't change the key immediately. It would mess up the iteration order.
     std::vector<std::pair<StringHash, StringHash>> fileMoves;
@@ -731,15 +736,13 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
             postMoveAssetPath /= std::to_string(newPathHash.value());
             
             if (checkForHashCollisionImpl(newPathHash, fullNewPath)) {
-                LOG_W("Couldn't move " << currentSourceAssetPathString << " (a.k.a. " << me.second.path << ") to " <<
-                    fullNewPath << " (a.k.a. " << postMoveAssetPath << "). A hash collision has occured. You'll need  "
-                    "to rename and re-import the file. Moreover, references to this file won't be updated.");
+                LOG_W("Couldn't move {} (a.k.a. {}) to {} (a.k.a.{}). A hash collision has occured. You'll need  "
+                    "to rename and re-import the file. Moreover, references to this file won't be updated.", currentSourceAssetPathString, me.second.path, fullNewPath, postMoveAssetPath);
                 continue;
             }
             
             if (!fs->exists(me.second.path)) {
-                LOG_W("Couldn't move " << currentSourceAssetPathString << " (a.k.a. " << me.second.path << ") to " <<
-                    fullNewPath << " (a.k.a. " << postMoveAssetPath << "). File does not exist.");
+                LOG_W("Couldn't move {} (a.k.a. {}) to {} (a.k.a. {}. File does not exist.", currentSourceAssetPathString, me.second.path, fullNewPath, postMoveAssetPath);
                 continue;
             }
             
@@ -769,7 +772,7 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
             if (binaryMetadataExists) {
                 bool removed = fs->remove(binaryMetadataPath);
                 if (!removed) {
-                    LOG_E("Failed to remove a binary metadata file: " << binaryMetadataPath << "\n\tLast filesystem error: " << fs->getLastErrorText());
+                    LOG_E("Failed to remove a binary metadata file: {}\n\tLast filesystem error: {}", binaryMetadataPath, fs->getLastErrorText());
                     
                     throw std::logic_error("Failed to remove a metadata file. Check log.");
                 }
@@ -779,7 +782,7 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
             if (textMetadataExists) {
                 bool removed = fs->remove(textMetadataPath);
                 if (!removed) {
-                    LOG_E("Failed to remove a text metadata file: " << textMetadataPath << "\n\tLast filesystem error: " << fs->getLastErrorText());
+                    LOG_E("Failed to remove a text metadata file: {}\n\tLast filesystem error: {}", textMetadataPath, fs->getLastErrorText());
                     
                     throw std::logic_error("Failed to remove a metadata file. Check log.");
                 }

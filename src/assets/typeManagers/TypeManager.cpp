@@ -31,13 +31,16 @@
 #include "assets/AssetManager.hpp"
 #include "assets/typeManagers/TypeManager.hpp"
 
+#include "fmt/ostream.h"
+
 namespace iyf {
 TypeManager::TypeManager(AssetManager* manager) : manager(manager) {
     longTermWorkerPool = manager->getEngine()->getLongTermWorkerPool();
 }
 
 void TypeManager::logLeakedAsset(std::size_t id, StringHash nameHash, std::uint32_t count) {
-    LOG_W("Asset with id " << id << " loaded from path " << manager->getAssetPath(nameHash) << " still has " << count << " live references. ")
+    const fs::path path = *manager->getAssetPath(nameHash);
+    LOG_W("Asset with id {} loaded from path {} still has {} live references.", id, path, count);
 }
 
 void TypeManager::notifyRemoval(StringHash nameHash) {

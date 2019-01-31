@@ -33,6 +33,8 @@
 #include "utilities/ReadWholeFile.hpp"
 #include "utilities/Regexes.hpp"
 
+#include "fmt/ostream.h"
+
 #include <fstream>
 
 // TODO validate the inputs
@@ -168,7 +170,7 @@ bool Project::CreateImportsDirectory(const fs::path& path) {
 
 Project::Project(fs::path root, bool deserializeFile) : root(std::move(root)) {
     if (deserializeFile && !deserialize()) {
-        LOG_E("Failed to deserialize the project file" << " from " << (this->root / con::ProjectFile()));
+        LOG_E("Failed to deserialize the project file  from {}", (this->root / con::ProjectFile()));
         throw std::runtime_error("Failed to deserialize the project file");
     }
     
@@ -188,14 +190,14 @@ bool Project::serialize() const {
     std::ofstream jsonFile(finalPath.string(), std::ios_base::out|std::ios_base::trunc|std::ios_base::binary);
     
     if (!jsonFile.is_open()) {
-        LOG_E("Failed to open a project file " << finalPath << " for serialization.");
+        LOG_E("Failed to open a project file {} for serialization.", finalPath);
         
         return false;
     }
     
     jsonFile.write(jsonString.data(), jsonString.length());
     if (!jsonFile.good()) {
-        LOG_E("Failed to serialize data to the project file " << finalPath);
+        LOG_E("Failed to serialize data to the project file {}", finalPath);
         
         return false;
     }
@@ -209,7 +211,7 @@ bool Project::deserialize() {
     std::ifstream jsonFile(finalPath.string(), std::ios_base::in|std::ios_base::binary);
     
     if (!jsonFile.is_open()) {
-        LOG_E("Failed to open a project file " << finalPath << " for deserialization.");
+        LOG_E("Failed to open a project file {} for deserialization.", finalPath);
         
         return false;
     }
@@ -259,7 +261,7 @@ void Project::serializeJSON(PrettyStringWriter& pw) const {
 void Project::deserializeJSON(JSONObject& jo) {
     // This should handle multiple versions in the future
     if (jo[VERSION_FIELD_NAME].GetUint() != CURRENT_DATA_FORMAT_VERSION) {
-        LOG_E("Unknown project file version" << jo[VERSION_FIELD_NAME].GetUint());
+        LOG_E("Unknown project file version {}", jo[VERSION_FIELD_NAME].GetUint());
         throw std::runtime_error("Unknown project file version");
     }
     

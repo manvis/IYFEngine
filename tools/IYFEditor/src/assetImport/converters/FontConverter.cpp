@@ -34,6 +34,7 @@
 #include "core/Logger.hpp"
 #include "core/filesystem/File.hpp"
 
+#include "fmt/ostream.h"
 #include "stb_truetype.h"
 
 namespace iyf::editor {
@@ -61,12 +62,12 @@ std::unique_ptr<ConverterState> FontConverter::initializeConverter(const fs::pat
     
     int numFonts = stbtt_GetNumberOfFonts(buffer);
     if (numFonts < 1) {
-        LOG_W("The file " << inPath << " is not a valid .ttf/.otf font file");
+        LOG_W("The file {} is not a valid .ttf/.otf font file", inPath);
         return nullptr;
     }
     
     if (numFonts > 1) {
-        LOG_W("The file " << inPath << " has too many fonts. Only one font per file is supported by the engine");
+        LOG_W("The file {} has too many fonts. Only one font per file is supported by the engine", inPath);
         return nullptr;
     }
     

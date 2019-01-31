@@ -41,7 +41,7 @@ ShaderTypeManager::ShaderTypeManager(AssetManager* manager) : ChunkedVectorTypeM
 
 void ShaderTypeManager::performFree(Shader& assetData) {
     if (!api->destroyShader(assetData.handle)) {
-        LOG_W("Failed to destroy a shader that was loaded from a file with hash: " << assetData.getNameHash());
+        LOG_W("Failed to destroy a shader that was loaded from a file with hash: {}", assetData.getNameHash());
     }
 }
 

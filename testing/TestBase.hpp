@@ -73,7 +73,7 @@ public:
     
     inline void log(const std::string& output) {
         if (!verbose) {
-            LOG_D(output);
+            LOG_D("{}", output);
         }
     }
     inline bool isOutputVerbose() {

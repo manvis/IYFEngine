@@ -34,6 +34,8 @@
 #include "utilities/StringUtilities.hpp"
 #include "utilities/Regexes.hpp"
 
+#include "fmt/ostream.h"
+
 #include <cstring>
 
 // #define IYF_LOG_ALL_LOADED_STRINGS
@@ -161,13 +163,13 @@ TextLocalizer::LoadResult TextLocalizer::loadToMap(const FileSystem* fs, const f
             file.readBytes(magicTest.data(), 4);
             
             if (magicNumber != magicTest) {
-                LOG_E("Failed to load a string file: " << localizationFileDirectory / name << ". Incorrect magic number");
+                LOG_E("Failed to load a string file: {}. Incorrect magic number", (localizationFileDirectory / name));
                 return LoadResult::Failure;
             }
             
             const std::uint32_t version = file.readUInt32();
             if (version != 1) {
-                LOG_E("Failed to load a string file: " << localizationFileDirectory / name << ". Unsupported version: " << version);
+                LOG_E("Failed to load a string file: {}. Unsupported version: {}", (localizationFileDirectory / name), version);
                 return LoadResult::Failure;
             }
             
@@ -187,7 +189,7 @@ TextLocalizer::LoadResult TextLocalizer::loadToMap(const FileSystem* fs, const f
     std::sort(filesWithPriorities.begin(), filesWithPriorities.end(), [](const FilePriorityCount& a, const FilePriorityCount& b){ return a.priority < b.priority; });
     
     for (auto& f : filesWithPriorities) {
-        LOG_V("Loading strings from " << f.file.getPath() << "; PRIORITY: " << f.priority);
+        LOG_V("Loading strings from {}; PRIORITY: {}", f.file.getPath(), f.priority);
         
         //buffer.reserve(1024);
         for (std::size_t i = 0; i < f.count; ++i) {
@@ -235,7 +237,7 @@ std::string TextLocalizer::loadResultToErrorString(LoadResult result) const {
 std::string TextLocalizer::logAndReturnMissingKey(StringHash key) const {
     std::string str = fmt::format("MISSING STRING {}##", key.value());
     
-    LOG_W(str);
+    LOG_W("{}", str);
     return str;
 }
 

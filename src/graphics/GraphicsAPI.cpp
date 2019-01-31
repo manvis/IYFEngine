@@ -245,7 +245,7 @@ void GraphicsAPI::openWindow() {
     SDL_DisplayMode mode = { SDL_PIXELFORMAT_UNKNOWN, 0, 0, 0, 0 };
     int numVideoDisplays = SDL_GetNumVideoDisplays();
 
-    LOG_V("Found " << numVideoDisplays << " screen(s)");
+    LOG_V("Found {} screen(s)", numVideoDisplays);
     
     bool dumpScreenResolutions = config->getValue(ConfigurationValueHandle(HS("dump_screen_resolutions"), ConfigurationValueFamily::Engine));
     if (dumpScreenResolutions) {
@@ -262,7 +262,7 @@ void GraphicsAPI::openWindow() {
             }
         }
         
-        LOG_V(ss.str());
+        LOG_V("{}", ss.str());
     }
     
     int activeDisplayID = 0;
@@ -302,10 +302,10 @@ void GraphicsAPI::openWindow() {
     
     // TODO this only applies if full screen mode is chosen. Figure out what to log otherwise
     LOG_D("Chosen display mode: "
-          << "\n\tWidth: " << mode.w
-          << "\n\tHeight: " << mode.h
-          << "\n\tRefresh rate: " << mode.refresh_rate
-          << "\n\tPixel mode: " << SDL_BITSPERPIXEL(mode.format) << " " << SDL_GetPixelFormatName(mode.format));
+          "\n\tWidth: {}"
+          "\n\tHeight: {}"
+          "\n\tRefresh rate: {}"
+          "\n\tPixel mode: {} {}", mode.w, mode.h, mode.refresh_rate, SDL_BITSPERPIXEL(mode.format), SDL_GetPixelFormatName(mode.format));
 
     std::uint32_t flags = SDL_WINDOW_SHOWN;
     
@@ -407,7 +407,7 @@ void GraphicsAPI::printWMInfo() {
             ss << " a subsystem with id " << info.subsystem;
     };
     
-    LOG_V(ss.str());
+    LOG_V("{}", ss.str());
 }
 
 //TODO cache?

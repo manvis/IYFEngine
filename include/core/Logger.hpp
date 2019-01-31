@@ -30,7 +30,16 @@
 #define IYF_LOGGER_HPP
 
 #include <string>
-#include <sstream>
+
+// WARNING: Enabling this definition activates some non portable macros. Moreover, the fmt code that performs
+// compile time validation produces a ton of warnings because IYFEngine is compiled with most warning types enabled.
+//#define IYF_CHECKED_FMT 
+
+#ifdef IYF_CHECKED_FMT
+#include "fmt/format.h"
+#else // IYF_CHECKED_FMT
+#include "fmt/core.h"
+#endif // IYF_CHECKED_FMT
 
 #include "utilities/NonCopyable.hpp"
 
@@ -88,31 +97,51 @@ Logger& DefaultLog();
 }
 
 // Base macro for logging
-#define LOG(Instance_, Level_, Message_)             \
+#ifdef IYF_CHECKED_FMT
+
+#define LOG(Instance_, Level_, Str_, ...)        \
     Instance_(                                       \
-        static_cast<std::ostringstream&>(            \
-            std::ostringstream().flush() << Message_ \
-        ).str(),                                     \
+        fmt::format(FMT_STRING(Str_), ##__VA_ARGS__),       \
+        Level_,                                      \
+        __FUNCTION__,                                \
+        __FILE__,                                    \
+        __LINE__                                     \
+    );
+#define LOG_V(Str_, ...) LOG(iyf::DefaultLog(), iyf::LogLevel::Verbose, Str_, ##__VA_ARGS__)
+#define LOG_I(Str_, ...) LOG(iyf::DefaultLog(), iyf::LogLevel::Info, Str_, ##__VA_ARGS__)
+#define LOG_W(Str_, ...) LOG(iyf::DefaultLog(), iyf::LogLevel::Warning, Str_, ##__VA_ARGS__)
+#define LOG_E(Str_, ...) LOG(iyf::DefaultLog(), iyf::LogLevel::Error, Str_, ##__VA_ARGS__)
+
+// Debug logging gets disabled in release builds that have assertions disabled
+#ifdef NDEBUG
+    #define LOG_D(_) do {} while(0);
+#else
+    #define LOG_D(Str_, ...) LOG(iyf::DefaultLog(), iyf::LogLevel::Debug, Str_, ##__VA_ARGS__)
+#endif // NDEBUG
+    
+#else // IYF_CHECKED_FMT
+    
+#define LOG(Instance_, Level_, ...)         \
+    Instance_(                                       \
+        fmt::format(__VA_ARGS__),                    \
         Level_,                                      \
         __FUNCTION__,                                \
         __FILE__,                                    \
         __LINE__                                     \
     );
 
-
-#define LOG_V(Message_) LOG(iyf::DefaultLog(), iyf::LogLevel::Verbose, Message_)
-#define LOG_I(Message_) LOG(iyf::DefaultLog(), iyf::LogLevel::Info, Message_)
-#define LOG_W(Message_) LOG(iyf::DefaultLog(), iyf::LogLevel::Warning, Message_)
-#define LOG_E(Message_) LOG(iyf::DefaultLog(), iyf::LogLevel::Error, Message_)
+#define LOG_V(...) LOG(iyf::DefaultLog(), iyf::LogLevel::Verbose, __VA_ARGS__)
+#define LOG_I(...) LOG(iyf::DefaultLog(), iyf::LogLevel::Info, __VA_ARGS__)
+#define LOG_W(...) LOG(iyf::DefaultLog(), iyf::LogLevel::Warning, __VA_ARGS__)
+#define LOG_E(...) LOG(iyf::DefaultLog(), iyf::LogLevel::Error, __VA_ARGS__)
 
 // Debug logging gets disabled in release builds that have assertions disabled
 #ifdef NDEBUG
     #define LOG_D(_) do {} while(0);
 #else
-    #define LOG_D(Message_) LOG(iyf::DefaultLog(), iyf::LogLevel::Debug, Message_)
+    #define LOG_D(...) LOG(iyf::DefaultLog(), iyf::LogLevel::Debug, __VA_ARGS__)
 #endif // NDEBUG
-//
-//// Localized logger
-//#define LLOG_V(Message_)
+
+#endif // IYF_CHECKED_FMT
 
 #endif // IYF_LOGGER_HPP

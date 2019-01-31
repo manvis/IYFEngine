@@ -499,11 +499,7 @@ void ClusteredRenderer::initialize() {
     const std::size_t clusterDataSize = sizeof(ClusterData);
     const std::size_t materialDataSize = sizeof(MaterialData);
     const std::size_t sumOfSizes = cameraAndLightDataSize + transformationDataSize + clusterDataSize + materialDataSize;
-    LOG_D("TOTAL SIZE: " << cameraAndLightDataSize << " + " 
-                         << transformationDataSize << " + "
-                         << clusterDataSize << " + "
-                         << materialDataSize << " = "
-                         << sumOfSizes);
+    LOG_D("TOTAL SIZE: {} + {} + {} + {} = {}", cameraAndLightDataSize, transformationDataSize, clusterDataSize, materialDataSize, sumOfSizes);
     
     commandPool = gfx->createCommandPool(QueueType::Graphics, 0);
     commandBuffers = commandPool->allocateCommandBuffers(static_cast<std::uint32_t>(CommandBufferID::COUNT));

@@ -162,7 +162,7 @@ void FileMonitorTests::initialize() {
     monitor = iyf::FileSystemWatcher::MakePlatformFilesystemWatcher(ci);
     
     if (isOutputVerbose()) {
-        LOG_V("File monitor backend: " << monitor->getBackendName());
+        LOG_V("File monitor backend: {}", monitor->getBackendName());
     }
     
     step = FileMonitorTestStep::Started;
@@ -458,7 +458,7 @@ TestResults FileMonitorTests::run() {
         return TestResults(false, ss.str());
     } else {
         if (isOutputVerbose()) {
-            LOG_V("Successfully received all " << EXPECTED_UNIQUE_MOVED_DIR_ITEM_COUNT << " expected events after an external directory move")
+            LOG_V("Successfully received all {} expected events after an external directory move", EXPECTED_UNIQUE_MOVED_DIR_ITEM_COUNT)
         }
     }
     
@@ -777,7 +777,7 @@ void FileMonitorTests::monitorCallback(std::vector<FileSystemEvent> events) {
                         ss << "\n\n" << printEvent(e);
                     }
                     
-                    LOG_D("Received " << count << " event(s) during file copy: " << ss.str());
+                    LOG_D("Received {} event(s) during file copy: {}", count, ss.str());
                 }
             }
             
@@ -838,7 +838,7 @@ void FileMonitorTests::monitorCallback(std::vector<FileSystemEvent> events) {
                         ss << "\n\n" << printEvent(e);
                     }
                     
-                    LOG_D("Received " << count << " event(s) during file move: " << ss.str());
+                    LOG_D("Received {} event(s) during file move: {}", count, ss.str());
                 }
             }
             
@@ -865,7 +865,7 @@ void FileMonitorTests::monitorCallback(std::vector<FileSystemEvent> events) {
                 }
                 
                 if (isOutputVerbose()) {
-                    LOG_D("Directory creation event: \n" << printEvent(e));
+                    LOG_D("Directory creation event: \n {}", printEvent(e));
                 }
             }
         
@@ -935,7 +935,7 @@ void FileMonitorTests::monitorCallback(std::vector<FileSystemEvent> events) {
                         ss << "\n\n" << printEvent(e);
                     }
                     
-                    LOG_D("Received " << count << " event(s) during a local file creation: " << ss.str());
+                    LOG_D("Received {} event(s) during a local file creation: {}", count, ss.str());
                 }
             }
             
@@ -1004,7 +1004,7 @@ void FileMonitorTests::monitorCallback(std::vector<FileSystemEvent> events) {
                 LOG_D("TRACKED DIR RENAME");
                 
                 for (const auto& e: events) {
-                    LOG_D(printEvent(e));
+                    LOG_D("{}", printEvent(e));
                 }
                 
                 postRenameEventCount++;
@@ -1014,7 +1014,7 @@ void FileMonitorTests::monitorCallback(std::vector<FileSystemEvent> events) {
                 LOG_D("TRACKED DIR DELETE");
 
                 for (const auto& e: events) {
-                    LOG_D(printEvent(e));
+                    LOG_D("{}", printEvent(e));
                 }
             }
             break;
@@ -1022,7 +1022,7 @@ void FileMonitorTests::monitorCallback(std::vector<FileSystemEvent> events) {
                 LOG_D("TRACKED DIR MOVE OUT");
 
                 for (const auto& e: events) {
-                    LOG_D(printEvent(e));
+                    LOG_D("{}", printEvent(e));
                 }
             }
             
@@ -1045,7 +1045,7 @@ void FileMonitorTests::printMonitoredDirectories(const std::vector<fs::path>& di
         ss << "\n\t\t\t" << d.string();
     }
     
-    LOG_V(ss.str());
+    LOG_V("{}", ss.str());
 }
 
 }

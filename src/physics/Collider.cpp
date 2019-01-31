@@ -39,7 +39,7 @@ void Collider::attach(System* system, std::uint32_t) {
         collisionShape->calculateLocalInertia(mass, localInertia);
     }
 
-    LOG_D("AMM" << *collisionShape);
+    //LOG_D("AMM {}", *collisionShape);
     btRigidBody::btRigidBodyConstructionInfo rbci(mass, &motionState, *collisionShape, localInertia);
     rigidBody.emplace(rbci);
     rigidBody->setUserPointer(reinterpret_cast<void*>(42));
@@ -53,7 +53,7 @@ void Collider::detach(System* system, std::uint32_t) {
     
     physicsSystem->getPhysicsWorld()->removeRigidBody(&*(rigidBody));
     
-    LOG_D("BMM" << *collisionShape);
+    //LOG_D("BMM {}", *collisionShape);
     collisionShape = CollisionShapeHandle();
     rigidBody = boost::none;
     // TODO clean motion state

@@ -246,7 +246,7 @@ void ImGuiImplementation::initializeAssets() {
     //io.Fonts->GetTexDataAsAlpha8(&pixelData, &fontAtlasWidth, &fontAtlasHeight);
     io.Fonts->GetTexDataAsRGBA32(&pixelData, &fontAtlasWidth, &fontAtlasHeight);
     
-    LOG_V("Creating a font atlas for ImGui: " << fontAtlasWidth << "px x " << fontAtlasHeight << "px")
+    LOG_V("Creating a font atlas for ImGui: {}px x {}px", fontAtlasWidth, fontAtlasHeight)
     
     UncompressedImageCreateInfo uici;
     uici.type = ImageMemoryType::RGBA;

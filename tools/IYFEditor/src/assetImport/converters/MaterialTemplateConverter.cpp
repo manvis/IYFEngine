@@ -40,6 +40,7 @@
 #include "core/Logger.hpp"
 #include "core/serialization/MemorySerializer.hpp"
 #include "fmt/format.h"
+#include "fmt/ostream.h"
 
 #include "tools/MaterialEditor.hpp"
 
@@ -187,8 +188,7 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     rj::ParseResult parseResult = jo.Parse(internalState->code.get(), internalState->size);
     
     if (!parseResult) {
-        LOG_W("Failed to parse the JSON from " << state.getSourceFilePath() <<
-              "\n\tError: " << rj::GetParseError_En(parseResult.Code()) << "(" << parseResult.Offset() << ")");
+        LOG_W("Failed to parse the JSON from {}\n\tError: {}({})", state.getSourceFilePath(), rj::GetParseError_En(parseResult.Code()), parseResult.Offset());
         return false;
     }
     
@@ -224,8 +224,7 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
                                                                               con::GetMaterialFamilyDefinition(mlg->getMaterialFamily()),
                                                                               nullptr);
     if (!vertResult) {
-        LOG_W("Failed to generate the vertex shader for " << state.getSourceFilePath() <<
-              "\n\tError: " << vertResult.getContents() << ")");
+        LOG_W("Failed to generate the vertex shader for {}\n\tError: {}", state.getSourceFilePath(), vertResult.getContents());
         return false;
     }
     
@@ -234,12 +233,11 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
                                                                               con::GetMaterialFamilyDefinition(mlg->getMaterialFamily()),
                                                                               mlg.get());
     if (!fragResult) {
-        LOG_W("Failed to generate the fragment shader for " << state.getSourceFilePath() <<
-              "\n\tError: " << fragResult.getContents() << ")");
+        LOG_W("Failed to generate the fragment shader for {}\n\tError: {}", state.getSourceFilePath(), fragResult.getContents());
         return false;
     }
     
-    LOG_D("------------------\n" << vertResult.getContents() << "----------------\n" << fragResult.getContents());
+    LOG_D("------------------\n{}----------------\n{}", vertResult.getContents(), fragResult.getContents());
     
     // Compile all variants of the ubershaders
     ShaderCompilationSettings scs;
@@ -349,10 +347,10 @@ std::optional<StringHash> MaterialTemplateConverter::compileShader(StringHash ma
     
     const ShaderCompilationResult compResult = vulkanShaderGen->compileShader(stage, shaderCode, name + stageName, settings);
     if (!compResult) {
-        LOG_W("Material template conversion failed\n\t" << compResult.getErrorsAndWarnings());
+        LOG_W("Material template conversion failed\n\t{}", compResult.getErrorsAndWarnings());
         return {};
     } else if (!compResult.getErrorsAndWarnings().empty()) {
-        LOG_W(compResult.getErrorsAndWarnings());
+        LOG_W("{}", compResult.getErrorsAndWarnings());
     }
     
     StringHash lookupHash(macroHash);

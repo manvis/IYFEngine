@@ -40,7 +40,8 @@
 #include "core/Logger.hpp"
 #include "core/Project.hpp"
 #include "core/Constants.hpp"
-#include "fmt/format.h"
+
+#include "fmt/ostream.h"
 
 namespace iyf {
 FileSystem::FileSystem(bool editorMode, char* argv, bool skipSystemPackageMounting) : editorMode(editorMode) {
@@ -60,7 +61,7 @@ FileSystem::FileSystem(bool editorMode, char* argv, bool skipSystemPackageMounti
         fs::path systemAssetRealPath = baseDir / con::SystemAssetPackName();
         
         if (PHYSFS_mount(systemAssetRealPath.c_str(), "", 1) == 0) {
-            LOG_E("Failed to mount the system asset archive (" << systemAssetRealPath << "). PHYSFS error: " << getLastErrorText());
+            LOG_E("Failed to mount the system asset archive ({}). PHYSFS error: {}", systemAssetRealPath, getLastErrorText());
             throw std::runtime_error(std::string("PHYSFS failed to mount a mandatory archive"));
         }
     }
@@ -76,7 +77,7 @@ FileHash FileSystem::computeFileHash(const fs::path& path) const {
 
 void FileSystem::setWritePath(fs::path realPath) {
     if (PHYSFS_setWriteDir(realPath.c_str()) == 0) {
-        LOG_E("Failed to set the write directory to (" << realPath << "). PHYSFS error: " << getLastErrorText());
+        LOG_E("Failed to set the write directory to ({}). PHYSFS error: {}", realPath, getLastErrorText());
         throw std::runtime_error("Failed to set the write directory");
     }
     
@@ -88,7 +89,7 @@ bool FileSystem::rename(const fs::path& source, const fs::path& destination) con
     fs::rename(source, destination, ec);
     
     if (ec) {
-        LOG_E("Failed to move a file from " << source << " to " << destination << "\n\tERROR (CODE): " << ec.message() << " (" << ec.value() << ")");
+        LOG_E("Failed to move a file from {} to {}\n\tERROR (CODE): {} ({})", source, destination, ec.message(), ec.value());
         return false;
     } else {
         return true;
@@ -97,7 +98,7 @@ bool FileSystem::rename(const fs::path& source, const fs::path& destination) con
 
 void FileSystem::addReadPath(fs::path realPath, const fs::path& virtualPath, bool appendToSearchPath) {
     if (PHYSFS_mount(realPath.c_str(), virtualPath.c_str(), appendToSearchPath ? 1 : 0) == 0)  {
-        LOG_E("Failed to mount a real path (" << realPath << ") for reading as virtual path (" << virtualPath << "). PHYSFS error: " << getLastErrorText());
+        LOG_E("Failed to mount a real path ({}) for reading as virtual path ({}). PHYSFS error: {}", realPath, virtualPath, getLastErrorText());
         throw std::runtime_error("Failed to mount a path");
     }
     
@@ -137,7 +138,7 @@ void FileSystem::setResourcePathsForProject(const Project* project) {
     if (!readPaths.empty()) {
         for (const auto& rp : readPaths) {
             if (PHYSFS_unmount(rp.c_str()) == 0) {
-                LOG_E("Failed to unmount a read path (" << rp << ") that was used by a previous project. PHYSFS error: " << getLastErrorText());
+                LOG_E("Failed to unmount a read path ({}) that was used by a previous project. PHYSFS error: {}", rp, getLastErrorText());
                 throw std::runtime_error("Failed to unmount a read path");
             }
         }
@@ -154,11 +155,11 @@ void FileSystem::setResourcePathsForProject(const Project* project) {
         const fs::path platformAssetPath = projectRoot / con::PlatformIdentifierToName(con::GetCurrentPlatform());
         
         if (fs::exists(platformAssetPath)) {
-            LOG_V("Mounting the asset folder for the current platform: " << platformAssetPath);
+            LOG_V("Mounting the asset folder for the current platform: {}", platformAssetPath);
             addReadPath(platformAssetPath, "/", true);
         } else {
             /// This can happen before the first real project is loaded and, therefore, it's not an error.
-            LOG_I("The asset path for the current platform (" << platformAssetPath << ") does not exist. Skipping its mounnting.");
+            LOG_I("The asset path for the current platform ({}) does not exist. Skipping its mounnting.", platformAssetPath);
         }
     } else {
         // When running in game mode, mount the data archive that contains the contents of the asset path

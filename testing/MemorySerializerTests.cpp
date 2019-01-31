@@ -30,6 +30,8 @@
 
 #include "core/serialization/MemorySerializer.hpp"
 
+#include <sstream>
+
 #define SPC_TEST(x, s, p, c) { \
     auto spc = checkSizePositionCapacity(x, s, p, c);  \
     if (!spc.isSuccessful()) { \
@@ -45,7 +47,7 @@
 
 #define RD_TEST(x, y, z) { \
     if (x != y) { \
-         LOG_V("Failed to read " z ". Expected " + std::to_string(y) + " got " + std::to_string(x));\
+         LOG_V("Failed to read {}. Expected {} got {}", z, y, x)\
     } \
 }
 
@@ -73,7 +75,7 @@ void MemorySerializerTests::printCompareDataBuffers(const char* bufferA, const c
         ss << static_cast<std::int64_t>(*(bufferA + i)) << " " << static_cast<std::int64_t>(*(bufferB + i)) << "\n\t";
     }
     
-    LOG_V(ss.str())
+    LOG_V("{}", ss.str())
 }
 
 void MemorySerializerTests::initialize() {

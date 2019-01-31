@@ -41,6 +41,7 @@
 #include "threading/ThreadProfiler.hpp"
 
 #include "imgui.h"
+#include "fmt/ostream.h"
 
 // If defined, all received file events be logged
 // #define IYF_EDITOR_LOG_RECEIVED_FILE_EVENT_LIST
@@ -97,7 +98,7 @@ void AssetUpdateManager::initialize() {
     converterManager = std::make_unique<ConverterManager>(fs, "");
     const fs::path platformDataPath = converterManager->getAssetDestinationPath(con::GetCurrentPlatform());
     const fs::path realPlatformDataPath = fs->getRealDirectory(platformDataPath.generic_string());
-    LOG_V("Converted assets for the current platform will be written to: " << realPlatformDataPath);
+    LOG_V("Converted assets for the current platform will be written to: {}", realPlatformDataPath);
     
     isInit = true;
 }
@@ -107,20 +108,16 @@ void AssetUpdateManager::watcherCallback(std::vector<FileSystemEvent> eventList)
     for (const auto& e : eventList) {
         switch (e.getType()) {
         case FileSystemEventFlags::Created:
-            LOG_D("-FS-CREATED:" << "\n\tOrigin: " << (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file")
-                                 << "\n\tSource: " << e.getSource());
+            LOG_D("-FS-CREATED:\n\tOrigin: {}\n\tSource: {}", (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file"), e.getSource());
             break;
         case FileSystemEventFlags::Deleted:
-            LOG_D("-FS-DELETED:" << "\n\tOrigin: " << (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file") 
-                                 << "\n\tSource: " << e.getSource());
+            LOG_D("-FS-DELETED:\n\tOrigin: {}\n\tSource: {}", (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file"), e.getSource());
             break;
         case FileSystemEventFlags::Modified:
-            LOG_D("-FS-MODIFIED:" << "\n\tOrigin: " << (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file")
-                                  << "\n\tSource: " << e.getSource());
+            LOG_D("-FS-MODIFIED:\n\tOrigin: {}\n\tSource: {}", (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file"), e.getSource());
             break;
         case FileSystemEventFlags::Moved:
-            LOG_D("-FS-MOVED:" << "\n\tOrigin: " << (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file")
-                               << "\n\tSource: " << e.getSource() << "\n\tDestination: " << e.getDestination());
+            LOG_D("-FS-MOVED:\n\tOrigin: {}\n\tSource: {}", (e.getOrigin() == FileSystemEventOrigin::Directory ? "directory" : "file"), e.getSource());
             break;
         default:
             throw std::runtime_error("Invalid event type");
@@ -164,7 +161,7 @@ void AssetUpdateManager::watcherCallback(std::vector<FileSystemEvent> eventList)
             throw std::runtime_error("Invalid event type");
         }
         
-        LOG_V(t << " a " << (isDirectory ? "directory" : " file") << "; SRC " << finalSourcePath << "; DST " << finalDestinationPath);
+        LOG_V("{} a {} ; SRC: {}; DST: {}", t, (isDirectory ? "directory" : " file"), finalSourcePath, finalDestinationPath);
     }
 }
 
@@ -203,7 +200,7 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(std::string path
             const fs::path sourcePath = con::ImportPath() / path;
             auto collisionCheckResult = assetManager->checkForHashCollision(nameHash, sourcePath);
             if (collisionCheckResult) {
-                LOG_W("Failed to import " << path << ". Detected a hash collision with " << *collisionCheckResult);
+                LOG_W("Failed to import {}. Detected a hash collision with {}", path, *collisionCheckResult);
                 return nullptr;
             }
             
@@ -219,11 +216,11 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(std::string path
                         assetManager->requestAssetRefresh(assetType, finalPath);
                     };
                 } else {
-                    LOG_W("Failed to import " << path << ". Error during the import.");
+                    LOG_W("Failed to import {}. Error during the import.", path);
                     return nullptr;
                 }
             } else {
-                LOG_W("Failed to import " << path << ". The converter failed to initialize its state.");
+                LOG_W("Failed to import {}. The converter failed to initialize its state.", path);
                 return nullptr;
             }
         }
@@ -273,7 +270,7 @@ bool AssetUpdateManager::update() {
     if (valid && assetProcessingFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
         std::function<void()> notificationFunction = assetProcessingFuture.get();
         if (notificationFunction == nullptr) {
-            LOG_W("Failed to process changes. File: " << currentlyProcessedAsset.first.generic_string());
+            LOG_W("Failed to process changes. File: {}", currentlyProcessedAsset.first.generic_string());
         } else {
             notificationFunction();
         }

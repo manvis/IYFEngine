@@ -62,6 +62,8 @@
 
 #include "assetImport/ConverterManager.hpp"
 
+#include "fmt/ostream.h"
+
 namespace iyf {
 namespace editor {
 
@@ -141,7 +143,7 @@ static void printMeshBones(const aiNode* node, const aiMesh* mesh) {
         ss << "\n\t\t" << mesh->mBones[i]->mName.C_Str() << "; Found: " << found << "; Node name " << boneNode->mName.C_Str();
     }
     
-    LOG_D(ss.str())
+    LOG_D("{}", ss.str())
 }
 
 static glm::mat4 aiMatToGLMMat(aiMatrix4x4 aiMat) {
@@ -202,7 +204,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
     const aiScene *scene = importer->ReadFile(inFile.c_str(), aiProcessPreset_TargetRealtime_Quality);
     int property = importer->GetPropertyInteger(AI_CONFIG_PP_LBW_MAX_WEIGHTS);
     if (property != 4 && property != static_cast<int>(0xffffffff)) {
-        LOG_I("Assimp mesh import bone limit property must be 4 or unset (0xffffffff), was " << property << ". It was reset back to 4")
+        LOG_I("Assimp mesh import bone limit property must be 4 or unset (0xffffffff), was {}. It was reset back to 4", property)
         importer->SetPropertyInteger(AI_CONFIG_PP_LBW_MAX_WEIGHTS, 4);
     }
     
@@ -210,7 +212,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
     static_assert((AI_LMW_MAX_WEIGHTS  == 4), "Assimp does not limit bone weights to 4.");
 
     if (!scene) {
-        LOG_E("Assimp error: " << importer->GetErrorString())
+        LOG_E("Assimp error: {}", importer->GetErrorString())
         return false;
     }
 
@@ -239,19 +241,17 @@ bool MeshConverter::convertV1(ConverterState& state) const {
 //    LOG_D(ss.str());
     
     if (totalMeshNodes > 1) {
-        LOG_W("File " << inFile << " contains more than one top level mesh "
+        LOG_W("File {} contains more than one top level mesh "
                 "node. Importing a whole scene is not supported. Only the "
                 "first node will be processed. If these meshes should be a part of a "
                 "single object, use a mesh joining command in your modeling "
-                "software.")
+                "software.", inFile)
     }
     
     unsigned int numSubMeshes = root->mChildren[firstMeshNode]->mNumMeshes;
 //    LOG_D("First ID of node with meshes is " << firstMeshNode << ". It has " << numSubMeshes << " sub-meshes.")
     if (numSubMeshes > mf::v1::MaxSubmeshes) {
-        LOG_W("File " << inFile << " contains more than "
-                << mf::v1::MaxSubmeshes << " sub-mesh nodes, only the first "
-                << mf::v1::MaxSubmeshes << " will be processed.")
+        LOG_W("File {} contains more than {} sub-mesh nodes, only the first {} will be processed.", inFile, mf::v1::MaxSubmeshes, mf::v1::MaxSubmeshes)
                 
         numSubMeshes = mf::v1::MaxSubmeshes;
     }
@@ -268,18 +268,18 @@ bool MeshConverter::convertV1(ConverterState& state) const {
         
         if (!mesh->HasFaces()) {
             // According to Assimp's docs this should NEVER happen unless someone messes with the importer's flags
-            LOG_E("File " << inFile << " has a mesh without faces. Did someone mess up Assimp's import flags?")
+            LOG_E("File {} has a mesh without faces. Did someone mess up Assimp's import flags?", inFile)
             throw std::runtime_error("Can't process a mesh without faces");
         }
         
         if (mesh->mPrimitiveTypes & aiPrimitiveType_POINT ||
             mesh->mPrimitiveTypes & aiPrimitiveType_LINE ||
             mesh->mPrimitiveTypes & aiPrimitiveType_POLYGON) {
-            LOG_E("File " << inFile << " has a mesh with non-triangle elements")
+            LOG_E("File {} has a mesh with non-triangle elements", inFile)
         }
         
         if (mesh->mNumVertices > mf::v1::MaxVertices) {
-            LOG_E("File " << inFile << " has a mesh with more than " << mf::v1::MaxVertices << " vertices")
+            LOG_E("File {} has a mesh with more than {} vertices", inFile, mf::v1::MaxVertices)
             return false;
         }
         
@@ -302,10 +302,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
             outputError(inFile, "UV coordinates", mesh);
             return false;
         } else if (mesh->GetNumUVChannels() > mf::v1::MaxTextureChannels) {
-            LOG_W("File " << inFile << " contains more than "
-                << mf::v1::MaxTextureChannels << " UV channels, only the "
-                << " first "<< mf::v1::MaxTextureChannels << " will be "
-                "processed.")
+            LOG_W("File {} contains more than {} UV channels, only the first {} will be processed.", inFile, mf::v1::MaxTextureChannels, mf::v1::MaxTextureChannels)
         }
         
         // Default texture is not necessary
@@ -320,10 +317,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
             hasVertexColors = true;
            
             if (mesh->GetNumColorChannels() > mf::v1::MaxColorChannels) {
-                LOG_W("File " << inFile << " contains more than "
-                    << mf::v1::MaxColorChannels << " color channel(s), only the "
-                    << " first "<< mf::v1::MaxColorChannels << " will be "
-                    "processed.")
+                LOG_W("File {} contains more than {} color channel(s), only the  first {} will be processed.", inFile, mf::v1::MaxColorChannels, mf::v1::MaxColorChannels)
             }
        }
         
@@ -335,7 +329,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
     }
     
     if (totalVertices > con::MaxVerticesPerMesh) {
-        LOG_W("A mesh can't have more than " << con::MaxVerticesPerMesh << " vertices. It has " << totalVertices);
+        LOG_W("A mesh can't have more than {} vertices. It has {}", con::MaxVerticesPerMesh, totalVertices);
         return false;
     }
     
@@ -346,7 +340,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
     std::size_t numAnimations = 0;
     
     if (hasBones.any() && hasBones.count() != numSubMeshes) {
-        LOG_W("All sub-meshes must either have bones or not. Cases when only some have bones are not supported. In this file " << hasBones.count() << " sub-meshes out of " << numSubMeshes << " have bones");
+        LOG_W("All sub-meshes must either have bones or not. Cases when only some have bones are not supported. In this file {} sub-meshes out of{} have bones", hasBones.count(), numSubMeshes);
         return false;
     } else if (hasBones.any()) {
         bones.reserve(mf::v1::MaxBones);
@@ -360,14 +354,14 @@ bool MeshConverter::convertV1(ConverterState& state) const {
             for (const auto& s : POSSIBLE_ROOT_NAMES) {
                 ss << "\n\t\t" << s;
             }
-            LOG_W("Failed to find the root node of the skeleton. It MUST have one of these names: " << ss.str())
+            LOG_W("Failed to find the root node of the skeleton. It MUST have one of these names: {}", ss.str())
             return false;
         }
 
         makeV1Skeleton(armatureRoot, bones, nameHashToID);
         
         if (bones.size() > mf::v1::MaxBones) {
-            LOG_W("Too many bones in mesh " << inFile << ". Max allowed is " << mf::v1::MaxBones << ", was: " << bones.size())
+            LOG_W("Too many bones in mesh {}. Max allowed is {}, was: {}", inFile, mf::v1::MaxBones, bones.size());
             return false;
         }
         
@@ -397,10 +391,10 @@ bool MeshConverter::convertV1(ConverterState& state) const {
     }
 
     if (bones.size() > 0 && scene->mNumAnimations == 0) {
-        LOG_E("Can't import mesh file " << inFile << " because the mesh has bones but no animations.")
+        LOG_E("Can't import mesh file {} because the mesh has bones but no animations.", inFile)
         return false;
     } else if (bones.size() > 0 && scene->mNumAnimations > mf::v1::MaxAnimations) {
-        LOG_W("Mesh file " << inFile << " has " << scene->mNumAnimations << " however, engine only supports up to " << mf::v1::MaxAnimations << " animations for each mesh. Only the first " << scene->mNumAnimations << " will be imported.")
+        LOG_W("Mesh file {} has {} however, engine only supports up to {} animations for each mesh. Only the first {} will be imported.", inFile, scene->mNumAnimations, mf::v1::MaxAnimations, scene->mNumAnimations);
         numAnimations = mf::v1::MaxAnimations;
     } else if (bones.size() > 0 && scene->mNumAnimations > 0) {
         numAnimations = scene->mNumAnimations;
@@ -647,8 +641,8 @@ bool MeshConverter::convertV1(ConverterState& state) const {
             
             // TODO maybe add a library that would automatically convert all textures that are imported to appropriate formats
             if (extension != ".dds" && extension != ".DDS" && extension != ".ktx" && extension != ".KTX") {
-                LOG_W("File " << inFile << "; Texture name " << textureFileName << " doesn't end with .dds, .DDS, .ktx or .KTX; "
-                      "This engine can only load compressed DDS or KTX texture formats.")
+                LOG_W("File {}; Texture name {} doesn't end with .dds, .DDS, .ktx or .KTX; "
+                      "This engine can only load compressed DDS or KTX texture formats.", inFile, textureFileName)
             }
 //            
 //            std::string finalDiffusePath(con::TexturePath);
@@ -747,7 +741,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
     
     // TODO make animations shareable
     // TODO do NOT return false, but start exporting another animation
-    LOG_D("AnyBones" << hasBones.any())
+    LOG_D("AnyBones {}", hasBones.any())
     if (hasBones.any() && scene->HasAnimations()) {
         // WRITE: number of animation handles that will be written in the mesh file
         fw.writeUInt32(numAnimations);
@@ -766,8 +760,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
             }
             
             if (animation->mNumChannels != bones.size()) {
-                LOG_W("Can't export an animation called \"" << animationName << "\". Each skeleton node should have an animation channel. This mesh has " << 
-                      bones.size() << " bone(s) and " << animation->mNumChannels << " channel(s).")
+                LOG_W("Can't export an animation called \"{}\". Each skeleton node should have an animation channel. This mesh has {} bone(s) and {} channel(s).", animationName, bones.size(), animation->mNumChannels)
                 return false;
             }
             
@@ -782,14 +775,14 @@ bool MeshConverter::convertV1(ConverterState& state) const {
                         
                 const auto it = nameHashToID.find(HS(channel->mNodeName.C_Str()));
                 if (it == nameHashToID.end()) {
-                    LOG_W("Can't export an animation called \"" << animationName << "\". It has a channel called \"" << channel->mNodeName.C_Str() << "\" but no bone with the same name exists in the imported mesh")
+                    LOG_W("Can't export an animation called \"{}\". It has a channel called \"{}\" but no bone with the same name exists in the imported mesh", animationName, channel->mNodeName.C_Str())
                     return false;
                 }
                 
                 Channel& currentChannel = currentAnim.animationChannels[it->second];
                 
                 if (channel->mNumPositionKeys == 0) {
-                    LOG_W("Can't export an animation called \"" << animationName << "\". Each animation channel must have at least 1 location key and channel called \"" << channel->mNodeName.C_Str() << "\" doesn't have any")
+                    LOG_W("Can't export an animation called \"{}\". Each animation channel must have at least 1 location key and channel called \"{}\" doesn't have any", animationName, channel->mNodeName.C_Str())
                     return false;
                 } else if (channel->mNumPositionKeys == 1) {
                     const aiVectorKey& key = channel->mPositionKeys[0];
@@ -798,8 +791,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
                     currentChannel.locations.reserve(channel->mNumPositionKeys);
                     
                     if (channel->mNumPositionKeys != std::floor(animation->mDuration + 1.0)) {
-                        LOG_W("Can't export an animation called \"" << animationName << "\". Each animation channel must have either only 1 key frame (meaning not animated) or std::floor(animation_length) + 1 keyframes (a.k.a. be baked). Channel \""
-                              << channel->mNodeName.C_Str() << "\" has " << channel->mNumPositionKeys << " position key(s).")
+                        LOG_W("Can't export an animation called \"{}\". Each animation channel must have either only 1 key frame (meaning not animated) or std::floor(animation_length) + 1 keyframes (a.k.a. be baked). Channel \"{}\" has {} position key(s).", animationName, channel->mNodeName.C_Str(), channel->mNumPositionKeys)
                         return false;
                     }
                     
@@ -821,7 +813,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
                 }
                 
                 if (channel->mNumRotationKeys == 0) {
-                    LOG_W("Can't export an animation called \"" << animationName << "\". Each animation channel must have at least 1 rotation key and channel called \"" << channel->mNodeName.C_Str() << "\" doesn't have any")
+                    LOG_W("Can't export an animation called \"{}\". Each animation channel must have at least 1 rotation key and channel called \"{}\" doesn't have any", animationName, channel->mNodeName.C_Str())
                     return false;
                 } else if (channel->mNumRotationKeys == 1) {
                     const aiQuatKey& key = channel->mRotationKeys[0];
@@ -830,8 +822,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
                     currentChannel.rotations.reserve(channel->mNumRotationKeys);
                     
                     if (channel->mNumRotationKeys != std::floor(animation->mDuration + 1.0)) {
-                        LOG_W("Can't export an animation called \"" << animationName << "\". Each animation channel must have either only 1 key frame (meaning not animated) or std::floor(animation_length) + 1 keyframes (a.k.a. be baked). Channel \""
-                              << channel->mNodeName.C_Str() << "\" has " << channel->mNumRotationKeys << " rotation key(s).")
+                        LOG_W("Can't export an animation called \"{}\". Each animation channel must have either only 1 key frame (meaning not animated) or std::floor(animation_length) + 1 keyframes (a.k.a. be baked). Channel \"{}\" has {} rotation key(s).", animationName, channel->mNodeName.C_Str(), channel->mNumRotationKeys)
                         return false;
                     }
                     
@@ -853,7 +844,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
                 }
                 
                 if (channel->mNumScalingKeys == 0) {
-                    LOG_W("Can't export an animation called \"" << animationName << "\". Each animation channel must have at least 1 scale key and channel called \"" << channel->mNodeName.C_Str() << "\" doesn't have any")
+                    LOG_W("Can't export an animation called \"{}\". Each animation channel must have at least 1 scale key and channel called \"{}\" doesn't have any", animationName, channel->mNodeName.C_Str())
                     return false;
                 } else if (channel->mNumScalingKeys == 1) {
                     const aiVectorKey& key = channel->mScalingKeys[0];
@@ -862,8 +853,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
                     currentChannel.scales.reserve(channel->mNumScalingKeys);
                     
                     if (channel->mNumScalingKeys != std::floor(animation->mDuration + 1.0)) {
-                        LOG_W("Can't export an animation called \"" << animationName << "\". Each animation channel must have either only 1 key frame (meaning not animated) or std::floor(animation_length) + 1 keyframes (a.k.a. be baked). Channel \""
-                              << channel->mNodeName.C_Str() << "\" has " << channel->mNumScalingKeys << " scaling key(s).")
+                        LOG_W("Can't export an animation called \"{}\". Each animation channel must have either only 1 key frame (meaning not animated) or std::floor(animation_length) + 1 keyframes (a.k.a. be baked). Channel \"{}\" has {} scaling key(s).", animationName, channel->mNodeName.C_Str(), channel->mNumScalingKeys)
                         return false;
                     }
                     
@@ -967,15 +957,15 @@ bool MeshConverter::convertV1(ConverterState& state) const {
         
     importer->FreeScene();
     
-    LOG_I("Successfully imported mesh from file " << inFile)
+    LOG_I("Successfully imported mesh from file {}", inFile)
     return true;
 }
 
 void MeshConverter::outputError(const fs::path& inPath, const std::string& lacking, const aiMesh* mesh) const {
     if (mesh->mName.length == 0) {
-        LOG_W("File " << inPath << ", sub-mesh " << " {unnamed} is lacking " << lacking)
+        LOG_W("File {}, sub-mesh !UNNAMED! is lacking {}", inPath, lacking)
     } else {
-        LOG_W("File " << inPath << ", sub-mesh " << mesh->mName.C_Str() << " is lacking " << lacking)
+        LOG_W("File {}, sub-mesh {} is lacking {}", inPath, mesh->mName.C_Str(), lacking)
     }
 }
 
