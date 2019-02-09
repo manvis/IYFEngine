@@ -26,63 +26,21 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_STRING_UTILITIES_HPP
-#define IYF_STRING_UTILITIES_HPP
+#include <sstream>
+#include "utilities/StringUtilities.hpp"
 
-#include <string_view>
-#include <string>
-#include <vector>
-
-namespace iyf {
-namespace util {
-inline bool endsWith(const std::string_view& str, const std::string_view& endStr) {
-    if (str.length() >= endStr.length()) {
-        return str.compare(str.length() - endStr.length(), endStr.length(), endStr) == 0;
-    } else {
-        return false;
+namespace iyf::util {
+std::vector<std::string> split(const std::string& input, char delimiter) {
+    std::stringstream ss;
+    ss.str(input);
+    
+    std::vector<std::string> results;
+    std::string temp;
+    
+    while (std::getline(ss, temp, delimiter)) {
+        results.push_back(temp);
     }
-}
 
-inline bool startsWith(const std::string_view& str, const std::string_view& startStr) {
-    if (str.length() >= startStr.length()) {
-        return str.compare(0, startStr.length(), startStr) == 0;
-    } else {
-        return false;
-    }
-}
-
-template <typename T>
-bool isAlphaASCII(const T& str) {
-    for (char c : str) {
-        if (c < 65 || (c > 90 && c < 97) || c > 122) {
-            return false;
-        }
-    }
-    return true;
-}
-
-template <typename T>
-bool isNumericASCII(const T& str) {
-    for (char c : str) {
-        if (c < 48 || c > 57) {
-            return false;
-        }
-    }
-    return true;
-}
-
-template <typename T>
-bool isAlphanumericASCII(const T& str) {
-    for (char c : str) {
-        if (c < 48 || (c > 57 && c < 65) || (c > 90 && c < 97) || c > 122) {
-            return false;
-        }
-    }
-    return true;
-}
-
-std::vector<std::string> split(const std::string& input, char delimiter);
+    return results;
 }
 }
-
-#endif // IYF_STRING_UTILITIES_HPP

@@ -50,23 +50,30 @@ bool operator==(const ConfigurationValue& a, const ConfigurationValue& b) {
 bool operator!=(const ConfigurationValue& a, const ConfigurationValue& b) {
     return a.variant != b.variant;
 }
+
+namespace con {
+const std::string& GetConfigurationValueFamilyName(ConfigurationValueFamily family) {
+    static const std::array<std::string, static_cast<std::size_t>(ConfigurationValueFamily::COUNT)> ConfigurationFamilyNames = {
+        "Core",         // 0
+        "Engine",       // 1
+        "Editor",       // 2
+        "Graphics",     // 3
+        "Sound",        // 4
+        "Controls",     // 5
+        "Localization", // 6
+        "Gameplay",     // 7
+        "Project",      // 8
+        "Other",        // 9
+    };
     
-const std::array<std::string, static_cast<std::size_t>(ConfigurationValueFamily::COUNT)> con::ConfigurationFamilyNames = {
-    "Core",         // 0
-    "Engine",       // 1
-    "Editor",       // 2
-    "Graphics",     // 3
-    "Sound",        // 4
-    "Controls",     // 5
-    "Localization", // 6
-    "Gameplay",     // 7
-    "Project",      // 8
-    "Other",        // 9
-};
+    return ConfigurationFamilyNames[static_cast<std::size_t>(family)];
+}
+}
+
 
 static void fillMapsFromLuaState(sol::state& state, const std::vector<ConfigurationValueMap*>& maps) {
     for (std::size_t i = 0; i < static_cast<std::size_t>(ConfigurationValueFamily::COUNT); ++i) {
-        const std::string& familyName = con::ConfigurationFamilyNames[i];
+        const std::string& familyName = con::GetConfigurationValueFamilyName(static_cast<ConfigurationValueFamily>(i));
         
         sol::table table = state[familyName];
         
@@ -161,9 +168,9 @@ void Configuration::fillConfigurationMaps(const std::vector<ConfigurationFilePat
     sol::state state;
     
     std::stringstream ss;
-    for (const std::string& s : con::ConfigurationFamilyNames) {
-        ss << s << " = {}\n";
-    }
+//     for (const std::string& s : con::ConfigurationFamilyNames) {
+//         ss << s << " = {}\n";
+//     }
     
     // Clear tables
     state.script(ss.str());
@@ -286,7 +293,8 @@ bool Configuration::serialize() {
     LOG_D("Writing updated configuration values to: {}", outputPath);
     
     for (std::size_t i = 0; i < static_cast<std::size_t>(ConfigurationValueFamily::COUNT); ++i) {
-        const std::string& familyName = con::ConfigurationFamilyNames[i];
+        const std::string& familyName = con::GetConfigurationValueFamilyName(static_cast<ConfigurationValueFamily>(i));
+        
         std::vector<ConfigurationValue>& currentFamilyValues = valuesToWrite[i];
         
         if (currentFamilyValues.size() == 0) {

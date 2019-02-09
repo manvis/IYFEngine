@@ -68,16 +68,12 @@ enum class ConfigurationValueFamily : std::uint8_t {
     /// This family should contain gameplay settings common to all playthroughs (e.g., should interactive objects be highlighted
     /// or not). Things that depend on a specific playthough (e.g., difficulty) should go into savegames.
     Gameplay = 7,
-    /// This family should contain configuration values that do not belong to any other family
+    /// This family should contain project settings
     Project = 8,
+    /// This family should contain configuration values that do not belong to any other family
     Other = 9,
     COUNT
 };
-
-namespace con {
-/// \warning this and iyf::ConfigurationValueFamily must be in sync
-extern const std::array<std::string, static_cast<std::size_t>(ConfigurationValueFamily::COUNT)> ConfigurationFamilyNames;
-}
 
 /// A key used for lookups in the iyf::ConfigurationValueMap 
 struct ConfigurationValueHandle {
@@ -110,6 +106,10 @@ namespace sol {
 }
 
 namespace iyf {
+
+namespace con {
+const std::string& GetConfigurationValueFamilyName(ConfigurationValueFamily family);
+}
 
 /// \warning the order must match iyf::ConfigurationVariant
 enum class ConfigurationValueType : std::uint8_t {

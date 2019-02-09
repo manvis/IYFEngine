@@ -153,6 +153,7 @@ utilities/BufferRangeSet.cpp
 utilities/Compression.cpp
 utilities/ImGuiUtils.cpp
 utilities/stbImpl.cpp
+utilities/StringUtilities.cpp
 utilities/ReadWholeFile.cpp
 utilities/Regexes.cpp
 #------- separately stored third party dependencies
