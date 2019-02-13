@@ -32,6 +32,7 @@
 #include "core/InputListener.hpp"
 #include "graphics/GraphicsAPI.hpp"
 #include "utilities/NonCopyable.hpp"
+#include "utilities/hashing/Hashing.hpp"
 #include "assets/AssetHandle.hpp"
 
 #include <limits>

@@ -26,13 +26,12 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef GRAPHICS_API_HPP
-#define GRAPHICS_API_HPP
+#ifndef IYF_GRAPHICS_API_HPP
+#define IYF_GRAPHICS_API_HPP
 
 #include <vector>
 #include <utility>
 #include <cstdint>
-
 #include <variant>
 
 #include "core/interfaces/Configurable.hpp"
@@ -938,7 +937,7 @@ class Engine;
 // TODO implement the said DeviceMemoryUpdateBatcher
 class GraphicsAPI : public Configurable, private NonCopyable {
 public:
-    GraphicsAPI(Engine* engine, bool useDebugAndValidation, Configuration* config) : Configurable(config), engine(engine), isDebug(useDebugAndValidation), isInit(false) { }
+    GraphicsAPI(Engine* engine, bool useDebugAndValidation, Configuration* config) : Configurable(config), engine(engine), deviceMemoryManager(nullptr), isDebug(useDebugAndValidation), isInit(false) { }
     
     virtual bool initialize() = 0;
     virtual void dispose() = 0;
@@ -948,7 +947,7 @@ public:
     }
     
     virtual DeviceMemoryManager* getDeviceMemoryManager() const {
-        return deviceMemoryManager.get();
+        return deviceMemoryManager;
     }
 
     virtual RenderPassHnd createRenderPass(const RenderPassCreateInfo& info) = 0;
@@ -1060,7 +1059,7 @@ public:
     virtual ~GraphicsAPI() { }
 protected:
     Engine* engine;
-    std::unique_ptr<DeviceMemoryManager> deviceMemoryManager;
+    DeviceMemoryManager* deviceMemoryManager;
     SDL_Window* window;
     glm::uvec2 windowSize;
     

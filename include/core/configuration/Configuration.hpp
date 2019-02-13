@@ -26,8 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef CONFIGURATION_H
-#define CONFIGURATION_H
+#ifndef IYF_CONFIGURATION_HPP
+#define IYF_CONFIGURATION_HPP
 
 #include <string>
 #include <unordered_map>
@@ -45,45 +45,46 @@
 namespace iyf {
 class FileSystem;
 
-/// A list of all possible configuration value families
+/// A list of default configuration value namespaces
 ///
-/// \warning this and iyf::ConfigurationValueFamily 
-enum class ConfigurationValueFamily : std::uint8_t {
+/// \warning Update GetConfigurationValueNamespaceName() and GetConfigurationValueNamespaceNameHash() when updating this.
+enum class ConfigurationValueNamespace : std::uint8_t {
     /// Low level Engine settings that should only be changed by engine developers or maintainers. Careless adjustment may
     /// cause undefined behaviour or errors.
     Core = 0,
     /// Higher level Engine settings that game developers may use to better adapt the Engine to their specific usecases.
     /// Debug options go here as well
     Engine = 1,
-    /// This family contains editor specific configuration that should not change the games in any way.
+    /// This namespace contains editor specific configuration that should not change the games in any way.
     Editor = 2,
-    /// This family should contain screen size, visual quality settings, fov and similar values that relate to rendering.
+    /// This namespace should contain screen size, visual quality settings, fov and similar values that relate to rendering.
     Graphics = 3,
-    /// This family should contain sound, music, voice and microphone settings.
+    /// This namespace should contain sound, music, voice and microphone settings.
     Sound = 4,
-    /// This family should contain keyboard, controller and mouse bindings, mouse sensitivity and etc.
+    /// This namespace should contain keyboard, controller and mouse bindings, mouse sensitivity and etc.
     Controls = 5,
-    /// This family should contain various localization and language options
+    /// This namespace should contain various localization and language options
     Localization = 6,
-    /// This family should contain gameplay settings common to all playthroughs (e.g., should interactive objects be highlighted
+    /// This namespace should contain gameplay settings common to all playthroughs (e.g., should interactive objects be highlighted
     /// or not). Things that depend on a specific playthough (e.g., difficulty) should go into savegames.
     Gameplay = 7,
-    /// This family should contain project settings
+    /// This namespace should contain project settings
     Project = 8,
-    /// This family should contain configuration values that do not belong to any other family
+    /// This namespace should contain configuration values that do not belong to any other namespace
     Other = 9,
     COUNT
 };
 
 /// A key used for lookups in the iyf::ConfigurationValueMap 
 struct ConfigurationValueHandle {
-    constexpr ConfigurationValueHandle(StringHash nameHash, ConfigurationValueFamily family) : nameHash(nameHash), family(family) {}
+    constexpr ConfigurationValueHandle(StringHash nameHash, StringHash namespaceHash) : nameHash(nameHash), namespaceHash(namespaceHash) {}
+    ConfigurationValueHandle(StringHash nameHash, ConfigurationValueNamespace namespaceID);
     
     const StringHash nameHash;
-    const ConfigurationValueFamily family;
+    const StringHash namespaceHash;
     
     friend bool operator==(const ConfigurationValueHandle& a, const ConfigurationValueHandle& b) {
-        return (a.nameHash == b.nameHash) && (a.family == b.family);
+        return (a.nameHash == b.nameHash) && (a.namespaceHash == b.namespaceHash);
     }
 };
 }
@@ -95,32 +96,31 @@ namespace std {
         std::size_t operator()(const iyf::ConfigurationValueHandle& k) const {
             std::size_t seed = 0;
             iyf::util::HashCombine(seed, k.nameHash.value());
-            iyf::util::HashCombine(seed, static_cast<std::size_t>(k.family));
+            iyf::util::HashCombine(seed, k.namespaceHash.value());
             return seed;
         }
     };
 }
 
-namespace sol {
-    class state;
-}
-
 namespace iyf {
 
 namespace con {
-const std::string& GetConfigurationValueFamilyName(ConfigurationValueFamily family);
+const std::string& GetConfigurationValueNamespaceName(ConfigurationValueNamespace namespaceID);
+const StringHash GetConfigurationValueNamespaceNameHash(ConfigurationValueNamespace namespaceID);
 }
 
 /// \warning the order must match iyf::ConfigurationVariant
 enum class ConfigurationValueType : std::uint8_t {
-    Double = 0,
-    Bool   = 1,
-    String = 2
+    Double  = 0,
+    Int64   = 1,
+    Boolean = 2,
+    String  = 3
 };
 
 /// \warning the order must match iyf::ConfigurationValueType
-using ConfigurationVariant = std::variant<double, bool, std::string>;
+using ConfigurationVariant = std::variant<double, std::int64_t, bool, std::string>;
 
+class Configuration;
 class Configurable;
 class ConfigurationManifest;
 
@@ -129,11 +129,21 @@ public:
     ConfigurationValue() = default;
     
     template <typename T>
-    inline ConfigurationValue(T value, std::string name) : variant(value), name(std::move(name)) { }
+    inline ConfigurationValue(T value, std::string name, std::string namespaceName)
+        : variant(value), name(std::move(name)), namespaceName(std::move(namespaceName)) { }
+        
+    template <typename T>
+    inline ConfigurationValue(T value, std::string_view name, std::string_view namespaceName)
+        : variant(value), name(name.data(), name.length()), namespaceName(namespaceName.data(), namespaceName.length()) { }
+    
     
     /// \return Real, non-hashed name of this value
     inline const std::string& getName() const {
         return name;
+    }
+    
+    inline const std::string& getNamespaceName() const {
+        return namespaceName;
     }
     
     inline ConfigurationValueType getType() const {
@@ -146,26 +156,41 @@ public:
         return std::get<T>(variant);
     }
     
+    inline const ConfigurationVariant& getValue() const {
+        return variant;
+    }
+    
     friend bool operator==(const ConfigurationValue& a, const ConfigurationValue& b);
     friend bool operator!=(const ConfigurationValue& a, const ConfigurationValue& b);
 private:
     ConfigurationVariant variant;
     std::string name;
+    std::string namespaceName;
 };
+
+inline bool operator==(const ConfigurationValue& a, const ConfigurationValue& b) {
+    return (a.name == b.name) && (a.namespaceName == b.namespaceName) && (a.variant == b.variant);
+}
+
+inline bool operator!=(const ConfigurationValue& a, const ConfigurationValue& b) {
+    return (a.name != b.name) && (a.namespaceName != b.namespaceName) && (a.variant != b.variant);
+}
 
 template <>
 inline ConfigurationValue::operator std::int32_t() const {
-    double value = std::get<double>(variant);
+    std::int64_t value = std::get<std::int64_t>(variant);
     return static_cast<std::int32_t>(value);
 }
 
 template <>
 inline ConfigurationValue::operator std::int64_t() const {
-    double value = std::get<double>(variant);
+    std::int64_t value = std::get<std::int64_t>(variant);
     return static_cast<std::int64_t>(value);
 }
 
-using ConfigurationValueMap = std::unordered_map<ConfigurationValueHandle, ConfigurationValue>;
+struct ConfigurationValueMap {
+    std::unordered_map<ConfigurationValueHandle, ConfigurationValue> data;
+};
 
 class ConfigurationEditor;
 
@@ -181,6 +206,80 @@ struct ConfigurationFilePath {
     PathType type;
 };
 
+class NonConfigLine {
+public:
+    NonConfigLine() {}
+    NonConfigLine(std::string line) : line(std::move(line)) {}
+    
+    inline const std::string& getLine() const {
+        return line;
+    }
+private:
+    std::string line;
+};
+
+enum class ConfigurationFileError {
+    Correct,
+    NonUnixLineEndings,
+    InvalidLineSyntax,
+    NoIdentifier,
+    NoName,
+    NamespaceNotAlphanumericASCII,
+    NameNotAlphanumericASCII,
+    NoValue,
+    InvalidStringParameter,
+    InvalidNumericParameter,
+    UnknownError
+};
+
+class ConfigurationFile {
+public:
+    class ParseResult {
+    public:
+        ParseResult() : lineCount(0) {}
+        
+        std::size_t lineCount;
+        std::vector<std::pair<std::size_t, ConfigurationFileError>> linesWithErrors;
+        
+        inline bool hasErrors() const {
+            return !linesWithErrors.empty();
+        }
+        
+        std::string printErrors() const;
+    };
+    
+    /// Creates a new empty ConfigurationFile
+    ConfigurationFile() {}
+    
+    /// Parses a configuration file that was loaded to a string
+    ParseResult parse(const std::string& fileContents);
+    
+    using ConfigurationFileLine = std::variant<NonConfigLine, ConfigurationValue>;
+    
+    const std::vector<ConfigurationFileLine>& getLines() const {
+        return lines;
+    }
+private:
+    struct ParsedLine {
+        ParsedLine(ConfigurationFileError error) : ParsedLine(NonConfigLine(), error) {}
+        ParsedLine(ConfigurationFileLine line, ConfigurationFileError error)
+            : line(line), error(error) {}
+        
+        ConfigurationFileLine line;
+        ConfigurationFileError error;
+    };
+    
+    enum class NumberParseResult {
+        Int,
+        Double,
+        ParseFailed
+    };
+        
+    ParsedLine processLine(const std::string_view& fileContents);
+    NumberParseResult parseNumber(const std::string_view& str, std::int64_t& intVal, double& doubleVal);
+    std::vector<ConfigurationFileLine> lines;
+};
+
 class Configuration : private NonCopyable {
 public:
     enum class Mode {
@@ -188,19 +287,15 @@ public:
         ReadOnly
     };
     
-    /// Creates a new iyf::Configuration instance by reading and executing all specified lua script files. The order 
-    /// of the files is very important because the configuration values that are specified later will automatically
-    /// override the earlier values.
+    /// Creates a new iyf::Configuration instance by reading all specified configuration files. Their order is very
+    /// important because configuration values specified later will automatically override the earlier ones.
     ///
-    /// If the mode is Mode::Editable, the last path in the list is assumed to point to the user's configuration data 
+    /// If the mode is Mode::Editable, the last path in the list is assumed to point to the user's configuration file 
     /// that will be updated whenever Configuration::serialize() is called. Therefore, ensure that it is writable.
     /// An empty configuration file will be created automatically if it does not exist.
     ///
-    /// \warning To ensure thread safety and prevent name collisions, each iyf::Configuration instance uses a
-    /// separate lua state.
-    ///
-    /// \throws ConfigurationLoadError if the vector of paths was empty, contained non-existing files or the lua 
-    /// scripts had errors.
+    /// \throws ConfigurationLoadError if the vector of paths was empty, contained non-existing files or the config 
+    /// files had errors.
     ///
     /// \throws std::logic_error if virtual filesystem paths are used, but the provided virtual filesystem pointer is 
     /// nullptr.
@@ -223,44 +318,52 @@ public:
     ///
     /// \remark This function is thread safe.
     ///
-    /// \throws ConfigurationValueReadError If a value with specified name and family wasn't found.
+    /// \throws ConfigurationValueReadError If a value wasn't found.
     ///
     /// \param[in] handle A pre-built ConfigurationValueHandle
     inline ConfigurationValue getValue(const ConfigurationValueHandle& handle) const {
         std::lock_guard<std::mutex> lock(configurationValueMutex);
         
-        auto result = resolvedConfigurationValues.find(handle);
+        auto result = resolvedConfigurationValues.data.find(handle);
         
-        if (result == resolvedConfigurationValues.end()) {
+        if (result == resolvedConfigurationValues.data.end()) {
             throw ConfigurationValueReadError("Unknown configuration value with hash: " + std::to_string(handle.nameHash));
         }
         
         return result->second;
     }
 
-    /// Get the iyf::ConfigurationValue using a pre-hashed name and family.
+    /// Get the iyf::ConfigurationValue using a pre-hashed name and namespace.
     ///
     /// \remark This function is thread safe.
     ///
-    /// \throws ConfigurationValueReadError If a value with specified name and family wasn't found.
+    /// \throws ConfigurationValueReadError If a value with specified name and namespace wasn't found.
     ///
     /// \param[in] nameHash A pre-hashed name
-    /// \param[in] family The family of configuration values that you want to querying
-    inline ConfigurationValue getValue(StringHash nameHash, ConfigurationValueFamily family) const {
-        ConfigurationValueHandle handle(nameHash, family);
+    /// \param[in] namespaceNameHash A pre-hashed namespace name
+    inline ConfigurationValue getValue(StringHash nameHash, StringHash namespaceNameHash) const {
+        ConfigurationValueHandle handle(nameHash, namespaceNameHash);
         return getValue(handle);
     }
     
-    /// Get the iyf::ConfigurationValue using an std::string name name and family.
+    /// Get the iyf::ConfigurationValue using an std::string name name and namespace.
     ///
     /// \remark This function is thread safe.
     ///
-    /// \throws ConfigurationValueReadError If a value with specified name and family wasn't found.
+    /// \throws ConfigurationValueReadError If a value with specified name and namespace wasn't found.
     ///
     /// \param[in] name Name of the parameter
-    /// \param[in] family The family of configuration values that you want to querying
-    inline ConfigurationValue getValue(const std::string& name, ConfigurationValueFamily family) const {
-        return getValue(HS(name.c_str()), family);
+    /// \param[in] namespace The name of the configuration file namespace
+    inline ConfigurationValue getValue(const std::string& name, const std::string& namespaceName) const {
+        return getValue(HS(name.c_str()), HS(namespaceName.c_str()));
+    }
+    
+    inline ConfigurationValue getValue(const std::string& name, ConfigurationValueNamespace namespaceID) const {
+        return getValue(HS(name.c_str()), con::GetConfigurationValueNamespaceNameHash(namespaceID));
+    }
+    
+    inline ConfigurationValue getValue(StringHash nameHash, ConfigurationValueNamespace namespaceID) const {
+        return getValue(ConfigurationValueHandle(nameHash, con::GetConfigurationValueNamespaceNameHash(namespaceID)));
     }
     
     /// Adds a listener that will get notified when Configuration changes. For requirements and best performance tips,
@@ -291,9 +394,11 @@ private:
     void setChangedValues(const ConfigurationValueMap& changedValues, bool notify);
     void notifyChanged(const ConfigurationValueMap& changedValues);
     
+    static std::string loadFile(const ConfigurationFilePath& path);
     static void fillConfigurationMaps(const std::vector<ConfigurationFilePath>& paths, ConfigurationValueMap& resolvedValueMap,
-                                      ConfigurationValueMap* systemValueMap, ConfigurationValueMap* userValueMap, FileSystem* filesystem,
-                                      Mode mode);
+                                      ConfigurationValueMap* systemValueMap, ConfigurationValueMap* userValueMap, ConfigurationFile* userConfigFile,
+                                      FileSystem* filesystem, Mode mode);
+    static void fillMapsFromFiles(const std::vector<ConfigurationFile>& files, const std::vector<ConfigurationValueMap*>& maps);
 
     FileSystem* filesystem;
     const std::vector<ConfigurationFilePath> paths;
@@ -311,6 +416,7 @@ private:
     /// or their system. The values contained in this map are used during a Configuration::serialize() call when when determining 
     /// which ones need to be saved to the user's configuration file and which don't.
     ConfigurationValueMap userValues;
+    ConfigurationFile userConfigFile;
     
     std::vector<Configurable*> listeners;
     
@@ -334,13 +440,21 @@ public:
     /// \remark This method is NOT thread safe
     ///
     /// \param [in] name Name of the parameter
-    /// \param [in] family The family of configuration values that you want to insert into
+    /// \param [in] namespaceName The name of the namespace
     /// \param [in] value A value to insert
     template <typename T>
-    inline void setValue(const std::string& name, ConfigurationValueFamily family, T value) {
+    inline void setValue(const std::string& name, const std::string& namespaceName, T value) {
         pendingUpdate = true;
-        const ConfigurationValueHandle handle(HS(name.c_str()), family);
-        updatedValues[handle] = ConfigurationValue(value, name);
+        const ConfigurationValueHandle handle(HS(name.c_str()), HS(namespaceName.c_str()));
+        updatedValues.data[handle] = ConfigurationValue(value, name, namespaceName);
+    }
+    
+    
+    template <typename T>
+    inline void setValue(const std::string& name, ConfigurationValueNamespace namespaceID, T value) {
+        pendingUpdate = true;
+        const ConfigurationValueHandle handle(HS(name.c_str()), con::GetConfigurationValueNamespaceNameHash(namespaceID));
+        updatedValues.data[handle] = ConfigurationValue(value, name, con::GetConfigurationValueNamespaceName(namespaceID));
     }
     
     /// This function will check the internal map for updated but not yet commited values. If no values are found there,
@@ -348,7 +462,7 @@ public:
     ///
     /// \remark This method is NOT thread safe
     ///
-    /// \throws ConfigurationValueReadError If a value with specified name and family wasn't found in the maps
+    /// \throws ConfigurationValueReadError If a value wasn't found in the maps
     ///
     /// \param [in] handle A pre-built ConfigurationValueHandle
     ConfigurationValue getValue(const ConfigurationValueHandle& handle) const;
@@ -358,12 +472,20 @@ public:
     ///
     /// \remark This method is NOT thread safe
     ///
-    /// \throws ConfigurationValueReadError If a value with specified name and family wasn't found in the maps
+    /// \throws ConfigurationValueReadError If a value wasn't found in the maps
     ///
     /// \param [in] nameHash A pre-hashed name
-    /// \param [in] family The family of configuration values that you want to querying
-    inline ConfigurationValue getValue(StringHash nameHash, ConfigurationValueFamily family) const {
-        return getValue(ConfigurationValueHandle(nameHash, family));
+    /// \param [in] namespaceName A pre-hashed namespace name
+    inline ConfigurationValue getValue(StringHash nameHash, StringHash namespaceName) const {
+        return getValue(ConfigurationValueHandle(nameHash, namespaceName));
+    }
+    
+    inline ConfigurationValue getValue(StringHash nameHash, ConfigurationValueNamespace namespaceID) const {
+        return getValue(ConfigurationValueHandle(nameHash, con::GetConfigurationValueNamespaceNameHash(namespaceID)));
+    }
+    
+    inline ConfigurationValue getValue(const std::string& name, ConfigurationValueNamespace namespaceID) const {
+        return getValue(HS(name.c_str()), con::GetConfigurationValueNamespaceNameHash(namespaceID));
     }
     
     /// This function will check the internal map for updated but not yet commited values. If no values are found there,
@@ -371,12 +493,12 @@ public:
     ///
     /// \remark This method is NOT thread safe
     ///
-    /// \throws ConfigurationValueReadError If a value with specified name and family wasn't found in the maps
+    /// \throws ConfigurationValueReadError If a value wasn't found in the maps
     ///
     /// \param [in] name Name of the parameter
-    /// \param [in] family The family of configuration values that you want to querying
-    inline ConfigurationValue getValue(const std::string& name, ConfigurationValueFamily family) const {
-        return getValue(HS(name.c_str()), family);
+    /// \param [in] namespaceName Name of the namespace
+    inline ConfigurationValue getValue(const std::string& name, const std::string& namespaceName) const {
+        return getValue(HS(name.c_str()), HS(namespaceName.c_str()));
     }
     
     /// This function saves the changes to the iyf::Configuration that created this editor. Once done, it will automatically clear
@@ -410,4 +532,4 @@ private:
 };
 
 }
-#endif // CONFIGURATION_H
+#endif // IYF_CONFIGURATION_HPP

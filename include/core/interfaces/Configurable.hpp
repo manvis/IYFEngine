@@ -26,12 +26,12 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef CONFIGURABLE_HPP_INCLUDED
-#define CONFIGURABLE_HPP_INCLUDED
-
-#include "core/configuration/Configuration.hpp"
+#ifndef IYF_CONFIGURABLE_HPP
+#define IYF_CONFIGURABLE_HPP
 
 namespace iyf {
+class Configuration;
+struct ConfigurationValueMap;
 
 class Configurable {
     public:
@@ -45,4 +45,4 @@ class Configurable {
 
 }
 
-#endif // CONFIGURABLE_HPP_INCLUDED
+#endif // IYF_CONFIGURABLE_HPP

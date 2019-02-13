@@ -67,17 +67,7 @@ public:
     /// \param[in] name Name of the World. Must not be an empty string. UTF-8. Length must be less than 64.
     void setName(std::string name);
     
-    void handleConfigChange(const ConfigurationValueMap& changedValues) override {
-        auto result = changedValues.find({HS("width"), ConfigurationValueFamily::Graphics});
-        if (result != changedValues.end()) {
-            screenWidth = result->second;
-        }
-        
-        result = changedValues.find({HS("height"), ConfigurationValueFamily::Graphics});
-        if (result != changedValues.end()) {
-            screenHeight = result->second;
-        }
-    }
+    void handleConfigChange(const ConfigurationValueMap& changedValues) override;
     
     /// Initializes the World
     ///

@@ -52,8 +52,8 @@ InputState::InputState(Engine* engine, Configuration* config) : Configurable(con
     mouseX = 0;
     mouseY = 0;
     
-    screenWidth = config->getValue(HS("width"), ConfigurationValueFamily::Graphics);
-    screenHeight = config->getValue(HS("height"), ConfigurationValueFamily::Graphics);
+    screenWidth = config->getValue(HS("width"), ConfigurationValueNamespace::Graphics);
+    screenHeight = config->getValue(HS("height"), ConfigurationValueNamespace::Graphics);
 //     screenWidth = config->getIntValue("width");
 //     screenHeight = config->getIntValue("height");
 }
@@ -226,13 +226,13 @@ void InputState::handleConfigChange(const ConfigurationValueMap& changedValues) 
     IYFT_PROFILE(InputConfigurationUpdate, iyft::ProfilerTag::Input)
     bool updateMousePosition = false;
     
-    auto result = changedValues.find({HS("width"), ConfigurationValueFamily::Graphics});
-    if (result != changedValues.end()) {
+    auto result = changedValues.data.find({HS("width"), con::GetConfigurationValueNamespaceNameHash(ConfigurationValueNamespace::Graphics)});
+    if (result != changedValues.data.end()) {
         screenWidth = result->second;
     }
     
-    result = changedValues.find({HS("height"), ConfigurationValueFamily::Graphics});
-    if (result != changedValues.end()) {
+    result = changedValues.data.find({HS("height"), con::GetConfigurationValueNamespaceNameHash(ConfigurationValueNamespace::Graphics)});
+    if (result != changedValues.data.end()) {
         screenHeight = result->second;
     }
     

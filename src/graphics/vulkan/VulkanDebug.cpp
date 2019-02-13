@@ -30,6 +30,7 @@
 
 #include "utilities/hashing/Hashing.hpp"
 #include "core/Logger.hpp"
+#include "core/configuration/Configuration.hpp"
 #include "utilities/StringUtilities.hpp"
 
 namespace iyf {
@@ -47,23 +48,23 @@ void VulkanAPI::createDebugCallback() {
 
         VkDebugReportFlagsEXT flags = 0;
         
-        if (config->getValue(ConfigurationValueHandle(HS("vulkan_debug_information_flag"), ConfigurationValueFamily::Engine))) {
+        if (config->getValue(ConfigurationValueHandle(HS("vulkanDebugInformationFlag"), ConfigurationValueNamespace::Engine))) {
             flags |= VK_DEBUG_REPORT_INFORMATION_BIT_EXT;
         }
         
-        if (config->getValue(ConfigurationValueHandle(HS("vulkan_debug_warning_flag"), ConfigurationValueFamily::Engine))) {
+        if (config->getValue(ConfigurationValueHandle(HS("vulkanDebugWarningFlag"), ConfigurationValueNamespace::Engine))) {
             flags |= VK_DEBUG_REPORT_WARNING_BIT_EXT;
         }
         
-        if (config->getValue(ConfigurationValueHandle(HS("vulkan_debug_performance_warning_flag"), ConfigurationValueFamily::Engine))) {
+        if (config->getValue(ConfigurationValueHandle(HS("vulkanDebugPerformanceWarningFlag"), ConfigurationValueNamespace::Engine))) {
             flags |= VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT;
         }
         
-        if (config->getValue(ConfigurationValueHandle(HS("vulkan_debug_error_flag"), ConfigurationValueFamily::Engine))) {
+        if (config->getValue(ConfigurationValueHandle(HS("vulkanDebugErrorFlag"), ConfigurationValueNamespace::Engine))) {
             flags |= VK_DEBUG_REPORT_ERROR_BIT_EXT;
         }
         
-        if (config->getValue(ConfigurationValueHandle(HS("vulkan_debug_debug_flag"), ConfigurationValueFamily::Engine))) {
+        if (config->getValue(ConfigurationValueHandle(HS("vulkanDebugDebugFlag"), ConfigurationValueNamespace::Engine))) {
             flags |= VK_DEBUG_REPORT_DEBUG_BIT_EXT;
         }
 

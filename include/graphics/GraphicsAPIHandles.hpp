@@ -29,6 +29,8 @@
 #ifndef IYF_GRAPHICS_API_HANDLE_HPP
 #define IYF_GRAPHICS_API_HANDLE_HPP
 
+#include "utilities/ForceInline.hpp"
+
 namespace iyf {
 /// Base class for type safe GraphicsAPI handles
 class GraphicsAPIHandle {

@@ -52,7 +52,7 @@
 #include "fmt/ostream.h"
 
 namespace iyf::editor {
-const std::string AUTO_LOAD_PROJECT_CONFIG_NAME = "auto_load_last";
+const std::string AUTO_LOAD_PROJECT_CONFIG_NAME = "autoLoadLast";
 
 const std::size_t MAX_HISTORY_ELEMENTS = 10;
 const std::string EDITOR_BUSY_POPUP_NAME = "Editor Busy";
@@ -64,29 +64,29 @@ const std::string PROJECT_OPEN_POPUP_NAME = "Opening project";
 const ImGuiWindowFlags MODAL_POPUP_FLAGS = ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
 
 const std::array<std::string, MAX_HISTORY_ELEMENTS> PREVIOUS_PROJECT_NAMES = {
-    "previously_opened_project_0",
-    "previously_opened_project_1",
-    "previously_opened_project_2",
-    "previously_opened_project_3",
-    "previously_opened_project_4",
-    "previously_opened_project_5",
-    "previously_opened_project_6",
-    "previously_opened_project_7",
-    "previously_opened_project_8",
-    "previously_opened_project_9",
+    "previouslyOpenedProject0",
+    "previouslyOpenedProject1",
+    "previouslyOpenedProject2",
+    "previouslyOpenedProject3",
+    "previouslyOpenedProject4",
+    "previouslyOpenedProject5",
+    "previouslyOpenedProject6",
+    "previouslyOpenedProject7",
+    "previouslyOpenedProject8",
+    "previouslyOpenedProject9",
 };
 
 const std::array<std::string, MAX_HISTORY_ELEMENTS> PREVIOUS_PROJECT_OPEN_TIME_NAMES = {
-    "previously_opened_project_time_0",
-    "previously_opened_project_time_1",
-    "previously_opened_project_time_2",
-    "previously_opened_project_time_3",
-    "previously_opened_project_time_4",
-    "previously_opened_project_time_5",
-    "previously_opened_project_time_6",
-    "previously_opened_project_time_7",
-    "previously_opened_project_time_8",
-    "previously_opened_project_time_9",
+    "previouslyOpenedProjectTime0",
+    "previouslyOpenedProjectTime1",
+    "previouslyOpenedProjectTime2",
+    "previouslyOpenedProjectTime3",
+    "previouslyOpenedProjectTime4",
+    "previouslyOpenedProjectTime5",
+    "previouslyOpenedProjectTime6",
+    "previouslyOpenedProjectTime7",
+    "previouslyOpenedProjectTime8",
+    "previouslyOpenedProjectTime9",
 };
 
 static inline std::string timeSinceEpochToString(const std::chrono::milliseconds durationMS) {
@@ -125,12 +125,12 @@ EditorWelcomeState::UserDataValidationResult EditorWelcomeState::UserData::isVal
 
 void EditorWelcomeState::UserData::save(Configuration* config) const {
     auto editor = config->makeConfigurationEditor();
-    editor->setValue("user_first_name", ConfigurationValueFamily::Editor, std::string(firstName.data()));
-    editor->setValue("user_middle_name", ConfigurationValueFamily::Editor, std::string(middleName.data()));
-    editor->setValue("user_last_name", ConfigurationValueFamily::Editor, std::string(lastName.data()));
-    editor->setValue("user_nickname", ConfigurationValueFamily::Editor, std::string(nickname.data()));
-    editor->setValue("user_job", ConfigurationValueFamily::Editor, std::string(job.data()));
-    editor->setValue("user_email", ConfigurationValueFamily::Editor, std::string(email.data()));
+    editor->setValue("user_first_name", ConfigurationValueNamespace::Editor, std::string(firstName.data()));
+    editor->setValue("user_middle_name", ConfigurationValueNamespace::Editor, std::string(middleName.data()));
+    editor->setValue("user_last_name", ConfigurationValueNamespace::Editor, std::string(lastName.data()));
+    editor->setValue("user_nickname", ConfigurationValueNamespace::Editor, std::string(nickname.data()));
+    editor->setValue("user_job", ConfigurationValueNamespace::Editor, std::string(job.data()));
+    editor->setValue("user_email", ConfigurationValueNamespace::Editor, std::string(email.data()));
     editor->commit(false);
     config->serialize();
 }
@@ -150,8 +150,8 @@ void EditorWelcomeState::writeProjectList() {
     assert(lastLoadedProjects.size() <= 10);
     for (std::size_t i = 0; i < lastLoadedProjects.size(); ++i) {
         const ProjectData& data = lastLoadedProjects[i];
-        editor->setValue(PREVIOUS_PROJECT_NAMES[i], ConfigurationValueFamily::Editor, data.path);
-        editor->setValue(PREVIOUS_PROJECT_OPEN_TIME_NAMES[i], ConfigurationValueFamily::Editor, std::to_string(data.lastOpen));
+        editor->setValue(PREVIOUS_PROJECT_NAMES[i], ConfigurationValueNamespace::Editor, data.path);
+        editor->setValue(PREVIOUS_PROJECT_OPEN_TIME_NAMES[i], ConfigurationValueNamespace::Editor, std::to_string(data.lastOpen));
     }
     
     editor->commit(false);
@@ -188,8 +188,8 @@ void EditorWelcomeState::initialize() {
     
     const Configuration* config = engine->getConfiguration();
     for (std::size_t i = 0; i < MAX_HISTORY_ELEMENTS; ++i) {
-        const std::string path = config->getValue(PREVIOUS_PROJECT_NAMES[i], ConfigurationValueFamily::Editor);
-        const std::string time = config->getValue(PREVIOUS_PROJECT_OPEN_TIME_NAMES[i], ConfigurationValueFamily::Editor);
+        const std::string path = config->getValue(PREVIOUS_PROJECT_NAMES[i], ConfigurationValueNamespace::Editor);
+        const std::string time = config->getValue(PREVIOUS_PROJECT_OPEN_TIME_NAMES[i], ConfigurationValueNamespace::Editor);
         
         if (time.empty() || path.empty()) {
             break;
@@ -230,12 +230,12 @@ void EditorWelcomeState::initialize() {
     LOG_V("Number of remembered loaded projects: {}", lastLoadedProjects.size())
     writeProjectList();
     
-    const std::string firstName = config->getValue("user_first_name", ConfigurationValueFamily::Editor);
-    const std::string middleName = config->getValue("user_middle_name", ConfigurationValueFamily::Editor);
-    const std::string lastName = config->getValue("user_last_name", ConfigurationValueFamily::Editor);
-    const std::string nickname = config->getValue("user_nickname", ConfigurationValueFamily::Editor);
-    const std::string job = config->getValue("user_job", ConfigurationValueFamily::Editor);
-    const std::string email = config->getValue("user_email", ConfigurationValueFamily::Editor);
+    const std::string firstName = config->getValue("userFirstName", ConfigurationValueNamespace::Editor);
+    const std::string middleName = config->getValue("userMiddleName", ConfigurationValueNamespace::Editor);
+    const std::string lastName = config->getValue("userLastName", ConfigurationValueNamespace::Editor);
+    const std::string nickname = config->getValue("userNickname", ConfigurationValueNamespace::Editor);
+    const std::string job = config->getValue("userJob", ConfigurationValueNamespace::Editor);
+    const std::string email = config->getValue("userEmail", ConfigurationValueNamespace::Editor);
     
     std::memcpy(userData.firstName.data(), firstName.c_str(), firstName.length() + 1);
     std::memcpy(userData.middleName.data(), middleName.c_str(), middleName.length() + 1);
@@ -245,7 +245,7 @@ void EditorWelcomeState::initialize() {
     std::memcpy(userData.email.data(), email.c_str(), email.length() + 1);
     
     bool userValid = userData.isValid() == UserDataValidationResult::Success;
-    bool autoLoadLast = config->getValue(AUTO_LOAD_PROJECT_CONFIG_NAME, ConfigurationValueFamily::Editor);
+    bool autoLoadLast = config->getValue(AUTO_LOAD_PROJECT_CONFIG_NAME, ConfigurationValueNamespace::Editor);
     if (autoLoadLast && !userValid) {
         pendingUserSetup = true;
     } else if (autoLoadLast && userValid && !lastLoadedProjects.empty()) {
@@ -485,10 +485,10 @@ void EditorWelcomeState::frame(float delta) {
         ImGui::EndPopup();
     }
     ImGui::SameLine();
-    bool bt = config->getValue(AUTO_LOAD_PROJECT_CONFIG_NAME, ConfigurationValueFamily::Editor);
+    bool bt = config->getValue(AUTO_LOAD_PROJECT_CONFIG_NAME, ConfigurationValueNamespace::Editor);
     if (ImGui::Checkbox("Auto load last project", &bt)) {
         auto editor = config->makeConfigurationEditor();
-        editor->setValue(AUTO_LOAD_PROJECT_CONFIG_NAME, ConfigurationValueFamily::Editor, bt);
+        editor->setValue(AUTO_LOAD_PROJECT_CONFIG_NAME, ConfigurationValueNamespace::Editor, bt);
         editor->commit(false);
         editor = nullptr;
         

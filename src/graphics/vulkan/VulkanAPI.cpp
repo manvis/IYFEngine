@@ -251,7 +251,10 @@ void VulkanAPI::freeCommandBuffer(const VkCommandBuffer& commandBuffer) {
 }
 
 void VulkanAPI::dispose() {
-    deviceMemoryManager = nullptr;
+    if (deviceMemoryManager != nullptr) {
+        delete deviceMemoryManager;
+        deviceMemoryManager = nullptr;
+    }
     
     freePresentationBarrierCommandBuffers();
     physicalDevice.queueFamilyProperties.clear();

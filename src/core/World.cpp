@@ -29,6 +29,7 @@
 #include "core/World.hpp"
 #include "assets/metadata/MeshMetadata.hpp"
 #include "core/Engine.hpp"
+#include "core/configuration/Configuration.hpp"
 #include "graphics/GraphicsSystem.hpp"
 #include "physics/PhysicsSystem.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
@@ -63,6 +64,18 @@ void World::setName(std::string name) {
 
 World::~World() {
     // Needed for the sake of using unique_ptr with forward declarations
+}
+
+void World::handleConfigChange(const ConfigurationValueMap& changedValues) {
+    auto result = changedValues.data.find({HS("width"), con::GetConfigurationValueNamespaceNameHash(ConfigurationValueNamespace::Graphics)});
+    if (result != changedValues.data.end()) {
+        screenWidth = result->second;
+    }
+    
+    result = changedValues.data.find({HS("height"), con::GetConfigurationValueNamespaceNameHash(ConfigurationValueNamespace::Graphics)});
+    if (result != changedValues.data.end()) {
+        screenHeight = result->second;
+    }
 }
 
 void World::initialize() {

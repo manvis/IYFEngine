@@ -26,11 +26,12 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef INPUTSTATE_H
-#define INPUTSTATE_H
+#ifndef IYF_INPUT_STATE_HPP
+#define IYF_INPUT_STATE_HPP
 
 #include <memory>
 #include <array>
+#include <vector>
 #include <SDL2/SDL.h>
 
 #include "core/InputMappings.hpp"
@@ -141,4 +142,4 @@ class InputState : public Configurable, private NonCopyable {
         std::vector<InputListener*> inputListeners;
 };
 }
-#endif // INPUTSTATE_H
+#endif // IYF_INPUT_STATE_HPP

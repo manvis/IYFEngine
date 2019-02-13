@@ -125,7 +125,7 @@ bool VulkanAPI::initialize() {
         Mebibytes(32),  // Instant
     };
     
-    deviceMemoryManager = std::make_unique<VulkanDeviceMemoryManager>(this, stagingBufferSizes);
+    deviceMemoryManager = new VulkanDeviceMemoryManager(this, stagingBufferSizes);
     
     return true;
 }
@@ -220,8 +220,8 @@ void VulkanAPI::findLayers(LayerType type, const std::vector<const char*>& expec
 
 void VulkanAPI::createInstance() {
     // Simplest things first. We create a struct with data describing our engine and application
-    std::string appName = config->getValue(ConfigurationValueHandle(HS("application_name"), ConfigurationValueFamily::Engine));
-    std::string engineName = config->getValue(ConfigurationValueHandle(HS("engine_name"), ConfigurationValueFamily::Engine));
+    std::string appName = config->getValue(ConfigurationValueHandle(HS("applicationName"), ConfigurationValueNamespace::Engine));
+    std::string engineName = config->getValue(ConfigurationValueHandle(HS("engineName"), ConfigurationValueNamespace::Engine));
     
     VkApplicationInfo ai;
     ai.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -276,9 +276,10 @@ void VulkanAPI::createInstance() {
     // If we're in debug mode, we need to set up the debug and validation layers.
     // The names of the files we want are fetched from the config file.
     if (isDebug) {
-        std::string layerNamesCfg = config->getValue(HS("validation_layers"), ConfigurationValueFamily::Engine);
+        std::string layerNamesCfg = config->getValue(HS("validationLayers"), ConfigurationValueNamespace::Engine);
 
-        layerNamesSplit = util::split(layerNamesCfg, '\n');
+        layerNamesSplit = util::split(layerNamesCfg, ',');
+        
         validationLayerNames.reserve(layerNamesSplit.size());
 
         // Vulkan needs const char* 

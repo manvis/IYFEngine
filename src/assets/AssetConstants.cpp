@@ -179,7 +179,7 @@ const fs::path& MissingMesh() {
 }
 
 const std::string& EngineBaseConfigFile() {
-    static const std::string file = u8"EngineBaseConfig.lua";
+    static const std::string file = u8"EngineBaseConfig.cfg";
     return file;
 }
 

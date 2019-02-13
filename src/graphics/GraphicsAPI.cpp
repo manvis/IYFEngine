@@ -32,6 +32,7 @@
 #include "assets/loaders/TextureLoader.hpp"
 #include "core/Engine.hpp"
 #include "core/Logger.hpp"
+#include "core/configuration/Configuration.hpp"
 // Needed to fetch the localized window name
 #include "localization/TextLocalization.hpp"
 
@@ -247,7 +248,7 @@ void GraphicsAPI::openWindow() {
 
     LOG_V("Found {} screen(s)", numVideoDisplays);
     
-    bool dumpScreenResolutions = config->getValue(ConfigurationValueHandle(HS("dump_screen_resolutions"), ConfigurationValueFamily::Engine));
+    bool dumpScreenResolutions = config->getValue(ConfigurationValueHandle(HS("dumpScreenResolutions"), ConfigurationValueNamespace::Engine));
     if (dumpScreenResolutions) {
         std::stringstream ss;
         

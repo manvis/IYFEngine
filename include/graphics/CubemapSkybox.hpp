@@ -32,6 +32,7 @@
 #include "graphics/Skybox.hpp"
 #include "graphics/GraphicsAPI.hpp"
 #include "assets/AssetHandle.hpp"
+#include "utilities/hashing/Hashing.hpp"
 
 #include <string>
 
