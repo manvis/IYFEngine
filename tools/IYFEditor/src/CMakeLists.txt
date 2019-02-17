@@ -61,6 +61,7 @@ target_link_libraries(SystemAssetPacker IYFTools)
 add_executable(IYFTest 
     ../../../testing/main.cpp
     ../../../testing/BehaviourTreeTests.cpp
+    ../../../testing/ConfigurationTests.cpp
     ../../../testing/FileMonitorTests.cpp
     ../../../testing/MemorySerializerTests.cpp
     ../../../testing/CSVParserTests.cpp

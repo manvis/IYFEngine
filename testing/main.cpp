@@ -40,6 +40,7 @@
 #include "CSVParserTests.hpp"
 #include "BehaviourTreeTests.hpp"
 #include "MetadataSerializationTests.hpp"
+#include "ConfigurationTests.hpp"
 
 //#include "did/InitState.h"
 
@@ -105,7 +106,8 @@ int main(int, char*[]) {
 //    ADD_TESTS(MemorySerializerTests)
 //    ADD_TESTS(CSVParserTests)
 //     ADD_TESTS(BehaviourTreeTests)
-    ADD_TESTS(MetadataSerializationTests)
+//     ADD_TESTS(MetadataSerializationTests)
+    ADD_TESTS(ConfigurationTests)
     
     runner.runTests();
     

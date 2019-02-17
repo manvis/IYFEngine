@@ -83,10 +83,18 @@ struct ConfigurationValueHandle {
     const StringHash nameHash;
     const StringHash namespaceHash;
     
-    friend bool operator==(const ConfigurationValueHandle& a, const ConfigurationValueHandle& b) {
-        return (a.nameHash == b.nameHash) && (a.namespaceHash == b.namespaceHash);
-    }
+    friend bool operator==(const ConfigurationValueHandle& a, const ConfigurationValueHandle& b);
+    friend bool operator!=(const ConfigurationValueHandle& a, const ConfigurationValueHandle& b);
 };
+
+inline bool operator==(const ConfigurationValueHandle& a, const ConfigurationValueHandle& b) {
+    return (a.nameHash == b.nameHash) && (a.namespaceHash == b.namespaceHash);
+}
+
+inline bool operator!=(const ConfigurationValueHandle& a, const ConfigurationValueHandle& b) {
+    return !(a == b);
+}
+
 }
 
 // Injecting a hash function for iyf::ConfigurationValueHandle
@@ -104,6 +112,10 @@ namespace std {
 
 namespace iyf {
 
+namespace test {
+class ConfigurationTests;
+}
+
 namespace con {
 const std::string& GetConfigurationValueNamespaceName(ConfigurationValueNamespace namespaceID);
 const StringHash GetConfigurationValueNamespaceNameHash(ConfigurationValueNamespace namespaceID);
@@ -119,23 +131,19 @@ enum class ConfigurationValueType : std::uint8_t {
 
 /// \warning the order must match iyf::ConfigurationValueType
 using ConfigurationVariant = std::variant<double, std::int64_t, bool, std::string>;
+static constexpr std::uint64_t InvalidConfigValue = static_cast<std::uint64_t>(-1);
 
 class Configuration;
+class ConfigurationEditor;
 class Configurable;
 class ConfigurationManifest;
 
 class ConfigurationValue {
 public:
-    ConfigurationValue() = default;
-    
-    template <typename T>
-    inline ConfigurationValue(T value, std::string name, std::string namespaceName)
-        : variant(value), name(std::move(name)), namespaceName(std::move(namespaceName)) { }
+    ConfigurationValue() : lineNumber(InvalidConfigValue) {}
         
-    template <typename T>
-    inline ConfigurationValue(T value, std::string_view name, std::string_view namespaceName)
-        : variant(value), name(name.data(), name.length()), namespaceName(namespaceName.data(), namespaceName.length()) { }
-    
+    inline ConfigurationValue(ConfigurationVariant value, std::string_view name, std::string_view namespaceName)
+        : variant(std::move(value)), name(name.data(), name.length()), namespaceName(namespaceName.data(), namespaceName.length()), lineNumber(InvalidConfigValue) { }
     
     /// \return Real, non-hashed name of this value
     inline const std::string& getName() const {
@@ -156,16 +164,33 @@ public:
         return std::get<T>(variant);
     }
     
-    inline const ConfigurationVariant& getValue() const {
+    inline const ConfigurationVariant& getVariant() const {
         return variant;
     }
     
     friend bool operator==(const ConfigurationValue& a, const ConfigurationValue& b);
     friend bool operator!=(const ConfigurationValue& a, const ConfigurationValue& b);
+    
+    inline bool isFromUserConfig() const {
+        return lineNumber != InvalidConfigValue;
+    }
+    
+    /// \return the line number of this value in the user's config file or InvalidConfigValue if the value isn't from the user's config.
+    inline std::uint64_t getLineNumber() const {
+        return lineNumber;
+    }
 private:
+    friend class Configuration;
+    friend class ConfigurationEditor;
+    friend class test::ConfigurationTests;
+    
+    inline ConfigurationValue(ConfigurationVariant value, std::string name, std::string namespaceName, std::uint64_t lineNumber)
+        : variant(std::move(value)), name(std::move(name)), namespaceName(std::move(namespaceName)), lineNumber(lineNumber) { }
+    
     ConfigurationVariant variant;
     std::string name;
     std::string namespaceName;
+    std::uint64_t lineNumber;
 };
 
 inline bool operator==(const ConfigurationValue& a, const ConfigurationValue& b) {
@@ -192,8 +217,6 @@ struct ConfigurationValueMap {
     std::unordered_map<ConfigurationValueHandle, ConfigurationValue> data;
 };
 
-class ConfigurationEditor;
-
 struct ConfigurationFilePath {
     enum class PathType {
         Real, Virtual
@@ -209,14 +232,25 @@ struct ConfigurationFilePath {
 class NonConfigLine {
 public:
     NonConfigLine() {}
-    NonConfigLine(std::string line) : line(std::move(line)) {}
+    NonConfigLine(std::string_view line) : line(line.data(), line.length()) {}
     
     inline const std::string& getLine() const {
         return line;
     }
+    
+    friend bool operator==(const NonConfigLine& a, const NonConfigLine& b);
+    friend bool operator!=(const NonConfigLine& a, const NonConfigLine& b);
 private:
     std::string line;
 };
+
+inline bool operator==(const NonConfigLine& a, const NonConfigLine& b) {
+    return a.line == b.line;
+}
+
+inline bool operator!=(const NonConfigLine& a, const NonConfigLine& b) {
+    return !(a == b);
+}
 
 enum class ConfigurationFileError {
     Correct,
@@ -245,6 +279,9 @@ public:
             return !linesWithErrors.empty();
         }
         
+        friend bool operator==(const ParseResult& a, const ParseResult& b);
+        friend bool operator!=(const ParseResult& a, const ParseResult& b);
+        
         std::string printErrors() const;
     };
     
@@ -256,12 +293,18 @@ public:
     
     using ConfigurationFileLine = std::variant<NonConfigLine, ConfigurationValue>;
     
-    const std::vector<ConfigurationFileLine>& getLines() const {
+    inline const std::vector<ConfigurationFileLine>& getLines() const {
         return lines;
     }
+    
+    friend bool operator==(const ConfigurationFile& a, const ConfigurationFile& b);
+    friend bool operator!=(const ConfigurationFile& a, const ConfigurationFile& b);
+    std::string print() const;
 private:
+    friend class Configuration;
+    friend class test::ConfigurationTests;
+    
     struct ParsedLine {
-        ParsedLine(ConfigurationFileError error) : ParsedLine(NonConfigLine(), error) {}
         ParsedLine(ConfigurationFileLine line, ConfigurationFileError error)
             : line(line), error(error) {}
         
@@ -279,6 +322,22 @@ private:
     NumberParseResult parseNumber(const std::string_view& str, std::int64_t& intVal, double& doubleVal);
     std::vector<ConfigurationFileLine> lines;
 };
+
+inline bool operator==(const ConfigurationFile& a, const ConfigurationFile& b) {
+    return a.lines == b.lines;
+}
+
+inline bool operator!=(const ConfigurationFile& a, const ConfigurationFile& b) {
+    return !(a == b);
+}
+
+inline bool operator==(const ConfigurationFile::ParseResult& a, const ConfigurationFile::ParseResult& b) {
+    return (a.lineCount == b.lineCount) && (a.linesWithErrors == b.linesWithErrors);
+}
+
+inline bool operator!=(const ConfigurationFile::ParseResult& a, const ConfigurationFile::ParseResult& b) {
+    return !(a == b);
+}
 
 class Configuration : private NonCopyable {
 public:
@@ -304,7 +363,9 @@ public:
     /// \param[in] mode The mode of operations. If mode == Mode::ReadOnly, the Configuration instance cannot be changed or
     /// serialized.
     /// \param[in] filesystem A pointer to a virtual filesystem instance. Can be nullptr if all paths are real (isVirtualFileSystemPath is false)
-    Configuration(const std::vector<ConfigurationFilePath> paths, Mode mode, FileSystem* filesystem);
+    /// \param[out] results If results isn't null, all configuration loading and parsing errors are no longer logged, but stored in the provided
+    /// vector instead. Useful for testing.
+    Configuration(const std::vector<ConfigurationFilePath> paths, Mode mode, FileSystem* filesystem, std::vector<std::pair<fs::path, ConfigurationFile::ParseResult>>* results = nullptr);
     
     inline Mode getMode() const {
         return mode;
@@ -312,6 +373,11 @@ public:
     
     inline FileSystem* getFileSystem() const {
         return filesystem;
+    }
+    
+    inline std::size_t getValueCount() const {
+        std::lock_guard<std::mutex> lock(configurationValueMutex);
+        return resolvedConfigurationValues.data.size();
     }
     
     /// Get the iyf::ConfigurationValue using a pre-built ConfigurationValueHandle.
@@ -387,35 +453,41 @@ public:
     ///
     /// \throw std::logic_error if getMode() == Mode::ReadOnly.
     std::unique_ptr<ConfigurationEditor> makeConfigurationEditor();
+    
+    std::string printAllValues() const;
+    
+    /// \remark This function should only be used for testing.
+    /// \return A parsed copy of the user's config file.
+    inline ConfigurationFile getUserConfigFile() const {
+        std::lock_guard<std::mutex> lock(configurationValueMutex);
+        return userConfigFile;
+    }
 protected:
 private:
     friend class ConfigurationEditor;
+    friend class test::ConfigurationTests;
     
     void setChangedValues(const ConfigurationValueMap& changedValues, bool notify);
     void notifyChanged(const ConfigurationValueMap& changedValues);
     
     static std::string loadFile(const ConfigurationFilePath& path);
-    static void fillConfigurationMaps(const std::vector<ConfigurationFilePath>& paths, ConfigurationValueMap& resolvedValueMap,
-                                      ConfigurationValueMap* systemValueMap, ConfigurationValueMap* userValueMap, ConfigurationFile* userConfigFile,
-                                      FileSystem* filesystem, Mode mode);
-    static void fillMapsFromFiles(const std::vector<ConfigurationFile>& files, const std::vector<ConfigurationValueMap*>& maps);
+    static void fillConfigurationMaps(const std::vector<ConfigurationFilePath>& paths, ConfigurationValueMap& resolvedValueMap, ConfigurationFile* userConfigFile,
+                                      FileSystem* filesystem, Mode mode, std::vector<std::pair<fs::path, ConfigurationFile::ParseResult>>* results);
+    static void fillMapFromFiles(const std::vector<ConfigurationFile>& files, ConfigurationValueMap& maps, std::uint64_t userFileID);
 
     FileSystem* filesystem;
     const std::vector<ConfigurationFilePath> paths;
     
     /// A mutex that protects resolvedConfigurationValues
     mutable std::mutex configurationValueMutex;
+    
     /// Final values that will be returned whenever getValue() is called.
     ConfigurationValueMap resolvedConfigurationValues;
-    /// Contains configuration values from all files except the last one that was passed to the constructor.
-    /// Used during a Configuration::serialize() call when when determining which values need to be saved to the user's
-    /// configuration file and which don't.
-    ConfigurationValueMap systemValues;
-    /// Contains configuration values from the last file that was passed to the constructor. This map is updated whenever
+    
+    /// Contains parsed lines from the last file that was passed to the constructor. The contents of userConfigFile are updated whenever
     /// resolvedConfigurationValues are updated because all newly set configuration values are assumed to be tied to the users
-    /// or their system. The values contained in this map are used during a Configuration::serialize() call when when determining 
-    /// which ones need to be saved to the user's configuration file and which don't.
-    ConfigurationValueMap userValues;
+    /// or their system. The values contained in this object are used during a Configuration::serialize() call when when determining 
+    /// what needs to be saved to the user's configuration file and what doesn't.
     ConfigurationFile userConfigFile;
     
     std::vector<Configurable*> listeners;
@@ -442,19 +514,10 @@ public:
     /// \param [in] name Name of the parameter
     /// \param [in] namespaceName The name of the namespace
     /// \param [in] value A value to insert
-    template <typename T>
-    inline void setValue(const std::string& name, const std::string& namespaceName, T value) {
-        pendingUpdate = true;
-        const ConfigurationValueHandle handle(HS(name.c_str()), HS(namespaceName.c_str()));
-        updatedValues.data[handle] = ConfigurationValue(value, name, namespaceName);
-    }
+    void setValue(const std::string& name, const std::string& namespaceName, ConfigurationVariant value);
     
-    
-    template <typename T>
-    inline void setValue(const std::string& name, ConfigurationValueNamespace namespaceID, T value) {
-        pendingUpdate = true;
-        const ConfigurationValueHandle handle(HS(name.c_str()), con::GetConfigurationValueNamespaceNameHash(namespaceID));
-        updatedValues.data[handle] = ConfigurationValue(value, name, con::GetConfigurationValueNamespaceName(namespaceID));
+    inline void setValue(const std::string& name, ConfigurationValueNamespace namespaceID, ConfigurationVariant value) {
+        setValue(name, con::GetConfigurationValueNamespaceName(namespaceID), std::move(value));
     }
     
     /// This function will check the internal map for updated but not yet commited values. If no values are found there,
@@ -523,11 +586,12 @@ public:
     ~ConfigurationEditor();
 private:
     friend class Configuration;
-    ConfigurationEditor(Configuration* configuration) : configuration(configuration), pendingUpdate(false) {}
+    ConfigurationEditor(Configuration* configuration) : configuration(configuration), nextInsertionID(0), pendingUpdate(false) {}
     
     Configuration* configuration;
     ConfigurationValueMap updatedValues;
     
+    std::size_t nextInsertionID;
     bool pendingUpdate;
 };
 

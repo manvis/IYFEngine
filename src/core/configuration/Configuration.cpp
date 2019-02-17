@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
+#include <set>
 
 #include "core/exceptions/ConfigurationLoadError.hpp"
 #include "core/exceptions/ConfigurationWriteError.hpp"
@@ -81,20 +82,65 @@ const StringHash GetConfigurationValueNamespaceNameHash(ConfigurationValueNamesp
 }
 }
 
-void Configuration::fillMapsFromFiles(const std::vector<ConfigurationFile>& files, const std::vector<ConfigurationValueMap*>& maps) {
-    for (const ConfigurationFile& file : files) {
-        for (const ConfigurationFile::ConfigurationFileLine& line : file.getLines()) {
+std::string Configuration::printAllValues() const {
+    std::lock_guard<std::mutex> lock(configurationValueMutex);
+    
+    std::stringstream ss;
+    
+    ss << "\tFORMAT: namespace.name = value\t(lineNumberInUserConfig or \"not from user conf\") \n";
+    for (const auto& r : resolvedConfigurationValues.data) {
+        ss << "\t" << r.second.getNamespaceName() << "." << r.second.getName() << " = ";
+        
+        std::visit([&ss](auto&& var) {
+            using U = std::decay_t<decltype(var)>;
+            if constexpr (std::is_same_v<U, double>) {
+                ss << std::setprecision(17) << var;
+            } else if constexpr (std::is_same_v<U, std::int64_t>) {
+                ss << var;
+            } else if constexpr (std::is_same_v<U, bool>) {
+                ss << std::boolalpha << var;
+            } else if constexpr (std::is_same_v<U, std::string>) {
+                ss << "\"" << var << "\"";
+            } else {
+                static_assert(util::always_false_type<U>::value, "Some value types not handled.");
+            }
+        }, r.second.getVariant());
+        
+        ss << "\t(";
+        
+        if (r.second.isFromUserConfig()) {
+            ss << r.second.getLineNumber();
+        } else {
+            ss << "\"not from user conf\"";
+        }
+        
+        ss << ")\n";
+    }
+    
+    return ss.str();
+}
+
+void Configuration::fillMapFromFiles(const std::vector<ConfigurationFile>& files, ConfigurationValueMap& map, std::uint64_t userFileID) {
+    const bool userFileExists = (userFileID != InvalidConfigValue) && (userFileID < files.size());
+    
+    for (std::size_t f = 0; f < files.size(); ++f) {
+        const auto& lines = files[f].getLines();
+        const bool isUserFile = userFileExists && (f == userFileID);
+        
+        for (std::size_t i = 0; i < lines.size(); ++i) {
+            const ConfigurationFile::ConfigurationFileLine& line = lines[i];
+            
             if (line.index() == 1) {
                 const ConfigurationValue& value = std::get<ConfigurationValue>(line);
                 const ConfigurationValueHandle handle(HS(value.getName()), HS(value.getNamespaceName()));
                 
-                for (ConfigurationValueMap* map : maps) {
-                    (map->data)[handle] = value;
+                auto result = map.data.insert_or_assign(handle, value);
+                if (isUserFile) {
+                    result.first->second.lineNumber = i;
                 }
             }
         }
     }
-    
 }
 
 ConfigurationValueHandle::ConfigurationValueHandle(StringHash nameHash, ConfigurationValueNamespace namespaceID)
@@ -103,6 +149,7 @@ ConfigurationValueHandle::ConfigurationValueHandle(StringHash nameHash, Configur
 std::string ConfigurationFile::ParseResult::printErrors() const {
     std::stringstream ss;
     
+    ss << "\tPARSED LINE COUNT: " << lineCount << "\n";
     for (const auto& line : linesWithErrors) {
         ss << "\tLINE: " << std::setw(5) << line.first << "\n\t\t";
         
@@ -123,10 +170,10 @@ std::string ConfigurationFile::ParseResult::printErrors() const {
                 ss << "No name. Line skipped";
                 break;
             case ConfigurationFileError::NamespaceNotAlphanumericASCII:
-                ss << "Namespace contains non ASCII characters. Line skipped";
+                ss << "Namespace contains non alphanumeric or non ASCII characters. Line skipped";
                 break;
             case ConfigurationFileError::NameNotAlphanumericASCII:
-                ss << "Name contains non ASCII characters. Line skipped";
+                ss << "Name contains non alphanumeric or non ASCII characters. Line skipped";
                 break;
             case ConfigurationFileError::NoValue:
                 ss << "No value. Line skipped";
@@ -141,6 +188,8 @@ std::string ConfigurationFile::ParseResult::printErrors() const {
                 ss << "Unknown error. Line skipped";
                 break;
         }
+        
+        ss << "\n";
     }
     
     return ss.str();
@@ -176,11 +225,11 @@ ConfigurationFile::NumberParseResult ConfigurationFile::parseNumber(const std::s
 
 ConfigurationFile::ParsedLine ConfigurationFile::processLine(const std::string_view& line) {
     if (line.length() == 0) {
-        return ParsedLine(ConfigurationFileError::Correct);
+        return ParsedLine(NonConfigLine(), ConfigurationFileError::Correct);
     }
     
     if (line.length() >= 2 && line[0] == '/' && line[1] == '/') {
-        return ParsedLine(ConfigurationFileError::Correct);
+        return ParsedLine(NonConfigLine(line), ConfigurationFileError::Correct);
     }
     
     const std::size_t equalsPos = line.find_first_of('=');
@@ -191,7 +240,7 @@ ConfigurationFile::ParsedLine ConfigurationFile::processLine(const std::string_v
         equalsPos == 0 ||
         equalsPos == line.length() - 1) {
         
-        return ParsedLine(ConfigurationFileError::InvalidLineSyntax);
+        return ParsedLine(NonConfigLine(line), ConfigurationFileError::InvalidLineSyntax);
     }
     
     const std::size_t firstBeforeEquals = equalsPos - 1;
@@ -210,7 +259,7 @@ ConfigurationFile::ParsedLine ConfigurationFile::processLine(const std::string_v
     }
     
     if (!identifierExists) {
-        return ParsedLine(ConfigurationFileError::NoIdentifier);
+        return ParsedLine(NonConfigLine(line), ConfigurationFileError::NoIdentifier);
     }
     
     const std::string_view identifier(line.data(), identifierEnd + 1);
@@ -221,17 +270,17 @@ ConfigurationFile::ParsedLine ConfigurationFile::processLine(const std::string_v
         namespaceName = std::string_view(line.data(), separatorPos);
         
         if (separatorPos == identifier.length() - 1) {
-            return ParsedLine(ConfigurationFileError::NoName);
+            return ParsedLine(NonConfigLine(line), ConfigurationFileError::NoName);
         }
     }
     
     if (!namespaceName.empty() && !util::isAlphanumericASCII(namespaceName)) {
-        return ParsedLine(ConfigurationFileError::NamespaceNotAlphanumericASCII);
+        return ParsedLine(NonConfigLine(line), ConfigurationFileError::NamespaceNotAlphanumericASCII);
     }
     
     const std::string_view paramName(identifier.data() + separatorPos + 1, identifier.length() - separatorPos - 1);
     if (!util::isAlphanumericASCII(paramName)) {
-        return ParsedLine(ConfigurationFileError::NameNotAlphanumericASCII);
+        return ParsedLine(NonConfigLine(line), ConfigurationFileError::NameNotAlphanumericASCII);
     }
     
     std::size_t valueStart = lastAfterEquals;
@@ -248,7 +297,7 @@ ConfigurationFile::ParsedLine ConfigurationFile::processLine(const std::string_v
     }
     
     if (!valueExists) {
-        return ParsedLine(ConfigurationFileError::NoValue);
+        return ParsedLine(NonConfigLine(line), ConfigurationFileError::NoValue);
     }
     
     std::size_t valueEnd = lastCharPos;
@@ -271,7 +320,7 @@ ConfigurationFile::ParsedLine ConfigurationFile::processLine(const std::string_v
     if (firstQuote == std::string_view::npos) {
         isNumericParam = true;
     } else if ((valueStr[valueStr.length() - 1] != '\"') || (valueStr.length() - 1 == firstQuote)) {
-        return ParsedLine(ConfigurationFileError::InvalidStringParameter);
+        return ParsedLine(NonConfigLine(line), ConfigurationFileError::InvalidStringParameter);
     } else {
         return ParsedLine(ConfigurationValue(std::string(valueStr.data() + 1, valueStr.length() - 2), paramName, namespaceName), ConfigurationFileError::Correct);
     }
@@ -283,7 +332,7 @@ ConfigurationFile::ParsedLine ConfigurationFile::processLine(const std::string_v
         parseResult = parseNumber(valueStr, intVal, doubleVal);
         
         if (parseResult == NumberParseResult::ParseFailed) {
-            return ParsedLine(ConfigurationFileError::InvalidNumericParameter);
+            return ParsedLine(NonConfigLine(line), ConfigurationFileError::InvalidNumericParameter);
         }
     }
     
@@ -295,7 +344,43 @@ ConfigurationFile::ParsedLine ConfigurationFile::processLine(const std::string_v
         return ParsedLine(ConfigurationValue(doubleVal, paramName, namespaceName), ConfigurationFileError::Correct);
     }
     
-    return ParsedLine(ConfigurationFileError::UnknownError);
+    return ParsedLine(NonConfigLine(line), ConfigurationFileError::UnknownError);
+}
+
+std::string ConfigurationFile::print() const {
+    std::stringstream out;
+    
+    for (const ConfigurationFile::ConfigurationFileLine& line : lines) {
+        std::visit([&out](auto&& arg) {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, NonConfigLine>) {
+                out << arg.getLine() << "\n";
+            } else if constexpr (std::is_same_v<T, ConfigurationValue>) {
+                out << arg.getNamespaceName() << "." << arg.getName() << " = ";
+                
+                std::visit([&out](auto&& var) {
+                    using U = std::decay_t<decltype(var)>;
+                    if constexpr (std::is_same_v<U, double>) {
+                        out << std::setprecision(17) << var;
+                    } else if constexpr (std::is_same_v<U, std::int64_t>) {
+                        out << var;
+                    } else if constexpr (std::is_same_v<U, bool>) {
+                        out << std::boolalpha << var;
+                    } else if constexpr (std::is_same_v<U, std::string>) {
+                        out << "\"" << var << "\"";
+                    } else {
+                        static_assert(util::always_false_type<U>::value, "Some value types not handled.");
+                    }
+                }, arg.getVariant());
+                
+                out << "\n";
+            } else {
+                static_assert(util::always_false_type<T>::value, "Some options not handled.");
+            }
+        }, line);
+    }
+    
+    return out.str();
 }
 
 ConfigurationFile::ParseResult ConfigurationFile::parse(const std::string& fileContents) {
@@ -350,7 +435,7 @@ ConfigurationFile::ParseResult ConfigurationFile::parse(const std::string& fileC
             break;
         }
     }
-    
+    result.lineCount = lineCount;
     return result;
 }
 
@@ -385,9 +470,8 @@ std::string Configuration::loadFile(const ConfigurationFilePath& path) {
     }
 }
 
-void Configuration::fillConfigurationMaps(const std::vector<ConfigurationFilePath>& paths, ConfigurationValueMap& resolvedValueMap, 
-                                          ConfigurationValueMap* systemValueMap, ConfigurationValueMap* userValueMap, ConfigurationFile* userConfigFile, 
-                                          FileSystem* filesystem, Mode mode) {
+void Configuration::fillConfigurationMaps(const std::vector<ConfigurationFilePath>& paths, ConfigurationValueMap& resolvedValueMap,
+                                          ConfigurationFile* userConfigFile, FileSystem* filesystem, Mode mode, std::vector<std::pair<fs::path, ConfigurationFile::ParseResult>>* results) {
     if (paths.size() == 0) {
         throw ConfigurationLoadError("At least one path must be set.");
     }
@@ -439,37 +523,33 @@ void Configuration::fillConfigurationMaps(const std::vector<ConfigurationFilePat
             configFiles.emplace_back();
             ConfigurationFile::ParseResult result = configFiles.back().parse(loadedFile);
             
-            if (result.hasErrors()) {
-                errors << "\tERRORS IN FILE: (" << ((paths[i].type == ConfigurationFilePath::PathType::Real) ? "Real path" : "Virtual path") << ") " << paths[i].path << "\n";
-                errors << result.printErrors();
+            if (results == nullptr) {
+                if (result.hasErrors()) {
+                    errors << "\tERRORS IN FILE: (" << ((paths[i].type == ConfigurationFilePath::PathType::Real) ? "Real path" : "Virtual path") << ") " << paths[i].path << "\n";
+                    errors << result.printErrors();
+                }
+            } else {
+                results->emplace_back(std::make_pair(paths[i].path, std::move(result)));
             }
         }
         
-        std::vector<ConfigurationValueMap*> mapsToUpdate;
-        mapsToUpdate.push_back(&resolvedValueMap);
-        if (systemValueMap != nullptr) {
-            mapsToUpdate.push_back(systemValueMap);
-        }
-        
-        Configuration::fillMapsFromFiles(configFiles, mapsToUpdate);
+        Configuration::fillMapFromFiles(configFiles, resolvedValueMap, InvalidConfigValue);
     }
     
     std::string loadedFile = Configuration::loadFile(paths.back());
     ConfigurationFile cf;
     ConfigurationFile::ParseResult result = cf.parse(loadedFile);
     
-    if (result.hasErrors()) {
-        errors << "\tERRORS IN FILE: (" << ((paths.back().type == ConfigurationFilePath::PathType::Real) ? "Real path" : "Virtual path") << ") " << paths.back().path << "\n";
-        errors << result.printErrors();
+    if (results == nullptr) {
+        if (result.hasErrors()) {
+            errors << "\tERRORS IN FILE: (" << ((paths.back().type == ConfigurationFilePath::PathType::Real) ? "Real path" : "Virtual path") << ") " << paths.back().path << "\n";
+            errors << result.printErrors();
+        }
+    } else {
+        results->emplace_back(std::make_pair(paths.back().path, std::move(result)));
     }
     
-    std::vector<ConfigurationValueMap*> mapsToUpdate;
-    mapsToUpdate.push_back(&resolvedValueMap);
-    if (userValueMap != nullptr) {
-        mapsToUpdate.push_back(userValueMap);
-    }
-    
-    Configuration::fillMapsFromFiles({cf}, mapsToUpdate);
+    Configuration::fillMapFromFiles({cf}, resolvedValueMap, (userConfigFile != nullptr) ? 0 : InvalidConfigValue);
     
     if (const std::string errorStr = errors.str(); !errorStr.empty()) {
         LOG_W("{}", errorStr);
@@ -480,7 +560,7 @@ void Configuration::fillConfigurationMaps(const std::vector<ConfigurationFilePat
     }
 }
 
-Configuration::Configuration(const std::vector<ConfigurationFilePath> paths, Mode mode, FileSystem* filesystem) 
+Configuration::Configuration(const std::vector<ConfigurationFilePath> paths, Mode mode, FileSystem* filesystem, std::vector<std::pair<fs::path, ConfigurationFile::ParseResult>>* results) 
     : filesystem(filesystem), paths(std::move(paths)), mode(mode) {
     
     if (filesystem == nullptr) {
@@ -491,7 +571,7 @@ Configuration::Configuration(const std::vector<ConfigurationFilePath> paths, Mod
         }
     }
     
-    Configuration::fillConfigurationMaps(this->paths, resolvedConfigurationValues, &systemValues, &userValues, &userConfigFile, filesystem, mode);
+    Configuration::fillConfigurationMaps(this->paths, resolvedConfigurationValues, &userConfigFile, filesystem, mode, results);
     
     LOG_I("Number of loaded configuration values: {}", resolvedConfigurationValues.data.size());
 }
@@ -512,13 +592,45 @@ std::unique_ptr<ConfigurationEditor> Configuration::makeConfigurationEditor() {
     return std::unique_ptr<ConfigurationEditor>(new ConfigurationEditor(this));
 }
 
+class ConfigValueComparator {
+public:
+    bool operator()(const std::pair<ConfigurationValueHandle, ConfigurationValue>& a, const std::pair<ConfigurationValueHandle, ConfigurationValue>& b) const {
+        return a.second.getLineNumber() < b.second.getLineNumber();
+    }
+};
+
 void Configuration::setChangedValues(const ConfigurationValueMap& changedValues, bool notify) {
     // Lock before modifying
     std::lock_guard<std::mutex> lock(configurationValueMutex);
     
+    // We need to sort the values based on the fake "line numbers" that were assigned when setting them using the editor. This is required
+    // because I want to make sure new lines are always added to the user's config file in a predictable manner.
+    std::set<std::pair<ConfigurationValueHandle, ConfigurationValue>, ConfigValueComparator> sortedValues;
+    
     for (const auto& value : changedValues.data) {
-        resolvedConfigurationValues.data[value.first] = value.second;
-        userValues.data[value.first] = value.second;
+        sortedValues.emplace(value);
+    }
+    
+    for (const auto& value : sortedValues) {
+        auto result = resolvedConfigurationValues.data.find(value.first);
+        if (result != resolvedConfigurationValues.data.end()) {
+            std::uint64_t lineNumber = result->second.lineNumber;
+            if (lineNumber != InvalidConfigValue) {
+                auto& lineVariant = userConfigFile.lines[lineNumber];
+                auto& line = std::get<ConfigurationValue>(lineVariant);
+                line = value.second;
+            } else {
+                lineNumber = userConfigFile.lines.size();
+                userConfigFile.lines.emplace_back(value.second);
+            }
+            
+            result->second = value.second;
+            result->second.lineNumber = lineNumber;
+        } else {
+            auto result = resolvedConfigurationValues.data.insert({value.first, value.second});
+            result.first->second.lineNumber = userConfigFile.lines.size();
+            userConfigFile.lines.emplace_back(value.second);
+        }
     }
     
     if (notify) {
@@ -548,83 +660,27 @@ bool Configuration::serialize() {
     
     LOG_D("Writing configuration values to: {}", outputPath);
     
-    for (const ConfigurationFile::ConfigurationFileLine& line : userConfigFile.getLines()) {
-        std::visit([&out](auto&& arg) {
-            using T = std::decay_t<decltype(arg)>;
-            if constexpr (std::is_same_v<T, NonConfigLine>) {
-                out << arg.getLine() << "\n";
-            } else if constexpr (std::is_same_v<T, ConfigurationValue>) {
-                out << arg.getNamespaceName() << "." << arg.getName() << " = ";
-                
-                //TODO output variant, update user's file
-                std::visit([&out](auto&& var) {
-                    using U = std::decay_t<decltype(var)>;
-                    
-                    if constexpr (std::is_same_v<U, double> || std::is_same_v<U, std::int64_t>) {
-                        out << var;
-                    } else if constexpr (std::is_same_v<U, bool>) {
-                        out << std::boolalpha << var;
-                    } else if constexpr (std::is_same_v<U, std::string>) {
-                        out << "\"" << var << "\"";
-                    } else {
-                        static_assert(util::always_false_type<T>::value, "Some value types not handled.");
-                    }
-                }, arg.getValue());
-                
-                out << "\n";
-            } else {
-                static_assert(util::always_false_type<T>::value, "Some options not handled.");
-            }
-        }, line);
-    }
-    
-//     for (std::size_t i = 0; i < static_cast<std::size_t>(ConfigurationValueNamespace::COUNT); ++i) {
-//         const std::string& familyName = con::GetConfigurationValueNamespaceName(static_cast<ConfigurationValueNamespace>(i));
-//         
-//         std::vector<ConfigurationValue>& currentFamilyValues = valuesToWrite[i];
-//         
-//         if (currentFamilyValues.size() == 0) {
-//             LOG_D("Configuration value family \"{}\" has no values that need to be written", familyName);
-//         } else {
-//             LOG_D("Configuration value family \"{}\" has {} value(s) that need to be written", familyName, currentFamilyValues.size());
-//         }
-//         
-//         std::sort(currentFamilyValues.begin(), currentFamilyValues.end(), [](const ConfigurationValue& a, const ConfigurationValue& b) {
-//             return a.getName() < b.getName();
-//         });
-//         
-//         for (const auto& v : currentFamilyValues) {
-//             out << familyName << "[\"" << v.getName() << "\"] = ";
-//             
-//             switch (v.getType()) {
-//                 case ConfigurationValueType::Double: {
-//                     double value = v;
-//                     out << value;
-//                     break;
-//                 }
-//                 case ConfigurationValueType::Bool: {
-//                     bool value = v;
-//                     out << (value ? "true" : "false");
-//                     break;
-//                 }
-//                 case ConfigurationValueType::String: {
-//                     std::string value = v;
-//                     out << "\"" << value << "\"";
-//                     break;
-//                 }
-//                 default:
-//                     throw std::runtime_error("Unknown type: " + std::to_string(static_cast<std::size_t>(v.getType())));
-//             }
-//             
-//             out << "\n";
-//         }
-//         
-//         if (currentFamilyValues.size() > 0) {
-//             out << "\n";
-//         }
-//     }
+    out << userConfigFile.print();
     
     return true;
+}
+
+void ConfigurationEditor::setValue(const std::string& name, const std::string& namespaceName, ConfigurationVariant value) {
+    pendingUpdate = true;
+    const ConfigurationValueHandle handle(HS(name.c_str()), HS(namespaceName.c_str()));
+    
+    auto result = updatedValues.data.find(handle);
+    if (result == updatedValues.data.end()) {
+        auto insertionResult = updatedValues.data.emplace(handle, ConfigurationValue(std::move(value), name, namespaceName));
+        assert(insertionResult.second);
+        
+        insertionResult.first->second.lineNumber = nextInsertionID;
+        nextInsertionID++;
+    } else {
+        const std::size_t lastInsertionID = result->second.lineNumber;
+        result->second = ConfigurationValue(std::move(value), name, namespaceName);
+        result->second.lineNumber = lastInsertionID;
+    }
 }
 
 ConfigurationValue ConfigurationEditor::getValue(const ConfigurationValueHandle& handle) const {
@@ -653,7 +709,7 @@ void ConfigurationEditor::rollback() {
 
 void ConfigurationEditor::setToPreset(const ConfigurationFilePath& presetFilePath) {
     pendingUpdate = true;
-    Configuration::fillConfigurationMaps({presetFilePath}, updatedValues, nullptr, nullptr, nullptr, configuration->getFileSystem(), configuration->getMode());
+    Configuration::fillConfigurationMaps({presetFilePath}, updatedValues, nullptr, configuration->getFileSystem(), configuration->getMode(), nullptr);
 }
 
 ConfigurationEditor::~ConfigurationEditor() {
