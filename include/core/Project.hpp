@@ -85,10 +85,21 @@ public:
     
     ~Project();
     
+    /// Check if the project is valid (everything was deserialized and created successfully).
+    ///
+    /// \warning isValid(), deserialize(), deserializeJSON() and makesJSONRoot() are the only functions that are
+    /// always safe to call. Calling any other function when isValid() is false will trigger a fatal error.
+    inline bool isValid() const {
+        return valid;
+    }
+    
     /// Serializes the Project data to the project file that resides in the root path.
     bool serialize() const;
     
     /// deserialize the Project data from the project file that resides in the root path.
+    ///
+    /// \warning isValid(), deserialize(), deserializeJSON() and makesJSONRoot() are the only functions that are
+    /// always safe to call. Calling any other function when isValid() is false will trigger a fatal error.
     bool deserialize();
     
     /// Serializes the Project data to a PrettyStringWriter. You're probably looking for serialize() that will
@@ -97,15 +108,16 @@ public:
     
     /// Deserializes the Project data from a JSONObject. You're probably looking for deserialize() that will
     /// automatically deserialize the project file that resides in the root path.
+    ///
+    /// \warning isValid(), deserialize(), deserializeJSON() and makesJSONRoot() are the only functions that are
+    /// always safe to call. Calling any other function when isValid() is false will trigger a fatal error.
     virtual void deserializeJSON(JSONObject& jo) final override;
     
-    virtual bool makesJSONRoot() const final override {
-        return false;
-    }
+    /// \warning isValid(), deserialize(), deserializeJSON() and makesJSONRoot() are the only functions that are
+    /// always safe to call. Calling any other function when isValid() is false will trigger a fatal error.
+    virtual bool makesJSONRoot() const final override;
     
-    const fs::path& getRootPath() const {
-        return root;
-    }
+    const fs::path& getRootPath() const;
     
     /// Sets the name of the first World that will be loaded when the game loads for the first time.
     ///
@@ -177,6 +189,8 @@ public:
     /// be translated.
     void setBaseLocale(std::string locale);
 private:
+    void validOrFatalError() const;
+    
     Project(fs::path root, bool deserializeFile);
     fs::path root;
     
@@ -185,6 +199,8 @@ private:
     std::string firstWorldName;
     std::string baseLocale;
     Version version;
+    
+    bool valid;
 };
 }
 

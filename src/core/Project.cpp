@@ -167,23 +167,42 @@ bool Project::CreateImportsDirectory(const fs::path& path) {
     }
 }
 
-
-Project::Project(fs::path root, bool deserializeFile) : root(std::move(root)) {
+Project::Project(fs::path root, bool deserializeFile) : root(std::move(root)), valid(false) {
     if (deserializeFile && !deserialize()) {
         LOG_E("Failed to deserialize the project file  from {}", (this->root / con::ProjectFile()));
-        throw std::runtime_error("Failed to deserialize the project file");
+        return;
     }
     
     if (!CreateImportedAssetDirectories(this->root, con::GetCurrentPlatform()) || !CreateImportsDirectory(this->root)) {
-        throw std::runtime_error("Failed to deserialize the project file");
+        return;
     }
+    
+    valid = true;
 }
 
 Project::Project(fs::path root) : Project(std::move(root), true) {}
 
 Project::~Project() {}
 
+void Project::validOrFatalError() const {
+    if (!isValid()) {
+        throw std::runtime_error("Trying to access an invalid Project.");
+    }
+}
+
+bool Project::makesJSONRoot() const {
+    return false;
+}
+
+const fs::path& Project::getRootPath() const {
+    validOrFatalError();
+    
+    return root;
+}
+
 bool Project::serialize() const {
+    validOrFatalError();
+    
     std::string jsonString = getJSONString();
     const fs::path finalPath = root / con::ProjectFile();
     
@@ -226,6 +245,8 @@ bool Project::deserialize() {
 }
 
 void Project::serializeJSON(PrettyStringWriter& pw) const {
+    validOrFatalError();
+    
     pw.String(VERSION_FIELD_NAME);
     pw.Uint(CURRENT_DATA_FORMAT_VERSION);
     
@@ -279,42 +300,62 @@ void Project::deserializeJSON(JSONObject& jo) {
 }
 
 void Project::setFirstWorldName(std::string name) {
+    validOrFatalError();
+    
     firstWorldName = name;
 }
 
 std::string Project::getFirstWorldName() const {
+    validOrFatalError();
+    
     return firstWorldName;
 }
 
 void Project::setCompanyName(std::string name) {
+    validOrFatalError();
+    
     companyName = name;
 }
 
 std::string Project::getCompanyName() const {
+    validOrFatalError();
+    
     return companyName;
 }
 
 void Project::setGameName(std::string name) {
+    validOrFatalError();
+    
     gameName = name;
 }
 
 std::string Project::getGameName() const {
+    validOrFatalError();
+    
     return gameName;
 }
 
 void Project::setVersion(const Version& version) {
+    validOrFatalError();
+    
     this->version = version;
 }
 
 Version Project::getVersion() const {
+    validOrFatalError();
+    
     return version;
 }
 
 std::string Project::getBaseLocale() const {
+    validOrFatalError();
+    
     return baseLocale;
 }
 
 void Project::setBaseLocale(std::string locale) {
+    validOrFatalError();
+    
     baseLocale = locale;
 }
 

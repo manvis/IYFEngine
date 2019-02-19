@@ -57,6 +57,8 @@ const std::string AUTO_LOAD_PROJECT_CONFIG_NAME = "autoLoadLast";
 const std::size_t MAX_HISTORY_ELEMENTS = 10;
 const std::string EDITOR_BUSY_POPUP_NAME = "Editor Busy";
 const std::string NEW_PROJECT_POPUP_NAME = "New Project";
+const std::string OPEN_PROJECT_POPUP_NAME = "Open Project";
+const std::string INVALID_PROJECT_POPUP_NAME = "Invalid Project Path";
 const std::string PROJECT_CREATION_POPUP_NAME = "Creating a project";
 const std::string USER_SETUP_MODAL_NAME = "Create or Edit a User";
 const std::string PROJECT_OPEN_POPUP_NAME = "Opening project";
@@ -141,7 +143,7 @@ void EditorWelcomeState::updateCreationProgress(const std::string& progress) {
     progressText.append("\n").append(progress);
 }
 
-EditorWelcomeState::EditorWelcomeState(Engine* engine) : iyf::GameState(engine), projectLoadRequested(false), pendingUserSetup(false), projectToLoad(0), nameBuffer{}, pathBuffer{} {}
+EditorWelcomeState::EditorWelcomeState(Engine* engine) : iyf::GameState(engine), projectLoadRequested(false), pendingUserSetup(false), projectToLoad(""), nameBuffer{}, pathBuffer{} {}
 
 void EditorWelcomeState::writeProjectList() {
     Configuration* config = engine->getConfiguration();
@@ -250,7 +252,7 @@ void EditorWelcomeState::initialize() {
         pendingUserSetup = true;
     } else if (autoLoadLast && userValid && !lastLoadedProjects.empty()) {
         projectLoadRequested = true;
-        projectToLoad = 0;
+        projectToLoad = lastLoadedProjects[0].path;
     } else if (!userValid) {
         pendingUserSetup = true;
     }
@@ -269,6 +271,23 @@ void EditorWelcomeState::step() {
 //     if (engine->getInputState()->isKeyPressed(SDL_SCANCODE_T)) {
 //         engine->pushState(std::make_unique<test::TestState>(engine));
 //     }
+}
+
+void EditorWelcomeState::addProjectToList(std::string name, std::string path) {
+    auto now = std::chrono::system_clock::now().time_since_epoch();
+    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now);
+    std::uint64_t nowMillis = millis.count();
+    
+    ProjectData data;
+    data.name = name;
+    data.path = path + "/" + data.name;
+    data.lastOpen = nowMillis;
+    data.lastOpenText = timeSinceEpochToString(millis);
+    lastLoadedProjects.insert(lastLoadedProjects.begin(), data);
+    
+    if (lastLoadedProjects.size() > 10) {
+        lastLoadedProjects.pop_back();
+    }
 }
 
 void EditorWelcomeState::frame(float delta) {
@@ -319,8 +338,8 @@ void EditorWelcomeState::frame(float delta) {
     ImGui::Separator();
     
     
-    float buttonWidth = ImGui::GetContentRegionAvailWidth() * 0.5f;
-    if (ImGui::Button("Create new project", ImVec2(buttonWidth, 0))) {
+    float buttonWidth = ImGui::GetContentRegionAvailWidth() * 0.333333f;
+    if (ImGui::Button("New Project", ImVec2(buttonWidth, 0))) {
         ImGui::OpenPopup(NEW_PROJECT_POPUP_NAME.c_str());
     }
     
@@ -332,7 +351,7 @@ void EditorWelcomeState::frame(float delta) {
                               "or any special characters in this name.\n\n"
                               "You'll be able to set, change and localize a human readable name later.");
         }
-        ImGui::InputText("Directory", pathBuffer.data(), pathBuffer.size());
+        ImGui::InputText("Path", pathBuffer.data(), pathBuffer.size());
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("A folder with a name matching the project's name will be automatically created \n"
                               "in this directory.");
@@ -344,7 +363,7 @@ void EditorWelcomeState::frame(float delta) {
             ImGui::OpenPopup(EDITOR_BUSY_POPUP_NAME.c_str());
             
             // Show the file open dialog in a separate thread because we don't want it to block rendering
-            projectDirectoryPickFuture = std::async(std::launch::async, []() -> ResultPathPair {
+            newProjectDirectoryPickFuture = std::async(std::launch::async, []() -> NewProjectResultPathPair {
                 const char* folderPath = tinyfd_selectFolderDialog("Select the new project folder", nullptr);
                 
                 if (folderPath == nullptr) {
@@ -359,13 +378,13 @@ void EditorWelcomeState::frame(float delta) {
         if (ImGui::BeginPopupModal(EDITOR_BUSY_POPUP_NAME.c_str(), nullptr, MODAL_POPUP_FLAGS)) {
             ImGui::Text("The editor will resume once the file operation is complete.");
             
-            assert(projectDirectoryPickFuture.valid());
+            assert(newProjectDirectoryPickFuture.valid());
             
             // Once again, if it's not ready yet, don't block
-            auto status = projectDirectoryPickFuture.wait_for(0ms);
+            auto status = newProjectDirectoryPickFuture.wait_for(0ms);
             
             if (status == std::future_status::ready) {
-                ResultPathPair result = projectDirectoryPickFuture.get();
+                NewProjectResultPathPair result = newProjectDirectoryPickFuture.get();
                 
     //             if (result.first == NewProjectResult::FolderNotEmpty) {
     //                 errorSet = true;
@@ -381,7 +400,7 @@ void EditorWelcomeState::frame(float delta) {
                     std::memcpy(pathBuffer.data(), result.second.c_str(), byteCount);
                 }
                 
-                projectDirectoryPickFuture = std::future<ResultPathPair>();
+                newProjectDirectoryPickFuture = std::future<NewProjectResultPathPair>();
                 ImGui::CloseCurrentPopup();
             }
             
@@ -429,21 +448,8 @@ void EditorWelcomeState::frame(float delta) {
                         messageText.clear();
                         closeThisWindow = true;
                         
-                        auto now = std::chrono::system_clock::now().time_since_epoch();
-                        auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now);
-                        std::uint64_t nowMillis = millis.count();
                         
-                        ProjectData data;
-                        data.name = std::string(nameBuffer.data());
-                        data.path = std::string(pathBuffer.data()) + "/" + data.name;
-                        data.lastOpen = nowMillis;
-                        data.lastOpenText = timeSinceEpochToString(millis);
-                        lastLoadedProjects.insert(lastLoadedProjects.begin(), data);
-                        
-                        if (lastLoadedProjects.size() > 10) {
-                            lastLoadedProjects.pop_back();
-                        }
-                        
+                        addProjectToList(nameBuffer.data(), pathBuffer.data());
                         writeProjectList();
                     } else {
                         messageText = "Project creation failed:\n";
@@ -484,6 +490,71 @@ void EditorWelcomeState::frame(float delta) {
         
         ImGui::EndPopup();
     }
+    
+    ImGui::SameLine();
+    if (ImGui::Button("Open Project", ImVec2(buttonWidth, 0))) {
+        ImGui::OpenPopup(OPEN_PROJECT_POPUP_NAME.c_str());
+        projectDirectoryPickFuture = std::async(std::launch::async, []() -> ExistingProjectResult {
+            const char* folderPath = tinyfd_selectFolderDialog("Select the folder of an existing project", nullptr);
+            
+            if (folderPath == nullptr) {
+                return {OpenExistingProjectResult::Cancelled, "", ""};
+            }
+            
+            Project project(folderPath);
+            
+            if (!project.isValid()) {
+                return {OpenExistingProjectResult::InvalidChosen, project.getGameName(), folderPath};
+            }
+            
+            return {OpenExistingProjectResult::ValidChosen, "", folderPath};
+        });
+    }
+    
+    bool needsErrorPopup = false;
+    bool projectActivated = false;
+    std::size_t activatedProjectID = 0;
+    
+    // The modal that was mentioned a couple comments ago
+    if (ImGui::BeginPopupModal(OPEN_PROJECT_POPUP_NAME.c_str(), nullptr, MODAL_POPUP_FLAGS)) {
+        ImGui::Text("The editor will resume once the file operation is complete.");
+        
+        assert(projectDirectoryPickFuture.valid());
+        
+        // Once again, if it's not ready yet, don't block
+        auto status = projectDirectoryPickFuture.wait_for(0ms);
+        
+        if (status == std::future_status::ready) {
+            ExistingProjectResult result = projectDirectoryPickFuture.get();
+            
+            if (result.result == OpenExistingProjectResult::ValidChosen) {
+                addProjectToList(result.name, result.path);
+            } else if (result.result == OpenExistingProjectResult::InvalidChosen) {
+                needsErrorPopup = true;
+            }
+            
+            projectDirectoryPickFuture = std::future<ExistingProjectResult>();
+            projectActivated = true;
+            activatedProjectID = 0;
+            
+            ImGui::CloseCurrentPopup();
+        }
+        
+        ImGui::EndPopup();
+    }
+    
+    if (needsErrorPopup) {
+        ImGui::OpenPopup(INVALID_PROJECT_POPUP_NAME.c_str());
+    }
+    
+    if (ImGui::BeginPopupModal(INVALID_PROJECT_POPUP_NAME.c_str(), nullptr, MODAL_POPUP_FLAGS)) {
+        ImGui::Text("The chosen directory does not contain a valid IYFEngine project.");
+        if (ImGui::Button("OK")) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+    
     ImGui::SameLine();
     bool bt = config->getValue(AUTO_LOAD_PROJECT_CONFIG_NAME, ConfigurationValueNamespace::Editor);
     if (ImGui::Checkbox("Auto load last project", &bt)) {
@@ -498,8 +569,6 @@ void EditorWelcomeState::frame(float delta) {
     ImGui::Separator();
     
     ImGui::BeginChild("Project list");
-    bool projectActivated = false;
-    std::size_t activatedProjectID = 0;
     for (std::size_t i = 0; i < lastLoadedProjects.size(); ++i) {
         const auto& projectData = lastLoadedProjects[i];
         
@@ -523,7 +592,7 @@ void EditorWelcomeState::frame(float delta) {
     if (projectActivated) {
         updateProjectOpenDate(activatedProjectID);
         projectLoadRequested = true;
-        projectToLoad = 0;
+        projectToLoad = lastLoadedProjects[0].path;
     }
     
     ImGui::EndChild();
@@ -534,7 +603,7 @@ void EditorWelcomeState::frame(float delta) {
         ImGui::OpenPopup(PROJECT_OPEN_POPUP_NAME.c_str());
         
         openProjectAsyncTask = std::async(std::launch::async, [this](){
-            auto project = std::make_unique<Project>(lastLoadedProjects[projectToLoad].path);
+            auto project = std::make_unique<Project>(projectToLoad);
             FileSystem* fileSystem = engine->getFileSystem();
             
             LOG_V("Write path before project change: {}", fileSystem->getCurrentWriteDirectory());

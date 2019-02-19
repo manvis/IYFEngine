@@ -37,6 +37,7 @@
 
 #include "core/GameState.hpp"
 #include "core/Project.hpp"
+#include "core/filesystem/cppFilesystem.hpp"
 
 namespace iyf {
 class Engine;
@@ -61,6 +62,8 @@ private:
     virtual void initialize() final override;
     void updateCreationProgress(const std::string& progress);
     void updateProjectOpenDate(std::size_t id);
+    
+    void addProjectToList(std::string name, std::string path);
     void writeProjectList();
     
     std::unique_ptr<World> world;
@@ -109,14 +112,27 @@ private:
         Created,
         Cancelled
     };
-    using ResultPathPair = std::pair<NewProjectResult, std::string>;
+    using NewProjectResultPathPair = std::pair<NewProjectResult, std::string>;
     std::future<Project::CreationResult> projectCreationFuture;
-    std::future<ResultPathPair> projectDirectoryPickFuture;
+    std::future<NewProjectResultPathPair> newProjectDirectoryPickFuture;
+    
+    enum class OpenExistingProjectResult {
+        ValidChosen,
+        InvalidChosen,
+        Cancelled
+    };
+    struct ExistingProjectResult {
+        OpenExistingProjectResult result;
+        std::string name;
+        std::string path;
+    };
+    std::future<ExistingProjectResult> projectDirectoryPickFuture;
+    
     std::future<bool> openProjectAsyncTask;
     
     bool projectLoadRequested;
     bool pendingUserSetup;
-    std::size_t projectToLoad;
+    fs::path projectToLoad;
     std::string messageText;
     std::mutex progressTextMutex;
     std::string progressText;

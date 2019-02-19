@@ -132,7 +132,7 @@ void Engine::init() {
     userConfiguration /= "config.cfg";
     
     LOG_D("User's configuration file path: {}", userConfiguration);
-//     std::cout << "ccc" << std::flush;
+
     std::vector<ConfigurationFilePath> configPaths;
     configPaths.reserve(2);
     configPaths.emplace_back("EngineBaseConfig.cfg", ConfigurationFilePath::PathType::Virtual);
@@ -140,16 +140,6 @@ void Engine::init() {
     
     config = std::unique_ptr<Configuration>(new Configuration(configPaths, Configuration::Mode::Editable, nullptr));
     useDebugAndValidation = config->getValue(HS("debugAndValidation"), ConfigurationValueNamespace::Engine);
-//     std::cout << "ccc" << std::flush;
-    
-    // TODO these next config lines should go to the test cases
-    auto editor = config->makeConfigurationEditor();
-    editor->setValue("theMeaningOfLife", ConfigurationValueNamespace::Other, 42.0f);
-    editor->commit(false);
-    
-    double returnedValue = config->getValue(ConfigurationValueHandle(HS("theMeaningOfLife"), con::GetConfigurationValueNamespaceNameHash(ConfigurationValueNamespace::Other)));
-    LOG_D("Returned value: {}", returnedValue);
-    config->serialize();
     
     std::string locale = config->getValue(ConfigurationValueHandle(HS("textLocale"), con::GetConfigurationValueNamespaceNameHash(ConfigurationValueNamespace::Localization)));
     TextLocalizer::LoadResult result = SystemLocalizer().loadStringsForLocale(fileSystem.get(), con::SystemStringPath(), locale, false);
