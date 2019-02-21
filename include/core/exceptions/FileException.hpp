@@ -36,7 +36,7 @@ namespace iyf {
 
 class FileException : public std::runtime_error {
 public:
-    FileException(const std::string& errorMessage, const std::string& failingFileName) : runtime_error(errorMessage + "PATH: " + failingFileName) {}
+    FileException(const std::string errorMessage, const std::string failingFileName) : runtime_error(errorMessage + "PATH: " + failingFileName) {}
 };
 
 }

@@ -30,8 +30,10 @@
 #define IYF_IMGUI_UTILS_HPP
 
 #include "assets/AssetConstants.hpp"
+#include "utilities/DragDropAssetPayload.hpp"
 #include "imgui.h"
 #include <string>
+#include <functional>
 
 namespace iyf {
 namespace util {
@@ -61,6 +63,9 @@ inline void DisplayFlagPicker(const std::string& comboName, T& inOut, T defaultV
 }
 
 const char* GetPayloadNameForAssetType(AssetType type);
+
+void AssetDragDropTarget(const char* text, AssetType type, std::function<void(DragDropAssetPayload)> callback);
+void AssetDragDropImageTarget(StringHash currentImageID, ImVec2 dimensions, std::function<void(DragDropAssetPayload)> callback);
 
 inline void SquareConstraint(ImGuiSizeCallbackData* data) {
     data->DesiredSize = ImVec2(std::max(data->DesiredSize.x, data->DesiredSize.y), std::max(data->DesiredSize.x, data->DesiredSize.y));

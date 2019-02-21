@@ -37,7 +37,7 @@
 #include "fmt/ostream.h"
 
 namespace iyf {
-File::File(const fs::path& path, OpenMode openMode) : path(path), openMode(openMode), isOpen(true) {
+File::File(const fs::path& path, OpenMode openMode) : file(nullptr), path(path), openMode(openMode), isOpen(true) {
     switch (openMode) {
     case OpenMode::Read:
         file = PHYSFS_openRead(path.generic_string().c_str());
@@ -193,7 +193,8 @@ std::pair<std::unique_ptr<char[]>, std::int64_t> File::readWholeFile() {
     auto buffer = std::make_unique<char[]>(size + 1);
     std::int64_t byteCount = readBytes(buffer.get(), size);
     if (byteCount == -1 || (byteCount < size)) {
-        throw FileException("Failed to read the required number of bytes from ", path.generic_string());
+        const std::string errorStr = fmt::format("Failed to read the required number of bytes (read {} of {}) from ", byteCount, size);
+        throw FileException(errorStr, path.generic_string());
     }
     
     buffer[size] = '\0';

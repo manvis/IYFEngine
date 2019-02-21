@@ -34,7 +34,7 @@
 #include "localization/TextLocalization.hpp"
 #include "utilities/logicGraph/LogicGraph.hpp"
 #include "utilities/ImGuiUtils.hpp"
-#include "DragDropAssetPayload.hpp"
+#include "utilities/DragDropAssetPayload.hpp"
 
 #include "imgui.h"
 
@@ -247,22 +247,10 @@ void ShowTextureInputNodeUI(MaterialNode& node) {
     ImGui::Text("Default texture");
     
     const float contentWidth = ImGui::GetContentRegionAvailWidth();
-    ImGui::Image(reinterpret_cast<void*>(n.getDefaultTexture().value()), ImVec2(contentWidth, contentWidth));
-    
-    if (ImGui::BeginDragDropTarget()) {
-        const char* payloadName = util::GetPayloadNameForAssetType(AssetType::Texture);
-        
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadName)) {
-            assert(payload->DataSize == sizeof(DragDropAssetPayload));
-            
-            DragDropAssetPayload payloadDestination;
-            std::memcpy(&payloadDestination, payload->Data, sizeof(DragDropAssetPayload));
-            
-            n.setDefaultTexture(payloadDestination.getNameHash());
-        }
-        
-        ImGui::EndDragDropTarget();
-    }
+    util::AssetDragDropImageTarget(n.getDefaultTexture(), ImVec2(contentWidth, contentWidth), [&n](DragDropAssetPayload payloadDestination) {
+        n.setDefaultTexture(payloadDestination.getNameHash());
+    });
+
     ImGui::TextDisabled("(drop texture above)");
     //ImGui::Image();
 }

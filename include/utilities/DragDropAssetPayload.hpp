@@ -26,7 +26,12 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-namespace iyf::editor {
+#ifndef IYF_DRAG_DROP_ASSET_PAYLOAD_HPP
+#define IYF_DRAG_DROP_ASSET_PAYLOAD_HPP
+
+#include "utilities/hashing/Hashing.hpp"
+
+namespace iyf {
 
 struct DragDropAssetPayload {
     inline DragDropAssetPayload() : nameHash(0), type(AssetType::COUNT) {}
@@ -42,3 +47,5 @@ struct DragDropAssetPayload {
 };
 
 }
+
+#endif // IYF_DRAG_DROP_ASSET_PAYLOAD_HPP

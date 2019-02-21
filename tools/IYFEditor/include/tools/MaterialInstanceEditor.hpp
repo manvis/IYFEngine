@@ -30,23 +30,35 @@
 #define IYF_MATERIAL_INSTANCE_EDITOR_HPP
 
 #include <string>
+// #include "utilities/hashing/Hashing.hpp"
+// #include "assets/metadata/MaterialInstanceMetadata.hpp"
 #include "core/filesystem/cppFilesystem.hpp"
+
+namespace iyf {
+class Engine;
+class AssetManager;
+class MaterialInstanceDefinition;
+}
 
 namespace iyf::editor {
 
 class MaterialInstanceEditor {
 public:
-    MaterialInstanceEditor();
+    MaterialInstanceEditor(Engine* engine);
     
     void show(bool* showing);
-    void setPath(fs::path path);
-    inline const fs::path& getPath() const {
+    void setFilePath(const fs::path& path);
+    inline const fs::path& getFilePath() const {
         return filePath;
     }
     
     static std::string CreateNew();
 protected:
     fs::path filePath;
+    Engine* engine;
+    AssetManager* assetManager;
+    std::unique_ptr<MaterialInstanceDefinition> instanceDefinition;
+//     MaterialInstanceMetadata lastMetadata;
 };
 
 }

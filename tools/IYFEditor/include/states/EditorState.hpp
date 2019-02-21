@@ -36,7 +36,7 @@
 #include "tools/MaterialFamilyEditor.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
 #include "AssetList.hpp"
-#include "DragDropAssetPayload.hpp"
+#include "utilities/DragDropAssetPayload.hpp"
 #include "core/Constants.hpp"
 
 #include <future>

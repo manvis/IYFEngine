@@ -111,6 +111,7 @@ void EditorState::initialize() {
     
     materialFamilyEditor = std::make_unique<MaterialFamilyEditor>(engine, engine->getRenderer(), this);
     materialTemplateEditor = std::make_unique<MaterialEditor>();
+    materialInstanceEditor = std::make_unique<MaterialInstanceEditor>(engine);
     
     assetBrowserPathChanged = true;
     assetDirUpdated = false;
@@ -887,25 +888,9 @@ void EditorState::showWorldEditorWindow() {
     
     ImGui::Columns(2);
     
-    ImGui::Text("Drop Mesh Here");
-    if (ImGui::BeginDragDropTarget()) {
-        const char* payloadName = util::GetPayloadNameForAssetType(AssetType::Mesh);
-        
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadName)) {
-            assert(payload->DataSize == sizeof(DragDropAssetPayload));
-            
-            DragDropAssetPayload payloadDestination;
-            std::memcpy(&payloadDestination, payload->Data, sizeof(DragDropAssetPayload));
-            
-            world->addStaticMesh(payloadDestination.getNameHash());
-        }
-        ImGui::EndDragDropTarget();
-    }
-//     if (ImGui::AssetLock("StaticMesh", AssetType::Mesh, 0)) {
-//         const AssetData& asset = assetClipboard[0];
-//         
-//         world->addStaticMesh(hash32_t(asset.id));
-//     }
+    util::AssetDragDropTarget("Drop Mesh here", AssetType::Mesh, [this](DragDropAssetPayload payloadDestination) {
+        world->addStaticMesh(payloadDestination.getNameHash());
+    });
     
     ImGui::NextColumn();
     ImGui::Text("Static mesh entity");
@@ -917,20 +902,9 @@ void EditorState::showWorldEditorWindow() {
 //         world->addDynamicMesh(hash32_t(asset.id));
 //     }
     
-    ImGui::Text("Drop Mesh Here");
-    if (ImGui::BeginDragDropTarget()) {
-        const char* payloadName = util::GetPayloadNameForAssetType(AssetType::Mesh);
-        
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadName)) {
-            assert(payload->DataSize == sizeof(DragDropAssetPayload));
-            
-            DragDropAssetPayload payloadDestination;
-            std::memcpy(&payloadDestination, payload->Data, sizeof(DragDropAssetPayload));
-            
-            world->addDynamicMesh(payloadDestination.getNameHash());
-        }
-        ImGui::EndDragDropTarget();
-    }
+    util::AssetDragDropTarget("Drop Mesh here", AssetType::Mesh, [this](DragDropAssetPayload payloadDestination) {
+        world->addDynamicMesh(payloadDestination.getNameHash());
+    });
     
     ImGui::NextColumn();
     ImGui::Text("Dynamic mesh entity");
@@ -1540,7 +1514,7 @@ void EditorState::showAssetWindow() {
                 if (type == AssetType::MaterialInstance) {
                     if (ImGui::Selectable("Edit")) {
                         materialInstanceEditorOpen = true;
-                        materialInstanceEditor->setPath(a.path);
+                        materialInstanceEditor->setFilePath(a.path);
                     }
                 }
                 

@@ -62,5 +62,42 @@ const char* GetPayloadNameForAssetType(AssetType type) {
     
     throw std::runtime_error("Unknown AssetType value");
 }
+
+void AssetDragDropTarget(const char* text, AssetType type, std::function<void(DragDropAssetPayload)> callback) {
+    ImGui::Text("%s", text);
+    if (ImGui::BeginDragDropTarget()) {
+        const char* payloadName = util::GetPayloadNameForAssetType(type);
+        
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadName)) {
+            assert(payload->DataSize == sizeof(DragDropAssetPayload));
+            
+            DragDropAssetPayload payloadDestination;
+            std::memcpy(&payloadDestination, payload->Data, sizeof(DragDropAssetPayload));
+            
+            callback(payloadDestination);
+        }
+        ImGui::EndDragDropTarget();
+    }
+}
+
+void AssetDragDropImageTarget(StringHash currentImageID, ImVec2 dimensions, std::function<void(DragDropAssetPayload)> callback) {
+    ImGui::Image(reinterpret_cast<void*>(currentImageID.value()), dimensions);
+    
+    if (ImGui::BeginDragDropTarget()) {
+        const char* payloadName = util::GetPayloadNameForAssetType(AssetType::Texture);
+        
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadName)) {
+            assert(payload->DataSize == sizeof(DragDropAssetPayload));
+            
+            DragDropAssetPayload payloadDestination;
+            std::memcpy(&payloadDestination, payload->Data, sizeof(DragDropAssetPayload));
+            
+            callback(payloadDestination);
+        }
+        
+        ImGui::EndDragDropTarget();
+    }
+}
+
 }
 }
