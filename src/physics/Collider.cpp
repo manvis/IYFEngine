@@ -55,9 +55,9 @@ void Collider::detach(System* system, std::uint32_t) {
     
     //LOG_D("BMM {}", *collisionShape);
     collisionShape = CollisionShapeHandle();
-    rigidBody = boost::none;
+    rigidBody = std::nullopt;
     // TODO clean motion state
-    //motionState = boost::none;
+    //motionState = std::nullopt;
 }
 
 }

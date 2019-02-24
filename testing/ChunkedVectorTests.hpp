@@ -26,45 +26,34 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef COLLIDER_HPP
-#define COLLIDER_HPP
+#ifndef IYF_CHUNKED_VECTOR_TESTS_HPP
+#define IYF_CHUNKED_VECTOR_TESTS_HPP
 
-#include <btBulletDynamicsCommon.h>
-#include <optional>
+#include "TestBase.hpp"
 
-#include "core/Component.hpp"
-#include "physics/CollisionShape.hpp"
-#include "physics/CollisionShapeCache.hpp"
-#include "physics/MotionState.hpp"
+#include <vector>
+#include <string>
 
-namespace iyf {
-class Collider : public Component {
+namespace iyf::test {
+
+class ChunkedVectorTests : public TestBase {
 public:
-    static constexpr ComponentType Type = ComponentType(ComponentBaseType::Physics, PhysicsComponent::Collider);
-    Collider() : Component(ComponentType(ComponentBaseType::Physics, PhysicsComponent::Collider)) { }
+    ChunkedVectorTests(bool verbose);
+    virtual ~ChunkedVectorTests();
     
-    /// btRigidBody does not have an empty "invalid" constructor, but I really
-    /// want to have all rigid bodies inside Collider objects, hence 
-    /// the use of optional
-    std::optional<btRigidBody> rigidBody;
+    virtual std::string getName() const final override {
+        return "Chunked vector tests";
+    }
     
-    /// MotionState wraps a pointer to a TransformationComponent. This is possible
-    /// because TransformationComponents are stored in a ChunkedVector and their
-    /// position in memory is consistent throughout the existence of an Entity.
-    ///
-    /// \todo is this really enough or do I need aligned storage?
-    alignas(16) MotionState motionState;
-    
-    /// Required here because we delay the creation of the rigidBody component
-    float mass;
-    
-    CollisionShapeHandle collisionShape;
-    
-    virtual void attach(System* system, std::uint32_t ownID) final;
-    virtual void detach(System* system, std::uint32_t ownID) final;
-    
-    virtual ~Collider() { }
+    virtual void initialize() final override;
+    virtual TestResults run() final override;
+    virtual void cleanup() final override;
+private:
 };
+
 }
 
-#endif // COLLIDER_HPP
+#endif // IYF_CHUNKED_VECTOR_TESTS_HPP
+
+
+

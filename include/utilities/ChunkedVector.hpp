@@ -89,32 +89,21 @@ public:
     }
     
     inline void push_back(const T& value) {
-        //std::cout << "Copied\n";
-        
         std::size_t newSize = sizeVal + 1;
         reserve(newSize);
         
         T* destination = getPtr(sizeVal);
-        *destination = value;
+        new (destination) T(value);
         
         sizeVal = newSize;
     }
     
     inline void push_back(T&& value) {
-        //std::cout << "Moved\n";
         emplace_back(std::move(value));
-//         std::size_t newSize = sizeVal + 1;
-//         reserve(newSize);
-//         
-//         T* destination = getPtr(sizeVal);
-//         *destination = std::move(value);
-//         
-//         sizeVal = newSize;
     }
     
     template<typename... Args>
     T& emplace_back(Args&&... args) {
-        //std::cout << "Emplaced\n";
         
         std::size_t newSize = sizeVal + 1;
         reserve(newSize);
@@ -190,7 +179,6 @@ public:
     }
     
     inline const T& at(std::size_t id) const {
-        //std::cout << "Const\n";
         if (id >= sizeVal) {
             throw std::out_of_range("ID is too big.");
         }
@@ -199,16 +187,14 @@ public:
     }
     
     inline T& operator[](std::size_t id) {
-        //std::cout << "RegularBR\n";
         return *getPtr(id);
     }
     
     inline const T& operator[](std::size_t id) const {
-        //std::cout << "ConstBR\n";
         return *getPtr(id);
     }
     
-    inline std::size_t getChunkCount() const {
+    inline std::size_t chunkCount() const {
         return chunks.size();
     }
     

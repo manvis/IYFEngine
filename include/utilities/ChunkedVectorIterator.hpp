@@ -36,8 +36,6 @@ template <typename T, size_t chunkSize>
 class ChunkedVector;
 
 /// Iterator for ChunkedVector
-///
-/// \todo Maybe merge this with ChunkedVectorConstIterator using the magic of templates.
 template <typename A, typename T, size_t chunkSize>
 class ChunkedVectorIterator {
 public:
@@ -47,29 +45,33 @@ public:
     using reference = T&;
     using iterator_category = std::forward_iterator_tag;
     
-    ChunkedVectorIterator(std::size_t pos = static_cast<std::size_t>(-1), A* container = nullptr) : container(container) {
-        if (container != nullptr && pos != static_cast<std::size_t>(-1)) {
-            const std::size_t containerSize = container->size();
-            if (containerSize == 0 || pos == containerSize) {
+    ChunkedVectorIterator(std::size_t pos = static_cast<std::size_t>(-1), A* container = nullptr) : containerSize(0), currentPosition(pos), container(container) {
+        if (container != nullptr && currentPosition != static_cast<std::size_t>(-1)) {
+            containerSize = container->size();
+            if (containerSize == 0 || currentPosition >= containerSize) {
                 current = nullptr;
                 
                 return;
             }
             
-            currentChunkID = pos / chunkSize;
+            currentChunkID = currentPosition / chunkSize;
             nextSwitch = container->getChunkEnd(currentChunkID);
             
-            current = container->getPtr(pos);
+            current = container->getPtr(currentPosition);
         }
     }
     
     ChunkedVectorIterator& operator++() {
         current++;
-        if (current == nextSwitch) {
+        currentPosition++;
+        const bool pastLast = currentPosition >= containerSize;
+        if (current == nextSwitch && !pastLast) {
             currentChunkID++;
             current = container->getChunkStart(currentChunkID);
             
             nextSwitch = container->getChunkEnd(currentChunkID);
+        } else if (pastLast) {
+            current = nullptr;
         }
         
         return *this;
@@ -93,6 +95,8 @@ public:
         return *current;
     }
 private:
+    std::size_t containerSize;
+    std::size_t currentPosition;
     std::size_t currentChunkID;
     A* container;
     T* current;

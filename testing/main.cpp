@@ -41,6 +41,7 @@
 #include "BehaviourTreeTests.hpp"
 #include "MetadataSerializationTests.hpp"
 #include "ConfigurationTests.hpp"
+#include "ChunkedVectorTests.hpp"
 
 //#include "did/InitState.h"
 
@@ -107,7 +108,8 @@ int main(int, char*[]) {
 //    ADD_TESTS(CSVParserTests)
 //     ADD_TESTS(BehaviourTreeTests)
 //     ADD_TESTS(MetadataSerializationTests)
-    ADD_TESTS(ConfigurationTests)
+//     ADD_TESTS(ConfigurationTests)
+    ADD_TESTS(ChunkedVectorTests)
     
     runner.runTests();
     

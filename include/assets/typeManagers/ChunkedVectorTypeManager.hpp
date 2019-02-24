@@ -142,7 +142,7 @@ public:
     virtual void collectGarbage(GarbageCollectionRunPolicy policy = GarbageCollectionRunPolicy::FullCollection) override {
         // Pointer increments are signifficantly faster than lookups via [] operator. We can't
         // use the iterator here because we need to know the ids of the elements that need to be freed
-        std::size_t chunkCount = counts.getChunkCount();
+        std::size_t chunkCount = counts.chunkCount();
         std::size_t id = 0;
         
         for (std::size_t c = 0; c < chunkCount; ++c) {

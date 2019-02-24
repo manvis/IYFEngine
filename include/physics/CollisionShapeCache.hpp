@@ -44,8 +44,6 @@
 #include "utilities/ReferenceCountedHandle.hpp"
 #include "utilities/AlignedWrapper.hpp"
 
-#include <boost/optional.hpp>
-
 namespace iyf {
 const std::size_t ShapeVectorChunkSize = 1024;
 
@@ -58,7 +56,7 @@ struct alignas(16) CollisionShape {
     CollisionShape(CollisionShapeKey key, std::uint32_t uniqueID, std::uint32_t count) : key(key), uniqueID(uniqueID), count(count) {}
     
     /// Using optional gives us nice, in-place and delayed initialization
-    boost::optional<T> shape;
+    std::optional<T> shape;
     /// Used for reverse lookup
     CollisionShapeKey key;
     std::uint32_t uniqueID;
@@ -139,7 +137,7 @@ public:
                     }
                 }
                 
-                s.shape = boost::none;
+                s.shape = std::nullopt;
                 s.count = ClearedShape;
             }
         }
