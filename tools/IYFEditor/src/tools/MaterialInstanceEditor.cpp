@@ -39,8 +39,22 @@
 #include "utilities/ImGuiUtils.hpp"
 
 #include "imgui.h"
+#include "glm/gtc/type_ptr.hpp"
 
 namespace iyf::editor {
+inline bool PairVectorGetter(void* in, int idx, const char** out_text) {
+    std::vector<std::pair<MaterialRenderMode, std::string>>* names = static_cast<std::vector<std::pair<MaterialRenderMode, std::string>>*>(in);
+    
+     // Checking if we're in bounds
+    if (idx < 0 || idx >= static_cast<int>(names->size())) {
+        return false;
+    }
+
+    *out_text = (*names)[idx].second.c_str();
+    return true;
+}
+
+const char* MaterialInstanceEditorLocNamespace = "material_instances";
 
 MaterialInstanceEditor::MaterialInstanceEditor(Engine* engine) : engine(engine) {
     if (engine == nullptr) {
@@ -48,6 +62,14 @@ MaterialInstanceEditor::MaterialInstanceEditor(Engine* engine) : engine(engine) 
     }
     
     assetManager = engine->getAssetManager();
+    
+    constexpr std::size_t renderModeCount = static_cast<std::size_t>(MaterialRenderMode::COUNT);
+    materialRenderModeNames.reserve(renderModeCount);
+    
+    for (std::size_t i = 0; i < renderModeCount; ++i) {
+        const MaterialRenderMode renderMode = static_cast<MaterialRenderMode>(i);
+        materialRenderModeNames.emplace_back(std::make_pair(renderMode, LOC_SYS(con::GetMaterialRenderModeLocalizationHandle(renderMode))));
+    }
 }
 
 void MaterialInstanceEditor::show(bool* showing) {
@@ -66,36 +88,134 @@ void MaterialInstanceEditor::show(bool* showing) {
 //     }
 /*    
     MaterialInstanceMetadata instanceMetadata = (*metadata).get<MaterialInstanceMetadata>();*/
-    if (ImGui::Begin("Material instance editor", showing)) {
+    const std::string windowName = LOC_SYS(LH("material_instance_editor", MaterialInstanceEditorLocNamespace), filePath.generic_string());
+    if (ImGui::Begin(windowName.c_str(), showing)) {
         
-        ImGui::Text("MID");
+        if (ImGui::Button("Save")) {
+            std::vector<std::pair<StringHash, glm::vec4>> variableVector;
+            variableVector.reserve(instanceVariables.size());
+            for (const auto& v : instanceVariables) {
+                variableVector.emplace_back(v);
+            }
+            
+            std::vector<std::pair<StringHash, StringHash>> textureVector;
+            variableVector.reserve(instanceTextures.size());
+            for (const auto& t : instanceTextures) {
+                textureVector.emplace_back(t);
+            }
+            
+            instanceDefinition->setMaterialTemplateDefinition(materialTemplateAsset, variableVector, textureVector);
+            instanceDefinition->setRenderMode(materialRenderMode);
+            
+            File output(filePath, File::OpenMode::Write);
+            const std::string result = instanceDefinition->getJSONString();
+            output.writeBytes(result.data(), result.size());
+        }
         
-        const StringHash sh = instanceDefinition->getMaterialTemplateDefinition();
-        const auto templateMetadata = assetManager->getMetadataCopy(sh);
+        ImGui::SameLine();
         
+        const auto templateMetadata = assetManager->getMetadataCopy(materialTemplateAsset);
+        const float dropTargetWidth = ImGui::GetContentRegionAvailWidth();
         if (!templateMetadata) {
-            ImGui::Text("Undefined material template");
+            util::AssetDragDropTarget("Undefined Material Template", AssetType::MaterialTemplate, std::bind(&MaterialInstanceEditor::changeAsset, this, std::placeholders::_1), ImVec2(dropTargetWidth, 0));
         } else {
             const auto& value = templateMetadata.value();
             const MaterialTemplateMetadata& metadata = value.get<MaterialTemplateMetadata>();
-            ImGui::Text("Material template: %s", metadata.getSourceAssetPath().c_str());
+            const std::string text = fmt::format("Material template: {}", metadata.getSourceAssetPath().generic_string());
+            util::AssetDragDropTarget(text.c_str(), AssetType::MaterialTemplate, std::bind(&MaterialInstanceEditor::changeAsset, this, std::placeholders::_1), ImVec2(dropTargetWidth, 0));
+            
+            int currentItem = static_cast<int>(materialRenderMode);
+            
+            if (ImGui::Combo("Render Mode", &currentItem, PairVectorGetter, &materialRenderModeNames, materialRenderModeNames.size())) {
+                materialRenderMode = static_cast<MaterialRenderMode>(currentItem);
+            }
+            
+            // TODO implement and listen to callbacks instead of doing all this work every frame.
+            std::vector<MaterialInputTexture> textures = metadata.getRequiredTextures();
+            std::sort(textures.begin(), textures.end(), [](const MaterialInputTexture& a, const MaterialInputTexture& b) {
+                return a.getName() < b.getName();
+            });
+            
+            ImGui::Text("Textures");
+            for (const MaterialInputTexture& t : textures) {
+                const float imageHeight = 64;
+                const float midpoint = (imageHeight - ImGui::GetFont()->FontSize) / 2;
+                
+                const std::string& name = t.getName();
+                const StringHash nameHash = t.getNameHash();
+                auto result = instanceTextures.find(nameHash);
+                
+                const bool instanceOverrideExists = (result != instanceTextures.end());
+                const StringHash textureToUse = instanceOverrideExists ? result->second : t.getDefaultTexture();
+                
+                util::AssetDragDropImageTarget(textureToUse, ImVec2(imageHeight, imageHeight), [this, &nameHash, &instanceOverrideExists, &result](const util::DragDropAssetPayload& payload) {
+                    if (instanceOverrideExists) {
+                        result->second = payload.getNameHash();
+                    } else {
+                        instanceTextures.emplace(nameHash, payload.getNameHash());
+                    }
+                });
+                
+                ImGui::SameLine();
+                
+                const ImVec2 cursorPos = ImGui::GetCursorPos();
+                ImGui::SetCursorPos(ImVec2(cursorPos.x, cursorPos.y + midpoint));
+                ImGui::TextUnformatted(name.data(), name.data() + name.length());
+                
+                ImGui::SameLine();
+                
+                if (instanceOverrideExists) {
+                    ImGui::Text("(o)");
+                    util::ShowTooltip("Overridden by the instance definition");
+                } else {
+                    ImGui::Text("(d)");
+                    util::ShowTooltip("Default value from the template definition");
+                }
+                
+                const ImVec2 newLinePos = ImGui::GetCursorPos();
+                ImGui::SetCursorPos(ImVec2(newLinePos.x, newLinePos.y - midpoint));
+            }
+            
+            std::vector<MaterialInputVariable> variables = metadata.getRequiredVariables();
+            std::sort(variables.begin(), variables.end(), [](const MaterialInputVariable& a, const MaterialInputVariable& b) {
+                return a.getName() < b.getName();
+            });
+            
+            ImGui::Text("Variables");
+            for (const MaterialInputVariable& v : variables) {
+                const std::string& name = v.getName();
+                const StringHash nameHash = v.getNameHash();
+                auto result = instanceVariables.find(nameHash);
+                
+                const bool instanceOverrideExists = (result != instanceVariables.end());
+                glm::vec4 values = instanceOverrideExists ? result->second : v.getDefaultValue();
+                
+                if (ImGui::DragFloat4(name.c_str(), glm::value_ptr(values))) {
+                    if (instanceOverrideExists) {
+                        result->second = values;
+                    } else {
+                        instanceVariables.emplace(nameHash, values);
+                    }
+                }
+                ImGui::SameLine();
+                
+                if (instanceOverrideExists) {
+                    ImGui::Text("(o)");
+                    util::ShowTooltip("Overridden by the instance definition");
+                } else {
+                    ImGui::Text("(d)");
+                    util::ShowTooltip("Default value from the template definition");
+                }
+            }
         }
         
-//         if (sh == 0) {
-//             ImGui::Text("Undefined material template");
-//         } else {
-//             ImGui::Text("Material template: %lu", sh.value());
-//         }
+        util::ShowTooltip("Drop Material Template asset here");
         
         ImGui::End();
     }
 }
 void MaterialInstanceEditor::setFilePath(const fs::path& path) {
     filePath = path;
-//     
-//     VirtualFileSystemSerializer serializer(path, File::OpenMode::Read);
-//     instanceDefinition = std::make_unique<MaterialInstanceDefinition>();
-//     instanceDefinition->deserialize(serializer);
     
     File in(filePath, File::OpenMode::Read);
     auto wholeFile = in.readWholeFile();
@@ -104,10 +224,30 @@ void MaterialInstanceEditor::setFilePath(const fs::path& path) {
     
     instanceDefinition = std::make_unique<MaterialInstanceDefinition>();
     instanceDefinition->deserializeJSON(document);
+    
+    materialRenderMode = instanceDefinition->getRenderMode();
+    materialTemplateAsset = instanceDefinition->getMaterialTemplateDefinition();
+    
+    instanceTextures.clear();
+    for (const auto& t : instanceDefinition->getTextures()) {
+        instanceTextures.emplace(t.first, t.second);
+    }
+    
+    instanceVariables.clear();
+    for (const auto& t : instanceDefinition->getVariables()) {
+        instanceVariables.emplace(t.first, t.second);
+    }
 }
 
 std::string MaterialInstanceEditor::CreateNew() {
     MaterialInstanceDefinition mid;
     return mid.getJSONString();
 }
+
+void MaterialInstanceEditor::changeAsset(const util::DragDropAssetPayload& payload) {
+    assert(payload.type == AssetType::MaterialTemplate);
+    
+    materialTemplateAsset = payload.getNameHash();
+}
+
 }

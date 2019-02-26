@@ -33,31 +33,13 @@
 #include "core/Constants.hpp"
 #include "core/interfaces/Serializable.hpp"
 #include "core/interfaces/TextSerializable.hpp"
-#include "localization/TextLocalization.hpp"
+#include "graphics/materials/MaterialRenderMode.hpp"
 
 #include "glm/vec4.hpp"
 
 #include <vector>
 
 namespace iyf {
-    
-/// \brief List of all supported ways to render materials
-/// \warning Each mode must have a corresponding entry in MaterialRenderModeNames
-enum class MaterialRenderMode : std::uint8_t {
-    Opaque      = 0,
-    Transparent = 1,
-    // TODO cutout, wireframe
-    COUNT
-};
-namespace con {
-/// \remark This function does not return a user friendly name. Use GetMaterialRenderModeLocalizationHandle() and the localization DB if you
-/// need one.
-/// \return the name of the MaterialRenderMode.
-const std::string& GetMaterialRenderModeName(MaterialRenderMode renderMode);
-
-const LocalizationHandle& GetMaterialRenderModeLocalizationHandle(MaterialRenderMode renderMode);
-}
-
 /// This class stores material data and metadata for editing, serializes it into files and is used by the World objects to 
 /// instantiate Material objects that contain data used by the GPU during rendering.
 class MaterialInstanceDefinition : public Serializable, public TextSerializable {

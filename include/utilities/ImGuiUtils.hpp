@@ -64,12 +64,15 @@ inline void DisplayFlagPicker(const std::string& comboName, T& inOut, T defaultV
 
 const char* GetPayloadNameForAssetType(AssetType type);
 
-void AssetDragDropTarget(const char* text, AssetType type, std::function<void(DragDropAssetPayload)> callback);
+void AssetDragDropTarget(const char* text, AssetType type, std::function<void(DragDropAssetPayload)> callback, const ImVec2& dimensions = ImVec2(0.0f, 0.0f), const ImVec2& textAlignment = ImVec2(0.0f, 0.5f));
 void AssetDragDropImageTarget(StringHash currentImageID, ImVec2 dimensions, std::function<void(DragDropAssetPayload)> callback);
 
 inline void SquareConstraint(ImGuiSizeCallbackData* data) {
     data->DesiredSize = ImVec2(std::max(data->DesiredSize.x, data->DesiredSize.y), std::max(data->DesiredSize.x, data->DesiredSize.y));
 }
+
+void ShowTooltip(const char* text);
+void ShowTooltip(const std::string& text);
 
 }
 }

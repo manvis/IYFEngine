@@ -26,26 +26,33 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_DRAG_DROP_ASSET_PAYLOAD_HPP
-#define IYF_DRAG_DROP_ASSET_PAYLOAD_HPP
+#ifndef IYF_MATERIAL_RENDER_MODE_HPP
+#define IYF_MATERIAL_RENDER_MODE_HPP
 
-#include "utilities/hashing/Hashing.hpp"
+#include "localization/TextLocalization.hpp"
+#include <cstdint>
 
-namespace iyf::util {
+namespace iyf {
 
-struct DragDropAssetPayload {
-    inline DragDropAssetPayload() : nameHash(0), type(AssetType::COUNT) {}
-    inline DragDropAssetPayload(StringHash hash, AssetType type) : nameHash(hash), type(type) {}
-    
-    // Can't use StringHash here because it causes a warning
-    std::uint64_t nameHash;
-    AssetType type;
-    
-    inline StringHash getNameHash() const {
-        return StringHash(nameHash);
-    }
+/// \brief List of all supported ways to render materials
+/// \warning Each mode must have a corresponding entry in MaterialRenderModeNames
+enum class MaterialRenderMode : std::uint8_t {
+    Opaque      = 0,
+    Transparent = 1,
+    // TODO cutout, wireframe
+    COUNT
 };
+
+namespace con {
+/// \remark This function does not return a user friendly name. Use GetMaterialRenderModeLocalizationHandle() and the localization DB if you
+/// need one.
+/// \return the name of the MaterialRenderMode.
+const std::string& GetMaterialRenderModeName(MaterialRenderMode renderMode);
+
+const LocalizationHandle& GetMaterialRenderModeLocalizationHandle(MaterialRenderMode renderMode);
+}
+
 
 }
 
-#endif // IYF_DRAG_DROP_ASSET_PAYLOAD_HPP
+#endif // IYF_MATERIAL_RENDER_MODE_HPP

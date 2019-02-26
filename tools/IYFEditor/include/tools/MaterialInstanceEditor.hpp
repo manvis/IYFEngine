@@ -30,14 +30,20 @@
 #define IYF_MATERIAL_INSTANCE_EDITOR_HPP
 
 #include <string>
-// #include "utilities/hashing/Hashing.hpp"
-// #include "assets/metadata/MaterialInstanceMetadata.hpp"
+#include <unordered_map>
+#include "graphics/materials/MaterialInputs.hpp"
+#include "graphics/materials/MaterialRenderMode.hpp"
 #include "core/filesystem/cppFilesystem.hpp"
 
 namespace iyf {
 class Engine;
 class AssetManager;
 class MaterialInstanceDefinition;
+
+namespace util {
+struct DragDropAssetPayload;
+}
+
 }
 
 namespace iyf::editor {
@@ -54,11 +60,18 @@ public:
     
     static std::string CreateNew();
 protected:
+    void changeAsset(const util::DragDropAssetPayload& payload);
+    
+    StringHash materialTemplateAsset;
+    
     fs::path filePath;
     Engine* engine;
     AssetManager* assetManager;
     std::unique_ptr<MaterialInstanceDefinition> instanceDefinition;
-//     MaterialInstanceMetadata lastMetadata;
+    std::unordered_map<StringHash, glm::vec4> instanceVariables;
+    std::unordered_map<StringHash, StringHash> instanceTextures;
+    std::vector<std::pair<MaterialRenderMode, std::string>> materialRenderModeNames;
+    MaterialRenderMode materialRenderMode;
 };
 
 }

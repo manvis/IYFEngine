@@ -63,8 +63,11 @@ const char* GetPayloadNameForAssetType(AssetType type) {
     throw std::runtime_error("Unknown AssetType value");
 }
 
-void AssetDragDropTarget(const char* text, AssetType type, std::function<void(DragDropAssetPayload)> callback) {
-    ImGui::Text("%s", text);
+void AssetDragDropTarget(const char* text, AssetType type, std::function<void(DragDropAssetPayload)> callback, const ImVec2& dimensions, const ImVec2& textAlignment) {
+    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, textAlignment);
+    ImGui::Button(text, dimensions);
+    ImGui::PopStyleVar();
+    
     if (ImGui::BeginDragDropTarget()) {
         const char* payloadName = util::GetPayloadNameForAssetType(type);
         
@@ -74,7 +77,9 @@ void AssetDragDropTarget(const char* text, AssetType type, std::function<void(Dr
             DragDropAssetPayload payloadDestination;
             std::memcpy(&payloadDestination, payload->Data, sizeof(DragDropAssetPayload));
             
-            callback(payloadDestination);
+            if (callback) {
+                callback(payloadDestination);
+            }
         }
         ImGui::EndDragDropTarget();
     }
@@ -92,10 +97,32 @@ void AssetDragDropImageTarget(StringHash currentImageID, ImVec2 dimensions, std:
             DragDropAssetPayload payloadDestination;
             std::memcpy(&payloadDestination, payload->Data, sizeof(DragDropAssetPayload));
             
-            callback(payloadDestination);
+            if (callback) {
+                callback(payloadDestination);
+            }
         }
         
         ImGui::EndDragDropTarget();
+    }
+}
+
+void ShowTooltip(const char* text) {
+    if (ImGui::IsItemHovered()) {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(450.0f);
+        ImGui::TextUnformatted(text);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
+
+void ShowTooltip(const std::string& text) {
+    if (ImGui::IsItemHovered()) {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(450.0f);
+        ImGui::TextUnformatted(text.c_str(), text.c_str() + text.length());
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
     }
 }
 

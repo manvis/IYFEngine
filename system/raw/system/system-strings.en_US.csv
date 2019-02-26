@@ -344,3 +344,4 @@ blend_fac_src_alpha,graphics,Source Alpha
 blend_fac_one_minus_src_alpha,graphics,One Minus Source Alpha
 blend_fac_dst_alpha,graphics,Destination Alpha
 blend_fac_one_minus_dst_alpha,graphics,One Minus Destination Alpha
+material_instance_editor,material_instances,Material Instance Editor - {0}###MatInstEdWindow

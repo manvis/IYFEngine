@@ -54,6 +54,7 @@ const LocalizationHandle& GetMaterialRenderModeLocalizationHandle(MaterialRender
 }
 
 void MaterialInstanceDefinition::serialize(Serializer& fw) const {
+    fw.writeUInt64(materialTemplateDefinition);
     fw.writeUInt8(static_cast<std::uint8_t>(renderMode));
     
     fw.writeUInt16(variables.size());
@@ -74,6 +75,7 @@ void MaterialInstanceDefinition::serialize(Serializer& fw) const {
 }
 
 void MaterialInstanceDefinition::deserialize(Serializer& fr) {
+    materialTemplateDefinition = StringHash(fr.readUInt64());
     renderMode = static_cast<MaterialRenderMode>(fr.readUInt8());
     
     const std::size_t variableCount = fr.readUInt16();
@@ -105,6 +107,7 @@ void MaterialInstanceDefinition::deserialize(Serializer& fr) {
     }
 }
 
+constexpr const char* MATERIAL_TEMPLATE_DEFINITION_FIELD_NAME = "materialTemplate";
 constexpr const char* RENDER_MODE_FIELD_NAME = "renderMode";
 constexpr const char* VARIABLES_FIELD_NAME = "variables";
 constexpr const char* TEXTURES_FIELD_NAME = "textures";
@@ -117,6 +120,9 @@ constexpr const char* W_FIELD_NAME = "w";
 
 void MaterialInstanceDefinition::serializeJSON(PrettyStringWriter& pw) const {
     pw.StartObject();
+    
+    pw.String(MATERIAL_TEMPLATE_DEFINITION_FIELD_NAME);
+    pw.Uint64(materialTemplateDefinition);
     
     pw.String(RENDER_MODE_FIELD_NAME);
     pw.Uint(static_cast<unsigned>(renderMode));
@@ -167,6 +173,7 @@ void MaterialInstanceDefinition::serializeJSON(PrettyStringWriter& pw) const {
 }
 
 void MaterialInstanceDefinition::deserializeJSON(JSONObject& jo) {
+    materialTemplateDefinition = StringHash(jo[MATERIAL_TEMPLATE_DEFINITION_FIELD_NAME].GetUint64());
     renderMode = static_cast<MaterialRenderMode>(jo[RENDER_MODE_FIELD_NAME].GetUint());
     
     rj::GenericArray varArray = jo[VARIABLES_FIELD_NAME].GetArray();

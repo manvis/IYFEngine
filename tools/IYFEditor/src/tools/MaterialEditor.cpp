@@ -247,7 +247,7 @@ void ShowTextureInputNodeUI(MaterialNode& node) {
     ImGui::Text("Default texture");
     
     const float contentWidth = ImGui::GetContentRegionAvailWidth();
-    util::AssetDragDropImageTarget(n.getDefaultTexture(), ImVec2(contentWidth, contentWidth), [&n](DragDropAssetPayload payloadDestination) {
+    util::AssetDragDropImageTarget(n.getDefaultTexture(), ImVec2(contentWidth, contentWidth), [&n](util::DragDropAssetPayload payloadDestination) {
         n.setDefaultTexture(payloadDestination.getNameHash());
     });
 

@@ -119,6 +119,7 @@ graphics/imgui/ImGuiImplementation.cpp
 graphics/imgui/imgui.cpp
 graphics/imgui/imgui_demo.cpp
 graphics/imgui/imgui_draw.cpp
+graphics/imgui/imgui_widgets.cpp
 graphics/imgui/imguiCustom.cpp
 #--------------------- materials
 graphics/materials/MaterialDatabase.cpp

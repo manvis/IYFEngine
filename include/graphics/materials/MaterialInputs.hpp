@@ -60,6 +60,10 @@ public:
         return componentCount != 0;
     }
     
+    inline StringHash getNameHash() const {
+        return HS(name);
+    }
+    
     friend bool operator==(const MaterialInputVariable& a, const MaterialInputVariable& b) {
         return (a.defaultValue == b.defaultValue) &&
                (a.name == b.name) &&
@@ -88,6 +92,10 @@ public:
     /// \warning If this returns false, no other getters can be used safely and this MaterialInputVariable should just be ignored
     inline bool isValid() const {
         return (defaultTexture != 0) && (!name.empty());
+    }
+    
+    inline StringHash getNameHash() const {
+        return HS(name);
     }
     
     friend bool operator==(const MaterialInputTexture& a, const MaterialInputTexture& b) {

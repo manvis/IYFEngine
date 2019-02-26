@@ -72,13 +72,6 @@
 #define ADD_REMOVE_COMPONENT_BUTTON_WIDTH 60
 
 namespace iyf::editor {
-// TODO implement TOOLTIPS, like in imgui_demo.cpp:
-//    ImGui::BeginTooltip();
-//    ImGui::PushTextWrapPos(450.0f);
-//    ImGui::TextUnformatted(desc);
-//    ImGui::PopTextWrapPos();
-//    ImGui::EndTooltip();
-
 EditorState::EditorState(iyf::Engine* engine) : GameState(engine),
         newLevelDialogRequested(false), levelName("test_level_name"), levelDescription("test_level_desc"), isPickPlaceMode(false), 
         pickOrPlaceModeId(0), worldType(0), entityName("a"), cameraMode(CameraMode::Stationary), materialFamilyEditorOpen(true), materialTemplateEditorOpen(false),
@@ -615,11 +608,8 @@ void EditorState::handlePickOrPlaceMode(const char* modeName, bool buttonPressed
 
 void EditorState::showUnableToInstanceTooltip(const std::string& tooltip) {
     ImGui::Text("N/A");
-    if (ImGui::IsItemHovered()) {
-        ImGui::BeginTooltip();
-        ImGui::Text("%s", tooltip.c_str());
-        ImGui::EndTooltip();
-    }
+    
+    util::ShowTooltip(tooltip);
 }
 
 void EditorState::showMaterialEditorWindow() {
@@ -642,11 +632,7 @@ void EditorState::showMaterialEditorWindow() {
     ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - buttonWidth);
     ImGui::Button("+", ImVec2(buttonWidth, 0));
     
-    if (ImGui::IsItemHovered()) {
-        ImGui::BeginTooltip();
-        ImGui::Text("Create a copy of this material.");
-        ImGui::EndTooltip();
-    }
+    util::ShowTooltip("Create a copy of this material.");
     
     ImGui::Columns(2);
     draw2DColorDataSlot(materialComponents[0], "Albedo", con::ColorChannelCountFlagBits::Four);
@@ -819,7 +805,7 @@ void EditorState::printBufferInfo(const char* name, const std::vector<MeshTypeMa
 }
 
 void EditorState::showWorldEditorWindow() {
-//     ImGui::ShowTestWindow();
+//     ImGui::ShowDemoWindow();
 //    
     IYFT_PROFILE(WorldEditorWindow, iyft::ProfilerTag::Editor)
     
@@ -854,11 +840,7 @@ void EditorState::showWorldEditorWindow() {
 //                    // TODO create a copy of the entity in the world world
 //                }
 //
-//                if (ImGui::IsItemHovered()) {
-//                    ImGui::BeginTooltip();
-//                    ImGui::Text("Create a copy of this entity in the world");
-//                    ImGui::EndTooltip();
-//                }
+//                util::ShowTooltip("Create a copy of this entity in the world");
 //
 //                ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 20);
 //
@@ -866,11 +848,7 @@ void EditorState::showWorldEditorWindow() {
 //                    // TODO delete entity from world
 //                }
 //
-//                if (ImGui::IsItemHovered()) {
-//                    ImGui::BeginTooltip();
-//                    ImGui::Text("Remove this entity from the world");
-//                    ImGui::EndTooltip();
-//                }
+//                util::ShowTooltip("Remove this entity from the world");
 //            }
         }
         
@@ -888,9 +866,9 @@ void EditorState::showWorldEditorWindow() {
     
     ImGui::Columns(2);
     
-    util::AssetDragDropTarget("Drop Mesh here", AssetType::Mesh, [this](DragDropAssetPayload payloadDestination) {
+    util::AssetDragDropTarget("Drop Mesh here", AssetType::Mesh, [this](util::DragDropAssetPayload payloadDestination) {
         world->addStaticMesh(payloadDestination.getNameHash());
-    });
+    }, ImVec2(-1, 0));
     
     ImGui::NextColumn();
     ImGui::Text("Static mesh entity");
@@ -902,9 +880,9 @@ void EditorState::showWorldEditorWindow() {
 //         world->addDynamicMesh(hash32_t(asset.id));
 //     }
     
-    util::AssetDragDropTarget("Drop Mesh here", AssetType::Mesh, [this](DragDropAssetPayload payloadDestination) {
+    util::AssetDragDropTarget("Drop Mesh here", AssetType::Mesh, [this](util::DragDropAssetPayload payloadDestination) {
         world->addDynamicMesh(payloadDestination.getNameHash());
-    });
+    }, ImVec2(-1, 0));
     
     ImGui::NextColumn();
     ImGui::Text("Dynamic mesh entity");
@@ -1559,7 +1537,7 @@ void EditorState::showAssetWindow() {
             if (a.imported && !a.isDirectory) {
                 if (ImGui::BeginDragDropSource()) {
                     ImGui::Text("File: %s\n%s asset", fileName.c_str(), con::AssetTypeToTranslationString(type).c_str());
-                    DragDropAssetPayload payload(a.hash, type);
+                    util::DragDropAssetPayload payload(a.hash, type);
                     ImGui::SetDragDropPayload(util::GetPayloadNameForAssetType(type), &payload, sizeof(payload));
                     ImGui::EndDragDropSource();
                 }
@@ -1686,7 +1664,7 @@ void ImGuiLog::show(const std::string& logStr) {
 //    }
 //
     if (lastLogLength != logStr.length()) {
-        ImGui::SetScrollHere(1.0f);
+        ImGui::SetScrollHereY(1.0f);
         lastLogLength = logStr.length();
     }
         
