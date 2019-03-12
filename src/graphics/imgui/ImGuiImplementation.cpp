@@ -58,7 +58,6 @@ static const size_t MAX_IMGUI_IBO = sizeof(ImDrawIdx) * 8192 * 8;
 static const std::uint32_t MAX_DESCRIPTOR_COUNT = 64;
 static const std::uint32_t MAX_UNIFORM_BUFFER_DESCRIPTOR_COUNT = 1;
 static const std::uint32_t MAX_COMBINED_IMAGE_SAMPLER_DESCRIPTOR_COUNT = 63;
-static const std::uint64_t MAX_FRAMES_BEFORE_TEXTURE_CLEAR = 30;
     
 bool ImGuiImplementation::requestRenderThisFrame() {
     // Don't repeat initialization. Just in case 2 states get drawn at the same time (e.g., game and pause) and both have separate GUIs
@@ -161,9 +160,6 @@ void ImGuiImplementation::onTextInput(const char* text) {
 }
 
 void ImGuiImplementation::initialize() {
-    scissorRects.clear();
-    scissorRects.resize(1);
-    
     context = ImGui::CreateContext();
     ImGui::SetCurrentContext(context);
     
@@ -253,25 +249,25 @@ void ImGuiImplementation::initializeAssets() {
     uici.dimensions = glm::ivec2(fontAtlasWidth, fontAtlasHeight);
     uici.data = pixelData;
     
-    fontAtlas = gfxAPI->createUncompressedImage(uici);
+    fontAtlas = gfxAPI->createUncompressedImage(uici, "ImGui font atlas image");
     
     imguiDefaultSampler = gfxAPI->createPresetSampler(SamplerPreset::ImguiTexture);
     customTextureSampler = gfxAPI->createPresetSampler(SamplerPreset::Default3DModel);
     
-    fontView = gfxAPI->createDefaultImageView(fontAtlas);
+    fontView = gfxAPI->createDefaultImageView(fontAtlas, "ImGui font atlas image view");
     io.Fonts->TexID = nullptr;//fontView.toNative<void*>();
     
     // Descriptor pool and layouts
     DescriptorPoolCreateInfo dpci{MAX_DESCRIPTOR_COUNT, {{DescriptorType::UniformBuffer, MAX_UNIFORM_BUFFER_DESCRIPTOR_COUNT},
                                                          {DescriptorType::CombinedImageSampler, MAX_COMBINED_IMAGE_SAMPLER_DESCRIPTOR_COUNT}}};
-    descriptorPool = gfxAPI->createDescriptorPool(dpci);
+    descriptorPool = gfxAPI->createDescriptorPool(dpci, "ImGui descriptor pool");
     
     DescriptorSetLayoutCreateInfo dslci{{{0, DescriptorType::CombinedImageSampler, 1, ShaderStageFlagBits::Fragment, {}}}};
-    descriptorSetLayout = gfxAPI->createDescriptorSetLayout(dslci);
+    descriptorSetLayout = gfxAPI->createDescriptorSetLayout(dslci, "ImGui descriptor set layout");
     
     // Shaders and pipelines
     PipelineLayoutCreateInfo plci{{descriptorSetLayout}, {{ShaderStageFlagBits::Vertex, 0, sizeof(glm::mat4)}}};
-    pipelineLayout = gfxAPI->createPipelineLayout(plci);
+    pipelineLayout = gfxAPI->createPipelineLayout(plci, "ImGui pipeline layout");
     
     PipelineCreateInfo pci;
     
@@ -301,7 +297,7 @@ void ImGuiImplementation::initializeAssets() {
         {{0, 0, Format::R32_G32_sFloat, offsetof(ImDrawVert, pos)},
          {1, 0, Format::R32_G32_sFloat, offsetof(ImDrawVert, uv)},
          {2, 0, Format::R8_G8_B8_A8_uNorm, offsetof(ImDrawVert, col)}};
-    pci.dynamicState.dynamicStates = {DynamicState::Scissor};
+    pci.dynamicState.dynamicStates = {DynamicState::Scissor, DynamicState::Viewport};
     
          
     pci.layout = pipelineLayout;
@@ -310,26 +306,45 @@ void ImGuiImplementation::initializeAssets() {
     pci.renderPass = passData.first;
     pci.subpass = passData.second;
     
-    pipeline = gfxAPI->createPipeline(pci);
+    pipeline = gfxAPI->createPipeline(pci, "ImGui pipeline");
     
     // Create index and vertex buffers
     
 //    IndexType it = (sizeof(ImDrawIdx) == 2) ? IndexType::UInt16 : IndexType::UInt32;
     
-    std::vector<Buffer> vboibo;
+    const std::size_t swapImageCount = gfxAPI->getSwapImageCount();
+    
+    // VBOs
     std::vector<BufferCreateInfo> bci;
-    bci.emplace_back(BufferUsageFlagBits::VertexBuffer, Bytes(MAX_IMGUI_VBO), MemoryUsage::CPUToGPU, true, "ImGui VBO");
-    bci.emplace_back(BufferUsageFlagBits::IndexBuffer,  Bytes(MAX_IMGUI_IBO), MemoryUsage::CPUToGPU, true, "ImGui IBO");
+    bci.reserve(swapImageCount);
     
-    vboibo = gfxAPI->createBuffers(bci);
+    std::vector<std::string> bufferNames;
+    bufferNames.reserve(swapImageCount);
     
-    VBOs.push_back(vboibo[0]);
-    IBO = vboibo[1];
-//    VertexBufferSlice vboSlice = gfxAPI->createVertexBuffer(MAX_IMGUI_VBO, BufferUpdateFrequency::OncePerFrame);
-//    IBO = gfxAPI->createIndexBuffer(MAX_IMGUI_IBO, it, BufferUpdateFrequency::OncePerFrame);
-//    
-//    VBOs.push_back(vboSlice);
-//    
+    std::vector<const char*> bufferNamesCStr;
+    bufferNamesCStr.reserve(swapImageCount);
+    
+    for (std::size_t i = 0; i < swapImageCount; ++i) {
+        bci.emplace_back(BufferUsageFlagBits::VertexBuffer, Bytes(MAX_IMGUI_VBO), MemoryUsage::CPUToGPU, true);
+        bufferNames.emplace_back(fmt::format("ImGui VBO {}", i));
+        bufferNamesCStr.emplace_back(bufferNames[i].data());
+    }
+    
+    VBOs = gfxAPI->createBuffers(bci, &bufferNamesCStr);
+    
+    // IBOs
+    bci.clear();
+    bufferNames.clear();
+    bufferNamesCStr.clear();
+    
+    for (std::size_t i = 0; i < swapImageCount; ++i) {
+        bci.emplace_back(BufferUsageFlagBits::IndexBuffer,  Bytes(MAX_IMGUI_IBO), MemoryUsage::CPUToGPU, true);
+        bufferNames.emplace_back(fmt::format("ImGui IBO {}", i));
+        bufferNamesCStr.emplace_back(bufferNames[i].data());
+    }
+    
+    IBOs = gfxAPI->createBuffers(bci, &bufferNamesCStr);
+    
     // Write descriptors for font atlas texture
     DescriptorSetAllocateInfo dsai{descriptorPool, {descriptorSetLayout}};
     atlasDescriptorSet = gfxAPI->allocateDescriptorSets(dsai)[0];
@@ -378,14 +393,11 @@ void ImGuiImplementation::disposeAssets() {
     gfxAPI->destroySampler(imguiDefaultSampler);
     gfxAPI->destroySampler(customTextureSampler);
     
-    std::vector<Buffer> buffers;
-    buffers.push_back(VBOs[0]);
-    buffers.push_back(IBO);
+    gfxAPI->destroyBuffers(VBOs);
+    gfxAPI->destroyBuffers(IBOs);
     
-    gfxAPI->destroyBuffers(buffers);
-//    gfxAPI->destroyVertexBuffer(VBOs[0]);
-//    gfxAPI->destroyIndexBuffer(IBO);
     VBOs.clear();
+    IBOs.clear();
 }
 
 bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
@@ -420,6 +432,12 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
     
     cmdBuff->bindPipeline(pipeline);
     
+    Viewport vp;
+    vp.width = scaledWidth;
+    vp.height = scaledHeight;
+    
+    cmdBuff->setViewport(0, vp);
+    
     size_t totalVertexSize = drawData->TotalVtxCount * sizeof(ImDrawVert);
     size_t totalIndexSize = drawData->TotalIdxCount * sizeof(ImDrawIdx);
     
@@ -432,6 +450,12 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
     
     const glm::mat4 P = glm::orthoRH(0.0f, static_cast<float>(io.DisplaySize.x), 0.0f, static_cast<float>(io.DisplaySize.y), 0.0f, 1.0f);
     cmdBuff->pushConstants(pipelineLayout, ShaderStageFlagBits::Vertex, 0, sizeof(glm::mat4), glm::value_ptr(P));
+    
+    const std::size_t swapImageCount = gfxAPI->getSwapImageCount();
+    const std::size_t currentSwapchainImage = gfxAPI->getCurrentSwapImage();
+    
+    const Buffer& currentVBO = VBOs[currentSwapchainImage];
+    const Buffer& currentIBO = IBOs[currentSwapchainImage];
     
     {
         IYFT_PROFILE(UploadImGuiData, iyft::ProfilerTag::Graphics);
@@ -448,28 +472,28 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
             void* indexData = cmdList->IdxBuffer.Data;
             
             const Bytes totalVertexSize = memoryManager->computeUploadSize(vertexBufferCopy);
-            if (memoryManager->isStagingBufferNeeded(VBOs[0]) && !memoryManager->canBatchFitData(MemoryBatch::PerFrameData, totalVertexSize)) {
+            if (memoryManager->isStagingBufferNeeded(currentVBO) && !memoryManager->canBatchFitData(MemoryBatch::PerFrameData, totalVertexSize)) {
                 throw std::runtime_error("Not enough memory in the staging buffer to transfer ImGui vertex data");
             }
             
-            memoryManager->updateBuffer(MemoryBatch::PerFrameData, VBOs[0], vertexBufferCopy, vertexData);
+            memoryManager->updateBuffer(MemoryBatch::PerFrameData, currentVBO, vertexBufferCopy, vertexData);
             
             
             const Bytes totalIndexSize = memoryManager->computeUploadSize(indexBufferCopy);
-            if (memoryManager->isStagingBufferNeeded(IBO) && !memoryManager->canBatchFitData(MemoryBatch::PerFrameData, totalIndexSize)) {
+            if (memoryManager->isStagingBufferNeeded(currentIBO) && !memoryManager->canBatchFitData(MemoryBatch::PerFrameData, totalIndexSize)) {
                 throw std::runtime_error("Not enough memory in the staging buffer to transfer ImGui index data");
             }
             
-            memoryManager->updateBuffer(MemoryBatch::PerFrameData, IBO, indexBufferCopy, indexData);
+            memoryManager->updateBuffer(MemoryBatch::PerFrameData, currentIBO, indexBufferCopy, indexData);
             
             startVBO += cmdList->VtxBuffer.size() * sizeof(ImDrawVert);
             startIBO += cmdList->IdxBuffer.size() * sizeof(ImDrawIdx);
         }
     }
 
-    cmdBuff->bindDescriptorSets(PipelineBindPoint::Graphics, pipelineLayout, 0, {atlasDescriptorSet}, {});
-    cmdBuff->bindVertexBuffers(0, 1, VBOs);
-    cmdBuff->bindIndexBuffer(IBO, (sizeof(ImDrawIdx) == 2) ? IndexType::UInt16 : IndexType::UInt32);
+    cmdBuff->bindDescriptorSets(PipelineBindPoint::Graphics, pipelineLayout, 0, 1, &atlasDescriptorSet, 0, nullptr);
+    cmdBuff->bindVertexBuffer(0, currentVBO);
+    cmdBuff->bindIndexBuffer(currentIBO, (sizeof(ImDrawIdx) == 2) ? IndexType::UInt16 : IndexType::UInt32);
     //gfxAPI->bindVertexLayout(vertLayout);
     
     std::size_t IBOOffset = 0;
@@ -478,7 +502,8 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
     const std::uint64_t frameID = engine->getFrameID();
     
     ImTextureID previousID = nullptr;
-    Rect2D& scissorRect = scissorRects[0];
+    Rect2D scissorRect;
+    
     for (int n = 0; n < drawData->CmdListsCount; ++n) {
         const ImDrawList* cmd_list = drawData->CmdLists[n];
         
@@ -500,7 +525,7 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
                 if (pcmd->TextureId != previousID) {
                     if (pcmd->TextureId == nullptr) {
                         // Bind the font atlas
-                        cmdBuff->bindDescriptorSets(PipelineBindPoint::Graphics, pipelineLayout, 0, {atlasDescriptorSet}, {});
+                        cmdBuff->bindDescriptorSets(PipelineBindPoint::Graphics, pipelineLayout, 0, 1, &atlasDescriptorSet, 0, nullptr);
                     } else {
                         StringHash name = StringHash(reinterpret_cast<std::uint64_t>(pcmd->TextureId));
                         
@@ -509,7 +534,7 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
                             ImGuiTextureData textureData;
                             textureData.lastUsedOnFrame = frameID;
                             textureData.texture = assetManager->load<Texture>(name, false);
-                            textureData.imageView = gfxAPI->createDefaultImageView(textureData.texture->image);
+                            textureData.imageView = gfxAPI->createDefaultImageView(textureData.texture->image, "Temporary editor image view");
                             
                             if (freeSets.empty()) {
                                 // TODO resize or add extra
@@ -529,14 +554,14 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
                             result->second.lastUsedOnFrame = frameID;
                         }
                         
-                        cmdBuff->bindDescriptorSets(PipelineBindPoint::Graphics, pipelineLayout, 0, {result->second.descriptorSet}, {});
+                        cmdBuff->bindDescriptorSets(PipelineBindPoint::Graphics, pipelineLayout, 0, 1, &(result->second.descriptorSet), 0, nullptr);
                     }
                     
                     previousID = pcmd->TextureId;
                 }
                 
                 //cmdBuff->
-                cmdBuff->setScissor(0, 1, scissorRects);
+                cmdBuff->setScissor(0, scissorRect);
                 cmdBuff->drawIndexed(pcmd->ElemCount, 1, IBOOffset, VBOOffset, 0);
             }
             
@@ -546,8 +571,9 @@ bool ImGuiImplementation::draw(CommandBuffer* cmdBuff) {
         VBOOffset += cmd_list->VtxBuffer.size();
     }
     
+    const std::size_t framesBeforeClear = swapImageCount + 2;
     for (auto it = texureData.begin(); it != texureData.end();) {
-        if ((frameID - it->second.lastUsedOnFrame) > MAX_FRAMES_BEFORE_TEXTURE_CLEAR) {
+        if ((frameID - it->second.lastUsedOnFrame) > framesBeforeClear) {
             std::vector<DescriptorSetHnd> handles = {it->second.descriptorSet};
             freeSets.emplace_back(it->second.descriptorSet);
             gfxAPI->destroyImageView(it->second.imageView);

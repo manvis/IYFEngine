@@ -57,15 +57,14 @@ void DebugRenderer::initialize() {
     BufferCreateInfo bci(BufferUsageFlagBits::VertexBuffer | BufferUsageFlagBits::TransferDestination,
                          Bytes(vertexLayout.getSize() * totalVertices),
                          MemoryUsage::CPUToGPU,
-                         true,
-                         "Physics debug buffer");
+                         true);
     
     LOG_D("Physics debug buffer size: {} MiB", Mebibytes(bci.size))
     
-    vbo = gfx->createBuffer(bci);
+    vbo = gfx->createBuffer(bci, "Physics debug buffer");
     
     PipelineLayoutCreateInfo plci{{}, {{ShaderStageFlagBits::Vertex, 0, sizeof(DebugPushBuffer)}}};
-    pipelineLayout = gfx->createPipelineLayout(plci);
+    pipelineLayout = gfx->createPipelineLayout(plci, "Physics debug pipeline layout");
     
     PipelineCreateInfo pci;
     
@@ -86,7 +85,7 @@ void DebugRenderer::initialize() {
     pci.subpass = renderer->getSkyboxRenderPassAndSubPass().second;
     pci.vertexInputState = vertexLayout.createVertexInputStateCreateInfo(0);
 
-    physicsDebugPipeline = gfx->createPipeline(pci);
+    physicsDebugPipeline = gfx->createPipeline(pci, "Physics debug pipeline");
     
     lineVertexCount = 0;
     contactPointVertexCount = MaxDebugLineVertices;
@@ -134,7 +133,7 @@ void DebugRenderer::draw(CommandBuffer* commandBuffer, const Camera* camera) con
     memoryManager->updateBuffer(MemoryBatch::PerFrameData, vbo, bufferCopies, vertices.data());
     
     commandBuffer->bindPipeline(physicsDebugPipeline);
-    commandBuffer->bindVertexBuffers(0, vbo);
+    commandBuffer->bindVertexBuffer(0, vbo);
     
     DebugPushBuffer dpb;
     dpb.VP = camera->getProjection() * camera->getViewMatrix();

@@ -242,7 +242,18 @@ ConstantMapper<Format, std::string, static_cast<size_t>(Format::COUNT)> formatNa
     "PVRTC2_4BPP_sRGB_block",
 };
 
+GraphicsAPI::GraphicsAPI(Engine* engine, bool useDebugAndValidation, Configuration* config) : Configurable(config), engine(engine), deviceMemoryManager(nullptr), maxFramesInFlight(1), currentFrameInFlight(0), isDebug(useDebugAndValidation), isInit(false) {}
+
 void GraphicsAPI::openWindow() {
+    if (backendSupportsMultipleFramesInFlight()) {
+        const std::int64_t confVal = config->getValue(ConfigurationValueHandle(HS("framesInFlight"), ConfigurationValueNamespace::Graphics));
+        maxFramesInFlight = static_cast<std::size_t>(confVal);
+        currentFrameInFlight = 0;
+    } else {
+        maxFramesInFlight = 1;
+        currentFrameInFlight = 0;
+    }
+    
     SDL_DisplayMode mode = { SDL_PIXELFORMAT_UNKNOWN, 0, 0, 0, 0 };
     int numVideoDisplays = SDL_GetNumVideoDisplays();
 
@@ -269,8 +280,8 @@ void GraphicsAPI::openWindow() {
     int activeDisplayID = 0;
     bool borderlessMode;
     
-    if (numVideoDisplays > 1) { // Jei keli, randam mažiausią iš dydžių ir atidarom borderless
-        SDL_GetDisplayMode(0, 0, &mode); // Gaunam pagrindinio ekrano
+    if (numVideoDisplays > 1) {
+        SDL_GetDisplayMode(0, 0, &mode);
         
         SDL_DisplayMode tempMode = { SDL_PIXELFORMAT_UNKNOWN, 0, 0, 0, 0 };
         
@@ -289,16 +300,17 @@ void GraphicsAPI::openWindow() {
         borderlessMode = false;
     }
     
+    glm::uvec2 desiredWindowSize;
     if (engine->isEditorMode() && !borderlessMode) {
         borderlessMode = true;
         
-        windowSize.x = mode.w - 50;
-        windowSize.y = mode.h - 150;
+        desiredWindowSize.x = mode.w - 50;
+        desiredWindowSize.y = mode.h - 150;
 //        screenWidth = mode.w;
 //        screenHeight = mode.h;
     } else {
-        windowSize.x = mode.w;
-        windowSize.y = mode.h;
+        desiredWindowSize.x = mode.w;
+        desiredWindowSize.y = mode.h;
     }
     
     // TODO this only applies if full screen mode is chosen. Figure out what to log otherwise
@@ -310,14 +322,19 @@ void GraphicsAPI::openWindow() {
 
     std::uint32_t flags = SDL_WINDOW_SHOWN;
     
+    
+    if (getBackendType() == BackendType::Vulkan) {
+        flags |= SDL_WINDOW_VULKAN;
+    }
+    
     std::string windowName = engine->isEditorMode() ? LOC_SYS(LH("gameName")) : LOC(LH("gameName"));
     
     window = SDL_CreateWindow 
         (windowName.c_str(),
          SDL_WINDOWPOS_CENTERED,
          SDL_WINDOWPOS_CENTERED,
-         windowSize.x,
-         windowSize.y,
+         desiredWindowSize.x,
+         desiredWindowSize.y,
          flags);
          //SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN);
          //SDL_WINDOW_BORDERLESS SDL_WINDOW_ALLOW_HIGHDPI
@@ -414,11 +431,13 @@ void GraphicsAPI::printWMInfo() {
 //TODO cache?
 SamplerHnd GraphicsAPI::createPresetSampler(SamplerPreset preset, float maxLod) {
     SamplerCreateInfo sci;
+    const char* name = "";
     
     switch (preset) {
     case SamplerPreset::ImguiTexture:
         sci.minFilter = Filter::Linear;
         sci.magFilter = Filter::Linear;
+        name = "ImGui texture sampler preset";
         break;
     case SamplerPreset::Default3DModel:
         sci.minFilter = Filter::Linear;
@@ -427,6 +446,7 @@ SamplerHnd GraphicsAPI::createPresetSampler(SamplerPreset preset, float maxLod) 
         sci.anisotropyEnable = true;
         sci.maxAnisotropy = 8.0f;//TODO nustatymas
         sci.maxLod = maxLod;
+        name = "3D model texture sampler preset";
         break;
     case SamplerPreset::SkyBox:
         sci.minFilter = Filter::Linear;
@@ -435,13 +455,16 @@ SamplerHnd GraphicsAPI::createPresetSampler(SamplerPreset preset, float maxLod) 
         sci.anisotropyEnable = true;
         sci.maxAnisotropy = 8.0f;//TODO nustatymas
         sci.maxLod = maxLod;
+        name = "Skybox texture sampler preset";
         break;
+    default:
+        throw std::runtime_error("Unknown SamplerPreset");
     }
     
-    return createSampler(sci);
+    return createSampler(sci, name);
 }
 
-ImageViewHnd GraphicsAPI::createDefaultImageView(const Image& image) {
+ImageViewHnd GraphicsAPI::createDefaultImageView(const Image& image, const char* name) {
     ImageViewCreateInfo ivci;
     ivci.image = image.getHandle();
     ivci.viewType = image.getType();
@@ -449,7 +472,7 @@ ImageViewHnd GraphicsAPI::createDefaultImageView(const Image& image) {
     ivci.subresourceRange.levelCount = image.getMipLevels();
     ivci.subresourceRange.layerCount = (image.getType() == ImageViewType::ImCube) ? 6 : image.getArrayLayers();
 
-    return createImageView(ivci);
+    return createImageView(ivci, name);
 }
 
 void GraphicsAPI::handleConfigChange(const ConfigurationValueMap& changedValues) {
@@ -460,12 +483,18 @@ std::string GraphicsAPI::getFormatName(Format format) const {
     return formatName(format);
 }
 
-std::vector<Buffer> GraphicsAPI::createBuffers(const std::vector<BufferCreateInfo>& infos) {
+std::vector<Buffer> GraphicsAPI::createBuffers(const std::vector<BufferCreateInfo>& infos, const std::vector<const char*>* names) {
+    if (names != nullptr) {
+        if (names->size() != infos.size()) {
+            throw std::runtime_error("The number of BufferCreateInfo objects must be equal to the number of names");
+        }
+    }
+    
     std::vector<Buffer> outBuffers;
     outBuffers.reserve(infos.size());
     
     for (std::size_t i = 0; i < infos.size(); ++i) {
-        outBuffers.push_back(createBuffer(infos[i]));
+        outBuffers.push_back(createBuffer(infos[i], (*names)[i]));
     }
     
     return outBuffers;
@@ -499,5 +528,47 @@ ImageCreateInfo GraphicsAPI::buildImageCreateInfo(const TextureData& textureData
     return ici;
 }
 
+glm::uvec2 GraphicsAPI::getWindowSize() const {
+    int w = 0;
+    int h = 0;
+    
+    SDL_GetWindowSize(window, &w, &h);
+    
+    if (w <= 0 || h <= 0) {
+        w = 0;
+        h = 0;
+    }
+    
+    return glm::uvec2(static_cast<unsigned>(w), static_cast<unsigned>(h));
+}
 
+void GraphicsAPI::addSwapchainChangeListener(SwapchainChangeListener* listener) {
+    for (const auto& l : swapchainChangeListeners) {
+        if (l == listener) {
+            LOG_W("The SwapchainChangeListener {} has already been registered", fmt::ptr(listener));
+            return;
+        }
+    }
+    
+    swapchainChangeListeners.emplace_back(listener);
+}
+
+void GraphicsAPI::removeSwapchainChangeListener(SwapchainChangeListener* listener) {
+    for (std::size_t i = 0; i < swapchainChangeListeners.size(); ++i) {
+        if (swapchainChangeListeners[i] == listener) {
+            swapchainChangeListeners.erase(swapchainChangeListeners.begin() + i);
+            return;
+        }
+    }
+    
+    LOG_W("The SwapchainChangeListener {} wasn't found. Has it been unregistered already?", fmt::ptr(listener));
+}
+
+DeviceMemoryManager* GraphicsAPI::getDeviceMemoryManager() const {
+    assert(deviceMemoryManager != nullptr);
+    
+    return deviceMemoryManager;
+}
+
+DeviceMemoryManager::DeviceMemoryManager(std::vector<Bytes> stagingBufferSizes) : stagingBufferSizes(std::move(stagingBufferSizes)) {}
 }

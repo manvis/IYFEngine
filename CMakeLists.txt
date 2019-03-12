@@ -186,6 +186,9 @@ if (GRAPHICS_BACKEND MATCHES "Vulkan")
     
     include_directories($ENV{VULKAN_SDK}/include)
     
+    # shaderc/env.h is missing without it
+    include_directories($ENV{VULKAN_SDK}/../source/shaderc/src/libshaderc/include)
+    
     if (CMAKE_BUILD_TYPE MATCHES Debug)
         if (WIN32)
             LINK_DIRECTORIES($ENV{VULKAN_SDK}/source/lib)

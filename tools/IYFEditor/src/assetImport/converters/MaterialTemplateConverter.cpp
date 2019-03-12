@@ -182,7 +182,7 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     assert(internalState != nullptr);
     
     // Use any MaterialFamily here. Everything's going to be overriden when deserialization completes anyway.
-    std::unique_ptr<MaterialLogicGraph> mlg = std::make_unique<MaterialLogicGraph>(MaterialFamily::Toon);
+    std::unique_ptr<MaterialLogicGraph> mlg = std::make_unique<MaterialLogicGraph>(MaterialFamily::PBR);
     
     rj::Document jo;
     rj::ParseResult parseResult = jo.Parse(internalState->code.get(), internalState->size);

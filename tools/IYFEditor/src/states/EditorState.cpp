@@ -242,19 +242,6 @@ void EditorState::frame(float delta) {
     iyf::InputState* is = engine->getInputState();
     iyf::GraphicsAPI* api = engine->getGraphicsAPI();
     
-    engine->getRenderer()->retrieveDataFromIDBuffer();
-    
-    if (hoveredItemIDFuture.valid()) {
-        std::uint32_t id = hoveredItemIDFuture.get();
-        
-        if (id == std::numeric_limits<std::uint32_t>::max()) {
-            deselectCurrentItem();
-        } else {
-            changeSelection(id);
-            LOG_V("Picked item ID: {}", id);
-        }
-    }
-    
 //    throw std::runtime_error("wrt");
     
     is->setMouseRelativeMode(cameraMode == CameraMode::Free);
@@ -539,6 +526,19 @@ void EditorState::frame(float delta) {
         
         world->setInputProcessingPaused(cameraMode != CameraMode::Free);
         world->update(delta);
+        
+        // Fetch the selection data. This will use a fence to wait until the rendering of the current frame ends.
+        engine->getRenderer()->retrieveDataFromIDBuffer();
+        if (hoveredItemIDFuture.valid()) {
+            std::uint32_t id = hoveredItemIDFuture.get();
+            
+            if (id == std::numeric_limits<std::uint32_t>::max()) {
+                deselectCurrentItem();
+            } else {
+                changeSelection(id);
+                LOG_V("Picked item ID: {}", id);
+            }
+        }
     }
 }
 

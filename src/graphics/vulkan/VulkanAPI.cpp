@@ -42,6 +42,7 @@
 
 #include "core/Engine.hpp"
 #include "core/Logger.hpp"
+#include "core/Debug.hpp"
 #include "graphics/Renderer.hpp"
 #include "graphics/vulkan/VulkanUtilities.hpp"
 #include "threading/ThreadProfiler.hpp"
@@ -50,6 +51,36 @@
 #include "stb_image.h"
 
 namespace iyf {
+VulkanAPI::VulkanAPI(Engine* engine, bool useDebugAndValidation, Configuration* config) : GraphicsAPI(engine, useDebugAndValidation, config), currentSwapBuffer(0) {
+    // TODO out'a'here
+    static_assert(sizeof(ShaderHnd) == sizeof(VkShaderModule), "sizeof(ShaderHnd) not equal to sizeof(VkShaderModule)");
+    static_assert(sizeof(std::uint64_t) == sizeof(VkDeviceSize), "sizeof(std::uint64_t) not equal to sizeof(VkDeviceSize)");
+    static_assert(sizeof(renderingConstants::ExternalSubpass) == sizeof(VK_SUBPASS_EXTERNAL), "sizeof(renderingConstants::ExternalSubpass) not equal to sizeof(VK_SUBPASS_EXTERNAL)");
+    static_assert(renderingConstants::ExternalSubpass == VK_SUBPASS_EXTERNAL, "Const value renderingConstants::ExternalSubpass doesn't match VK_SUBPASS_EXTERNAL");
+}
+
+bool VulkanAPI::backendSupportsMultipleFramesInFlight() const {
+    return true;
+}
+
+std::uint32_t VulkanAPI::getCurrentSwapImage() const {
+    assert(isInitialized());
+    
+    return currentSwapBuffer;
+}
+
+std::uint32_t VulkanAPI::getSwapImageCount() const {
+    assert(isInitialized());
+    
+    return swapchain.images.size(); 
+}
+
+const Image& VulkanAPI::getSwapImage(std::uint32_t id) const {
+    assert(isInitialized());
+    
+    return swapchain.engineImages[id];
+}
+
 // TODO move to memory cpp
 std::uint32_t VulkanAPI::getMemoryType(std::uint32_t typeBits, VkFlags propertyFlags) {
     for (std::uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; ++i) {
@@ -63,6 +94,30 @@ std::uint32_t VulkanAPI::getMemoryType(std::uint32_t typeBits, VkFlags propertyF
     }
     
     throw std::runtime_error("Couldn't get required memory type " + std::to_string(typeBits) + " " + std::to_string(propertyFlags));
+}
+
+void VulkanAPI::setObjectName(VkObjectType type, std::uint64_t handle, const char* name) {
+    if (!isDebug || name == nullptr) {
+        return;
+    }
+    
+    const std::size_t nameLength = std::strlen(name);
+    const std::size_t nameLengthWithNull = nameLength + 1;
+    
+    char* copiedName = new char[nameLengthWithNull];
+    
+    std::memcpy(copiedName, name, nameLengthWithNull);
+    
+    VkDebugUtilsObjectNameInfoEXT info;
+    info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+    info.pNext = nullptr;
+    info.objectType = type;
+    info.objectHandle = handle;
+    
+    // TODO figure out who owns the memory here and if I need to keep track of it and delete it
+    info.pObjectName = copiedName;
+    
+    checkResult(setDebugUtilsObjectName(logicalDevice.handle, &info), "Failed to set a name for an object");
 }
 
 void VulkanAPI::setImageLayout(VkCommandBuffer cmd, VkImage image, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkImageSubresourceRange imageSubresourceRange, VkPipelineStageFlags srcStageFlags, VkPipelineStageFlags destStageFlags) {
@@ -213,6 +268,9 @@ void VulkanAPI::setupPresentationBarrierCommandBuffers() {
 void VulkanAPI::freePresentationBarrierCommandBuffers() {
     vkFreeCommandBuffers(logicalDevice.handle, commandPool, swapchain.images.size(), prePresentationBarrierCommands.data());
     vkFreeCommandBuffers(logicalDevice.handle, commandPool, swapchain.images.size(), postPresentationBarrierCommands.data());
+    
+    prePresentationBarrierCommands.clear();
+    postPresentationBarrierCommands.clear();
 }
 
 VkCommandBuffer VulkanAPI::allocateCommandBuffer(VkCommandBufferLevel bufferLevel, std::uint32_t bufferCount, bool beginBuffer) {
@@ -250,32 +308,44 @@ void VulkanAPI::freeCommandBuffer(const VkCommandBuffer& commandBuffer) {
     vkFreeCommandBuffers(logicalDevice.handle, commandPool, 1, &commandBuffer);
 }
 
-void VulkanAPI::dispose() {
-    if (deviceMemoryManager != nullptr) {
-        delete deviceMemoryManager;
-        deviceMemoryManager = nullptr;
-    }
-    
+void VulkanAPI::disposeOfSwapchainAndDependencies(const Swapchain& swapchain) {
     freePresentationBarrierCommandBuffers();
-    physicalDevice.queueFamilyProperties.clear();
-    
-    vkFreeCommandBuffers(logicalDevice.handle, commandPool, 1, &mainCommandBuffer);
-    vkFreeCommandBuffers(logicalDevice.handle, commandPool, 1, &imageUploadCommandBuffer);
     
     for (std::uint32_t i = 0; i < swapchain.images.size(); ++i) {
         vkDestroyImageView(logicalDevice.handle, swapchain.imageViews[i], nullptr);
     }
     
     vkDestroySwapchain(logicalDevice.handle, swapchain.handle, nullptr);
-    vkDestroyFence(logicalDevice.handle, swapchain.frameCompleteFence, nullptr);
+}
+
+void VulkanAPI::dispose() {
+    if (deviceMemoryManager != nullptr) {
+        deviceMemoryManager->dispose();
+        delete deviceMemoryManager;
+        deviceMemoryManager = nullptr;
+    }
+    
+    physicalDevice.queueFamilyProperties.clear();
+    
+    vkFreeCommandBuffers(logicalDevice.handle, commandPool, 1, &mainCommandBuffer);
+    vkFreeCommandBuffers(logicalDevice.handle, commandPool, 1, &imageUploadCommandBuffer);
+    
+    disposeOfSwapchainAndDependencies(swapchain);
     
     vkDestroySurfaceKHR(instance, surface, nullptr);
     
     vkDestroyPipelineCache(logicalDevice.handle, pipelineCache, nullptr);
     vkDestroyCommandPool(logicalDevice.handle, commandPool, nullptr);
     
-    vkDestroySemaphore(logicalDevice.handle, presentationComplete, nullptr);
-    vkDestroySemaphore(logicalDevice.handle, renderingComplete, nullptr);
+    assert(frameCompleteFences.size() == getMaxFramesInFlight());
+    assert(presentationCompleteSemaphores.size() == getMaxFramesInFlight());
+    assert(renderingCompleteSemaphores.size() == getMaxFramesInFlight());
+    
+    for (std::size_t i = 0; i < getMaxFramesInFlight(); ++i) {
+        vkDestroyFence(logicalDevice.handle, frameCompleteFences[i], nullptr);
+        vkDestroySemaphore(logicalDevice.handle, presentationCompleteSemaphores[i], nullptr);
+        vkDestroySemaphore(logicalDevice.handle, renderingCompleteSemaphores[i], nullptr);
+    }
     
     vmaDestroyBuffer(allocator, imageTransferSource, imageTransferSourceAllocation);
     vmaDestroyAllocator(allocator);
@@ -283,29 +353,33 @@ void VulkanAPI::dispose() {
     vkDestroyDevice(logicalDevice.handle, nullptr);
     
     if (isDebug) {
-        destroyDebugReportCallback(instance, debugReportCallback, nullptr);
+        destroyDebugUtilsMessenger(instance, debugMessenger, nullptr);
     }
     
     vkDestroyInstance(instance, nullptr);
     SDL_DestroyWindow(window);
+    
+    isInit = false;
 }
 
 bool VulkanAPI::startFrame() {
+    {
+        IYFT_PROFILE(waitForGPUWorkCompletion, iyft::ProfilerTag::Graphics);
+        
+        waitUntilFrameCompletes();
+        
+        // We need to wait AND reset here.
+        VkFence fence = getCurrentFrameCompleteFence();
+        checkResult(vkResetFences(logicalDevice.handle, 1, &fence), "Failed to reset a fence");
+    }
+    
     IYFT_PROFILE(startFrame, iyft::ProfilerTag::Graphics);
-    VkResult result = vkAcquireNextImage(logicalDevice.handle, swapchain.handle, UINT64_MAX, presentationComplete, (VkFence)nullptr, &currentSwapBuffer);
-    switch (result) {
-    case VK_SUCCESS:
-        break;
-    case VK_SUBOPTIMAL_KHR:
-        LOG_W("vkAcquireNextImage returned VK_SUBOPTIMAL_KHR");
-        break;
-    case VK_ERROR_OUT_OF_DATE_KHR:
-        //TODO window size change
-        LOG_W("vkAcquireNextImage returned VK_ERROR_OUT_OF_DATE_KHR");
-        break;
-    default:
-        checkResult(result, "Failed to acquire a new image.");
-        return false;
+    VkResult result = vkAcquireNextImage(logicalDevice.handle, swapchain.handle, UINT64_MAX, presentationCompleteSemaphores[currentFrameInFlight], (VkFence)nullptr, &currentSwapBuffer);
+    
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        recreateSwapchain();
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("Failed to acquire the next image");
     }
     
     VkSubmitInfo si;
@@ -389,7 +463,8 @@ bool VulkanAPI::endFrame() {
     si.signalSemaphoreCount = 0;
     si.pSignalSemaphores    = nullptr;
     
-    result = vkQueueSubmit(logicalDevice.mainQueue, 1, &si, swapchain.frameCompleteFence);
+    VkFence fence = getCurrentFrameCompleteFence();
+    result = vkQueueSubmit(logicalDevice.mainQueue, 1, &si, fence);
     checkResult(result, "Failed to submit a queue");
     
     // TODO fence?
@@ -406,31 +481,19 @@ bool VulkanAPI::endFrame() {
     pi.swapchainCount     = 1;
     pi.pSwapchains        = &swapchain.handle;
     pi.pImageIndices      = &currentSwapBuffer;
-    pi.pWaitSemaphores    = &renderingComplete;
+    pi.pWaitSemaphores    = &renderingCompleteSemaphores[currentFrameInFlight];
     pi.waitSemaphoreCount = 1;
     pi.pResults           = nullptr;
     
     result = vkQueuePresentKHR(logicalDevice.mainQueue, &pi);
 
-    switch (result) {
-    case VK_SUCCESS:
-        break;
-    case VK_SUBOPTIMAL_KHR:
-        LOG_W("vkQueuePresentKHR returned VK_SUBOPTIMAL_KHR");
-        break;
-    case VK_ERROR_OUT_OF_DATE_KHR:
-        //TODO window size change
-        LOG_W("vkQueuePresentKHR returned VK_ERROR_OUT_OF_DATE_KHR");
-        break;
-    default:
-        checkResult(result, "Failed to present an image.");
-        return false;
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        recreateSwapchain();
+    } else if (result != VK_SUCCESS) {
+        throw std::runtime_error("Failed to present the swapchain image");
     }
     
-    
-    checkResult(vkWaitForFences(logicalDevice.handle, 1, &swapchain.frameCompleteFence, VK_TRUE, 50000000000), "Failed to wait on a fence."); //TODO good timeout value?
-    checkResult(vkResetFences(logicalDevice.handle, 1, &swapchain.frameCompleteFence), "Failed to reset a fence");
-    
+    currentFrameInFlight = (currentFrameInFlight + 1) % getMaxFramesInFlight();
 //     result = vkQueueWaitIdle(logicalDevice.mainQueue);
 //     checkResult(result, "Failed to wait on a queue.");
 //     //vkDeviceWaitIdle(logicalDevice.handle);
@@ -438,7 +501,7 @@ bool VulkanAPI::endFrame() {
     return true;
 }
 
-ShaderHnd VulkanAPI::createShader(ShaderStageFlags, const void* data, std::size_t byteCount) {
+ShaderHnd VulkanAPI::createShader(ShaderStageFlags, const void* data, std::size_t byteCount, const char* name) {
     VkShaderModuleCreateInfo mci;
     mci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     mci.pNext    = nullptr;
@@ -448,11 +511,13 @@ ShaderHnd VulkanAPI::createShader(ShaderStageFlags, const void* data, std::size_
 
     VkShaderModule module;
     checkResult(vkCreateShaderModule(logicalDevice.handle, &mci, nullptr, &module), "Failed to create a shader module.");
+    
+    setObjectName(VK_OBJECT_TYPE_SHADER_MODULE, reinterpret_cast<std::uint64_t>(module), name);
 
     return ShaderHnd(module);
 }
 
-ShaderHnd VulkanAPI::createShaderFromSource(ShaderStageFlags shaderStage, const std::string& code) {
+ShaderHnd VulkanAPI::createShaderFromSource(ShaderStageFlags shaderStage, const std::string& code, const char* name) {
     shaderc_shader_kind shaderKind;
     switch (static_cast<ShaderStageFlagBits>(shaderStage.uint64())) {
         case ShaderStageFlagBits::Vertex:
@@ -498,6 +563,8 @@ ShaderHnd VulkanAPI::createShaderFromSource(ShaderStageFlags shaderStage, const 
 
     VkShaderModule module;
     checkResult(vkCreateShaderModule(logicalDevice.handle, &mci, nullptr, &module), "Failed to create a shader module.");
+    
+    setObjectName(VK_OBJECT_TYPE_SHADER_MODULE, reinterpret_cast<std::uint64_t>(module), name);
 
     return ShaderHnd(module);
 }
@@ -507,7 +574,7 @@ bool VulkanAPI::destroyShader(ShaderHnd handle) {
     return true;
 }
 
-Pipeline VulkanAPI::createPipeline(const PipelineCreateInfo& info) {
+Pipeline VulkanAPI::createPipeline(const PipelineCreateInfo& info, const char* name) {
     const auto& visci = info.vertexInputState;
     std::vector<VkVertexInputBindingDescription> bindings;
     bindings.reserve(visci.vertexBindingDescriptions.size());
@@ -753,6 +820,8 @@ Pipeline VulkanAPI::createPipeline(const PipelineCreateInfo& info) {
     VkPipeline pipeline;
     vkCreateGraphicsPipelines(logicalDevice.handle, pipelineCache, 1, &pci, nullptr, &pipeline);
     
+    setObjectName(VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<std::uint64_t>(pipeline), name);
+    
     Pipeline pipelineObj;
     pipelineObj.handle = PipelineHnd(pipeline);
     pipelineObj.bindPoint = PipelineBindPoint::Graphics;
@@ -765,7 +834,7 @@ bool VulkanAPI::destroyPipeline(const Pipeline& pipeline) {
     return true;
 }
 
-Pipeline VulkanAPI::createPipeline(const ComputePipelineCreateInfo& info) {
+Pipeline VulkanAPI::createPipeline(const ComputePipelineCreateInfo& info, const char* name) {
     VkPipelineShaderStageCreateInfo pssci;
     pssci.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     pssci.pNext               = nullptr;
@@ -788,6 +857,8 @@ Pipeline VulkanAPI::createPipeline(const ComputePipelineCreateInfo& info) {
     vkCreateComputePipelines(logicalDevice.handle, pipelineCache, 1, &pci, nullptr, &pipeline);
 //    vkCreateGraphicsPipelines(logicalDevice.handle, pipelineCache, 1, &pci, nullptr, &pipeline);
     
+    setObjectName(VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<std::uint64_t>(pipeline), name);
+    
     Pipeline pipelineObj;
     pipelineObj.handle = PipelineHnd(pipeline);
     pipelineObj.bindPoint = PipelineBindPoint::Compute;
@@ -795,7 +866,7 @@ Pipeline VulkanAPI::createPipeline(const ComputePipelineCreateInfo& info) {
     return pipelineObj;
 }
 
-PipelineLayoutHnd VulkanAPI::createPipelineLayout(const PipelineLayoutCreateInfo& info) {
+PipelineLayoutHnd VulkanAPI::createPipelineLayout(const PipelineLayoutCreateInfo& info, const char* name) {
     VkPipelineLayoutCreateInfo plci;
     plci.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     plci.pNext                  = nullptr;
@@ -812,6 +883,8 @@ PipelineLayoutHnd VulkanAPI::createPipelineLayout(const PipelineLayoutCreateInfo
     VkPipelineLayout pl;
     vkCreatePipelineLayout(logicalDevice.handle, &plci, nullptr, &pl);
     
+    setObjectName(VK_OBJECT_TYPE_PIPELINE_LAYOUT, reinterpret_cast<std::uint64_t>(pl), name);
+    
     return PipelineLayoutHnd(pl);
 }
 
@@ -820,7 +893,7 @@ bool VulkanAPI::destroyPipelineLayout(PipelineLayoutHnd handle) {
     return true;
 }
 
-DescriptorSetLayoutHnd VulkanAPI::createDescriptorSetLayout(const DescriptorSetLayoutCreateInfo& info) {
+DescriptorSetLayoutHnd VulkanAPI::createDescriptorSetLayout(const DescriptorSetLayoutCreateInfo& info, const char* name) {
     VkDescriptorSetLayoutCreateInfo dslci;
     dslci.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     dslci.pNext        = nullptr;
@@ -831,8 +904,10 @@ DescriptorSetLayoutHnd VulkanAPI::createDescriptorSetLayout(const DescriptorSetL
     dslci.pBindings    = bindings.size() > 0 ? bindings.data() : nullptr;
     
     VkDescriptorSetLayout dsl;
-    
     vkCreateDescriptorSetLayout(logicalDevice.handle, &dslci, nullptr, &dsl);
+    
+    setObjectName(VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, reinterpret_cast<std::uint64_t>(dsl), name);
+    
     return DescriptorSetLayoutHnd(dsl);
 }
 
@@ -931,7 +1006,7 @@ bool VulkanAPI::updateDescriptorSets(const std::vector<WriteDescriptorSet>& set)
     return true;
 }
 
-DescriptorPoolHnd VulkanAPI::createDescriptorPool(const DescriptorPoolCreateInfo& info) {
+DescriptorPoolHnd VulkanAPI::createDescriptorPool(const DescriptorPoolCreateInfo& info, const char* name) {
     VkDescriptorPoolCreateInfo dpci;
     dpci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     dpci.pNext         = nullptr;
@@ -944,6 +1019,8 @@ DescriptorPoolHnd VulkanAPI::createDescriptorPool(const DescriptorPoolCreateInfo
     VkDescriptorPool dp;
     checkResult(vkCreateDescriptorPool(logicalDevice.handle, &dpci, nullptr, &dp), "Failed to create a descriptor pool.");
     
+    setObjectName(VK_OBJECT_TYPE_DESCRIPTOR_POOL, reinterpret_cast<std::uint64_t>(dp), name);
+    
     return DescriptorPoolHnd(dp);
 }
 
@@ -953,7 +1030,7 @@ bool VulkanAPI::destroyDescriptorPool(DescriptorPoolHnd handle) {
     return true;
 }
 
-Image VulkanAPI::createImage(const ImageCreateInfo& info) {
+Image VulkanAPI::createImage(const ImageCreateInfo& info, const char* name) {
     VkImageCreateInfo ici;
     ici.sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     ici.pNext                 = nullptr;
@@ -972,18 +1049,22 @@ Image VulkanAPI::createImage(const ImageCreateInfo& info) {
     ici.initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED;
     
     VmaAllocationCreateInfo aci = {};
-    aci.flags = VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
     aci.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     
-    std::string temp = info.debugName;
-    if (!info.debugName.empty()) {
-        aci.pUserData = &temp[0];
+    if (name != nullptr) {
+        aci.flags = VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
+        aci.pUserData = const_cast<char*>(name); // I'm pretty sure it doesn't actually modify the string
+    } else {
+        aci.flags = 0;
+        aci.pUserData = nullptr;
     }
     
     VkImage image;
     VmaAllocation allocation;
     VmaAllocationInfo allocationInfo;
     checkResult(vmaCreateImage(allocator, &ici, &aci, &image, &allocation, &allocationInfo), "Failed to create an image");
+    
+    // DO NOT set a name. VMA does it for us
     
     VkMemoryPropertyFlags flags = 0;
     vmaGetMemoryTypeProperties(allocator, allocationInfo.memoryType, &flags);
@@ -992,7 +1073,7 @@ Image VulkanAPI::createImage(const ImageCreateInfo& info) {
     return Image(ImageHnd(image), info.extent, info.mipLevels, info.arrayLayers, info.usage, info.format, info.isCube ? ImageViewType::ImCube : ImageViewType::Im2D, &(iter.first->second));
 }
 
-Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info) {
+Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info, const char* name) {
     const ImageMemoryType type = info.type;
     const glm::uvec2& dimensions = info.dimensions;
     const bool isWritable = info.isWritable;
@@ -1099,8 +1180,8 @@ Image VulkanAPI::createUncompressedImage(const UncompressedImageCreateInfo& info
         iufEng |= ImageUsageFlagBits::Storage;
     }
     
-    ImageCreateInfo ici(glm::uvec3(dimensions.x, dimensions.y, 1), 1, 1, iufEng, engineFormat, false, "UncompressedImage");
-    Image image = createImage(ici);
+    ImageCreateInfo ici(glm::uvec3(dimensions.x, dimensions.y, 1), 1, 1, iufEng, engineFormat, false);
+    Image image = createImage(ici, name);
     
     if (!needsMemoryUpload) {
         VkCommandBufferBeginInfo cbbi;
@@ -1231,7 +1312,7 @@ bool VulkanAPI::destroyImage(const Image& image) {
     return true;
 }
 
-SamplerHnd VulkanAPI::createSampler(const SamplerCreateInfo& info) {
+SamplerHnd VulkanAPI::createSampler(const SamplerCreateInfo& info, const char* name) {
     VkSamplerCreateInfo sci;
     sci.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     sci.pNext                   = nullptr;
@@ -1254,6 +1335,9 @@ SamplerHnd VulkanAPI::createSampler(const SamplerCreateInfo& info) {
     
     VkSampler sampler;
     vkCreateSampler(logicalDevice.handle, &sci, nullptr, &sampler);
+    
+    setObjectName(VK_OBJECT_TYPE_SAMPLER, reinterpret_cast<std::uint64_t>(sampler), name);
+    
     return SamplerHnd(sampler);
 }
 
@@ -1262,7 +1346,7 @@ bool VulkanAPI::destroySampler(SamplerHnd handle) {
     return true;
 }
 
-ImageViewHnd VulkanAPI::createImageView(const ImageViewCreateInfo& info) {
+ImageViewHnd VulkanAPI::createImageView(const ImageViewCreateInfo& info, const char* name) {
     VkImageViewCreateInfo ivci;
     ivci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     ivci.pNext            = nullptr;
@@ -1275,6 +1359,8 @@ ImageViewHnd VulkanAPI::createImageView(const ImageViewCreateInfo& info) {
     
     VkImageView iv;
     vkCreateImageView(logicalDevice.handle, &ivci, nullptr, &iv);
+    
+    setObjectName(VK_OBJECT_TYPE_IMAGE_VIEW, reinterpret_cast<std::uint64_t>(iv), name);
 
     return ImageViewHnd(iv);
 }
@@ -1349,7 +1435,7 @@ std::pair<VkBuffer, VkDeviceMemory> VulkanAPI::createTemporaryBuffer(VkBufferUsa
     return {handle, memory};
 }
 
-Buffer VulkanAPI::createBuffer(const BufferCreateInfo& info) {
+Buffer VulkanAPI::createBuffer(const BufferCreateInfo& info, const char* name) {
     VkBufferCreateInfo bci;
     bci.sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bci.pNext                 = nullptr;
@@ -1386,16 +1472,19 @@ Buffer VulkanAPI::createBuffer(const BufferCreateInfo& info) {
             break;
     }
     
-    
-    std::string temp = info.debugName;
-    if (!info.debugName.empty()) {
-        aci.pUserData = &temp[0];
+    if (name != nullptr) {
+        aci.flags |= VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
+        aci.pUserData = const_cast<char*>(name); // I'm pretty sure it doesn't actually modify the string
+    } else {
+        aci.pUserData = nullptr;
     }
     
     VkBuffer handle;
     VmaAllocation allocation;
     VmaAllocationInfo allocationInfo;
     checkResult(vmaCreateBuffer(allocator, &bci, &aci, &handle, &allocation, &allocationInfo), "Failed to create a buffer");
+    
+    // DO NOT set a name. VMA does it for us
     
     if (aci.usage != VMA_MEMORY_USAGE_GPU_ONLY && allocationInfo.pMappedData == nullptr) {
         throw std::runtime_error("Was expecting a mapped buffer.");
@@ -1447,7 +1536,7 @@ bool VulkanAPI::readHostVisibleBuffer(const Buffer& buffer, const std::vector<Bu
     return true;
 }
 
-CommandPool* VulkanAPI::createCommandPool(QueueType /*type*/, std::uint32_t /*queueId*/) {
+CommandPool* VulkanAPI::createCommandPool(QueueType /*type*/, std::uint32_t /*queueId*/, const char* name) {
     VkCommandPool pool;
     VkResult result;
     
@@ -1459,6 +1548,8 @@ CommandPool* VulkanAPI::createCommandPool(QueueType /*type*/, std::uint32_t /*qu
     
     result = vkCreateCommandPool(logicalDevice.handle, &cpci, nullptr, &pool);
     checkResult(result, "Failed to create a command pool.");
+    
+    setObjectName(VK_OBJECT_TYPE_COMMAND_POOL, reinterpret_cast<std::uint64_t>(pool), name);
     
     return new VulkanCommandPool(this, pool);
 }
@@ -1502,7 +1593,7 @@ inline static VkAttachmentReference* ProcessAttachmentReferences(std::size_t cou
     return firstConvertedElement;
 }
 
-RenderPassHnd VulkanAPI::createRenderPass(const RenderPassCreateInfo& info) {
+RenderPassHnd VulkanAPI::createRenderPass(const RenderPassCreateInfo& info, const char* name) {
     VkRenderPassCreateInfo rpci;
     rpci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     rpci.pNext           = nullptr;
@@ -1573,6 +1664,8 @@ RenderPassHnd VulkanAPI::createRenderPass(const RenderPassCreateInfo& info) {
     VkRenderPass pass;
     checkResult(vkCreateRenderPass(logicalDevice.handle, &rpci, nullptr, &pass), "Failed to create a render pass.");
     
+    setObjectName(VK_OBJECT_TYPE_RENDER_PASS, reinterpret_cast<std::uint64_t>(pass), name);
+    
     return RenderPassHnd(pass);
 }
 
@@ -1590,13 +1683,15 @@ Format VulkanAPI::getDepthStencilFormat() {
     return depthStencilFormatEngine;
 }
 
-SemaphoreHnd VulkanAPI::createSemaphore() {
+SemaphoreHnd VulkanAPI::createSemaphore(const char* name) {
     VkSemaphore semaphore;
     VkSemaphoreCreateInfo sci;
     sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     sci.pNext = nullptr;
     sci.flags = 0;
     checkResult(vkCreateSemaphore(logicalDevice.handle, &sci, nullptr, &semaphore), "Failed to create a semaphore.");
+    
+    setObjectName(VK_OBJECT_TYPE_SEMAPHORE, reinterpret_cast<std::uint64_t>(semaphore), name);
     
     return SemaphoreHnd(semaphore);
 }
@@ -1605,7 +1700,28 @@ void VulkanAPI::destroySemaphore(SemaphoreHnd hnd) {
     vkDestroySemaphore(logicalDevice.handle, hnd.toNative<VkSemaphore>(), nullptr);
 }
 
-FenceHnd VulkanAPI::createFence(bool createSignaled) {
+VkFence VulkanAPI::getCurrentFrameCompleteFence() {
+    return frameCompleteFences[currentFrameInFlight];
+}
+
+SemaphoreHnd VulkanAPI::getRenderCompleteSemaphore() {
+    return SemaphoreHnd(renderingCompleteSemaphores[currentFrameInFlight]);
+}
+
+SemaphoreHnd VulkanAPI::getPresentationCompleteSemaphore() {
+    return SemaphoreHnd(presentationCompleteSemaphores[currentFrameInFlight]);
+}
+
+void VulkanAPI::waitUntilFrameCompletes() {
+#ifdef IYF_LOG_ORDER
+    LOG_D("Waiting until frame-in-flight {} completes ", currentFrameInFlight);
+#endif // IYF_LOG_ORDER
+    
+    VkFence fence = getCurrentFrameCompleteFence();
+    checkResult(vkWaitForFences(logicalDevice.handle, 1, &fence, VK_TRUE, 50000000000), "Failed to wait on a fence."); //TODO good timeout value?
+}
+
+FenceHnd VulkanAPI::createFence(bool createSignaled, const char* name) {
     VkFence fence;
     VkFenceCreateInfo fci;
     fci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -1613,6 +1729,8 @@ FenceHnd VulkanAPI::createFence(bool createSignaled) {
     fci.flags = createSignaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
     
     checkResult(vkCreateFence(logicalDevice.handle, &fci, nullptr, &fence), "Failed to create a fence.");
+    
+    setObjectName(VK_OBJECT_TYPE_FENCE, reinterpret_cast<std::uint64_t>(fence), name);
     
     return FenceHnd(fence);
 }
@@ -1682,13 +1800,17 @@ void VulkanAPI::submitQueue(const SubmitInfo& info, FenceHnd fence) {
 }
 
 //Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<FramebufferAttachmentCreateInfo>& info) {
-Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<std::variant<Image, FramebufferAttachmentCreateInfo>>& info) {
+Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<std::variant<Image, FramebufferAttachmentCreateInfo>>& info, const char* name) {
     Framebuffer fbo;
     fbo.images.reserve(info.size());
     fbo.imageViews.reserve(info.size());
     fbo.isImageOwned.reserve(info.size());
     
-    for (auto& ci : info) {
+    const bool nameValid = !isDebug && (name != nullptr) && (std::strlen(name) > 0);
+    
+    for (std::size_t j = 0; j < info.size(); ++j) {
+        const auto& ci = info[j];
+        
         if (ci.index() == 0) { // an existing Image
             Image img = std::get<Image>(ci);
             
@@ -1744,8 +1866,10 @@ Framebuffer VulkanAPI::createFramebufferWithAttachments(const glm::uvec2& extent
                 af = VK_IMAGE_ASPECT_COLOR_BIT;
             }
 
-            ImageCreateInfo ici(glm::uvec3(extent, 1), 1, 1, iuf, i.format, false, "FramebufferImage");
-            Image image = createImage(ici);
+            std::string imageName = !nameValid ? "" : fmt::format("{} image {} of {}", name, j, info.size());
+            
+            ImageCreateInfo ici(glm::uvec3(extent, 1), 1, 1, iuf, i.format, false);
+            Image image = createImage(ici, imageName.c_str());
 
             VkImageSubresourceRange isr;
             isr.aspectMask     = af;
@@ -1835,15 +1959,15 @@ void VulkanAPI::destroyFramebufferWithAttachments(const Framebuffer& framebuffer
 }
 
 // -------------------------------Command buffer
-void VulkanCommandBuffer::setViewport(std::uint32_t first, std::uint32_t count, const std::vector<Viewport>& viewports) {
+void VulkanCommandBuffer::setViewports(std::uint32_t first, std::uint32_t count, const Viewport* viewports) {
     tempViewports.clear();
     
-    if (tempViewports.capacity() < count) { // TODO patikrinti, kas geriau šitas nuolatinis tikrinimas, ar fiksuotas ir lygus maksimaliam skaičiui vektorius TODO tas pats su scissors
+    if (tempViewports.capacity() < count) {
         tempViewports.resize(count);
     }
     
     for (size_t i = 0; i < count; ++i) {
-        auto& vp = tempViewports[i];//TODO scissors ir viewports konvertavimą į atskiras funkcijas, nes keliose vietose darom lygiai tą patį. Tas pats ir su OpenGL
+        auto& vp = tempViewports[i];
         const auto& v = viewports[i];
         
         vp.x        = v.x;
@@ -1857,7 +1981,15 @@ void VulkanCommandBuffer::setViewport(std::uint32_t first, std::uint32_t count, 
     vkCmdSetViewport(cmdBuff, first, count, tempViewports.data());
 }
 
-void VulkanCommandBuffer::setScissor(std::uint32_t first, std::uint32_t count, const std::vector<Rect2D>& rectangles) {
+void VulkanCommandBuffer::setViewports(std::uint32_t first, std::uint32_t count, const std::vector<Viewport>& viewports) {
+    setViewports(first, count, viewports.data());
+}
+
+void VulkanCommandBuffer::setViewport(std::uint32_t first, const Viewport& viewport) {
+    setViewports(first, 1, &viewport);
+}
+
+void VulkanCommandBuffer::setScissors(std::uint32_t first, std::uint32_t count, const Rect2D* rectangles) {
     tempScissors.clear();
     
     if (tempScissors.capacity() < count) {
@@ -1877,6 +2009,14 @@ void VulkanCommandBuffer::setScissor(std::uint32_t first, std::uint32_t count, c
     vkCmdSetScissor(cmdBuff, first, count, tempScissors.data());
 }
 
+void VulkanCommandBuffer::setScissors(std::uint32_t first, std::uint32_t count, const std::vector<Rect2D>& rectangles) {
+    setScissors(first, count, rectangles.data());
+}
+
+void VulkanCommandBuffer::setScissor(std::uint32_t first, const Rect2D& rectangle) {
+    setScissors(first, 1, &rectangle);
+}
+
 void VulkanCommandBuffer::draw(std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex, std::uint32_t firstInstance) {
     vkCmdDraw(cmdBuff, vertexCount, instanceCount, firstVertex, firstInstance);
 }
@@ -1889,7 +2029,7 @@ void VulkanCommandBuffer::dispatch(std::uint32_t x, std::uint32_t y, std::uint32
     vkCmdDispatch(cmdBuff, x, y, z);
 }
 
-void VulkanCommandBuffer::bindVertexBuffers(std::uint32_t firstBinding, const Buffer& buffer) {
+void VulkanCommandBuffer::bindVertexBuffer(std::uint32_t firstBinding, const Buffer& buffer) {
     VkBuffer vkbuffer = buffer.handle().toNative<VkBuffer>();
     VkDeviceSize offset = static_cast<VkDeviceSize>(0);
     
@@ -1918,9 +2058,13 @@ void VulkanCommandBuffer::bindIndexBuffer(const Buffer& buffer, IndexType indexT
 }
 
 bool VulkanCommandBuffer::bindDescriptorSets(PipelineBindPoint point, PipelineLayoutHnd layout, std::uint32_t firstSet, const std::vector<DescriptorSetHnd> descriptorSets, const std::vector<std::uint32_t> dynamicOffsets) {
-    const VkDescriptorSet* sets = reinterpret_cast<VkDescriptorSet*>(const_cast<DescriptorSetHnd*>(descriptorSets.data()));
+    return bindDescriptorSets(point, layout, firstSet, descriptorSets.size(), descriptorSets.data(), dynamicOffsets.size(), dynamicOffsets.data());
+}
+
+bool VulkanCommandBuffer::bindDescriptorSets(PipelineBindPoint point, PipelineLayoutHnd layout, std::uint32_t firstSet, std::uint32_t descriptorSetCount, const DescriptorSetHnd* descriptorSets, std::uint32_t dynamicOffsetCount, const std::uint32_t* dynamicOffsets) {
+    const VkDescriptorSet* sets = reinterpret_cast<VkDescriptorSet*>(const_cast<DescriptorSetHnd*>(descriptorSets));
     
-    vkCmdBindDescriptorSets(cmdBuff, point == PipelineBindPoint::Graphics ? VK_PIPELINE_BIND_POINT_GRAPHICS : VK_PIPELINE_BIND_POINT_COMPUTE, layout.toNative<VkPipelineLayout>(), firstSet, descriptorSets.size(), sets, dynamicOffsets.size(), dynamicOffsets.data());
+    vkCmdBindDescriptorSets(cmdBuff, point == PipelineBindPoint::Graphics ? VK_PIPELINE_BIND_POINT_GRAPHICS : VK_PIPELINE_BIND_POINT_COMPUTE, layout.toNative<VkPipelineLayout>(), firstSet, descriptorSetCount, sets, dynamicOffsetCount, dynamicOffsets);
     
     return true;
 }
@@ -1943,11 +2087,15 @@ void VulkanCommandBuffer::begin(const CommandBufferBeginInfo& cbbi) {
 
     VkResult result = vkBeginCommandBuffer(cmdBuff, &vkcbbi);
     backend->checkResult(result, "Failed to begin a command buffer.");
+    
+    recording = true;
 }
 
 void VulkanCommandBuffer::end() {
     VkResult result = vkEndCommandBuffer(cmdBuff);
     backend->checkResult(result, "Failed to end a command buffer.");
+    
+    recording = false;
 }
 
 void VulkanCommandBuffer::beginRenderPass(const RenderPassBeginInfo& rpbi, SubpassContents contents) {
@@ -2012,7 +2160,7 @@ void VulkanCommandBuffer::copyImageToBuffer(const Image& srcImage, ImageLayout l
 
 // --------------------------------- Command pool
 
-CommandBuffer* VulkanCommandPool::allocateCommandBuffer(BufferLevel level, bool beginBuffer) {
+CommandBuffer* VulkanCommandPool::allocateCommandBuffer(const char* name, BufferLevel level, bool beginBuffer) {
     VkResult result;
     VkCommandBuffer buffer;
 
@@ -2025,6 +2173,8 @@ CommandBuffer* VulkanCommandPool::allocateCommandBuffer(BufferLevel level, bool 
 
     result = vkAllocateCommandBuffers(backend->logicalDevice.handle, &cbai, &buffer);
     backend->checkResult(result, "Failed to allocate a command buffer.");
+    
+    backend->setObjectName(VK_OBJECT_TYPE_COMMAND_BUFFER, reinterpret_cast<std::uint64_t>(buffer), name);
 
     VulkanCommandBuffer* newCmdBuff = new VulkanCommandBuffer(level, backend, buffer, backend->physicalDevice.properties);
     if (beginBuffer) {
@@ -2034,7 +2184,7 @@ CommandBuffer* VulkanCommandPool::allocateCommandBuffer(BufferLevel level, bool 
     return newCmdBuff;
 }
 
-std::vector<CommandBuffer*> VulkanCommandPool::allocateCommandBuffers(std::uint32_t count, BufferLevel level, bool beginBuffers) {
+std::vector<CommandBuffer*> VulkanCommandPool::allocateCommandBuffers(const std::vector<const char*>* names, std::uint32_t count, BufferLevel level, bool beginBuffers) {
     VkResult result;
     std::vector<VkCommandBuffer> buffers;
     buffers.resize(count);
@@ -2048,6 +2198,16 @@ std::vector<CommandBuffer*> VulkanCommandPool::allocateCommandBuffers(std::uint3
 
     result = vkAllocateCommandBuffers(backend->logicalDevice.handle, &cbai, buffers.data());
     backend->checkResult(result, "Failed to allocate command buffers.");
+    
+    if (names != nullptr) {
+        if (names->size() != buffers.size()) {
+            throw std::runtime_error("The number of names must be equal to the number of buffers.");
+        }
+        
+        for (std::size_t i = 0; i < names->size(); ++i) {
+            backend->setObjectName(VK_OBJECT_TYPE_COMMAND_BUFFER, reinterpret_cast<std::uint64_t>(buffers[i]), (*names)[i]);
+        }
+    }
 
     std::vector<CommandBuffer*> newCmdBuffs;
     newCmdBuffs.reserve(count);

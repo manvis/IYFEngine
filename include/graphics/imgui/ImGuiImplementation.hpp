@@ -105,9 +105,8 @@ protected:
     PipelineLayoutHnd pipelineLayout;
     Pipeline pipeline;
     
-    Buffer IBO;
+    std::vector<Buffer> IBOs;
     std::vector<Buffer> VBOs;
-    std::vector<Rect2D> scissorRects;
     std::vector<DescriptorSetHnd> freeSets;
     std::unordered_map<StringHash, ImGuiTextureData> texureData;
     

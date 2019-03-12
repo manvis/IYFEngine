@@ -72,7 +72,7 @@ MaterialEditor::MaterialEditor() : LogicGraphEditor(MakeNodeEditorSettings()) {
     nameBuffer.resize(128, '\0');
     
     // TODO - dev only. REMOVE ONCE DONE
-    graph = std::make_unique<MaterialLogicGraph>(MaterialFamily::Toon);
+    graph = std::make_unique<MaterialLogicGraph>(MaterialFamily::PBR);
     TextureInputNode* nn = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 50.0f)));
     assert(nn != nullptr);
     TextureInputNode* nn2 = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 150.0f)));
@@ -82,7 +82,7 @@ MaterialEditor::MaterialEditor() : LogicGraphEditor(MakeNodeEditorSettings()) {
     TextureInputNode* nn4 = dynamic_cast<TextureInputNode*>(graph->addNode(MaterialNodeType::TextureInput, Vec2(200.0f, 350.0f)));
     assert(nn4 != nullptr);
     
-    con::GetMaterialFamilyDefinition(MaterialFamily::Toon).computeHash();
+    con::GetMaterialFamilyDefinition(MaterialFamily::PBR).computeHash();
     
     graph->addNode(MaterialNodeType::TextureCoordinates, Vec2(0.0f, 150.0f));
     
@@ -130,7 +130,7 @@ void MaterialEditor::onDrawButtonRow() {
         int currentMaterialFamily = static_cast<int>(graph->getMaterialFamily());
         if (ImGui::Combo("Material Family", &currentMaterialFamily, util::StringVectorGetter, &materialFamilyNames, materialFamilyNames.size())) {
             if (currentMaterialFamily != static_cast<int>(graph->getMaterialFamily())) {
-                graph->setMaterialFamily(MaterialFamily::Toon);
+                graph->setMaterialFamily(MaterialFamily::PBR);
             }
         }
     }
@@ -285,7 +285,7 @@ void MaterialEditor::setPath(fs::path path) {
 MaterialEditor::~MaterialEditor() {}
 
 std::unique_ptr<MaterialLogicGraph> MaterialEditor::makeNewGraph(const NewGraphSettings&) {
-    return std::make_unique<MaterialLogicGraph>(MaterialFamily::Toon);
+    return std::make_unique<MaterialLogicGraph>(MaterialFamily::PBR);
 }
 
 }

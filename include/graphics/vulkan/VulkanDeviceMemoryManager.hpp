@@ -34,6 +34,9 @@ public:
     VulkanDeviceMemoryManager(VulkanAPI* gfx, std::vector<Bytes> stagingBufferSizes);
     virtual ~VulkanDeviceMemoryManager();
     
+    virtual void initialize() final override;
+    virtual void dispose() final override;
+    
     virtual void beginFrame() final override;
     virtual bool isStagingBufferNeeded(const Buffer& destinationBuffer) final override;
     virtual bool canBatchFitData(MemoryBatch batch, Bytes totalSize) final override;
@@ -42,18 +45,37 @@ public:
     virtual bool beginBatchUpload(MemoryBatch batch) final override;
 private:
     struct StagingBufferData {
-        StagingBufferData() : currentOffset(0), maxRequestLastFrame(0), uploadCalls(0) {}
+        StagingBufferData() : currentOffset(0), maxRequestedUploadSize(0), uploadCalls(0), APIObjectsCreated(false) {}
         
-        Buffer buffer;
-        CommandBuffer* commandBuffer;
+        std::vector<Buffer> buffers;
+        std::vector<CommandBuffer*> commandBuffers;
         
         std::uint64_t currentOffset;
-        std::uint64_t maxRequestLastFrame;
+        std::uint64_t maxRequestedUploadSize;
         std::uint32_t uploadCalls;
         MemoryBatch batch;
+        bool APIObjectsCreated;
         
         inline bool hasDataThisFrame() const {
             return currentOffset != 0;
+        }
+        
+        inline Buffer& getBufferForThisFrame(GraphicsAPI* gfx) {
+            const std::uint32_t swapImage = gfx->getCurrentSwapImage();
+            
+            assert(!buffers.empty());
+            assert(swapImage < buffers.size());
+            
+            return buffers[swapImage];
+        }
+        
+        inline CommandBuffer* getCommandBufferForThisFrame(GraphicsAPI* gfx) {
+            const std::uint32_t swapImage = gfx->getCurrentSwapImage();
+            
+            assert(!commandBuffers.empty());
+            assert(swapImage < commandBuffers.size());
+            
+            return commandBuffers[swapImage];
         }
     };
     
@@ -72,8 +94,8 @@ private:
         throw std::runtime_error("Invalid or unknown MemoryBatch");
     }
     
-    bool initStagingBufferForBatch(MemoryBatch batch, Bytes size, bool firstCreation);
-    void executeUpload(CommandBuffer* commandBuffer);
+    bool initOrUpdateStagingBuffer(MemoryBatch batch, Bytes size);
+    void executeUpload(CommandBuffer* commandBuffer, bool waitForCompletion);
     void resetData(StagingBufferData& data);
     
     VulkanAPI* gfx;

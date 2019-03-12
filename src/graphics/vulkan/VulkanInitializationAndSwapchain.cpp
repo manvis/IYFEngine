@@ -28,6 +28,7 @@
 
 #include "graphics/vulkan/VulkanAPI.hpp"
 #include "graphics/vulkan/VulkanDeviceMemoryManager.hpp"
+#include "graphics/interfaces/SwapchainChangeListener.hpp"
 
 #include "../VERSION.hpp"
 
@@ -48,7 +49,7 @@
 
 #include <iomanip>
 
-#include <SDL_syswm.h>
+#include <SDL2/SDL_vulkan.h>
 
 namespace iyf {
 using namespace iyf::literals;
@@ -70,7 +71,6 @@ bool VulkanAPI::initialize() {
     createLogicalDevice();
     createVulkanMemoryAllocatorAndHelperBuffers();
     
-    // TODO is this really needed? I've noticed these in samples, so I did the same. What's their impact
     vkCreateSwapchain = (PFN_vkCreateSwapchainKHR)vkGetDeviceProcAddr(logicalDevice.handle, "vkCreateSwapchainKHR");
     vkDestroySwapchain = (PFN_vkDestroySwapchainKHR)vkGetDeviceProcAddr(logicalDevice.handle, "vkDestroySwapchainKHR");
     vkGetSwapchainImages = (PFN_vkGetSwapchainImagesKHR)vkGetDeviceProcAddr(logicalDevice.handle, "vkGetSwapchainImagesKHR");
@@ -82,18 +82,38 @@ bool VulkanAPI::initialize() {
     }
     
     swapchain.handle = VK_NULL_HANDLE;
+    createSwapchain();
+    chooseDepthStencilFormat();
+    setupCommandPool();
+    setupPresentationBarrierCommandBuffers();
+    
+    frameCompleteFences.resize(getMaxFramesInFlight());
+    presentationCompleteSemaphores.resize(getMaxFramesInFlight());
+    renderingCompleteSemaphores.resize(getMaxFramesInFlight());
     
     VkFenceCreateInfo fci;
     fci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fci.pNext = nullptr;
-    fci.flags = 0;
-    vkCreateFence(logicalDevice.handle, &fci, nullptr, &swapchain.frameCompleteFence);
+    fci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     
-    createSwapchain();
-    createSwapchainImageViews();
-    chooseDepthStencilFormat();
-    setupCommandPool();
-    setupPresentationBarrierCommandBuffers();
+    VkSemaphoreCreateInfo sci;
+    sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    sci.pNext = nullptr;
+    sci.flags = 0;
+    
+    for (std::size_t i = 0; i < getMaxFramesInFlight(); ++i) {
+        vkCreateFence(logicalDevice.handle, &fci, nullptr, &frameCompleteFences[i]);
+        std::string name = fmt::format("Frame completion fence #{}", i);
+        setObjectName(VK_OBJECT_TYPE_FENCE, reinterpret_cast<std::uint64_t>(frameCompleteFences[i]), name.c_str());
+        
+        vkCreateSemaphore(logicalDevice.handle, &sci, nullptr, &presentationCompleteSemaphores[i]);
+        name = fmt::format("Presentaion complete semaphore #{}", i);
+        setObjectName(VK_OBJECT_TYPE_SEMAPHORE, reinterpret_cast<std::uint64_t>(presentationCompleteSemaphores[i]), name.c_str());
+        
+        vkCreateSemaphore(logicalDevice.handle, &sci, nullptr, &renderingCompleteSemaphores[i]);
+        name = fmt::format("Rendering complete semaphore #{}", i);
+        setObjectName(VK_OBJECT_TYPE_SEMAPHORE, reinterpret_cast<std::uint64_t>(renderingCompleteSemaphores[i]), name.c_str());
+    }
     
     VkPipelineCacheCreateInfo pcci;
     pcci.sType           = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
@@ -104,18 +124,10 @@ bool VulkanAPI::initialize() {
     
     // TODO load from disk
     checkResult(vkCreatePipelineCache(logicalDevice.handle, &pcci, nullptr, &pipelineCache), "");
+    setObjectName(VK_OBJECT_TYPE_PIPELINE_CACHE, reinterpret_cast<std::uint64_t>(pipelineCache), "Main pipeline cache");
 
     mainCommandBuffer = allocateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, false);//TODO allocate >1
     imageUploadCommandBuffer = allocateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, false);
-	
-    // TODO recreate setup
-    VkSemaphoreCreateInfo sci;
-    sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    sci.pNext = nullptr;
-    sci.flags = 0;
-    
-    vkCreateSemaphore(logicalDevice.handle, &sci, nullptr, &presentationComplete);
-    vkCreateSemaphore(logicalDevice.handle, &sci, nullptr, &renderingComplete);
     
     // TODO make configurable
     std::vector<Bytes> stagingBufferSizes = {
@@ -126,6 +138,9 @@ bool VulkanAPI::initialize() {
     };
     
     deviceMemoryManager = new VulkanDeviceMemoryManager(this, stagingBufferSizes);
+    isInit = true;
+    
+    deviceMemoryManager->initialize();
     
     return true;
 }
@@ -141,6 +156,8 @@ void VulkanAPI::setupCommandPool() {
     cpci.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT; // TODO transient?
     
     result = vkCreateCommandPool(logicalDevice.handle, &cpci, nullptr, &commandPool);
+    setObjectName(VK_OBJECT_TYPE_COMMAND_POOL, reinterpret_cast<std::uint64_t>(commandPool), "Main command pool");
+    
     checkResult(result, "Failed to create a command pool.");
 }
 
@@ -232,47 +249,7 @@ void VulkanAPI::createInstance() {
     ai.engineVersion      = con::EngineVersion.getPackedVersion();
     ai.apiVersion         = VK_API_VERSION_1_0; // According to spec, patch number supplied here is ignored, so we should use VK_API_VERSION_ defines here
     
-    // Next, we need to get the number of all available extensions
-    std::uint32_t instanceExtensionCount = 0;
-    checkResult(vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, nullptr), "Failed to obtain instance extension count.");
-    
-    std::vector<VkExtensionProperties> extensionProperties;
-    extensionProperties.resize(instanceExtensionCount);
-    
-    // We use the number we retrieved to fetch the actual extension data
-    checkResult(vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, extensionProperties.data()), "Failed to enumerate instance extension properties.");
-    
-    // We need two mandatory extensions - the one with VK_KHR_SURFACE_EXTENSION_NAME abstracts the native window or surface for
-    // use with Vulkan and the second one IS the native surface that we're abstracting
-    bool surfaceExtensionExists = false;
-    bool platformExtensionExists = false;
-    
     std::vector<const char*> extensionsToEnable;
-    for (uint32_t i = 0; i < instanceExtensionCount; ++i) {
-        if (!strcmp(VK_KHR_SURFACE_EXTENSION_NAME, extensionProperties[i].extensionName)) {
-            surfaceExtensionExists = true;
-            extensionsToEnable.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-        }
-        
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-        if (!strcmp(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, extensionProperties[i].extensionName)) {
-            platformExtensionExists = true;
-            extensionsToEnable.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
-        }
-#endif
-#if defined(VK_USE_PLATFORM_XLIB_KHR)
-        if (!strcmp(VK_KHR_XLIB_SURFACE_EXTENSION_NAME, extensionProperties[i].extensionName)) {
-            platformExtensionExists = true;
-            extensionsToEnable.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
-        }
-#endif
-    }
-    
-    // We cannot proceed without these extensions
-    if (!surfaceExtensionExists || !platformExtensionExists) {
-        throw std::runtime_error("Failed to find required surface extensions.");
-    }
-    
     // If we're in debug mode, we need to set up the debug and validation layers.
     // The names of the files we want are fetched from the config file.
     if (isDebug) {
@@ -288,11 +265,32 @@ void VulkanAPI::createInstance() {
         }
 
         findLayers(LayerType::Instance, validationLayerNames);
-
-        // I've noticed that this extension does not appear in extensionProperties, however, it is
-        // MANDATORY if you want to receive debug messages and the presence of validation layers implies its 
-        // existence.
-        extensionsToEnable.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+        extensionsToEnable.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+    
+    // Any extra extensions should go here
+    
+    unsigned int SDLInstanceExtensionCount = 0;
+    if (!SDL_Vulkan_GetInstanceExtensions(window, &SDLInstanceExtensionCount, nullptr)) {
+        throw std::runtime_error("SDL failed to enumerate Vulkan surface extensions.");
+    }
+    
+    std::size_t extraExtensionCount = extensionsToEnable.size();
+    extensionsToEnable.resize(extraExtensionCount + SDLInstanceExtensionCount);
+    
+    if (!SDL_Vulkan_GetInstanceExtensions(window, &SDLInstanceExtensionCount, extensionsToEnable.data() + extraExtensionCount)) {
+        throw std::runtime_error("SDL failed to fetch the names of Vulkan surface extensions.");
+    }
+    
+    if (isDebug) {
+        std::stringstream ssNames;
+        ssNames << "Enabling these Vulkan instance extensions: ";
+        
+        for (const char* name : extensionsToEnable) {
+            ssNames << "\n\t\t" << name;
+        }
+        
+        LOG_D("{}", ssNames.str());
     }
     
     // Assemble all the data into a single struct and use it to create the Vulkan instance object
@@ -655,43 +653,9 @@ bool VulkanAPI::evaluatePhysicalDeviceExtensions(PhysicalDevice& device) {
 }
 
 void VulkanAPI::createSurface() {
-    // TODO The latest versions of SDL can handle most of this stuff automatically - start using that
-    getPhysicalDeviceSurfaceSupport = (PFN_vkGetPhysicalDeviceSurfaceSupportKHR)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceSurfaceSupportKHR");
-    getPhysicalDeviceSurfaceCapabilities = (PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
-    getPhysicalDeviceSurfaceFormats = (PFN_vkGetPhysicalDeviceSurfaceFormatsKHR)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceSurfaceFormatsKHR");
-    getPhysicalDeviceSurfacePresentModes = (PFN_vkGetPhysicalDeviceSurfacePresentModesKHR)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceSurfacePresentModesKHR");
-    
-    if (getPhysicalDeviceSurfaceSupport == VK_NULL_HANDLE || getPhysicalDeviceSurfaceCapabilities == VK_NULL_HANDLE || getPhysicalDeviceSurfaceFormats == VK_NULL_HANDLE || getPhysicalDeviceSurfacePresentModes == VK_NULL_HANDLE) {
-        throw std::runtime_error("Failed to obtain pointers to surface functions.");
+    if (!SDL_Vulkan_CreateSurface(window, instance, &surface)) {
+        throw std::runtime_error("SDL failed to create a Vulkan render surface");
     }
-    
-    SDL_SysWMinfo info;
-    SDL_VERSION(&info.version)
-    
-    if (!SDL_GetWindowWMInfo(window, &info)) {
-        throw std::runtime_error("Failed to obtain window manager data from SDL.");
-    }
-	
-	// TODO wayland and Android
-#if defined(VK_USE_PLATFORM_XLIB_KHR)
-    VkXlibSurfaceCreateInfoKHR sci;
-    sci.sType  = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
-    sci.pNext  = nullptr;
-    sci.flags  = 0;
-    sci.dpy    = info.info.x11.display;
-    sci.window = info.info.x11.window;
-    
-    checkResult(vkCreateXlibSurfaceKHR(instance, &sci, nullptr, &surface), "Failed to create an xlib surface.");
-#elif defined(VK_USE_PLATFORM_WIN32_KHR)
-    VkWin32SurfaceCreateInfoKHR sci;
-    sci.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    sci.pNext     = nullptr;
-    sci.flags     = 0;
-    sci.hinstance = GetModuleHandle(NULL);
-    sci.hwnd      = info.info.win.window;
-    
-    checkResult(vkCreateWin32SurfaceKHR(instance, &sci, nullptr, &surface), "Failed to create a Win32 surface.");
-#endif
 }
 
 bool VulkanAPI::evaluatePhysicalDeviceQueueFamilies(PhysicalDevice& device) {
@@ -763,7 +727,7 @@ bool VulkanAPI::evaluatePhysicalDeviceQueueFamilies(PhysicalDevice& device) {
         }
         
         VkBool32 canPresent = VK_FALSE;
-        getPhysicalDeviceSurfaceSupport(device.handle, i, surface, &canPresent);
+        vkGetPhysicalDeviceSurfaceSupportKHR(device.handle, i, surface, &canPresent);
         
         if (canPresent == VK_TRUE) {
             device.presentCapableQueues.push_back(i);
@@ -965,26 +929,26 @@ void VulkanAPI::createVulkanMemoryAllocatorAndHelperBuffers() {
 
 bool VulkanAPI::evaluatePhysicalDeviceSurfaceCapabilities(PhysicalDevice& device) {
     std::uint32_t presentModeCount;
-    checkResult(getPhysicalDeviceSurfacePresentModes(device.handle, surface, &presentModeCount, nullptr), "Failed to opbtain surface present mode count.");
+    checkResult(vkGetPhysicalDeviceSurfacePresentModesKHR(device.handle, surface, &presentModeCount, nullptr), "Failed to opbtain surface present mode count.");
     
     if (presentModeCount == 0) {
         return false;
     }
     
     device.presentModes.resize(presentModeCount);    
-    checkResult(getPhysicalDeviceSurfacePresentModes(device.handle, surface, &presentModeCount, device.presentModes.data()), "Failed to enumerate surface present modes.");
+    checkResult(vkGetPhysicalDeviceSurfacePresentModesKHR(device.handle, surface, &presentModeCount, device.presentModes.data()), "Failed to enumerate surface present modes.");
     
     std::uint32_t surfaceFormatCount = 0;
-    checkResult(getPhysicalDeviceSurfaceFormats(device.handle, surface, &surfaceFormatCount, VK_NULL_HANDLE), "Failed to obtain surface format count.");
+    checkResult(vkGetPhysicalDeviceSurfaceFormatsKHR(device.handle, surface, &surfaceFormatCount, VK_NULL_HANDLE), "Failed to obtain surface format count.");
     
     if (surfaceFormatCount == 0) {
         return false;
     }
     
     device.surfaceFormats.resize(surfaceFormatCount);
-    checkResult(getPhysicalDeviceSurfaceFormats(device.handle, surface, &surfaceFormatCount, device.surfaceFormats.data()), "Failed to enumerate surface formats.");
+    checkResult(vkGetPhysicalDeviceSurfaceFormatsKHR(device.handle, surface, &surfaceFormatCount, device.surfaceFormats.data()), "Failed to enumerate surface formats.");
     
-    checkResult(getPhysicalDeviceSurfaceCapabilities(device.handle, surface, &device.surfaceCapabilities), "Failed to obtain surface capabilities.");
+    checkResult(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.handle, surface, &device.surfaceCapabilities), "Failed to obtain surface capabilities.");
     
     return true;
 }
@@ -1119,7 +1083,27 @@ VkPresentModeKHR VulkanAPI::chooseSwapchainPresentMode() {
     return chosenPresentMode;
 }
 
+void VulkanAPI::recreateSwapchain() {
+    vkDeviceWaitIdle(logicalDevice.handle);
+    
+    createSwapchain();
+    setupPresentationBarrierCommandBuffers();
+}
+
 void VulkanAPI::createSwapchain() {
+    const bool recreatingSwapchain = (swapchain.handle != VK_NULL_HANDLE);
+    Swapchain oldSwapchain = recreatingSwapchain ? swapchain : Swapchain();
+    
+    if (recreatingSwapchain) {
+        LOG_V("Recreating swapchain");
+        
+        // We need to re-evaluate physical device surface capabilities to update required data structs
+        if (!evaluatePhysicalDeviceSurfaceCapabilities(physicalDevice)) {
+            // This should NEVER happen
+            throw std::runtime_error("Unexpected incompatible change in surface capabilities");
+        }
+    }
+    
     VkSurfaceFormatKHR format    = chooseSwapchainImageFormat();
     VkPresentModeKHR presentMode = chooseSwapchainPresentMode();
     
@@ -1136,16 +1120,6 @@ void VulkanAPI::createSwapchain() {
     
     LOG_V("Surface extent limits.\n\t\tMIN W: {} H: {}\n\t\tMAX W: {}, H: {}",
           capabilities.minImageExtent.width, capabilities.minImageExtent.height, capabilities.maxImageExtent.width, capabilities.maxImageExtent.height);
-    
-    
-    VkSwapchainKHR tempSwapchain = VK_NULL_HANDLE;
-    
-    bool recreatingSwapchain = (swapchain.handle != VK_NULL_HANDLE);
-    if (recreatingSwapchain) {
-        tempSwapchain = swapchain.handle;
-        
-        LOG_V("Recreating swapchain");
-    }
 
     glm::uvec2 determinedSize = getWindowSize();
     
@@ -1224,9 +1198,12 @@ void VulkanAPI::createSwapchain() {
     sci.compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     sci.presentMode           = presentMode;
     sci.clipped               = VK_TRUE;
-    sci.oldSwapchain          = tempSwapchain;
+    sci.oldSwapchain          = recreatingSwapchain ? oldSwapchain.handle : VK_NULL_HANDLE;
     
     checkResult(vkCreateSwapchain(logicalDevice.handle, &sci, nullptr, &swapchain.handle), "Failed to create a swapchain.");
+    
+    // Don't forget to clean the vectors.
+    swapchain.clearImageDataVectors();
 
     // Retrieving the swapchain images
     std::uint32_t swapchainImageCount = 0;
@@ -1242,6 +1219,21 @@ void VulkanAPI::createSwapchain() {
     }
     
     swapchain.version += 1;
+    
+    createSwapchainImageViews();
+    
+    // It is now safe to delete old data and create new objects
+    if (recreatingSwapchain) {
+        for (SwapchainChangeListener* listener : swapchainChangeListeners) {
+            listener->onSwapchainChange();
+        }
+        
+        disposeOfSwapchainAndDependencies(oldSwapchain);
+    } else {
+        if (maxFramesInFlight > swapchain.images.size()) {
+            maxFramesInFlight = swapchain.images.size();
+        }
+    }
 }
 
 void VulkanAPI::chooseDepthStencilFormat() {

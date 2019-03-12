@@ -119,7 +119,7 @@ void GraphicsSystem::initialize() {
     components[static_cast<std::size_t>(GraphicsComponent::Mesh)] = std::make_unique<ChunkedMeshVector>(this, ComponentType(ComponentBaseType::Graphics, GraphicsComponent::Mesh));
     components[static_cast<std::size_t>(GraphicsComponent::Camera)] = std::make_unique<UnorderedComponentMap<Camera>>(this, ComponentType(ComponentBaseType::Graphics, GraphicsComponent::Camera));
     
-    if (api->isInitialized()) {
+    if (!api->isInitialized()) {
         throw std::runtime_error("API must be initialized before initializing the GraphicsSystem.");
     }
     
@@ -139,8 +139,7 @@ void GraphicsSystem::initialize() {
         editorCamera.transformation = &editorCameraTransformation;
         
         assert(!renderer->isRenderSurfaceSizeDynamic());
-        const glm::uvec2 renderSurfaceSize = renderer->getRenderSurfaceSize();
-        editorCamera.setScreenSize(renderSurfaceSize.x, renderSurfaceSize.y);
+        editorCamera.setRenderSurfaceSize(renderer->getRenderSurfaceSize());
         
         // TODO these should be loaded from file
         editorCameraTransformation.setPosition(10.0f, 5.0f, 10.0f);
@@ -206,8 +205,8 @@ void GraphicsSystem::update(float delta, const EntityStateVector& entityStates) 
     assert(!renderer->isRenderSurfaceSizeDynamic());
     
     const glm::uvec2 renderSurfaceSize = renderer->getRenderSurfaceSize();
-    if (camera.getScreenWidth() != renderSurfaceSize.x || camera.getScreenHeight() != renderSurfaceSize.y) {
-        camera.setScreenSize(renderSurfaceSize.x, renderSurfaceSize.y);
+    if (camera.getRenderSurfaceSize() != renderSurfaceSize) {
+        camera.setRenderSurfaceSize(renderSurfaceSize);
     }
 
     // TODO this should go to a CharacterController
@@ -271,6 +270,11 @@ void GraphicsSystem::update(float delta, const EntityStateVector& entityStates) 
     PhysicsSystem* physicsSystem = dynamic_cast<PhysicsSystem*>(manager->getSystemManagingComponentType(ComponentBaseType::Physics));
     if (manager->isEditorMode() && drawFrustum && physicsSystem != nullptr && physicsSystem->isDrawingDebug()) {
         Camera& tempCamera = getComponent<Camera>(drawnFrustumID);
+        
+        if (tempCamera.getRenderSurfaceSize() != renderSurfaceSize) {
+            tempCamera.setRenderSurfaceSize(renderSurfaceSize);
+        }
+        
         tempCamera.update();
         Frustum drawnFrustum;
         drawnFrustum.update(tempCamera);
@@ -280,9 +284,6 @@ void GraphicsSystem::update(float delta, const EntityStateVector& entityStates) 
     World* world = dynamic_cast<World*>(manager);
     assert(world != nullptr);
     renderer->drawWorld(world);
-    
-    // TODO I don't think this is the proper place to submit command buffers
-    renderer->submitCommandBuffers();
 }
 
 void GraphicsSystem::createAndAttachComponent(const EntityKey& key, const ComponentType& type) {
@@ -323,8 +324,7 @@ void GraphicsSystem::createAndAttachComponent(const EntityKey& key, const Compon
             break;
         case GraphicsComponent::Camera: {
             assert(!renderer->isRenderSurfaceSizeDynamic());
-            const glm::uvec2 surfaceSize = renderer->getRenderSurfaceSize();
-            Camera c(surfaceSize.x, surfaceSize.y);
+            Camera c(renderer->getRenderSurfaceSize());
             
             setComponent(key.getID(), std::move(c));
             

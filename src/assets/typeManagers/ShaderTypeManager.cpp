@@ -54,7 +54,8 @@ void ShaderTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAsset
     const ShaderMetadata& shaderMeta = loadedAssetData->metadata.get<ShaderMetadata>();
     Shader& assetData = static_cast<Shader&>(loadedAssetData->assetData);
     
-    assetData.handle = api->createShader(shaderMeta.getShaderStage(), loadedAssetData->rawData.first.get(), loadedAssetData->rawData.second);
+    const std::string name = fmt::format("Managed shader from {}", shaderMeta.getSourceAssetPath().string());
+    assetData.handle = api->createShader(shaderMeta.getShaderStage(), loadedAssetData->rawData.first.get(), loadedAssetData->rawData.second, name.c_str());
     assetData.stage = shaderMeta.getShaderStage();
     assetData.setLoaded(true);
 }

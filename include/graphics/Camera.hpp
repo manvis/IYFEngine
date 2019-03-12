@@ -31,6 +31,7 @@
 
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
+#include <glm/vec2.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_access.hpp>
 
@@ -49,7 +50,7 @@ public:
     static constexpr ComponentType Type = ComponentType(ComponentBaseType::Graphics, GraphicsComponent::Camera);
     
     Camera();
-    Camera(int screenWidth, int screenHeight);
+    Camera(glm::uvec2 renderSurfaceSize);
     
     virtual void attach(System* system, std::uint32_t ownID) final override;
     virtual void detach(System* system, std::uint32_t ownID) final override;
@@ -74,11 +75,10 @@ public:
         return mode;
     }
 
-    inline void setScreenSize(std::uint32_t screenWidth, std::uint32_t screenHeight) {
-        this->screenWidth = screenWidth;
-        this->screenHeight = screenHeight;
+    inline void setRenderSurfaceSize(glm::uvec2 renderSurfaceSize) {
+        this->renderSurfaceSize = renderSurfaceSize;
 
-        aspect = (float) screenWidth / (float) screenHeight;
+        aspect = (float) renderSurfaceSize.x / (float) renderSurfaceSize.y;
         
         projectionNeedsUpdate = true;
     }
@@ -124,12 +124,8 @@ public:
         return aspect;
     }
 
-    inline std::uint32_t getScreenWidth() const {
-        return screenWidth;
-    }
-
-    inline std::uint32_t getScreenHeight() const {
-        return screenHeight;
+    inline glm::uvec2 getRenderSurfaceSize() const {
+        return renderSurfaceSize;
     }
 
     inline glm::mat4 getProjection() const {
@@ -178,8 +174,7 @@ private:
     float farDistance;
 
     float aspect;
-    std::uint32_t screenWidth;
-    std::uint32_t screenHeight;
+    glm::uvec2 renderSurfaceSize;
     
     std::uint32_t transformationUpdateCount;
 

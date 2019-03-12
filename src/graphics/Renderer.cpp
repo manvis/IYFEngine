@@ -41,6 +41,11 @@ Renderer::Renderer(Engine* engine, GraphicsAPI* gfx) : engine(engine), gfx(gfx),
     assert(engine != nullptr && gfx != nullptr);
     
     pickingEnabled = engine->isEditorMode();
+    gfx->addSwapchainChangeListener(this);
+}
+
+Renderer::~Renderer() {
+    gfx->removeSwapchainChangeListener(this);
 }
 // void Renderer::drawWorld(const World* world) {
 //     if (drawingWorldThisFrame) {

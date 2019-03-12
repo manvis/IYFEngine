@@ -79,7 +79,9 @@ void PhysicsSystem::initialize() {
 
 void PhysicsSystem::rayPick(std::uint32_t x, std::uint32_t y, const Camera& camera) {
     glm::vec3 windowCoords(static_cast<float>(x), static_cast<float>(y), 0.0f);
-    glm::vec4 viewport(0.0f, 0.0f, camera.getScreenWidth(), camera.getScreenHeight());
+    
+    const glm::uvec2 renderSurfaceSize = camera.getRenderSurfaceSize();
+    glm::vec4 viewport(0.0f, 0.0f, renderSurfaceSize.x, renderSurfaceSize.y);
     
     glm::vec3 nearPick = glm::unProject(windowCoords, camera.getViewMatrix(), camera.getProjection(), viewport);
     

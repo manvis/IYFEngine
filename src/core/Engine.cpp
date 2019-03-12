@@ -214,6 +214,11 @@ void Engine::init() {
 
     // Initialize graphics
     graphicsAPI->initialize();
+    
+    if (!graphicsAPI->isInitialized()) {
+        throw std::runtime_error("Failed to initialize the GraphicsAPI");
+    }
+    
     window = graphicsAPI->getWindow();
     
     // Initialize the asset manager (depends on the graphics API and the filesystem to load the system assets)
@@ -254,6 +259,8 @@ void Engine::init() {
 }
 
 Engine::~Engine() {
+    graphicsAPI->waitUntilDone();
+    
     // State cleanup
     while (!stateStack.empty()) {
         stateStack.back()->dispose();
@@ -379,6 +386,7 @@ void Engine::step() {
 
 void Engine::frame(float delta) {
     graphicsAPI->startFrame();
+//     LOG_D("{}", graphicsAPI->getCurrentSwapImage())
     stateStack.back()->frame(delta);
     graphicsAPI->endFrame();
 }

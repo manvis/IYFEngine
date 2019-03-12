@@ -58,14 +58,14 @@ void CubemapSkybox::initialize() {
     
     // TODO asynchronous loading? Pass texture directly instead of a name hash?
     skyCubemap = assetManager->load<Texture>(textureNameHash, false);
-    skyCubemapView = api->createDefaultImageView(skyCubemap->image);
+    skyCubemapView = api->createDefaultImageView(skyCubemap->image, "Sky cubemap image view");
     skyCubemapSampler = api->createPresetSampler(SamplerPreset::SkyBox, static_cast<float>(skyCubemap->image.getMipLevels()));
     
     DescriptorPoolCreateInfo dpci{1, {{DescriptorType::CombinedImageSampler, 1}}};
-    descriptorPool = api->createDescriptorPool(dpci);
+    descriptorPool = api->createDescriptorPool(dpci, "Sky cubemap descriptor pool");
     
     DescriptorSetLayoutCreateInfo dslci{{{0, DescriptorType::CombinedImageSampler, 1, ShaderStageFlagBits::Fragment, {}}}};
-    skyDescriptorSetLayout = api->createDescriptorSetLayout(dslci);
+    skyDescriptorSetLayout = api->createDescriptorSetLayout(dslci, "Sky cubemap descriptor set layout");
     
     DescriptorSetAllocateInfo dsai{descriptorPool, {skyDescriptorSetLayout}};
     skyTextureDescriptorSet = api->allocateDescriptorSets(dsai)[0];
@@ -74,7 +74,7 @@ void CubemapSkybox::initialize() {
     api->updateDescriptorSets({wds});
     
     PipelineLayoutCreateInfo plci{{skyDescriptorSetLayout}, {{ShaderStageFlagBits::Vertex, 0, sizeof(glm::mat4)}}};
-    skyPipelineLayout = api->createPipelineLayout(plci);
+    skyPipelineLayout = api->createPipelineLayout(plci, "Sky cubemap pipeline layout");
     
     skyVertexShader = assetManager->getSystemAsset<Shader>("skyBox.vert");
     skyFragmentShader = assetManager->getSystemAsset<Shader>("skyBox.frag");
@@ -87,9 +87,10 @@ void CubemapSkybox::initialize() {
     pci.renderPass = passInfo.first;
     pci.subpass = passInfo.second;
     pci.layout = skyPipelineLayout;
-    pci.vertexInputState = con::GetVertexDataLayoutDefinition(VertexDataLayout::MeshVertex).createVertexInputStateCreateInfo(0);
+    pci.vertexInputState = con::GetVertexDataLayoutDefinition(VertexDataLayout::MeshVertexPositionOnly).createVertexInputStateCreateInfo(0);
+    pci.dynamicState.dynamicStates = {DynamicState::Viewport, DynamicState::Scissor};
     
-    skyPipeline = api->createPipeline(pci);
+    skyPipeline = api->createPipeline(pci, "Sky cubemap pipeline");
     
     sphereMesh = assetManager->getSystemAsset<Mesh>("sphere.dae");
     
@@ -126,16 +127,30 @@ void CubemapSkybox::draw(CommandBuffer* commandBuffer, const Camera* camera) con
     const MeshTypeManager* meshManager = static_cast<const MeshTypeManager*>(assetManager->getTypeManager(AssetType::Mesh));
     commandBuffer->bindPipeline(skyPipeline);
     
-    const Buffer& VBO = meshManager->getVertexBuffer(sphereMesh->vboID);
+    const glm::uvec2 size = camera->getRenderSurfaceSize();
     
+    assert(camera->getRenderSurfaceSize() == renderer->getRenderSurfaceSize());
+    
+    Viewport vp;
+    vp.width = size.x;
+    vp.height = size.y;
+    commandBuffer->setViewport(0, vp);
+    
+    Rect2D sc;
+    sc.offset = glm::ivec2(0, 0);
+    sc.extent = size;
+    commandBuffer->setScissor(0, sc);
+    
+    const Buffer& VBO = meshManager->getVertexBuffer(sphereMesh->vboID);
     const Buffer& IBO = meshManager->getIndexBuffer(sphereMesh->iboID);
-    commandBuffer->bindVertexBuffers(0, VBO);
+    
+    commandBuffer->bindVertexBuffer(0, VBO);
     commandBuffer->bindIndexBuffer(IBO, IndexType::UInt16);
     
     glm::mat4 mvp = camera->getProjection() * glm::mat4(glm::mat3(camera->getViewMatrix()));
 
     commandBuffer->pushConstants(skyPipelineLayout, ShaderStageFlagBits::Vertex, 0, sizeof(glm::mat4), &mvp);
-    commandBuffer->bindDescriptorSets(PipelineBindPoint::Graphics, skyPipelineLayout, 0, {skyTextureDescriptorSet}, {});
+    commandBuffer->bindDescriptorSets(PipelineBindPoint::Graphics, skyPipelineLayout, 0, 1, &skyTextureDescriptorSet, 0, nullptr);
     
     const PrimitiveData& primitiveData = sphereMesh->getMeshPrimitiveData();
     commandBuffer->drawIndexed(primitiveData.indexCount, 1, primitiveData.indexOffset, primitiveData.vertexOffset, 0);

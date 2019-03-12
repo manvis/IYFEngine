@@ -197,6 +197,10 @@ const VertexDataLayoutDefinition& GetVertexDataLayoutDefinition(VertexDataLayout
         {VertexAttributeType::UV,         Format::R32_G32_sFloat,              offsetof(SimpleMeshVertexColored, uv)},
         {VertexAttributeType::Color,      Format::R8_G8_B8_A8_uNorm,           offsetof(SimpleMeshVertexColored, color)}}
         ),
+        // 8 - MeshVertexPositionOnly
+        VertexDataLayoutDefinition("MeshVertex", sizeof(MeshVertex),
+        {{VertexAttributeType::Position3D, Format::R32_G32_B32_sFloat,          offsetof(MeshVertex, position)}}
+        ),
     };
     
     return VertexDataLayoutDefinitions[static_cast<std::size_t>(layout)];

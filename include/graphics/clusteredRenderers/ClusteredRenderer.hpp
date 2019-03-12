@@ -84,6 +84,8 @@ protected:
         World = 0, Picking = 1, COUNT = 2
     };
     
+    CommandBuffer* getCommandBuffer(CommandBufferID id) const;
+    
     CommandPool* commandPool;
     std::vector<CommandBuffer*> commandBuffers;
     SemaphoreHnd worldRenderComplete;

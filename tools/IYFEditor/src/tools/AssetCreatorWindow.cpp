@@ -42,7 +42,7 @@ namespace iyf::editor {
 
 AssetCreatorWindow::AssetCreatorWindow(Engine* engine, std::string basePath) : AssetCreatorWindow(engine, basePath, AssetType::COUNT) {}
 
-AssetCreatorWindow::AssetCreatorWindow(Engine* engine, std::string basePath, AssetType type) : engine(engine), basePath(basePath), directory(type == AssetType::COUNT), showZeroLengthInfo(false), type(type), family(MaterialFamily::Toon) {
+AssetCreatorWindow::AssetCreatorWindow(Engine* engine, std::string basePath, AssetType type) : engine(engine), basePath(basePath), directory(type == AssetType::COUNT), showZeroLengthInfo(false), type(type), family(MaterialFamily::PBR) {
     if (type == AssetType::MaterialTemplate) {
         windowName = "New Material Template";
         extension = con::MaterialTemplateFormatExtension();

@@ -67,6 +67,8 @@ enum class VertexDataLayout : std::uint8_t {
     MeshVertexColoredWithBones = 6,
     /// Corresponds to SimpleMeshVertexColored
     SimpleMeshVertexColored = 7,
+    /// Corresponds to MeshVertex. However, generated VertexInputStateCreateInfo objects only use the position component.
+    MeshVertexPositionOnly = 8,
     COUNT
 };
 

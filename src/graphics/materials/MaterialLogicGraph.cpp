@@ -52,7 +52,7 @@ inline MaterialNodeConnectorType ShaderDataTypeToMaterialConnectorType(ShaderDat
         case ShaderDataType::Vector3D:
             return MaterialNodeConnectorType::Vec3;
         case ShaderDataType::Vector4D:
-            return MaterialNodeConnectorType::Vec3;
+            return MaterialNodeConnectorType::Vec4;
         default:
             throw std::runtime_error("Invalid ShaderDataType");
     }

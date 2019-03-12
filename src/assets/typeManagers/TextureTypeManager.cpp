@@ -66,7 +66,9 @@ void TextureTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAsse
     }
     
     ImageCreateInfo ici = gfx->buildImageCreateInfo(textureData);
-    assetData.image = gfx->createImage(ici);
+    
+    const std::string textureName = fmt::format("Managed texture from {}", textureMeta.getSourceAssetPath().string());
+    assetData.image = gfx->createImage(ici, textureName.c_str());
     if (canBatch) {
         memoryManager->updateImage(MemoryBatch::TextureAssetData, assetData.image, textureData);
     } else {

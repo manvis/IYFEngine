@@ -26,27 +26,17 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_MATERIAL_CONSTANTS_HPP
-#define IYF_MATERIAL_CONSTANTS_HPP
-
-#include <cstdint>
+#ifndef IYF_SWAPCHAIN_CHANGE_LISTENER_HPP
+#define IYF_SWAPCHAIN_CHANGE_LISTENER_HPP
 
 namespace iyf {
-class MaterialFamilyDefinition;
 
-/// List of all material families supported by the engine
-///
-/// \warning Feel free to add to this enum, but make sure there are no gaps and the numbers don't change.
-/// Moreover, make sure to create the appropriate MaterialFamilyDefinition for GetMaterialFamilyDefinition().
-enum class MaterialFamily : std::uint32_t {
-    Toon = 0,
-     PBR = 1, // TODO implement PBR rendering
-    COUNT
+/// All classes that care about changes in the swapchain (e.g., it being rebuilt after user changes the resolution)
+/// should implement this listener and register with the GraphicsAPI addSwapchainChangeListener() function;
+class SwapchainChangeListener {
+public:
+    virtual void onSwapchainChange() = 0;
 };
-
-namespace con {
-    const MaterialFamilyDefinition& GetMaterialFamilyDefinition(MaterialFamily family);
-}
 }
 
-#endif // IYF_MATERIAL_CONSTANTS_HPP
+#endif // IYF_SWAPCHAIN_CHANGE_LISTENER_HPP

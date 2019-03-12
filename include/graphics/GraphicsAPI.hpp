@@ -50,13 +50,14 @@ struct SDL_Window;
 
 namespace iyf {
 class TextureData;
+class SwapchainChangeListener;
 
 /// \todo What about queue families?
-class BufferCreateInfo {
+class BufferCreateInfo  {
 public:
     BufferCreateInfo() :  size(0), flags(), memoryUsage(MemoryUsage::CPUOnly), frequentHostAccess(false) {}
-    BufferCreateInfo(BufferUsageFlags flags, Bytes size, MemoryUsage memoryUsage, bool frequentHostAccess, std::string debugName = std::string())
-        : size(size), flags(flags), memoryUsage(memoryUsage), frequentHostAccess(frequentHostAccess), debugName(std::move(debugName)) {}
+    BufferCreateInfo(BufferUsageFlags flags, Bytes size, MemoryUsage memoryUsage, bool frequentHostAccess)
+        : size(size), flags(flags), memoryUsage(memoryUsage), frequentHostAccess(frequentHostAccess) {}
     
     Bytes size;
     BufferUsageFlags flags;
@@ -68,12 +69,9 @@ public:
     /// on device and CPU mappable. E.g., AMD GPUs have a 256 MB heap of such memory. It's quite useful for storing per-frame data
     /// because it avoids staging buffer copies.
     bool frequentHostAccess;
-    
-    /// Optional name to use when debugging issues
-    std::string debugName;
 };
 
-class Buffer {// MEMORY TYPE? Memory handle?
+class Buffer {
 public:
     Buffer() : bufferHandle(nullptr), bufferSize(0), info(nullptr), bufferUsage(), memUsage(MemoryUsage::CPUOnly) {}
     Buffer(BufferHnd handle, BufferUsageFlags flags, MemoryUsage memoryUsage, Bytes size, void* allocationInfo) 
@@ -233,8 +231,10 @@ public:
     ///
     /// \param stagingBufferSizes The initial sizes of the staging buffers. Each element corresponds to a MemoryBatch enum value. All values must be
     /// set and > 0. The implementation is allowed to combine MemoryBatch::MeshAssetData and MemoryBatch::extureAssetData staging buffers into one.
-    DeviceMemoryManager(std::vector<Bytes> stagingBufferSizes) 
-        : stagingBufferSizes(std::move(stagingBufferSizes)) {}
+    DeviceMemoryManager(std::vector<Bytes> stagingBufferSizes);
+    
+    virtual void initialize() = 0;
+    virtual void dispose() = 0;
     
     virtual ~DeviceMemoryManager() {}
     
@@ -795,8 +795,8 @@ public:
 class ImageCreateInfo {
 public:
     ImageCreateInfo() : extent(0, 0, 0), mipLevels(0), arrayLayers(0), format(Format::Undefined), isCube(false) {}
-    ImageCreateInfo(glm::uvec3 extent, std::uint32_t mipLevels, std::uint32_t arrayLayers, ImageUsageFlags usage, Format format, bool isCube, std::string debugName = std::string())
-        : extent(std::move(extent)), mipLevels(mipLevels), arrayLayers(arrayLayers), usage(usage), format(format), isCube(isCube), debugName(std::move(debugName)) {}
+    ImageCreateInfo(glm::uvec3 extent, std::uint32_t mipLevels, std::uint32_t arrayLayers, ImageUsageFlags usage, Format format, bool isCube)
+        : extent(std::move(extent)), mipLevels(mipLevels), arrayLayers(arrayLayers), usage(usage), format(format), isCube(isCube) {}
     
     glm::uvec3 extent;
     std::uint32_t mipLevels;
@@ -809,9 +809,6 @@ public:
     
     /// If this is true, the Image will be a cubemap. If false, it's going to be a regular 2D Image.
     bool isCube;
-    
-    /// Optional name to use when debugging issues
-    std::string debugName;
 };
 
 class UncompressedImageCreateInfo {
@@ -873,8 +870,14 @@ public:
     //CommandBuffer(CommandPool* pool) : pool(pool) {}
     CommandBuffer(BufferLevel level) : level(level) {}//valid(false) {}
     
-    virtual void setViewport(std::uint32_t first, std::uint32_t count, const std::vector<Viewport>& viewports) = 0;
-    virtual void setScissor(std::uint32_t first, std::uint32_t count, const std::vector<Rect2D>& rectangles) = 0;
+    virtual void setViewports(std::uint32_t first, std::uint32_t count, const std::vector<Viewport>& viewports) = 0;
+    virtual void setScissors(std::uint32_t first, std::uint32_t count, const std::vector<Rect2D>& rectangles) = 0;
+    
+    virtual void setViewports(std::uint32_t first, std::uint32_t count, const Viewport* viewports) = 0;
+    virtual void setScissors(std::uint32_t first, std::uint32_t count, const Rect2D* rectangles) = 0;
+    
+    virtual void setViewport(std::uint32_t first, const Viewport& viewport) = 0;
+    virtual void setScissor(std::uint32_t first, const Rect2D& rectangle) = 0;
     
     virtual void draw(std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex, std::uint32_t firstInstance) = 0;
     virtual void drawIndexed(std::uint32_t indexCount, std::uint32_t instanceCount, std::uint32_t firstIndex, std::int32_t vertexOffset, std::uint32_t firstInstance) = 0;
@@ -882,16 +885,19 @@ public:
     virtual void dispatch(std::uint32_t x, std::uint32_t y, std::uint32_t z) = 0;
     
     virtual void bindVertexBuffers(std::uint32_t firstBinding, std::uint32_t bindingCount, const std::vector<Buffer>& buffers) = 0;//TODO offsets
-    virtual void bindVertexBuffers(std::uint32_t firstBinding, const Buffer& buffer) = 0;
+    virtual void bindVertexBuffer(std::uint32_t firstBinding, const Buffer& buffer) = 0;
     virtual void bindIndexBuffer(const Buffer& buffer, IndexType indexType) = 0;
     
     virtual void pushConstants(PipelineLayoutHnd handle, ShaderStageFlags flags, std::uint32_t offset, std::uint32_t size, const void* data) = 0;
     virtual bool bindDescriptorSets(PipelineBindPoint point, PipelineLayoutHnd layout, std::uint32_t firstSet, const std::vector<DescriptorSetHnd> descriptorSets, const std::vector<std::uint32_t> dynamicOffsets) = 0;
+    virtual bool bindDescriptorSets(PipelineBindPoint point, PipelineLayoutHnd layout, std::uint32_t firstSet, std::uint32_t descriptorSetCount, const DescriptorSetHnd* descriptorSets, std::uint32_t dynamicOffsetCount, const std::uint32_t* dynamicOffsets) = 0;
     
     virtual void bindPipeline(const Pipeline& pipeline) = 0;
     
     virtual void begin(const CommandBufferBeginInfo& cbbi = CommandBufferBeginInfo()) = 0;
     virtual void end() = 0;
+    
+    virtual bool isRecording() const = 0;
     
     virtual void beginRenderPass(const RenderPassBeginInfo& rpbi, SubpassContents contents = SubpassContents::Inline) = 0;
     virtual void nextSubpass(SubpassContents contents = SubpassContents::Inline) = 0;
@@ -923,8 +929,8 @@ class CommandPool : private NonCopyable {
 public:
     CommandPool() {}
     
-    virtual CommandBuffer* allocateCommandBuffer(BufferLevel level = BufferLevel::Primary, bool beginBuffer = true) = 0;
-    virtual std::vector<CommandBuffer*> allocateCommandBuffers(std::uint32_t count, BufferLevel level = BufferLevel::Primary, bool beginBuffer = false) = 0;
+    virtual CommandBuffer* allocateCommandBuffer(const char* name, BufferLevel level = BufferLevel::Primary, bool beginBuffer = true) = 0;
+    virtual std::vector<CommandBuffer*> allocateCommandBuffers(const std::vector<const char*>* names, std::uint32_t count, BufferLevel level = BufferLevel::Primary, bool beginBuffer = false) = 0;
     virtual void freeCommandBuffer(CommandBuffer* cmdBuf) = 0;
     virtual void freeCommandBuffers(const std::vector<CommandBuffer*>& cmdBuffs) = 0;
     
@@ -937,86 +943,102 @@ class Engine;
 // TODO implement the said DeviceMemoryUpdateBatcher
 class GraphicsAPI : public Configurable, private NonCopyable {
 public:
-    GraphicsAPI(Engine* engine, bool useDebugAndValidation, Configuration* config) : Configurable(config), engine(engine), deviceMemoryManager(nullptr), isDebug(useDebugAndValidation), isInit(false) { }
+    GraphicsAPI(Engine* engine, bool useDebugAndValidation, Configuration* config);
     
+    /// \warning openWindow() should be the very first call in the initialize() implementations because it sets up some really important data.
     virtual bool initialize() = 0;
     virtual void dispose() = 0;
     
-    bool isInitialized() {
+    virtual bool backendSupportsMultipleFramesInFlight() const = 0;
+    
+    /// \warning This is used for debugging. You probably want to create getSwapImageCount() resources
+    /// and access getCurrentSwapImage() when rendering
+    inline std::size_t getMaxFramesInFlight() const {
+        return maxFramesInFlight;
+    }
+    
+    /// \warning This is used for debugging. You probably want to create getSwapImageCount() resources
+    /// and access getCurrentSwapImage() when rendering
+    inline std::size_t getCurrentFrameInFlight() const {
+        return currentFrameInFlight;
+    }
+    
+    bool isInitialized() const {
         return isInit;
     }
     
-    virtual DeviceMemoryManager* getDeviceMemoryManager() const {
-        return deviceMemoryManager;
-    }
+    void addSwapchainChangeListener(SwapchainChangeListener* listener);
+    void removeSwapchainChangeListener(SwapchainChangeListener* listener);
+    
+    virtual DeviceMemoryManager* getDeviceMemoryManager() const;
 
-    virtual RenderPassHnd createRenderPass(const RenderPassCreateInfo& info) = 0;
+    virtual RenderPassHnd createRenderPass(const RenderPassCreateInfo& info, const char* name) = 0;
     virtual bool destroyRenderPass(RenderPassHnd handle) = 0;
     
     virtual bool startFrame() = 0;
     virtual bool endFrame() = 0;
     
-    virtual CommandPool* createCommandPool(QueueType type, std::uint32_t queueId) = 0;
+    virtual CommandPool* createCommandPool(QueueType type, std::uint32_t queueId, const char* name) = 0;
     virtual bool destroyCommandPool(CommandPool* pool) = 0;
     
     /// \brief Create a shader from bytecode.
     ///
     /// On APIs that don't support bytecode, this function needs to be passed a source code string and its length.
-    virtual ShaderHnd createShader(ShaderStageFlags shaderStageFlag, const void* data, std::size_t byteCount) = 0;
+    virtual ShaderHnd createShader(ShaderStageFlags shaderStageFlag, const void* data, std::size_t byteCount, const char* name) = 0;
     /// \brief Create a shader from a source code string.
     ///
     /// \throws std::runtime_error if the API does not support loading shaders from source code.
-    virtual ShaderHnd createShaderFromSource(ShaderStageFlags shaderStageFlag, const std::string& source) = 0;
+    virtual ShaderHnd createShaderFromSource(ShaderStageFlags shaderStageFlag, const std::string& source, const char* name) = 0;
     virtual bool destroyShader(ShaderHnd handle) = 0;
     
-    virtual Pipeline createPipeline(const PipelineCreateInfo& info) = 0;
-    virtual Pipeline createPipeline(const ComputePipelineCreateInfo& info) = 0;
+    virtual Pipeline createPipeline(const PipelineCreateInfo& info, const char* name) = 0;
+    virtual Pipeline createPipeline(const ComputePipelineCreateInfo& info, const char* name) = 0;
     virtual bool destroyPipeline(const Pipeline& pipeline) = 0;
     
-    virtual PipelineLayoutHnd createPipelineLayout(const PipelineLayoutCreateInfo& info) = 0;
+    virtual PipelineLayoutHnd createPipelineLayout(const PipelineLayoutCreateInfo& info, const char* name) = 0;
     virtual bool destroyPipelineLayout(PipelineLayoutHnd handle) = 0;
-    virtual DescriptorSetLayoutHnd createDescriptorSetLayout(const DescriptorSetLayoutCreateInfo& info) = 0;
+    virtual DescriptorSetLayoutHnd createDescriptorSetLayout(const DescriptorSetLayoutCreateInfo& info, const char* name) = 0;
     virtual bool destroyDescriptorSetLayout(DescriptorSetLayoutHnd handle) = 0;
     
     virtual std::vector<DescriptorSetHnd> allocateDescriptorSets(const DescriptorSetAllocateInfo& info) = 0;
     virtual bool updateDescriptorSets(const std::vector<WriteDescriptorSet>& sets) = 0;
     virtual bool freeDescriptorSets(DescriptorPoolHnd handle, std::vector<DescriptorSetHnd>& sets) = 0;
     
-    virtual DescriptorPoolHnd createDescriptorPool(const DescriptorPoolCreateInfo& info) = 0;
+    virtual DescriptorPoolHnd createDescriptorPool(const DescriptorPoolCreateInfo& info, const char* name) = 0;
     virtual bool destroyDescriptorPool(DescriptorPoolHnd handle) = 0;
     
     //virtual Framebuffer createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<FramebufferAttachmentCreateInfo>& info) = 0;
-    virtual Framebuffer createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<std::variant<Image, FramebufferAttachmentCreateInfo>>& info) = 0;
+    virtual Framebuffer createFramebufferWithAttachments(const glm::uvec2& extent, RenderPassHnd renderPass, const std::vector<std::variant<Image, FramebufferAttachmentCreateInfo>>& info, const char* name) = 0;
     virtual void destroyFramebufferWithAttachments(const Framebuffer& framebuffer) = 0;
     
     /// Build an ImageCreateInfo for a compressed texture from a TextureData instance loaded by the TextureLoader
     virtual ImageCreateInfo buildImageCreateInfo(const TextureData& textureData);
     
-    virtual Image createImage(const ImageCreateInfo& info) = 0;
+    virtual Image createImage(const ImageCreateInfo& info, const char* name) = 0;
     
     /// Creates an uncompressed Image from the provided memory buffer. This function creates a 2D image (ImageViewType::Im2D) with 1 layer and 1 level.
     ///
     /// This is used for some internal and debug stuff, e.g., ImGui's font atlas, empty textures used as framebuffer images, etc. Use createCompressedImage() for in-game textures.
-    virtual Image createUncompressedImage(const UncompressedImageCreateInfo& info) = 0;
+    virtual Image createUncompressedImage(const UncompressedImageCreateInfo& info, const char* name) = 0;
     virtual bool destroyImage(const Image& image) = 0;
-    virtual SamplerHnd createSampler(const SamplerCreateInfo& info) = 0;
+    virtual SamplerHnd createSampler(const SamplerCreateInfo& info, const char* name) = 0;
     virtual SamplerHnd createPresetSampler(SamplerPreset preset, float maxLod = 0.0f);
     virtual bool destroySampler(SamplerHnd handle) = 0;
-    ImageViewHnd createDefaultImageView(const Image& image);
-    virtual ImageViewHnd createImageView(const ImageViewCreateInfo& info) = 0;
+    ImageViewHnd createDefaultImageView(const Image& image, const char* name);
+    virtual ImageViewHnd createImageView(const ImageViewCreateInfo& info, const char* name) = 0;
     virtual bool destroyImageView(ImageViewHnd handle) = 0;
     
-    virtual Buffer createBuffer(const BufferCreateInfo& info) = 0;
+    virtual Buffer createBuffer(const BufferCreateInfo& info, const char* name) = 0;
     virtual bool destroyBuffer(const Buffer& buffer) = 0;
-    virtual std::vector<Buffer> createBuffers(const std::vector<BufferCreateInfo>& infos);
+    virtual std::vector<Buffer> createBuffers(const std::vector<BufferCreateInfo>& infos, const std::vector<const char*>* names);
     virtual bool destroyBuffers(const std::vector<Buffer>& buffers);
     
     virtual bool readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) = 0;
     
-    virtual SemaphoreHnd createSemaphore() = 0;
+    virtual SemaphoreHnd createSemaphore(const char* name) = 0;
     virtual void destroySemaphore(SemaphoreHnd hnd) = 0;
     
-    virtual FenceHnd createFence(bool createSignaled) = 0;
+    virtual FenceHnd createFence(bool createSignaled, const char* name) = 0;
     virtual void destroyFence(FenceHnd fence) = 0;
     virtual bool getFenceStatus(FenceHnd fence) = 0;
     virtual bool waitForFences(const std::vector<FenceHnd>& fences, bool waitForAll, std::uint64_t timeout) = 0;
@@ -1025,7 +1047,16 @@ public:
     virtual void resetFence(FenceHnd fence) = 0;
     
     virtual void submitQueue(const SubmitInfo& info, FenceHnd fence = FenceHnd()) = 0;
+    
+    /// Waits until ALL work on the GPU finishes.
+    ///
+    /// \warning Only use this function in extreme circumstances, e.g., when quitting.
     virtual void waitUntilDone() = 0;
+    
+    /// Waits until the last started frame completes. This function typically uses a fence.
+    ///
+    /// Used when rendered image data needs to be retrieved by the CPU, e.g., when doing image based 3D picking.
+    virtual void waitUntilFrameCompletes() = 0;
     
     virtual MultithreadingSupport doesBackendSupportMultithreading() = 0;
     virtual bool exposesMultipleCommandBuffers() const = 0;
@@ -1033,9 +1064,7 @@ public:
     /// \brief Get the size of the window.
     ///
     /// \warning The size of the render surfaces may be different. To get that, use Renderer::getRenderSurfaceSize()
-    glm::uvec2 getWindowSize() const {
-       return windowSize; 
-    }
+    glm::uvec2 getWindowSize() const;
     
     virtual glm::uvec2 getSwapchainImageSize() const = 0;
     
@@ -1061,7 +1090,9 @@ protected:
     Engine* engine;
     DeviceMemoryManager* deviceMemoryManager;
     SDL_Window* window;
-    glm::uvec2 windowSize;
+    
+    std::size_t maxFramesInFlight;
+    std::size_t currentFrameInFlight;
     
     bool isDebug;
     bool isInit;
@@ -1069,6 +1100,8 @@ protected:
     void openWindow();
     void printWMInfo();
     virtual BackendType getBackendType() = 0;
+    
+    std::vector<SwapchainChangeListener*> swapchainChangeListeners;
 };
 }
 

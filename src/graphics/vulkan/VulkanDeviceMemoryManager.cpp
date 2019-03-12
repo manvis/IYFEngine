@@ -42,18 +42,20 @@ inline std::string getDebugName(MemoryBatch batch) {
     switch (batch) {
         case MemoryBatch::MeshAssetData:
         case MemoryBatch::TextureAssetData:
-            return "StagingMeshAndTextureBuffer";
+            return "mesh and texture data";
         case MemoryBatch::PerFrameData:
-            return "StagingPerFrameDataBuffer";
+            return "per frame data";
         case MemoryBatch::Instant:
-            return "StagingInstantTransferDataBuffer";
+            return "instant transfer data";
     }
     
     throw std::runtime_error("Invalid or unknown MemoryBatch");
 }
 
 VulkanDeviceMemoryManager::VulkanDeviceMemoryManager(VulkanAPI* gfx, std::vector<Bytes> stagingBufferSizes)
-    : DeviceMemoryManager(std::move(stagingBufferSizes)), gfx(gfx), firstFrame(true) {
+    : DeviceMemoryManager(std::move(stagingBufferSizes)), gfx(gfx), firstFrame(true) {}
+
+void VulkanDeviceMemoryManager::initialize() {
     const auto& sizes = getStagingBufferSizes();
     
     if (sizes.size() != static_cast<std::size_t>(MemoryBatch::COUNT) + 1) {
@@ -64,55 +66,89 @@ VulkanDeviceMemoryManager::VulkanDeviceMemoryManager(VulkanAPI* gfx, std::vector
     assert(&getStagingBufferForBatch(MemoryBatch::MeshAssetData) == &getStagingBufferForBatch(MemoryBatch::TextureAssetData));
     
     // TODO support transfer queues, which requires me to actually implement createCommandPool and add ownership transfers to this class
-    commandPool = gfx->createCommandPool(QueueType::Graphics, 0);
+    commandPool = gfx->createCommandPool(QueueType::Graphics, 0, "Device memory manager command pool");
     
     const Bytes totalSize = getSize(sizes, MemoryBatch::MeshAssetData) + getSize(sizes, MemoryBatch::TextureAssetData);
-    bool created = initStagingBufferForBatch(MemoryBatch::MeshAssetData, totalSize, true);
+    bool created = initOrUpdateStagingBuffer(MemoryBatch::MeshAssetData, totalSize);
     if (!created) {
         throw std::runtime_error("Failed to create a staging buffer for mesh and texture data");
     }
     
     // MemoryBatch::PerFrameData.
-    created = initStagingBufferForBatch(MemoryBatch::PerFrameData, getSize(sizes, MemoryBatch::PerFrameData), true);
+    created = initOrUpdateStagingBuffer(MemoryBatch::PerFrameData, getSize(sizes, MemoryBatch::PerFrameData));
     if (!created) {
         throw std::runtime_error("Failed to create a staging buffer for per frame data");
     }
     
     // MemoryBatch::Instant
-    created = initStagingBufferForBatch(MemoryBatch::Instant, getSize(sizes, MemoryBatch::Instant), true);
+    created = initOrUpdateStagingBuffer(MemoryBatch::Instant, getSize(sizes, MemoryBatch::Instant));
     if (!created) {
         throw std::runtime_error("Failed to create a staging buffer for instantly transferred data");
     }
     
-    uploadCompleteFence = gfx->createFence(false);
+    uploadCompleteFence = gfx->createFence(false, "Device memory manager upload complete fence");
 }
 
-VulkanDeviceMemoryManager::~VulkanDeviceMemoryManager() {
+VulkanDeviceMemoryManager::~VulkanDeviceMemoryManager() {}
+
+void VulkanDeviceMemoryManager::dispose() {
     gfx->destroyFence(uploadCompleteFence);
     
     for (StagingBufferData& data : stagingBuffers) {
-        gfx->destroyBuffer(data.buffer);
-        commandPool->freeCommandBuffer(data.commandBuffer);
+        gfx->destroyBuffers(data.buffers);
+        commandPool->freeCommandBuffers(data.commandBuffers);
     }
     
     gfx->destroyCommandPool(commandPool);
 }
 
-bool VulkanDeviceMemoryManager::initStagingBufferForBatch(MemoryBatch batch, Bytes size, bool firstCreation) {
+bool VulkanDeviceMemoryManager::initOrUpdateStagingBuffer(MemoryBatch batch, Bytes size) {
     StagingBufferData& stagingBufferData = getStagingBufferForBatch(batch);
     
+    BufferCreateInfo bci(BufferUsageFlagBits::TransferSource, size, MemoryUsage::CPUOnly, false);
     stagingBufferData.batch = batch;
     
-    if (firstCreation) {
-        stagingBufferData.commandBuffer = commandPool->allocateCommandBuffer(BufferLevel::Primary, true);
+    if (!stagingBufferData.APIObjectsCreated) {
+        const std::uint32_t swapImageCount = gfx->getSwapImageCount();
+        
+        std::vector<std::string> names;
+        names.reserve(swapImageCount);
+        
+        std::vector<const char*> namesCStr;
+        namesCStr.reserve(swapImageCount);
+        
+        for (std::uint32_t i = 0; i < swapImageCount; ++i) {
+            names.emplace_back(fmt::format("Vulkan Device Memory Manager command buffer {} for {}", i, getDebugName(batch)));
+            namesCStr.emplace_back(names[i].c_str());
+        }
+        
+        stagingBufferData.commandBuffers = commandPool->allocateCommandBuffers(&namesCStr, swapImageCount, BufferLevel::Primary, false);
+        
+        names.clear();
+        namesCStr.clear();
+        
+        std::vector<BufferCreateInfo> bcis;
+        bcis.reserve(swapImageCount);
+        
+        for (std::uint32_t i = 0; i < swapImageCount; ++i) {
+            names.emplace_back(fmt::format("Vulkan Device Memory Manager staging buffer {} for {}", i, getDebugName(batch)));
+            namesCStr.emplace_back(names[i].c_str());
+            bcis.emplace_back(bci);
+        }
+        
+        stagingBufferData.buffers = gfx->createBuffers(bcis, &namesCStr);
+        stagingBufferData.APIObjectsCreated = true;
+/*        
+        for (const auto& b : stagingBufferData.buffers) {
+            assert(b.size() == size);
+        }*/
     } else {
-        gfx->destroyBuffer(stagingBufferData.buffer);
+        Buffer& buffer = stagingBufferData.getBufferForThisFrame(gfx);
+        gfx->destroyBuffer(buffer);
+        buffer = gfx->createBuffer(bci, getDebugName(batch).c_str());
+        
+        assert(static_cast<const AllocationAndInfo*>(buffer.allocationInfo())->info.pMappedData != nullptr);
     }
-    
-    BufferCreateInfo bci(BufferUsageFlagBits::TransferSource, size, MemoryUsage::CPUOnly, false, getDebugName(batch));
-    stagingBufferData.buffer = gfx->createBuffer(bci);
-    
-    assert(static_cast<const AllocationAndInfo*>(stagingBufferData.buffer.allocationInfo())->info.pMappedData != nullptr);
     
     return true;
 }
@@ -128,11 +164,12 @@ void VulkanDeviceMemoryManager::beginFrame() {
 }
 
 void VulkanDeviceMemoryManager::resetData(StagingBufferData& data) {
-    if (data.buffer.size() < data.maxRequestLastFrame) {
-        initStagingBufferForBatch(data.batch, Bytes(data.maxRequestLastFrame), true);
+    Buffer& buffer = data.getBufferForThisFrame(gfx);
+    
+    if (buffer.size() < data.maxRequestedUploadSize) {
+        initOrUpdateStagingBuffer(data.batch, Bytes(data.maxRequestedUploadSize));
     }
     
-    data.maxRequestLastFrame = 0;
     data.currentOffset = 0;
     
     if (!firstFrame && data.batch != MemoryBatch::Instant && data.uploadCalls == 0) {
@@ -149,11 +186,19 @@ bool VulkanDeviceMemoryManager::isStagingBufferNeeded(const Buffer& destinationB
 }
 
 bool VulkanDeviceMemoryManager::canBatchFitData(MemoryBatch batch, Bytes totalSize) {
-    
     StagingBufferData& sbData = getStagingBufferForBatch(batch);
-    sbData.maxRequestLastFrame = std::max(totalSize.count(), sbData.maxRequestLastFrame);
+    assert(sbData.APIObjectsCreated);
     
-    return (totalSize.count() + sbData.currentOffset) <= sbData.buffer.size();
+    sbData.maxRequestedUploadSize = std::max(totalSize.count(), sbData.maxRequestedUploadSize);
+    
+    const Buffer& buffer = sbData.getBufferForThisFrame(gfx);
+    
+    const Bytes bufferSize = buffer.size();
+    const std::uint64_t sizeAfterUpload = totalSize.count() + sbData.currentOffset;
+    
+//     LOG_D("{} {}", bufferSize.count(), sizeAfterUpload);
+    
+    return sizeAfterUpload <= bufferSize;
 }
 
 bool VulkanDeviceMemoryManager::updateBuffer(MemoryBatch batch, const Buffer& destinationBuffer, const std::vector<BufferCopy>& copies, const void* data) {
@@ -188,7 +233,16 @@ bool VulkanDeviceMemoryManager::updateBuffer(MemoryBatch batch, const Buffer& de
         }
     } else {
         StagingBufferData& stagingBufferData = getStagingBufferForBatch(batch);
-        const AllocationAndInfo* stagingAllocationInfo = static_cast<const AllocationAndInfo*>(stagingBufferData.buffer.allocationInfo());
+        assert(stagingBufferData.APIObjectsCreated);
+        
+        Buffer& buffer = stagingBufferData.getBufferForThisFrame(gfx);
+        CommandBuffer* commandBuffer = stagingBufferData.getCommandBufferForThisFrame(gfx);
+        
+        if (!commandBuffer->isRecording()) {
+            commandBuffer->begin();
+        }
+        
+        const AllocationAndInfo* stagingAllocationInfo = static_cast<const AllocationAndInfo*>(buffer.allocationInfo());
         
         std::vector<VkBufferCopy> stagingCopies;
         stagingCopies.reserve(copies.size());
@@ -223,13 +277,13 @@ bool VulkanDeviceMemoryManager::updateBuffer(MemoryBatch batch, const Buffer& de
             stagingCopies.push_back(std::move(bc));
         }
         
-        VkCommandBuffer copyBuff = stagingBufferData.commandBuffer->getHandle().toNative<VkCommandBuffer>();
-        vkCmdCopyBuffer(copyBuff, stagingBufferData.buffer.handle().toNative<VkBuffer>(), destinationBuffer.handle().toNative<VkBuffer>(), stagingCopies.size(), stagingCopies.data());
+        VkCommandBuffer copyBuff = commandBuffer->getHandle().toNative<VkCommandBuffer>();
+        vkCmdCopyBuffer(copyBuff, buffer.handle().toNative<VkBuffer>(), destinationBuffer.handle().toNative<VkBuffer>(), stagingCopies.size(), stagingCopies.data());
         
         stagingBufferData.currentOffset = offset;
         
         if (batch == MemoryBatch::Instant) {
-            executeUpload(stagingBufferData.commandBuffer);
+            executeUpload(commandBuffer, true);
             resetData(stagingBufferData);
         }
     }
@@ -241,6 +295,8 @@ bool VulkanDeviceMemoryManager::beginBatchUpload(MemoryBatch batch) {
     IYFT_PROFILE(beginBatchUpload, iyft::ProfilerTag::Graphics)
     
     StagingBufferData& stagingBufferData = getStagingBufferForBatch(batch);
+    assert(stagingBufferData.APIObjectsCreated);
+    
     stagingBufferData.uploadCalls++;
     
     bool shouldUpload = false;
@@ -267,7 +323,8 @@ bool VulkanDeviceMemoryManager::beginBatchUpload(MemoryBatch batch) {
     }
     
     if (shouldUpload) {
-        executeUpload(stagingBufferData.commandBuffer);
+        CommandBuffer* commandBuffer =  stagingBufferData.getCommandBufferForThisFrame(gfx);
+        executeUpload(commandBuffer, false);
     }
     
     return true;
@@ -277,7 +334,16 @@ bool VulkanDeviceMemoryManager::updateImage(MemoryBatch batch, const Image& imag
     assert(canBatchFitData(batch, Bytes(data.size)));
     
     StagingBufferData& stagingBufferData = getStagingBufferForBatch(batch);
-    const AllocationAndInfo* stagingAllocationInfo = static_cast<const AllocationAndInfo*>(stagingBufferData.buffer.allocationInfo());
+    assert(stagingBufferData.APIObjectsCreated);
+    
+    Buffer& buffer = stagingBufferData.getBufferForThisFrame(gfx);
+    CommandBuffer* commandBuffer = stagingBufferData.getCommandBufferForThisFrame(gfx);
+        
+    if (!commandBuffer->isRecording()) {
+        commandBuffer->begin();
+    }
+    
+    const AllocationAndInfo* stagingAllocationInfo = static_cast<const AllocationAndInfo*>(buffer.allocationInfo());
     
     std::vector<VkBufferImageCopy> bics;
     std::size_t layerId = 0;
@@ -336,16 +402,16 @@ bool VulkanDeviceMemoryManager::updateImage(MemoryBatch batch, const Image& imag
     sr.baseArrayLayer = 0;
     sr.layerCount     = (data.faceCount == 6) ? 6 : data.layers;
     
-    VkCommandBuffer uploadBuffer = stagingBufferData.commandBuffer->getHandle().toNative<VkCommandBuffer>();
+    VkCommandBuffer uploadBuffer = commandBuffer->getHandle().toNative<VkCommandBuffer>();
     
     stagingBufferData.currentOffset = offset;
 
     gfx->setImageLayout(uploadBuffer, vulkanImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, sr, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-    vkCmdCopyBufferToImage(uploadBuffer, stagingBufferData.buffer.handle().toNative<VkBuffer>(), vulkanImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bics.size(), bics.data());
+    vkCmdCopyBufferToImage(uploadBuffer, buffer.handle().toNative<VkBuffer>(), vulkanImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bics.size(), bics.data());
     gfx->setImageLayout(uploadBuffer, vulkanImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sr, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
     
     if (batch == MemoryBatch::Instant) {
-        executeUpload(stagingBufferData.commandBuffer);
+        executeUpload(commandBuffer, true);
         resetData(stagingBufferData);
     }
     
@@ -353,20 +419,24 @@ bool VulkanDeviceMemoryManager::updateImage(MemoryBatch batch, const Image& imag
 }
 
 
-void VulkanDeviceMemoryManager::executeUpload(CommandBuffer* commandBuffer) {
+void VulkanDeviceMemoryManager::executeUpload(CommandBuffer* commandBuffer, bool /*waitForCompletion*/) {
     IYFT_PROFILE(executeUpload, iyft::ProfilerTag::Graphics)
     
+    assert(commandBuffer->isRecording());
     commandBuffer->end();
     
     // TODO start using pipeline barriers instead of waiting for operations to complete.
     SubmitInfo si;
     si.commandBuffers = {commandBuffer->getHandle()};
     
-    gfx->submitQueue(si, uploadCompleteFence);
-    gfx->waitForFence(uploadCompleteFence, 50000000000);
-    gfx->resetFence(uploadCompleteFence);
-    
-    commandBuffer->begin();
+//     if (waitForCompletion) {
+        gfx->submitQueue(si, uploadCompleteFence);
+        gfx->waitForFence(uploadCompleteFence, 50000000000);
+        gfx->resetFence(uploadCompleteFence);
+        // TODO use proper synchronisation instead of this fence
+//     } else {
+//         gfx->submitQueue(si);
+//     }
 }
 
 }

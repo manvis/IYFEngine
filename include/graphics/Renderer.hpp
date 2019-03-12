@@ -34,6 +34,7 @@
 #include "graphics/ShaderConstants.hpp"
 #include "graphics/RendererConstants.hpp"
 #include "graphics/GraphicsSystem.hpp"
+#include "graphics/interfaces/SwapchainChangeListener.hpp"
 #include "utilities/NonCopyable.hpp"
 
 #include <initializer_list>
@@ -50,7 +51,7 @@ class RendererProperties;
 
 /// \warning All derived classes should be friends with Engine and their constructors should be protected to ensure
 /// they are not constructed in inappropriate places.
-class Renderer : private NonCopyable {
+class Renderer : private NonCopyable, public SwapchainChangeListener {
 public:
     static const RendererProperties& GetRendererProperties(RendererType type);
     
@@ -69,6 +70,13 @@ public:
     virtual void submitCommandBuffers() {
         // Reset this that we could draw the next frame
         drawingWorldThisFrame = false;
+    }
+    
+    virtual void onSwapchainChange() override {
+        if (isInitialized()) {
+            dispose();
+            initialize();
+        }
     }
     
     /// Returns a RenderPassHnd and sub-pass id which must be used in all skyboxes that were constructed using this renderer.
@@ -122,7 +130,7 @@ public:
     /// is in use and this value may be different every frame.
     virtual glm::uvec2 getRenderSurfaceSize() const = 0;
     
-    virtual ~Renderer() {}
+    virtual ~Renderer();
 protected:
     /// Create the render pass (or passes) that the renderer needs.
     ///

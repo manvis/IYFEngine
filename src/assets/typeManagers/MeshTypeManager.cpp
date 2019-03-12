@@ -57,14 +57,15 @@ MeshTypeManager::MeshTypeManager(AssetManager* manager, Bytes VBOSize, Bytes IBO
     gfx = engine->getGraphicsAPI();
     
     std::vector<BufferCreateInfo> bci = {
-        {VBOUsageFlags, VBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager VBO"},
-        {IBOUsageFlags, IBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager IBO"}
+        {VBOUsageFlags, VBOSize, MemoryUsage::GPUOnly, false},
+        {IBOUsageFlags, IBOSize, MemoryUsage::GPUOnly, false}
     };
     
     std::vector<Buffer> output;
     output.reserve(2);
     
-    output = gfx->createBuffers(bci);
+    std::vector<const char*> names = {"MeshTypeManager VBO", "MeshTypeManager IBO"};
+    output = gfx->createBuffers(bci, &names);
     
     // The actual size of a buffer may be different (bigger) because of alignment requirements.
     char* vboData = new char[VBOSize.count()];
@@ -204,14 +205,16 @@ void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetDa
         Bytes newIBOSize = std::max(IBOSize, requirements.indexSize);
         
         std::vector<BufferCreateInfo> bci = {
-            {VBOUsageFlags, newVBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager VBO"},
-            {IBOUsageFlags, newIBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager IBO"}
+            {VBOUsageFlags, newVBOSize, MemoryUsage::GPUOnly, false},
+            {IBOUsageFlags, newIBOSize, MemoryUsage::GPUOnly, false}
         };
         
         std::vector<Buffer> output;
         output.reserve(2);
         
-        output = gfx->createBuffers(bci);
+        std::vector<const char*> names = {"MeshTypeManager VBO", "MeshTypeManager IBO"};
+        
+        output = gfx->createBuffers(bci, &names);
         
         // The actual size of a buffer may be different (bigger) because of alignment requirements.
         char* vboData = new char[newVBOSize.count()];
@@ -236,9 +239,9 @@ void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetDa
     } else if (!iboRangeResult.result) {
         Bytes newIBOSize = std::max(IBOSize, requirements.indexSize);
         
-        BufferCreateInfo bci(IBOUsageFlags, newIBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager IBO");
+        BufferCreateInfo bci(IBOUsageFlags, newIBOSize, MemoryUsage::GPUOnly, false);
         
-        Buffer output = gfx->createBuffer(bci);
+        Buffer output = gfx->createBuffer(bci, "MeshTypeManager IBO");
         
         char* iboData = new char[newIBOSize.count()];
         indexDataBuffers.emplace_back(output, output.size(), iboData);
@@ -254,9 +257,9 @@ void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetDa
     } else if (!vboRangeResult.result) {
         Bytes newVBOSize = std::max(VBOSize, requirements.vertexSize);
         
-        BufferCreateInfo bci(VBOUsageFlags, newVBOSize, MemoryUsage::GPUOnly, false, "MeshTypeManager VBO");
+        BufferCreateInfo bci(VBOUsageFlags, newVBOSize, MemoryUsage::GPUOnly, false);
         
-        Buffer output = gfx->createBuffer(bci);
+        Buffer output = gfx->createBuffer(bci, "MeshTypeManager VBO");
         
         char* vboData = new char[newVBOSize.count()];
         vertexDataBuffers.emplace_back(output, output.size(), vboData);
