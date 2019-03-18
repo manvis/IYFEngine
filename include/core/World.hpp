@@ -118,6 +118,8 @@ public:
     void addStaticMesh(StringHash nameHash);
     void addDynamicMesh(StringHash nameHash);
     void addCamera(bool setAsDefault);
+    void addLight();
+    void addEmpty();
     
     virtual ~World();
     

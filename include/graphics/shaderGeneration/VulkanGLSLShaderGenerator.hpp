@@ -74,7 +74,7 @@ public:
     
     virtual ShaderCompilationResult compileShader(ShaderStageFlagBits stage, const std::string& source, const std::string& name, const ShaderCompilationSettings& settings) const final override;
     
-    virtual std::string generateLightProcessingFunctionSignature(const MaterialFamilyDefinition& definition) const final override;
+    virtual std::string generateLightProcessingFunctionSignature(const MaterialFamilyDefinition& definition, bool global) const final override;
     
     virtual fs::path getShaderStageFileExtension(ShaderStageFlagBits stage) const final override;
 protected:
@@ -83,7 +83,7 @@ protected:
     
     virtual std::string generatePerFrameData(const ShaderDataSets& requiredDataSets, const void* extraData) const final override;
     
-    virtual std::string generateLightProcessingFunctionCall(const MaterialFamilyDefinition& definition) const final override;
+    virtual std::string generateLightProcessingFunctionCall(const MaterialFamilyDefinition& definition, bool global) const final override;
     
     shaderc::Compiler compiler;
 };

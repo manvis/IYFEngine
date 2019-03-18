@@ -26,38 +26,18 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "physics/Collider.hpp"
-#include "physics/PhysicsSystem.hpp"
+#include "physics/bullet/BulletPhysicsDebugRenderer.hpp"
 #include "core/Logger.hpp"
 
 namespace iyf {
-void Collider::attach(System* system, std::uint32_t) {
-    PhysicsSystem* physicsSystem = static_cast<PhysicsSystem*>(system);
-    
-    btVector3 localInertia(0, 0, 0);
-    if (mass != 0) {
-        collisionShape->calculateLocalInertia(mass, localInertia);
-    }
 
-    //LOG_D("AMM {}", *collisionShape);
-    btRigidBody::btRigidBodyConstructionInfo rbci(mass, &motionState, *collisionShape, localInertia);
-    rigidBody.emplace(rbci);
-    rigidBody->setUserPointer(reinterpret_cast<void*>(42));
-    
-    // This is only safe because we use ChunkedVectors and their contents, unlike those of an std::vector, don't move in memory
-    physicsSystem->getPhysicsWorld()->addRigidBody(&*(rigidBody));
+void BulletPhysicsDebugRenderer::reportErrorWarning(const char* warningString) {
+    LOG_W("{}", warningString)
 }
 
-void Collider::detach(System* system, std::uint32_t) {
-    PhysicsSystem* physicsSystem = static_cast<PhysicsSystem*>(system);
-    
-    physicsSystem->getPhysicsWorld()->removeRigidBody(&*(rigidBody));
-    
-    //LOG_D("BMM {}", *collisionShape);
-    collisionShape = CollisionShapeHandle();
-    rigidBody = std::nullopt;
-    // TODO clean motion state
-    //motionState = std::nullopt;
-}
-
+// void BulletPhysicsDebugRenderer::flushLines() {
+//     btIDebugDraw::flushLines();
+//     
+//     LOG_D("Physics debug flush")
+// }
 }

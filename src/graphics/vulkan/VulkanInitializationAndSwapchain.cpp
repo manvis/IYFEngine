@@ -247,7 +247,7 @@ void VulkanAPI::createInstance() {
     ai.applicationVersion = engine->getProject()->getVersion().getPackedVersion();
     ai.pEngineName        = engineName.c_str();
     ai.engineVersion      = con::EngineVersion.getPackedVersion();
-    ai.apiVersion         = VK_API_VERSION_1_0; // According to spec, patch number supplied here is ignored, so we should use VK_API_VERSION_ defines here
+    ai.apiVersion         = VK_API_VERSION_1_1; // According to spec, patch number supplied here is ignored, so we should use VK_API_VERSION_ defines here
     
     std::vector<const char*> extensionsToEnable;
     // If we're in debug mode, we need to set up the debug and validation layers.

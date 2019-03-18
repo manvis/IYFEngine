@@ -89,7 +89,7 @@ void TextureTypeManager::executeBatchOperations() {
 
 void TextureTypeManager::initMissingAssetHandle() {
     // TODO load a missing texture
-    missingAssetHandle = AssetHandle<Texture>();
+    missingAssetHandle = AssetHandle<Texture>::CreateInvalid();
 }
 
 AssetsToEnableResult TextureTypeManager::hasAssetsToEnable() const {

@@ -46,6 +46,7 @@
 #include "core/interfaces/GarbageCollecting.hpp"
 #include "utilities/ChunkedVector.hpp"
 #include "utilities/IntegerPacking.hpp"
+#include "utilities/NonCopyable.hpp"
 #include "localization/LocalizationHandle.hpp"
 
 namespace iyf {
@@ -212,7 +213,9 @@ public:
     /// \warning This is only public for the sake of the containers that store the entities. This constructor creates
     /// an invalid and unusable Entity. To create and initialize valid entities, use EntitySystemManager::create() and
     /// other similar methods from the EntitySystemManager class.
-    inline Entity() : manager(nullptr), transformation(nullptr), state(nullptr) {}
+    inline Entity() : manager(nullptr), transformation(nullptr), state(nullptr) {
+        
+    }
     
     template <typename T>
     inline T& getComponent();
@@ -255,6 +258,8 @@ public:
     inline EntityHandle makeHandle() {
         return EntityHandle(*this);
     }
+    
+    const std::vector<Component*>& getAllComponents() const;
     
     /// See EntitySystemManager::attachComponent(const Component&)
     /// \todo I think it should be possible to avoid additional checks here and use the key.getID() directly
@@ -317,14 +322,46 @@ inline bool EntityHandle::isValid() const {
     return entity.getKey() == key;
 }
 
+enum class SystemSetting {
+    HasPreAttachCallback = 0,
+    HasPostDetachCallback = 1,
+};
+
+class SystemSettings {
+public:
+    SystemSettings() {}
+    
+    inline void activateSetting(SystemSetting setting) {
+        settings[static_cast<std::size_t>(setting)] = true;
+    }
+    
+    inline bool isSettingActive(SystemSetting setting) const {
+        return settings[static_cast<std::size_t>(setting)];
+    }
+    
+    inline std::bitset<64> getSettings() const {
+        return settings;
+    }
+private:
+    std::bitset<64> settings;
+};
 
 /// A base class for all systems used in the Engine.
 class System : public GarbageCollecting {
 public:
-    System(EntitySystemManager* manager, ComponentBaseType baseType, std::uint32_t subtypeCount) : baseType(baseType), subtypeCount(subtypeCount), manager(manager) {}
+    System(EntitySystemManager* manager, SystemSettings settings, ComponentBaseType baseType, std::uint32_t subtypeCount)
+        : settings(settings.getSettings()), baseType(baseType), subtypeCount(subtypeCount), manager(manager) {}
     
     inline EntitySystemManager* getManager() const {
         return manager;
+    }
+    
+    inline bool isSettingActive(SystemSetting setting) const {
+        return settings[static_cast<std::size_t>(setting)];
+    }
+    
+    inline std::bitset<64> getSettings() const {
+        return settings;
     }
     
     /// Each system is responsible for a single ComponentBaseType
@@ -421,10 +458,13 @@ public:
 protected:
     friend class EntitySystemManager;
     
+    virtual void preAttach([[maybe_unused]] Component& component, [[maybe_unused]] std::uint32_t id) {}
+    virtual void postDetach([[maybe_unused]] Component& component, [[maybe_unused]] std::uint32_t id) {}
+    
     /// Creates a default constructed Component of specifed ComponentType and attaches it to an Entity. Returns false if an
     /// existing Component is attached to the specifed Entity. This should only be called by our friend, the EntitySystemManager
     /// because some additional bookkeeping needs to be performed.
-    virtual void createAndAttachComponent(const EntityKey& key, const ComponentType& type) = 0;
+    virtual Component& createAndAttachComponent(const EntityKey& key, const ComponentType& type) = 0;
     
     inline ComponentContainer* getContainer(std::uint32_t subtype) {
         return components[subtype].get();
@@ -434,7 +474,7 @@ protected:
         return components[subtype].get();
     }
     
-    inline void setComponent(std::uint32_t id, const Component& component) {
+    inline Component& setComponent(std::uint32_t id, const Component& component) {
         ComponentType type = component.getType();
         
         if (type.getBaseType() != baseType) {
@@ -442,11 +482,19 @@ protected:
         }
         
         ComponentContainer* container = getContainer(type.getSubType());
-        container->set(id, component);
+        Component& ret = container->set(id, component);
         availableComponents[id][type.getSubType()] = true;
+        
+        if (isSettingActive(SystemSetting::HasPreAttachCallback)) {
+            preAttach(ret, id);
+        }
+        
+        ret.attach(this, id);
+        
+        return ret;
     }
     
-    inline void setComponent(std::uint32_t id, Component&& component) {
+    inline Component& setComponent(std::uint32_t id, Component&& component) {
         ComponentType type = component.getType();
         
         if (type.getBaseType() != baseType) {
@@ -455,8 +503,16 @@ protected:
         
         ComponentContainer* container = getContainer(type.getSubType());
         assert(container != nullptr);
-        container->set(id, std::move(component));
+        Component& ret = container->set(id, std::move(component));
         availableComponents[id][type.getSubType()] = true;
+        
+        if (isSettingActive(SystemSetting::HasPreAttachCallback)) {
+            preAttach(ret, id);
+        }
+        
+        ret.attach(this, id);
+        
+        return ret;
     }
     
     inline void destroyAllComponents(std::uint32_t id) {
@@ -469,7 +525,7 @@ protected:
         }
     }
     
-    inline void destroyComponent(std::uint32_t id, const ComponentType& type) {
+    inline Component& destroyComponent(std::uint32_t id, const ComponentType& type) {
         if (type.getBaseType() != baseType) {
             throw std::invalid_argument("The requested base type does not match the base type of the System.");
         }
@@ -478,13 +534,22 @@ protected:
             throw std::runtime_error("The Entity does not have any components of the requested subtype.");
         }
         
-        destroyComponentUnchecked(id, type.getSubType());
+        return destroyComponentUnchecked(id, type.getSubType());
     }
     
-    inline void destroyComponentUnchecked(std::uint32_t id, std::uint32_t subtype) {
+    inline Component& destroyComponentUnchecked(std::uint32_t id, std::uint32_t subtype) {
         ComponentContainer* container = getContainer(subtype);
-        container->destroy(id);
+        
+        Component& ptr = container->get(id);
+        ptr.detach(this, id);
+        
+        if (isSettingActive(SystemSetting::HasPostDetachCallback)) {
+            postDetach(ptr, id);
+        }
+
         availableComponents[id][subtype] = false;
+        
+        return ptr;
     }
     
     inline void resize(std::uint32_t newSize) {
@@ -498,6 +563,7 @@ protected:
         }
     }
     
+    std::bitset<64> settings;
     ComponentBaseType baseType;
     std::uint32_t subtypeCount;
     std::array<std::unique_ptr<ComponentContainer>, 64> components;
@@ -620,7 +686,7 @@ private:
 using SystemArray = std::array<std::unique_ptr<System>, static_cast<std::size_t>(ComponentBaseType::COUNT)>;
 
 /// \todo Functions that take EntityKey objects should check if they are valid. Those that take just the ID, should not.
-class EntitySystemManager {
+class EntitySystemManager : private NonCopyable {
 public:
     /// Constructs a new EntitySystemManager
     ///
@@ -820,6 +886,10 @@ public:
         return system->hasComponent(entityID, type.getSubType());
     }
     
+    inline const std::vector<Component*>& getAllComponents(const EntityKey& key) const {
+        return componentsInEntity[key.getID()];
+    }
+    
     inline const EntityState& getEntityState(const EntityKey& key) const {
         return entityStates[key.getID()];
     }
@@ -907,6 +977,9 @@ private:
     /// The EntitySystemManager manages all transformations since they're mandatory for all entities
     TransformationVector transformations;
     
+    /// A list of all components assigned to a specific entity
+    ChunkedVector<std::vector<Component*>, SystemChunkSize> componentsInEntity;
+    
     /// Used to check for conflicts of systems. E.g. someone attempts to register multiple systems that manage a single component type 
     std::bitset<static_cast<std::size_t>(ComponentBaseType::COUNT)> managedComponents;
     
@@ -959,6 +1032,10 @@ inline bool Entity::hasComponents(ComponentBaseType baseType) const {
     
 inline bool Entity::hasComponent(const ComponentType& type) const {
     return manager->entityHasComponent(key.getID(), type);
+}
+
+inline const std::vector<Component*>& Entity::getAllComponents() const {
+    return manager->getAllComponents(key);
 }
 
 template <typename T>

@@ -29,7 +29,7 @@
 #include "graphics/culling/Frustum.hpp"
 #include "graphics/Camera.hpp"
 #include "core/Logger.hpp"
-#include "physics/BulletPhysicsDebugRenderer.hpp"
+#include "graphics/DebugRenderer.hpp"
 #include "core/TransformationComponent.hpp"
 
 #include "glm/gtc/matrix_transform.hpp"
@@ -136,7 +136,7 @@ glm::vec4 Frustum::makePlaneFromPoints(const glm::vec3& a, const glm::vec3& b, c
     return glm::vec4(normal, d);
 }
 
-void Frustum::drawDebug(BulletPhysicsDebugRenderer* renderer) {
+void Frustum::drawDebug(DebugRenderer* renderer) {
     const glm::vec3 color(1.0f, 0.0f, 0.0f);
 
     renderer->drawLine(getVertex(Plane::Near, PlaneVertex::BottomLeft), getVertex(Plane::Near, PlaneVertex::BottomRight), color);

@@ -54,6 +54,7 @@ public:
     
     virtual void attach(System* system, std::uint32_t ownID) final override;
     virtual void detach(System* system, std::uint32_t ownID) final override;
+    virtual void onTransformationChanged(TransformationComponent* transformation) final override;
     
     void update();
     

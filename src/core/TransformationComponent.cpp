@@ -27,7 +27,21 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/TransformationComponent.hpp"
+#include "core/EntitySystemManager.hpp"
 
 namespace iyf {
+
+void TransformationComponent::notifyTransformChanged() {
+    transformDirty = true;
+    update();
+    
+    if (entity == nullptr) {
+        return;
+    }
+    
+    for (Component* c : entity->getAllComponents()) {
+        c->onTransformationChanged(this);
+    }
+}
 
 }

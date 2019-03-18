@@ -26,10 +26,11 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef LIGHTS_HPP
-#define LIGHTS_HPP
+#ifndef IYF_LIGHTS_HPP
+#define IYF_LIGHTS_HPP
 
 #include <cstdint>
+#include <type_traits>
 #include <glm/vec3.hpp>
 
 namespace iyf {
@@ -38,6 +39,8 @@ enum class LightType : std::uint8_t {
     Point = 1,
     Spot = 2
 };
+
+// WARNING keep these without constructors. We initialize in light components.
 
 /// Point light data that's sent to shader.
 ///
@@ -51,6 +54,7 @@ struct PointLight {
 };
 
 static_assert(sizeof(PointLight) == 32, "PointLight struct is not 32 bytes");
+static_assert(std::is_trivially_copyable_v<PointLight>, "PointLight must be trivially copyable.");
 
 /// Directional light data that's sent to shader.
 ///
@@ -64,6 +68,7 @@ struct DirectionalLight {
 };
 
 static_assert(sizeof(DirectionalLight) == 32, "DirectionalLight struct is not 32 bytes");
+static_assert(std::is_trivially_copyable_v<DirectionalLight>, "DirectionalLight must be trivially copyable.");
 
 /// Spot light data that's sent to the shader.
 ///
@@ -72,14 +77,15 @@ static_assert(sizeof(DirectionalLight) == 32, "DirectionalLight struct is not 32
 struct SpotLight {
     glm::vec3 position;
     float radius;
-    glm::vec3 direction;
-    float angle;
     glm::vec3 color;
     float intensity;
+    glm::vec3 direction;
+    float angle;
 };
 
 static_assert(sizeof(SpotLight) == 48, "SpotLight struct is not 48 bytes");
+static_assert(std::is_trivially_copyable_v<SpotLight>, "SpotLight must be trivially copyable.");
 }
 
-#endif /* LIGHTS_HPP */
+#endif // IYF_LIGHTS_HPP
 

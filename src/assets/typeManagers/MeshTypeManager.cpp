@@ -31,6 +31,7 @@
 #include "core/Engine.hpp"
 #include "core/Logger.hpp"
 #include "core/serialization/VirtualFileSystemSerializer.hpp"
+#include "fmt/ostream.h"
 
 namespace iyf {
 using namespace iyf::literals;
@@ -181,6 +182,7 @@ std::unique_ptr<LoadedAssetData> MeshTypeManager::readFile(StringHash, const fs:
         throw std::runtime_error("Failed to find a mesh file");
     }
     
+//     LOG_D("Type manager reading file: {}", path);
     return std::make_unique<LoadedMeshAssetData>(meta, assetData, std::move(requirements), std::move(lmd), std::move(vbo), std::move(ibo));
 }
 
@@ -320,6 +322,8 @@ void MeshTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetDa
     }
     
     assetData.setLoaded(true);
+    
+//     LOG_D("Type manager enabling asset")
 }
 
 void MeshTypeManager::executeBatchOperations() {

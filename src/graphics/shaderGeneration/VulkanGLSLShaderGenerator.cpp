@@ -479,13 +479,21 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(Platfor
     
     ss << generatePerFrameData(definition.getFragmentShaderDataSets(), &extraData);
     
-    ss << generateLightProcessingFunctionSignature(definition) << "{\n";
+    ss << "#include \"" << GetShaderIncludeName(ShaderInclude::FragmentShaderHelpers) << "\"\n\n";
+    
+    ss << generateLightProcessingFunctionSignature(definition, false) << "{\n";
     
     ss << definition.getLightProcessingCode()[codeID] << "\n";
     
     ss << "}\n\n";
     
-    ss << "#include \"" << GetShaderIncludeName(ShaderInclude::FragmentShaderHelpers) << "\"\n\n";
+    if (!(definition.getGlobalLightProcessingCode()[codeID].empty())) {
+        ss << generateLightProcessingFunctionSignature(definition, true) << "{\n";
+    
+        ss << definition.getGlobalLightProcessingCode()[codeID] << "\n";
+        
+        ss << "}\n\n";
+    }
     
     ss << "void main() {\n";
     
@@ -544,7 +552,7 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(Platfor
     
     ss << "    vec4 lightSum = vec4(0.0f, 0.0f, 0.0f, 0.0f);\n\n";
     
-    std::string lightProcessingFunctionCall = generateLightProcessingFunctionCall(definition);
+    std::string lightProcessingFunctionCall = generateLightProcessingFunctionCall(definition, false);
     
     if (definition.areLightsSupported()) {
         for (const RendererType rendererType : Renderer::GetAvailableRenderers()) {
@@ -557,6 +565,10 @@ ShaderGenerationResult VulkanGLSLShaderGenerator::generateFragmentShader(Platfor
         }
     } else {
         ss << "   " << lightProcessingFunctionCall << "\n\n";
+    }
+    
+    if (!(definition.getGlobalLightProcessingCode()[codeID].empty())) {
+        ss << "    " << generateLightProcessingFunctionCall(definition, true) << "\n";
     }
     
     ss << "    finalColor = lightSum;\n";
@@ -632,10 +644,10 @@ std::string VulkanGLSLShaderGenerator::generatePerFrameData(const ShaderDataSets
         ss << "struct SpotLight {\n";
         ss << "    vec3 position;\n";
         ss << "    float radius;\n";
-        ss << "    vec3 direction;\n";
-        ss << "    float angle;\n";
         ss << "    vec3 color;\n";
         ss << "    float intensity;\n";
+        ss << "    vec3 direction;\n";
+        ss << "    float angle;\n";
         ss << "};\n\n";
         
         ss << "// Camera and light buffer data layouts in memory MUST match those in graphics/CameraAndLightBufferLayout.hpp.\n";
@@ -711,9 +723,13 @@ std::string VulkanGLSLShaderGenerator::generatePerFrameData(const ShaderDataSets
     return ss.str();
 }
 
-std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionSignature(const MaterialFamilyDefinition& definition) const {
+std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionSignature(const MaterialFamilyDefinition& definition, bool global) const {
     std::vector<std::string> parameters;
     parameters.reserve(30);
+    
+    if (global) {
+        parameters.emplace_back("vec4 lightSum");
+    }
     
     if (definition.isNormalDataRequired()) {
         parameters.emplace_back("vec3 normal");
@@ -723,7 +739,7 @@ std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionSignature(
         parameters.emplace_back("vec3 viewDirection");
     }
     
-    if (definition.areLightsSupported()) {
+    if (definition.areLightsSupported() && !global) {
         parameters.emplace_back("vec3 lightDirection");
         parameters.emplace_back("vec3 lightColor");
         parameters.emplace_back("float lightIntensity");
@@ -759,7 +775,13 @@ std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionSignature(
     
     std::stringstream ss;
     
-    ss << "vec4 " << definition.getName() << "(";
+    ss << "vec4 " << definition.getName();
+    
+    if (global) {
+        ss << "Global";
+    }
+    
+    ss << "(";
     
     for (std::size_t i = 0; i < parameters.size(); ++i) {
         ss << parameters[i];
@@ -774,9 +796,13 @@ std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionSignature(
     return ss.str();
 }
 
-std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionCall(const MaterialFamilyDefinition& definition) const {
+std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionCall(const MaterialFamilyDefinition& definition, bool global) const {
     std::vector<std::string> parameters;
     parameters.reserve(30);
+    
+    if (global) {
+        parameters.emplace_back("lightSum");
+    }
     
     if (definition.isNormalDataRequired()) {
         parameters.emplace_back("normal");
@@ -786,7 +812,7 @@ std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionCall(const
         parameters.emplace_back("viewDirection");
     }
     
-    if (definition.areLightsSupported()) {
+    if (definition.areLightsSupported() && !global) {
         parameters.emplace_back("lightDirection");
         parameters.emplace_back("lightColor");
         parameters.emplace_back("lightIntensity");
@@ -802,7 +828,11 @@ std::string VulkanGLSLShaderGenerator::generateLightProcessingFunctionCall(const
     
     std::stringstream ss;
     
-    ss << "lightSum += " << definition.getName() << "(";
+    if (global) {
+        ss << "lightSum = " << definition.getName() << "Global" << "(";
+    } else {
+        ss << "lightSum += " << definition.getName() << "(";
+    }
     
     for (std::size_t i = 0; i < parameters.size(); ++i) {
         ss << parameters[i];
@@ -1127,6 +1157,9 @@ const std::string VulkanGLSLIncluder::CommonHelperFunctions = R"glsl(// First of
 #ifndef NORMAL_MAPPING_MODE
 #error "NORMAL_MAPPING_MODE was not defined"
 #endif
+
+const float PI = 3.1415926535897932384626433832795;
+
 )glsl";
 
 }

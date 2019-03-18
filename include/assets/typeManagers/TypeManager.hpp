@@ -61,6 +61,22 @@ public:
     virtual AssetType getType() = 0;
     virtual ~TypeManager() {}
     
+    inline void enableCreationLogging(bool enable) {
+        loggingCreations = enable;
+    }
+    
+    inline void enableRemovalLogging(bool enable) {
+        loggingRemovals = enable;
+    }
+    
+    inline bool isLoggingRemovals() const {
+        return loggingRemovals;
+    }
+    
+    inline bool isLoggingCreations() const {
+        return loggingCreations;
+    }
+    
 protected:
     friend class AssetManager;
     
@@ -113,10 +129,15 @@ protected:
     virtual void notifyMove(std::uint32_t id, StringHash sourceNameHash, StringHash destinationNameHash) = 0;
     
     void notifyRemoval(StringHash nameHash);
-    void logLeakedAsset(std::size_t id, StringHash nameHash, std::uint32_t count);
+    void logLeakedAsset(std::size_t id, StringHash nameHash, std::uint32_t count) const;
+    void logAssetCreation(std::size_t id, StringHash nameHash, bool isFetch, bool isAsync) const;
+    void logAssetRemoval(std::size_t id, StringHash nameHash) const;
     
     AssetManager* manager;
     iyft::ThreadPool* longTermWorkerPool;
+private:
+    bool loggingRemovals;
+    bool loggingCreations;
 };
 
 }

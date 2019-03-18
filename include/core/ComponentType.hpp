@@ -109,20 +109,18 @@ extern const std::array<LocalizationHandle, static_cast<std::size_t>(ComponentBa
 // corresponding localization handle stored in ComponentNames
 
 enum class GraphicsComponent : std::uint32_t {
-    Mesh             = 0,
-    SkeletalMesh     = 1,
-    DirectionalLight = 2,
-    PointLight       = 3,
-    SpotLight        = 4,
-    ParticleSystem   = 5,
-    Camera           = 6,
+    Mesh           = 0,
+    SkeletalMesh   = 1,
+    Light          = 2,
+    ParticleSystem = 3,
+    Camera         = 4,
     COUNT
 };
 
 static_assert(static_cast<std::size_t>(GraphicsComponent::COUNT) < 64, "You cannot have more than 64 GraphicsComponents");
 
 enum class PhysicsComponent : std::uint32_t {
-    Collider = 0,
+    RigidBody = 0,
     COUNT
 };
 

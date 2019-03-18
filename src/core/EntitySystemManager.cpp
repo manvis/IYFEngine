@@ -28,6 +28,7 @@
 
 #include <stdexcept>
 
+#include "core/Logger.hpp"
 #include "graphics/GraphicsSystem.hpp"
 #include "physics/PhysicsSystem.hpp"
 #include "core/EntitySystemManager.hpp"
@@ -76,6 +77,7 @@ void EntitySystemManager::initialize() {
     entityStates.resize(initialCapacity);
     transformations.resize(initialCapacity);
     entities.resize(initialCapacity);
+    componentsInEntity.resize(initialCapacity);
     
     // TODO smarter sizing for these vectors
     awaitingInitialization.reserve(initialCapacity * 2);
@@ -113,6 +115,7 @@ void EntitySystemManager::dispose() {
     entityStates.clear();
     transformations.clear();
     entities.clear();
+    componentsInEntity.clear();
     
     freeSlots.clear();
     
@@ -133,6 +136,7 @@ void EntitySystemManager::resize(std::uint32_t newSize) {
     entityStates.resize(currentCapacity);
     transformations.resize(currentCapacity);
     entities.resize(currentCapacity);
+    componentsInEntity.resize(currentCapacity);
     freeSlots.reserve(currentCapacity / 4);
     
     for (auto& s : systems) {
@@ -208,6 +212,7 @@ void EntitySystemManager::manageEntityLifecycles([[maybe_unused]]float delta) {
         state.reset();
         
         transformations[id].clear();
+        componentsInEntity[id].clear();
         
         freeSlots.push_back(id);
     }
@@ -249,25 +254,28 @@ void EntitySystemManager::update(float delta) {
 //         
 //         i++;
 //     }
+
     
-    auto transform = transformations.begin();
-    auto state = entityStates.begin();
-    
-    // Update dirty transform matrices and mesh bounds
-    // We use iterators here because accessing a ChunkedVector element via ID is much slower than via the iterator
-    for (std::uint32_t i = 0; i < nextID; ++i) {
-        if ((*transform).update() && (*state).hasComponentsOfType(ComponentBaseType::Graphics)) {
-            if (graphicsSystem->hasComponent(i, static_cast<std::uint32_t>(GraphicsComponent::Mesh))) {
-                MeshComponent& mc = graphicsSystem->getComponent<MeshComponent>(i);
-                mc.updateCurrentBounds((*transform).getModelMatrix(), (*transform).getScale());
-//                 LOG_D(mc.getCurrentBoundingSphere().radius << " " << mc.getPreTransformBoundingSphere().radius);
-                //LOG_D("+++++++++++++++++++++++++++++++++++UPDATED");
-            }
-        }
+    // WARNING: Transforms are now updated in notifyTransformChanged() and MeshComponents update themselves when they receive a notification
+    // from the Transform
         
-        ++transform;
-        ++state;
-    }
+//     auto transform = transformations.begin();
+//     auto state = entityStates.begin();
+//     // Update dirty transform matrices and mesh bounds
+//     // We use iterators here because accessing a ChunkedVector element via ID is much slower than via the iterator
+//     for (std::uint32_t i = 0; i < nextID; ++i) {
+//         if ((*transform).update() && (*state).hasComponentsOfType(ComponentBaseType::Graphics)) {
+//             if (graphicsSystem->hasComponent(i, static_cast<std::uint32_t>(GraphicsComponent::Mesh))) {
+//                 MeshComponent& mc = graphicsSystem->getComponent<MeshComponent>(i);
+//                 mc.updateCurrentBounds((*transform).getModelMatrix(), (*transform).getScale());
+// //                 LOG_D(mc.getCurrentBoundingSphere().radius << " " << mc.getPreTransformBoundingSphere().radius);
+//                 //LOG_D("+++++++++++++++++++++++++++++++++++UPDATED");
+//             }
+//         }
+//         
+//         ++transform;
+//         ++state;
+//     }
     
     graphicsSystem->update(delta, entityStates);
 }
@@ -409,7 +417,8 @@ bool EntitySystemManager::attachComponent(const EntityKey& key, const ComponentT
         return false;
     }
     
-    system->createAndAttachComponent(key, type);
+    Component& createdComponent = system->createAndAttachComponent(key, type);
+    componentsInEntity[key.getID()].emplace_back(&createdComponent);
     
     entityStates[key.getID()].setHasComponentsAvailable(type.getBaseType(), true);
     return true;
@@ -421,16 +430,19 @@ bool EntitySystemManager::attachComponent(const EntityKey& key, const Component&
     System* system = getSystemManagingComponentType(baseType);
     
     if (system == nullptr) {
+        LOG_W("Trying to attach a component to a non existing system");
         return false;
     }
     
     ComponentSubTypeFlags systemComponents = system->getAvailableComponents(key.getID());
     
     if (!isEntityValid(key) || systemComponents[component.getType().getSubType()]) {
+        LOG_W("Trying to attach a component to an already occupied slot. Operation was ignored");
         return false;
     }
     
-    system->setComponent(key.getID(), component);
+    Component& createdComponent = system->setComponent(key.getID(), component);
+    componentsInEntity[key.getID()].emplace_back(&createdComponent);
     
     entityStates[key.getID()].setHasComponentsAvailable(baseType, true);
     return true;
@@ -442,16 +454,19 @@ bool EntitySystemManager::attachComponent(const EntityKey& key, Component&& comp
     System* system = getSystemManagingComponentType(baseType);
     
     if (system == nullptr) {
+        LOG_W("Trying to attach a component to a non existing system");
         return false;
     }
     
     ComponentSubTypeFlags systemComponents = system->getAvailableComponents(key.getID());
     
     if (!isEntityValid(key) || systemComponents[component.getType().getSubType()]) {
+        LOG_W("Trying to attach a component to an already occupied slot. Operation was ignored");
         return false;
     }
     
-    system->setComponent(key.getID(), std::move(component));
+    Component& createdComponent = system->setComponent(key.getID(), std::move(component));
+    componentsInEntity[key.getID()].emplace_back(&createdComponent);
     
     entityStates[key.getID()].setHasComponentsAvailable(baseType, true);
     return true;
@@ -470,7 +485,23 @@ bool EntitySystemManager::removeComponent(const EntityKey& key, const ComponentT
         return false;
     }
     
-    system->destroyComponentUnchecked(key.getID(), type.getSubType());
+    Component& deletedComponent = system->destroyComponentUnchecked(key.getID(), type.getSubType());
+    
+    bool found = false;
+    std::vector<Component*>& pointerVector = componentsInEntity[key.getID()];
+    
+    for (std::size_t i = 0; i < pointerVector.size(); ++i) {
+        if (&deletedComponent == pointerVector[i]) {
+            pointerVector.erase(pointerVector.begin() + i);
+            found = true;
+            
+            break;
+        }
+    }
+    
+    if (!found) {
+        throw std::runtime_error("Component wasn't found in the componentsInEntity. Something is either getting freed twice, or isn't being registered properlt");
+    }
     
     if (!system->hasAnyComponents(key.getID())) {
         entityStates[key.getID()].setHasComponentsAvailable(type.getBaseType(), false);

@@ -33,7 +33,8 @@
 #include "graphics/GraphicsSystem.hpp"
 #include "graphics/Renderer.hpp"
 #include "graphics/MeshComponent.hpp"
-#include "physics/PhysicsSystem.hpp"
+#include "physics/bullet/BulletPhysicsSystem.hpp"
+#include "graphics/DebugRenderer.hpp"
 
 namespace iyf {
 DefaultWorld::DefaultWorld(std::string name, Configuration* configuration, EntitySystemManagerCreateInfo createInfo) : World(std::move(name), configuration, std::move(createInfo)) {
@@ -61,7 +62,11 @@ void DefaultWorld::initialize() {
 
 void DefaultWorld::initializeSystems() {
     registerSystem(std::make_unique<GraphicsSystem>(this, getEngine()->getGraphicsAPI()));
-    registerSystem(std::make_unique<PhysicsSystem>(this));
+#ifdef IYF_PHYSICS_BULLET
+    registerSystem(std::make_unique<BulletPhysicsSystem>(this));
+#else
+#error "Physics engine was not set"
+#endif
 }
 
 void DefaultWorld::dispose() {

@@ -51,7 +51,7 @@ private:
     /// delay for each TransformationComponent. What's more, won't a bigger delay impact quality of transformation? Shit, I don't know...
     static const std::uint8_t RotationNormalizationFrequency = 20;
 public:
-    TransformationComponent() : transformDirty(true), staticObject(true), rotationUpdateCount(0), updateCount(0), position(0.0f, 0.0f, 0.0f), scaling(1.0f, 1.0f, 1.0f), rotation(1.0f, 0.0f, 0.0f, 0.0f) {}
+    TransformationComponent() : transformDirty(true), staticObject(true), rotationUpdateCount(0), updateCount(0), position(0.0f, 0.0f, 0.0f), scaling(1.0f, 1.0f, 1.0f), rotation(1.0f, 0.0f, 0.0f, 0.0f), entity(nullptr), parent(nullptr) {}
     
     /// Updates the transformation matrix if position, rotation or scale have been changed.
     inline bool update() {
@@ -70,50 +70,48 @@ public:
 
     inline void setPosition(const glm::vec3 &newPosition) {
         position = newPosition;
-        transformDirty = true;
+        notifyTransformChanged();
     }
     
     inline void setPosition(float x, float y, float z) {
         position = glm::vec3(x, y, z);
-        transformDirty = true;
+        notifyTransformChanged();
     }
     
     inline void translate(const glm::vec3 &translation) {
         position += translation;
-        transformDirty = true;
+        notifyTransformChanged();
     }
     
     inline void translate(float x, float y, float z) {
         position += glm::vec3(x, y, z);
-        transformDirty = true;
+        notifyTransformChanged();
     }
     
     inline void translateRelative(const glm::vec3 &translation) {
         glm::vec3 temp = rotation * translation;
         position += temp;
-        
-        transformDirty = true;
+        notifyTransformChanged();
     }
     
     inline void translateRelative(float x, float y, float z) {
         glm::vec3 temp = rotation * glm::vec3(x, y, z);
         position += temp;
-        
-        transformDirty = true;
+        notifyTransformChanged();
     }
 
     inline void setRotation(const glm::quat &newRotation) {
         rotation = glm::normalize(newRotation);
         
         rotationUpdateCount = 0;
-        transformDirty = true;
+        notifyTransformChanged();
     }
     
     inline void rotate(const glm::quat &rotation) {
         this->rotation = rotation * this->rotation;
         
         rotationUpdateCount++;
-        transformDirty = true;
+        notifyTransformChanged();
     }
     
     inline void rotate(float angle, const glm::vec3 &axis) {
@@ -124,7 +122,7 @@ public:
         this->rotation = this->rotation * rotation;
         
         rotationUpdateCount++;
-        transformDirty = true;
+        notifyTransformChanged();
     }
     
     inline void rotateRelative(float angle, const glm::vec3 &axis) {
@@ -133,22 +131,22 @@ public:
     
     inline void setScale(const glm::vec3 &newScale) {
         scaling = newScale;
-        transformDirty = true;
+        notifyTransformChanged();
     }
     
     inline void setScale(float x, float y, float z) {
         scaling = glm::vec3(x, y, z);
-        transformDirty = true;
+        notifyTransformChanged();
     }
     
     inline void scale(const glm::vec3 &newScale) {
         scaling *= newScale;
-        transformDirty = true;
+        notifyTransformChanged();
     }
     
     inline void scale(float x, float y, float z) {
         scaling *= glm::vec3(x, y, z);
-        transformDirty = true;
+        notifyTransformChanged();
     }
 
     inline const glm::vec3& getPosition() const {
@@ -173,6 +171,7 @@ public:
     
     inline void setStatic(bool value) {
         staticObject = value;
+        notifyTransformChanged();
     }
     
     inline bool isStatic() const {
@@ -203,6 +202,8 @@ public:
     }
 private:
     friend class EntitySystemManager;
+    
+    void notifyTransformChanged();
     
     inline void performUpdate() {
         if (transformDirty) {

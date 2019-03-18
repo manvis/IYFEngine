@@ -43,6 +43,9 @@
 #include <glm/mat4x4.hpp>
 
 namespace iyf {
+CubemapSkybox::CubemapSkybox(AssetManager* assetManager, Renderer* renderer, StringHash textureNameHash) 
+    : Skybox(renderer), assetManager(assetManager), textureNameHash(textureNameHash), skyCubemap(AssetHandle<Texture>::CreateInvalid()), sphereMesh(AssetHandle<Mesh>::CreateInvalid()), skyVertexShader(AssetHandle<Shader>::CreateInvalid()), skyFragmentShader(AssetHandle<Shader>::CreateInvalid()) {}
+
 void CubemapSkybox::initialize() {
     if (!renderer->isInitialized()) {
         throw std::runtime_error("Can't initialize a skybox before its parent renderer is initialized.");

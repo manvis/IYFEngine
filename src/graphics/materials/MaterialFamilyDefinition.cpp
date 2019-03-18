@@ -178,6 +178,9 @@ void MaterialFamilyDefinition::setSupportedLanguages(std::vector<ShaderLanguage>
     
     lightProcessingCode.clear();
     lightProcessingCode.resize(newSize);
+    
+    globalLightProcessingCode.clear();
+    globalLightProcessingCode.resize(newSize);
 }
 
 bool MaterialFamilyDefinition::validateName(const std::string& name) const {
@@ -238,6 +241,10 @@ void MaterialFamilyDefinition::serialize(Serializer& fw) const {
     
     // The number of elements is known implicitly because the number must match languages.size()
     for (const std::string& code : lightProcessingCode) {
+        fw.writeString(code, StringLengthIndicator::UInt32);
+    }
+    
+    for (const std::string& code : globalLightProcessingCode) {
         fw.writeString(code, StringLengthIndicator::UInt32);
     }
     
@@ -321,6 +328,15 @@ void MaterialFamilyDefinition::deserialize(Serializer& fr) {
         fr.readString(code, StringLengthIndicator::UInt32);
     }
     
+    globalLightProcessingCode.clear();
+    globalLightProcessingCode.reserve(languageCount);
+    
+    for (std::size_t i = 0; i < languageCount; ++i) {
+        globalLightProcessingCode.emplace_back();
+        std::string& code = globalLightProcessingCode.back();
+        fr.readString(code, StringLengthIndicator::UInt32);
+    }
+    
     // TODO update version and start writing these when tessellation and geometry shaders are finally supported by the generator
 //     fw.writeUInt8(usesTessellation);
 //     
@@ -352,7 +368,7 @@ static MaterialFamilyDefinition createToonFamilyDefinition() {
     ss << "\n";
     ss << "    vec4 clampedAdjustments = clamp(adjustments, 0.0f, 1.0f);\n";
     ss << "    float toonStep = step(1.0f - adjustments.x, NdotL);\n"; // TODO Threshold?
-    ss << "    vec3 litDiffuse = mix(diffuseColor, tint, toonStep) * lightColor * lightIntensity;\n"; // TODO tint mix or multiply?
+    ss << "    vec3 litDiffuse = mix(diffuseColor.rgb, tint, toonStep) * lightColor * lightIntensity;\n"; // TODO tint mix or multiply?
     ss << "\n";
     ss << "    vec3 halfwayVec = normalize(lightDirection + viewDirection);\n";
     ss << "    float NdotH = dot(normalizedNormal, halfwayVec);\n";
@@ -362,7 +378,7 @@ static MaterialFamilyDefinition createToonFamilyDefinition() {
     ss << "    // TODO ambient light and fog\n";
     ss << "    vec3 finalColor = litDiffuse + specularColor;\n";
     ss << "\n";
-    ss << "    return vec4(finalColor, 0.0f);";
+    ss << "    return vec4(finalColor, 0.0f);";// TODO handle alpha in global light processing code
 
     definition.setLightProcessingCode({ss.str()});
 //     definition.additionalVertexOutputs.emplace_back("TestVar", ShaderDataType::Matrix4x2, ShaderDataFormat::Float);
@@ -381,6 +397,11 @@ static MaterialFamilyDefinition createToonFamilyDefinition() {
 }
 
 static MaterialFamilyDefinition createPBRFamilyDefinition() {
+    // Samples:
+    // https://github.com/KhronosGroup/glTF-WebGL-PBR/blob/master/shaders/pbr-frag.glsl
+    // https://github.com/SaschaWillems/Vulkan-glTF-PBR/blob/master/data/shaders/pbr_khr.frag
+    // WARNING Especially need to look at Willems sample when implementing IBL. He inverts y axis for some reason.
+    
     MaterialFamilyDefinition definition;
     assert(definition.getSupportedLanguages().size() == 1);
     assert(definition.getSupportedLanguages()[0] == ShaderLanguage::GLSLVulkan);
@@ -388,25 +409,80 @@ static MaterialFamilyDefinition createPBRFamilyDefinition() {
     definition.setNormalDataRequired(true);
     definition.setLightsSupported(true);
     
+    // TODO some computed values are identical for all lights and can be reused. Implement a mechanism that would allow their reuse
+    // TODO some equations may be optimized by moving certain variables around
     std::stringstream ss;
-    ss << "    vec3 normalizedNormal = normalize(normal);\n";
-    ss << "    float NdotL = dot(normalizedNormal, lightDirection);\n";
-    ss << "\n";
-    ss << "    vec4 clampedAdjustments = clamp(adjustments, 0.0f, 1.0f);\n";
-    ss << "    float toonStep = step(1.0f - adjustments.x, NdotL);\n"; // TODO Threshold?
-    ss << "    vec3 litDiffuse = mix(diffuseColor, tint, toonStep) * lightColor * lightIntensity;\n"; // TODO tint mix or multiply?
-    ss << "\n";
-    ss << "    vec3 halfwayVec = normalize(lightDirection + viewDirection);\n";
-    ss << "    float NdotH = dot(normalizedNormal, halfwayVec);\n";
-    ss << "    float specularIntensity = pow(max(NdotH, 0.0f), specularLightness);\n";
-    ss << "    float specularStep = step(specularCutoff, specularIntensity);\n";
-    ss << "    vec3 specularColor = lightColor * lightIntensity * specularStep;\n";
-    ss << "    // TODO ambient light and fog\n";
-    ss << "    vec3 finalColor = litDiffuse + specularColor;\n";
-    ss << "\n";
-    ss << "    return vec4(finalColor, 0.0f);";
+    ss <<
+R"glsl(    
+    // Based on the reference glTF PBR implementation
+    // https://github.com/KhronosGroup/glTF-WebGL-PBR/blob/master/shaders/pbr-frag.glsl
+    // which is under the MIT license
+    float minRoughness = 0.04;
+    vec3 f0 = vec3(0.04);
+
+    metallic = clamp(metallic, 0.0, 1.0);
+    roughness = clamp(roughness, minRoughness, 1.0);
+
+    // Input is perceptual roughness, we need material roughness
+    float alphaRoughness = roughness * roughness;
+
+    vec4 baseColor = albedo * albedoFactor;
+
+    vec3 diffuseColor = baseColor.rgb * (vec3(1.0) - f0);
+    diffuseColor *= 1.0 - metallic;
+
+    vec3 specularColor = mix(f0, baseColor.rgb, metallic);
+
+    float reflectance = max(max(specularColor.r, specularColor.g), specularColor.b);
+
+    float reflectance90 = clamp(reflectance * 25.0, 0.0, 1.0);
+    vec3 specularEnvReflectance0 = specularColor.rgb;
+    vec3 specularEnvReflectance90 = vec3(1.0, 1.0, 1.0) * reflectance90;
+
+    vec3 normalizedNormal = normalize(normal);
+    vec3 halfVec = normalize(lightDirection + normalizedNormal);
+
+    float NdotL = clamp(dot(normalizedNormal, lightDirection), 0.001, 1.0);
+    float NdotV = clamp(abs(dot(normalizedNormal, viewDirection)), 0.001, 1.0);
+    float NdotH = clamp(dot(normalizedNormal, halfVec), 0.0, 1.0);
+    float LdotH = clamp(dot(lightDirection, halfVec), 0.0, 1.0);
+    float VdotH = clamp(dot(viewDirection, halfVec), 0.0, 1.0);
+
+    // Specular reflection, a.k.a. F
+    vec3 F = specularEnvReflectance0 + (specularEnvReflectance90 - specularEnvReflectance0) * pow(clamp(1.0 - VdotH, 0.0, 1.0), 5.0);
+
+    // Geometric occlusion, a.k.a. G
+    float r = alphaRoughness;
+    float attenuationL = 2.0 * NdotL / (NdotL + sqrt(r * r + (1.0 - r * r) * (NdotL * NdotL)));
+    float attenuationV = 2.0 * NdotV / (NdotV + sqrt(r * r + (1.0 - r * r) * (NdotV * NdotV)));
+
+    float G = attenuationL * attenuationV;
+
+    // Microfacet distribution, a.k.a. D
+    float rSquare = r * r;
+    float f = (NdotH * rSquare - NdotH) * NdotH + 1.0;
+    float D = rSquare / (PI * f * f);
+
+    vec3 diffuseContrib = (1.0 - F) * (diffuseColor / PI);
+    vec3 specContrib = F * G * D / (4.0 * NdotL * NdotV);
+
+    vec3 radiance = lightColor * lightIntensity;
+
+    vec3 color = NdotL * radiance * (diffuseContrib + specContrib);
+
+    return vec4(color, 0.0);)glsl";
 
     definition.setLightProcessingCode({ss.str()});
+    
+    // TODO Implement IBL and evaluate IBL contribution here.
+    definition.setGlobalLightProcessingCode({R"glsl(//TODO IBL
+    
+    lightSum *= occlusion;
+    lightSum += vec4(emission, 0.0);
+    
+    float finalAlpha = albedo.a * albedoFactor.a;
+    return vec4(lightSum.rgb, finalAlpha);
+)glsl"});
     
     std::vector<LightProcessingFunctionInput> inputs;
     inputs.reserve(4);
@@ -415,7 +491,7 @@ static MaterialFamilyDefinition createPBRFamilyDefinition() {
     inputs.emplace_back("normalScale",    ShaderDataType::Scalar,   glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
     inputs.emplace_back("metallic",    ShaderDataType::Scalar,   glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
     inputs.emplace_back("roughness",    ShaderDataType::Scalar,   glm::vec4(0.5f, 0.0f, 0.0f, 0.0f));
-    inputs.emplace_back("occlusion",    ShaderDataType::Scalar,   glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+    inputs.emplace_back("occlusion",    ShaderDataType::Scalar,   glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
     inputs.emplace_back("emission",    ShaderDataType::Vector3D,   glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
     
     definition.setLightProcessingFunctionInputs(inputs);

@@ -887,6 +887,20 @@ void EditorState::showWorldEditorWindow() {
     ImGui::NextColumn();
     ImGui::Text("Dynamic mesh entity");
     
+    ImGui::NextColumn();
+    if (ImGui::Button("Make on click", ImVec2(-1, 0))) {
+        world->addLight();
+    }
+    ImGui::NextColumn();
+    ImGui::Text("Light");
+    
+    ImGui::NextColumn();
+    if (ImGui::Button("Make on click", ImVec2(-1, 0))) {
+        world->addEmpty();
+    }
+    ImGui::NextColumn();
+    ImGui::Text("Empty");
+    
     ImGui::Columns();
     
     ImGui::End();

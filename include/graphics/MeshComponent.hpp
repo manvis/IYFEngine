@@ -26,8 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef MESH_COMPONENT_HPP
-#define MESH_COMPONENT_HPP
+#ifndef IYF_MESH_COMPONENT_HPP
+#define IYF_MESH_COMPONENT_HPP
 
 #include "core/Constants.hpp"
 #include "core/Component.hpp"
@@ -45,7 +45,7 @@ namespace iyf {
 class MeshComponent : public Component {
 public:
     static constexpr ComponentType Type = ComponentType(ComponentBaseType::Graphics, GraphicsComponent::Mesh);
-    MeshComponent() : Component(ComponentType(ComponentBaseType::Graphics, GraphicsComponent::Mesh)), renderMode(MaterialRenderMode::Opaque) { }
+    MeshComponent() : Component(ComponentType(ComponentBaseType::Graphics, GraphicsComponent::Mesh)), mesh(AssetHandle<Mesh>::CreateInvalid()), renderMode(MaterialRenderMode::Opaque) { }
     
     virtual ~MeshComponent() { }
     
@@ -100,14 +100,13 @@ public:
         //TODO implement render key updates;
     }
     
-    virtual void attach(System*, std::uint32_t) final { }
+    virtual void attach(System*, std::uint32_t) final override;
     
     /// We don't need the actual system pointer for this asset type and simply wipe the
     /// AssetHandle objects to reduce their asset counts
-    virtual void detach(System*, std::uint32_t) final {
-        mesh = AssetHandle<Mesh>();
-    }
+    virtual void detach(System*, std::uint32_t) final override;
     
+    virtual void onTransformationChanged(TransformationComponent* transformation) final override;
 protected:
     AssetHandle<Mesh> mesh;
     BoundingVolume currentBounds;
@@ -117,4 +116,4 @@ protected:
 };
 }
 
-#endif // MESH_COMPONENT_HPP
+#endif // IYF_MESH_COMPONENT_HPP

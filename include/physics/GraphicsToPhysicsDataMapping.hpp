@@ -27,8 +27,8 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#ifndef GRAPHICS_TO_PHYSICS_DATA_MAPPING_HPP
-#define GRAPHICS_TO_PHYSICS_DATA_MAPPING_HPP
+#ifndef IYF_GRAPHICS_TO_PHYSICS_DATA_MAPPING_HPP
+#define IYF_GRAPHICS_TO_PHYSICS_DATA_MAPPING_HPP
 
 namespace iyf {
 struct GraphicsToPhysicsDataMapping {
@@ -37,7 +37,11 @@ struct GraphicsToPhysicsDataMapping {
     const char* data;
     std::size_t count;
     std::size_t stride;
+    
+    inline friend bool operator==(const GraphicsToPhysicsDataMapping& left, const GraphicsToPhysicsDataMapping& right) {
+        return (left.data == right.data) && (left.count == right.count) && (left.stride == right.stride);
+    }
 };
 }
 
-#endif // GRAPHICS_TO_PHYSICS_DATA_MAPPING_HPP
+#endif // IYF_GRAPHICS_TO_PHYSICS_DATA_MAPPING_HPP

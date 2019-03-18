@@ -35,7 +35,11 @@ namespace iyf {
 template <typename T, typename RefCounter>
 class ReferenceCountedHandle {
 public:
-    inline ReferenceCountedHandle(T* item = nullptr, RefCounter* counter = nullptr) : item(item), counter(counter) {
+    static ReferenceCountedHandle CreateInvalid() {
+        return ReferenceCountedHandle(nullptr, nullptr);
+    }
+    
+    inline ReferenceCountedHandle(T* item, RefCounter* counter) : item(item), counter(counter) {
         if (isValid()) {
             (*counter)++;
         }
@@ -47,7 +51,7 @@ public:
         }
     }
     
-    inline ReferenceCountedHandle(ReferenceCountedHandle&& other) : ReferenceCountedHandle() {
+    inline ReferenceCountedHandle(ReferenceCountedHandle&& other) : ReferenceCountedHandle(CreateInvalid()) {
         swap(*this, other);
     }
     
@@ -90,7 +94,7 @@ public:
         return *item;
     }
     
-    inline std::size_t getCount() {
+    inline std::uint64_t getCount() const {
         return *counter;
     }
     

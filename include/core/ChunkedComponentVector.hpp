@@ -68,28 +68,24 @@ public:
         return components[id];
     }
     
-    virtual void set(std::uint32_t id, const Component& component) final override {
+    virtual Component& set(std::uint32_t id, const Component& component) final override {
         components[id] = static_cast<const T&>(component);
-        components[id].attach(getSystem(), id);
+        return components[id];
     }
     
-    virtual void set(std::uint32_t id, Component&& component) final override {
+    virtual Component& set(std::uint32_t id, Component&& component) final override {
         components[id] = std::move(static_cast<T&&>(component));
-        components[id].attach(getSystem(), id);
+        return components[id];
     }
     
-    virtual void destroy(std::uint32_t id) final override {
-        components[id].detach(getSystem(), id);
-    }
-    
-    virtual void move(std::uint32_t source, std::uint32_t destination) final override {
-        components[source].detach(getSystem(), source);
-        
-        components[destination] = std::move(components[source]);
-        
-        components[destination].attach(getSystem(), destination);
-    }
-    
+//     virtual void move(std::uint32_t source, std::uint32_t destination) final override {
+//         components[source].detach(getSystem(), source);
+//         
+//         components[destination] = std::move(components[source]);
+//         
+//         components[destination].attach(getSystem(), destination);
+//     }
+
     virtual void resize(std::uint32_t newSize) final override {
         components.resize(newSize);
     }

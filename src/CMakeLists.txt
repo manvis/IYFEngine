@@ -100,6 +100,8 @@ graphics/DebugRenderer.cpp
 graphics/GraphicsAPI.cpp
 graphics/GraphicsAPIConstants.cpp
 graphics/GraphicsSystem.cpp
+graphics/LightComponent.cpp
+graphics/MeshComponent.cpp
 graphics/Renderer.cpp
 graphics/RendererProperties.cpp
 graphics/ShaderConstants.cpp
@@ -142,9 +144,8 @@ localization/TextLocalization.cpp
 #--------------------- miniz library
 miniz/miniz.c
 #------- physics directory
-physics/BulletPhysicsDebugRenderer.cpp
-physics/Collider.cpp
 physics/PhysicsSystem.cpp
+physics/RigidBody.cpp
 #------- sound directory
 sound/SoundAPI.cpp
 #------- threading directory
@@ -194,6 +195,11 @@ utilities/Regexes.cpp
 ../dependencies/recastnavigation/DebugUtils/Source/RecastDebugDraw.cpp
 ../dependencies/recastnavigation/DebugUtils/Source/RecastDump.cpp)
 
+if (${PHYSICS_ENGINE} STREQUAL "Bullet")
+    set(BUILD_FILES "${BUILD_FILES};physics/bullet/BulletPhysicsDebugRenderer.cpp;physics/bullet/BulletPhysicsSystem.cpp")
+    set(PHYSICS_LIBRARY "${BULLET_LIBRARIES}")
+endif()
+
 if (GRAPHICS_BACKEND MATCHES "OpenGL")
     if (GLEW_DYNAMIC)
         set(GLEW_LIB_LOC "${GLEW_LIBRARY}")
@@ -221,14 +227,14 @@ if(WIN32)
     #TODO GLEW_BUILD + GLEW_STATIC definitions, Microsoft kompiliatoriams
     
     if (GRAPHICS_BACKEND MATCHES "Vulkan")
-        target_link_libraries(IYFEngine fmt vulkan ${SDL2_LIBRARY} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
+        target_link_libraries(IYFEngine fmt vulkan ${SDL2_LIBRARY} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${PHYSICS_LIBRARY} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
     elseif (GRAPHICS_BACKEND MATCHES "OpenGL")
-        target_link_libraries(IYFEngine fmt ${OPENGL_LIBRARIES} ${SDL2_LIBRARY} ${GLEW_LIB_LOC} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
+        target_link_libraries(IYFEngine fmt ${OPENGL_LIBRARIES} ${SDL2_LIBRARY} ${GLEW_LIB_LOC} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${PHYSICS_LIBRARY} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
     endif ()
 else(WIN32)
     if (GRAPHICS_BACKEND MATCHES "Vulkan")
-        target_link_libraries(IYFEngine fmt ${X11_LIBRARIES} vulkan libshaderc_combined.a ${SDL2_LIBRARY} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
+        target_link_libraries(IYFEngine fmt ${X11_LIBRARIES} vulkan libshaderc_combined.a ${SDL2_LIBRARY} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${PHYSICS_LIBRARY} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
     else (GRAPHICS_BACKEND MATCHES "OpenGL")
-        target_link_libraries(IYFEngine fmt ${OPENGL_LIBRARIES} ${SDL2_LIBRARY} ${GLEW_LIB_LOC} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${BULLET_LIBRARIES} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
+        target_link_libraries(IYFEngine fmt ${OPENGL_LIBRARIES} ${SDL2_LIBRARY} ${GLEW_LIB_LOC} ${SDL2_MIX_LIBRARY} ${LUA_LIBRARIES} ${PHYSICS_LIBRARY} ${PHYSFS_LIBRARY} ${FILE_SYSTEM_LIBS} ${CMAKE_DL_LIBS})
     endif ()
 endif(WIN32)

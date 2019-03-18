@@ -34,13 +34,25 @@
 #include "fmt/ostream.h"
 
 namespace iyf {
-TypeManager::TypeManager(AssetManager* manager) : manager(manager) {
+TypeManager::TypeManager(AssetManager* manager) : manager(manager), loggingRemovals(true), loggingCreations(true) {
     longTermWorkerPool = manager->getEngine()->getLongTermWorkerPool();
 }
 
-void TypeManager::logLeakedAsset(std::size_t id, StringHash nameHash, std::uint32_t count) {
+void TypeManager::logLeakedAsset(std::size_t id, StringHash nameHash, std::uint32_t count) const {
     const fs::path path = *manager->getAssetPath(nameHash);
     LOG_W("Asset with id {} loaded from path {} still has {} live references.", id, path, count);
+}
+
+void TypeManager::logAssetCreation(std::size_t id, StringHash nameHash, bool isFetch, bool isAsync) const {
+    if (isFetch) {
+        LOG_V("Fetching an already loaded asset with id {}. Name Hash: {}", id, nameHash.value());
+    } else {
+        LOG_V("Loading an asset with id {}. Name Hash: {}. Async: {}", id, nameHash.value(), isAsync);
+    }
+}
+
+void TypeManager::logAssetRemoval(std::size_t id, StringHash nameHash) const {
+    LOG_V("Removing asset with id {}. Name Hash: {}", id, nameHash.value());
 }
 
 void TypeManager::notifyRemoval(StringHash nameHash) {

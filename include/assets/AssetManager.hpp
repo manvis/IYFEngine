@@ -150,9 +150,17 @@ public:
             
             auto result = typeManager->load(nameHash, asset.path, asset.metadata, id, async);
             loadedAssets[nameHash] = {asset.type, id};
+            
+            assert(result.first != nullptr);
+            assert(result.second != nullptr);
+            
             return AssetHandle<T>(static_cast<T*>(result.first), result.second);
         } else {
             auto result = typeManager->fetch(assetReference->second.second);
+            
+            assert(result.first != nullptr);
+            assert(result.second != nullptr);
+            
             return AssetHandle<T>(static_cast<T*>(result.first), result.second);
         }
     }

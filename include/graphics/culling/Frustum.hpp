@@ -37,7 +37,7 @@
 
 namespace iyf {
 class Camera;
-class BulletPhysicsDebugRenderer;
+class DebugRenderer;
 
 /// A lot of code in this class is based on formulae and examples provided in http://www.lighthouse3d.com/tutorials/view-frustum-culling/
 ///
@@ -106,7 +106,7 @@ public:
     }
     
     /// \todo Create a dedicated debug renderer for graphics stuff
-    void drawDebug(BulletPhysicsDebugRenderer* renderer);
+    void drawDebug(DebugRenderer* renderer);
     
     static glm::vec4 makePlaneFromPoints(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c);
     

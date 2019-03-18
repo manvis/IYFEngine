@@ -26,13 +26,14 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef COMPONENT_HPP
-#define COMPONENT_HPP
+#ifndef IYF_ENTITY_COMPONENT_HPP
+#define IYF_ENTITY_COMPONENT_HPP
 
 #include "core/ComponentType.hpp"
 
 namespace iyf {
 class System;
+class TransformationComponent;
 
 /// Base class that all components must inherrit from
 class Component {
@@ -45,6 +46,7 @@ public:
     
     virtual void attach(System* system, std::uint32_t ownID) = 0;
     virtual void detach(System* system, std::uint32_t ownID) = 0;
+    virtual void onTransformationChanged(TransformationComponent* transformation) = 0;
 protected:
     inline Component(ComponentType componentType) : componentType(componentType) {}
 private:
@@ -52,4 +54,4 @@ private:
 };
 }
 
-#endif //COMPONENT_HPP
+#endif // IYF_ENTITY_COMPONENT_HPP

@@ -44,6 +44,9 @@ struct DebugPushBuffer {
     glm::mat4 VP;
 };
 
+DebugRenderer::DebugRenderer(AssetManager* assetManager, Renderer* renderer) : renderer(renderer), assetManager(assetManager), isInit(false), vs(AssetHandle<Shader>::CreateInvalid()), fs(AssetHandle<Shader>::CreateInvalid()) { }
+DebugRenderer::~DebugRenderer() {}
+
 void DebugRenderer::initialize() {
     std::uint32_t totalVertices = MaxDebugLineVertices + MaxDebugPontVertices;
     vertices.resize(totalVertices);

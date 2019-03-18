@@ -31,13 +31,14 @@
 #include "graphics/clusteredRenderers/ClusteredRenderer.hpp"
 #include "graphics/Camera.hpp"
 #include "graphics/CubemapSkybox.hpp"
+#include "graphics/DebugRenderer.hpp"
 #include "core/EntitySystemManager.hpp"
 #include "core/UnorderedComponentMap.hpp"
 #include "core/Engine.hpp"
 #include "core/InputState.hpp"
 #include "core/World.hpp"
+#include "core/Logger.hpp"
 #include "physics/PhysicsSystem.hpp"
-#include "physics/BulletPhysicsDebugRenderer.hpp"
 #include "threading/ThreadProfiler.hpp"
 
 namespace iyf {
@@ -45,6 +46,18 @@ static void checkEditorMode(const EntitySystemManager* manager) {
     if (!manager->isEditorMode()) {
         throw std::runtime_error("This method can only be called if the EntitySystemManager has been created in editor mode.");
     }
+}
+
+void GraphicsSystem::preAttach(Component& component, std::uint32_t) {
+    if (component.getType().getSubType() == static_cast<std::uint32_t>(GraphicsComponent::Mesh)) {
+        MeshComponent& meshComponent = static_cast<MeshComponent&>(component);
+        
+        assert(meshComponent.getMesh().isValid());
+    }
+}
+
+void GraphicsSystem::postDetach(Component&, std::uint32_t) {
+    //
 }
 
 void GraphicsSystem::VisibleComponents::reset() {
@@ -57,7 +70,15 @@ void GraphicsSystem::VisibleComponents::sort() {
     std::sort(transparentMeshEntityIDs.begin(), transparentMeshEntityIDs.end());
 }
 
-GraphicsSystem::GraphicsSystem(EntitySystemManager* manager, GraphicsAPI* api) : System(manager, ComponentBaseType::Graphics, static_cast<std::size_t>(GraphicsComponent::COUNT)), cameraInputPaused(false), api(api), drawFrustum(false), drawnFrustumID(EntityKey::InvalidID), activeCamera(EntityKey::InvalidID), viewingFromEditorCamera(false) {}
+SystemSettings MakeGraphicsSystemSettings() {
+    SystemSettings settings;
+    
+    settings.activateSetting(SystemSetting::HasPreAttachCallback);
+    
+    return settings;
+}
+
+GraphicsSystem::GraphicsSystem(EntitySystemManager* manager, GraphicsAPI* api) : System(manager, MakeGraphicsSystemSettings(), ComponentBaseType::Graphics, static_cast<std::size_t>(GraphicsComponent::COUNT)), cameraInputPaused(false), api(api), drawFrustum(false), drawnFrustumID(EntityKey::InvalidID), activeCamera(EntityKey::InvalidID), viewingFromEditorCamera(false) {}
 
 bool GraphicsSystem::isViewingFromEditorCamera() const {
     checkEditorMode(manager);
@@ -118,6 +139,7 @@ std::unique_ptr<Skybox> GraphicsSystem::setSkybox(std::unique_ptr<Skybox> newSky
 void GraphicsSystem::initialize() {
     components[static_cast<std::size_t>(GraphicsComponent::Mesh)] = std::make_unique<ChunkedMeshVector>(this, ComponentType(ComponentBaseType::Graphics, GraphicsComponent::Mesh));
     components[static_cast<std::size_t>(GraphicsComponent::Camera)] = std::make_unique<UnorderedComponentMap<Camera>>(this, ComponentType(ComponentBaseType::Graphics, GraphicsComponent::Camera));
+    components[static_cast<std::size_t>(GraphicsComponent::Light)] = std::make_unique<ChunkedMeshVector>(this, ComponentType(ComponentBaseType::Graphics, GraphicsComponent::Light));
     
     if (!api->isInitialized()) {
         throw std::runtime_error("API must be initialized before initializing the GraphicsSystem.");
@@ -278,7 +300,7 @@ void GraphicsSystem::update(float delta, const EntityStateVector& entityStates) 
         tempCamera.update();
         Frustum drawnFrustum;
         drawnFrustum.update(tempCamera);
-        drawnFrustum.drawDebug(dynamic_cast<BulletPhysicsDebugRenderer*>(physicsSystem->debugRenderer.get()));
+        drawnFrustum.drawDebug(physicsSystem->debugRenderer.get());
     }
     
     World* world = dynamic_cast<World*>(manager);
@@ -286,7 +308,7 @@ void GraphicsSystem::update(float delta, const EntityStateVector& entityStates) 
     renderer->drawWorld(world);
 }
 
-void GraphicsSystem::createAndAttachComponent(const EntityKey& key, const ComponentType& type) {
+Component& GraphicsSystem::createAndAttachComponent(const EntityKey& key, const ComponentType& type) {
     assert(!hasComponent(key.getID(), type));
     
     GraphicsComponent component = static_cast<GraphicsComponent>(type.getSubType());
@@ -303,22 +325,15 @@ void GraphicsSystem::createAndAttachComponent(const EntityKey& key, const Compon
             #endif // IYF_BOUNDING_VOLUME
             mc.updateRenderDataKey();
             
-            setComponent(key.getID(), std::move(mc));
-            
-            break;
+            return setComponent(key.getID(), std::move(mc));
         }
         case GraphicsComponent::SkeletalMesh:
             throw std::runtime_error("NOT YET IMPLEMENTED");
             break;
-        case GraphicsComponent::DirectionalLight:
-            throw std::runtime_error("NOT YET IMPLEMENTED");
-            break;
-        case GraphicsComponent::PointLight:
-            throw std::runtime_error("NOT YET IMPLEMENTED");
-            break;
-        case GraphicsComponent::SpotLight:
-            throw std::runtime_error("NOT YET IMPLEMENTED");
-            break;
+        case GraphicsComponent::Light: {
+            LightComponent lc;
+            return setComponent(key.getID(), std::move(lc));
+        }
         case GraphicsComponent::ParticleSystem:
             throw std::runtime_error("NOT YET IMPLEMENTED");
             break;
@@ -326,9 +341,7 @@ void GraphicsSystem::createAndAttachComponent(const EntityKey& key, const Compon
             assert(!renderer->isRenderSurfaceSizeDynamic());
             Camera c(renderer->getRenderSurfaceSize());
             
-            setComponent(key.getID(), std::move(c));
-            
-            break;
+            return setComponent(key.getID(), std::move(c));
         }
         case GraphicsComponent::COUNT:
             throw std::runtime_error("COUNT is an invalid value");

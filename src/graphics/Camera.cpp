@@ -57,6 +57,8 @@ void Camera::detach(System*, std::uint32_t) {
     transformation = nullptr;
 }
 
+void Camera::onTransformationChanged(TransformationComponent* /*transformation*/) {}
+
 void Camera::update() {
     // Update projection
     if (projectionNeedsUpdate) {
@@ -65,6 +67,7 @@ void Camera::update() {
     }
     
     // update view
+    // TODO use onTransformationChanged instead of this
     std::uint32_t currentUpdateCount = transformation->getUpdateCount();
     if (currentUpdateCount != transformationUpdateCount) {
         transformationUpdateCount = currentUpdateCount;

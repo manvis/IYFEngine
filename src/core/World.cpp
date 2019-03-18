@@ -27,6 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/World.hpp"
+#include "core/Logger.hpp"
 #include "assets/metadata/MeshMetadata.hpp"
 #include "core/Engine.hpp"
 #include "core/configuration/Configuration.hpp"
@@ -106,6 +107,14 @@ void World::update(float delta) {
     EntitySystemManager::update(delta);
 }
 
+void World::addLight() {
+    //
+}
+
+void World::addEmpty() {
+    //
+}
+
 void World::addStaticMesh(StringHash nameHash) {
     MeshComponent mc;
     mc.setRenderMode(MaterialRenderMode::Opaque);
@@ -122,6 +131,9 @@ void World::addStaticMesh(StringHash nameHash) {
     
     const MeshMetadata& meshMetadata = metadata->get<MeshMetadata>();
     mc.setMesh(assetManager->load<Mesh>(nameHash, false));
+    
+    assert(mc.getMesh().isValid());
+    LOG_D("Instance count{}", mc.getMesh().getCount())
     
 #if IYF_BOUNDING_VOLUME == IYF_SPHERE_BOUNDS
     mc.setPreTransformBoundingVolume(mc.getMesh()->boundingSphere);
@@ -140,10 +152,18 @@ void World::addStaticMesh(StringHash nameHash) {
     const Mesh& mesh = &(mc.getMesh());
     const auto& mapping = meshManager->getGraphicsToPhysicsDataMapping(mesh);
     
-    attachComponent(entity, std::move(mc));
+    MeshComponent md = std::move(mc);
+    assert(md.getMesh().isValid());
+    LOG_D("COUNT {}", md.getMesh().getCount());
+    attachComponent(entity, std::move(md));
     
-    TriangleMeshCollisionShapeCreateInfo createInfo(mapping.first, mapping.second, nameHash);
-    attachComponent(entity, physicsSystem->prepareTriangleMeshRigidBody(createInfo, &(transformation)));
+    TriangleMeshCollisionShapeCreateInfo createInfo(mapping.first, mapping.second);
+    
+    RigidBody rb;
+    rb.setMass(0.0f);
+    rb.setCollisionShapeCreateInfo(std::move(createInfo));
+    
+    attachComponent(entity, std::move(rb));
     //attachComponent(entity, ComponentType::RigidBody, physicsSystem->prepareSphereRigidBody(SphereCollisionShapeCreateInfo(1), 3, &(transformation)));
 }
 
@@ -183,7 +203,11 @@ void World::addDynamicMesh(StringHash nameHash) {
     PhysicsSystem* physicsSystem = static_cast<PhysicsSystem*>(getSystemManagingComponentType(ComponentBaseType::Physics));
     
     attachComponent(entity, std::move(mc));
-    attachComponent(entity, physicsSystem->prepareSphereRigidBody(SphereCollisionShapeCreateInfo(1), 1, &(transformation)));
+    
+    RigidBody rb;
+    rb.setMass(1.0f);
+    rb.setCollisionShapeCreateInfo(SphereCollisionShapeCreateInfo(1.0f));
+    attachComponent(entity, std::move(rb));
     //entities.push_back(entity);
 }
 

@@ -26,18 +26,47 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "physics/BulletPhysicsDebugRenderer.hpp"
+#include "physics/RigidBody.hpp"
+#include "physics/PhysicsSystem.hpp"
 #include "core/Logger.hpp"
 
 namespace iyf {
+RigidBody::RigidBody() : Component(ComponentType(ComponentBaseType::Physics, PhysicsComponent::RigidBody)), 
+    engineData(nullptr), physicsSystem(nullptr), createInfo(SphereCollisionShapeCreateInfo(1.0f)), mass(0.0f) { }
 
-void BulletPhysicsDebugRenderer::reportErrorWarning(const char* warningString) {
-    LOG_W("{}", warningString)
+void RigidBody::setMass(float newMass) {
+    throwIfAttached();
+    
+    mass = newMass;
 }
 
-// void BulletPhysicsDebugRenderer::flushLines() {
-//     btIDebugDraw::flushLines();
-//     
-//     LOG_D("Physics debug flush")
-// }
+float RigidBody::getMass() const {
+    return mass;
+}
+
+void RigidBody::setCollisionShapeCreateInfo(CollisionShapeCreateInfo info) {
+    throwIfAttached();
+    
+    createInfo = info;
+}
+
+void RigidBody::attach(System* system, std::uint32_t) {
+    physicsSystem = static_cast<PhysicsSystem*>(system);
+}
+
+void RigidBody::detach(System* system, std::uint32_t) {
+    assert(system == physicsSystem);
+    physicsSystem = nullptr;
+}
+
+void RigidBody::onTransformationChanged(TransformationComponent*) {
+    // Simply ignore transformation changes.
+}
+
+void RigidBody::throwIfAttached() {
+    if (physicsSystem != nullptr) {
+        throw std::runtime_error("Can't edit an attached RigidBody");
+    }
+}
+
 }

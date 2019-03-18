@@ -32,6 +32,7 @@
 #include "assets/typeManagers/TypeManager.hpp"
 #include "utilities/ChunkedVector.hpp"
 #include "threading/ThreadPool.hpp"
+#include "core/Logger.hpp"
 
 #include <future>
 #include <memory>
@@ -58,7 +59,7 @@ public:
     static_assert(std::is_base_of<Asset, T>::value, "All assets need to be derived from the Asset base class");
     static_assert(std::is_default_constructible<T>::value, "All assets need to be default constructible");
     
-    ChunkedVectorTypeManager(AssetManager* manager, std::size_t initialFreeListSize = 1024) : TypeManager(manager) {
+    ChunkedVectorTypeManager(AssetManager* manager, std::size_t initialFreeListSize = 1024) : TypeManager(manager), missingAssetHandle(AssetHandle<T>::CreateInvalid()) {
         freeList.reserve(initialFreeListSize);
     }
     
@@ -86,6 +87,10 @@ public:
             
             idOut = id;
             
+            if (isLoggingCreations()) {
+                logAssetCreation(id, nameHash, false, isAsync);
+            }
+            
             return std::make_pair(&assets[id], &counts[id]);
         } else {
             id = freeList.back();
@@ -112,6 +117,10 @@ public:
     }
     
     virtual std::pair<Asset*, AssetHandleRefCounter*> fetch(std::uint32_t id) final override {
+        if (isLoggingCreations()) {
+            logAssetCreation(id, assets[id].getNameHash(), false, false);
+        }
+        
         return std::make_pair(&assets[id], &counts[id]);
     }
     
@@ -154,6 +163,10 @@ public:
             if (policy == GarbageCollectionRunPolicy::FullCollection) {
                 while (current != end) {
                     if ((*current) == 0) {
+                        if (isLoggingRemovals()) {
+                            logAssetRemoval(id, assets[id].getNameHash());
+                        }
+                        
                         notifyRemoval(assets[id].getNameHash());
                         
                         freeList.push_back(id);

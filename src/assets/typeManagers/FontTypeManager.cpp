@@ -58,7 +58,7 @@ void FontTypeManager::performFree(Font& assetData) {
 void FontTypeManager::initMissingAssetHandle() {
     // Yeah, this will crash everything if used, however, I don't think I can add a "missing" shader. Unlike meshes or textures
     // that are easy to replace, shaders may be from different stages, have different inputs/outputs/etc.
-    missingAssetHandle = AssetHandle<Font>();
+    missingAssetHandle = AssetHandle<Font>::CreateInvalid();
 }
 }
 

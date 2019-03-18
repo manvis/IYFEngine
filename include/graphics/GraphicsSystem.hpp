@@ -32,6 +32,7 @@
 #include "core/EntitySystemManager.hpp"
 #include "graphics/Camera.hpp"
 #include "graphics/MeshComponent.hpp"
+#include "graphics/LightComponent.hpp"
 #include "graphics/GraphicsAPI.hpp" // TODO maybe separate objects created by the API (e.g. buffers) from API for faster compilation times
 #include "graphics/culling/Frustum.hpp"
 #include "graphics/RenderDataKey.hpp"
@@ -76,12 +77,15 @@ public:
     virtual void initialize() final override;
     virtual void dispose() final override;
     
+    virtual void preAttach(Component& component, std::uint32_t id) final override;
+    virtual void postDetach(Component& component, std::uint32_t id) final override;
+    
     virtual void update(float delta, const EntityStateVector& entityStates) final override;
     virtual void collectGarbage(GarbageCollectionRunPolicy) final override {
         // This class does not have garbage that neesds to be collected
     }
     
-    virtual void createAndAttachComponent(const EntityKey& key, const ComponentType& type) final override;
+    virtual Component& createAndAttachComponent(const EntityKey& key, const ComponentType& type) final override;
     
     virtual std::size_t getSubTypeCount() const final override {
         return static_cast<std::size_t>(GraphicsComponent::COUNT);

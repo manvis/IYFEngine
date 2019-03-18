@@ -61,7 +61,7 @@ public:
     /// \warning This method does not call Component::detach() or ComponentContainer::destroy()
     /// on any previously created Components. Component lifecycles are tracked inside the System
     /// and it is responsible for cleanup (if it is required).
-    virtual void set(std::uint32_t id, const Component& component) = 0;
+    virtual Component& set(std::uint32_t id, const Component& component) = 0;
     
     /// Moves the provided Component into the Component with the specified Entity id
     /// and calls Component::attach() on it.
@@ -69,18 +69,15 @@ public:
     /// \warning This method does not call Component::detach() or ComponentContainer::destroy()
     /// on any previously created Components. Component lifecycles are tracked inside the System
     /// and it is responsible for cleanup (if it is required).
-    virtual void set(std::uint32_t id, Component&& component) = 0;
+    virtual Component& set(std::uint32_t id, Component&& component) = 0;
     
-    /// Detaches and destroys (if applicable) a Component with the specified Entity id.
-    virtual void destroy(std::uint32_t id) = 0;
-    
-    /// Moves a component from one Entity id to another. Component::detach() is called on the source,
-    /// it is then moved and Component::attach() is called on the destination.
-    /// 
-    /// \warning This method does not call Component::detach() or ComponentContainer::destroy()
-    /// on the destination Component. Component lifecycles are tracked inside the System
-    /// and it is responsible for cleanup (if it is required).
-    virtual void move(std::uint32_t source, std::uint32_t destination) = 0;
+//     /// Moves a component from one Entity id to another. Component::detach() is called on the source,
+//     /// it is then moved and Component::attach() is called on the destination.
+//     /// 
+//     /// \warning This method does not call Component::detach() or ComponentContainer::destroy()
+//     /// on the destination Component. Component lifecycles are tracked inside the System
+//     /// and it is responsible for cleanup (if it is required).
+//     virtual void move(std::uint32_t source, std::uint32_t destination) = 0;
     
     /// Resizes (if applicable) the container to accomodate at least newSize components.
     /// Shrinking is not allowed - only growing.

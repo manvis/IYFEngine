@@ -223,8 +223,8 @@ protected:
     /// Generate the per frame data inputs (e.g., camera, light and material data).
     virtual std::string generatePerFrameData(const ShaderDataSets& requiredDataSets, const void* extraData) const = 0;
     
-    virtual std::string generateLightProcessingFunctionCall(const MaterialFamilyDefinition& definition) const = 0;
-    virtual std::string generateLightProcessingFunctionSignature(const MaterialFamilyDefinition& definition) const = 0;
+    virtual std::string generateLightProcessingFunctionCall(const MaterialFamilyDefinition& definition, bool global) const = 0;
+    virtual std::string generateLightProcessingFunctionSignature(const MaterialFamilyDefinition& definition, bool global) const = 0;
     
     ShaderGenerationResult generateAndReportError(ShaderGenerationResult::Status status, const std::string& error) const;
     

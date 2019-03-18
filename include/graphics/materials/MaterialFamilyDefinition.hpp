@@ -201,8 +201,8 @@ public:
     /// Sets the shading languages that this material family supports. All additional code snippets used in this 
     /// struct must be written in these languages.
     ///
-    /// \warning Setting this value will resize and clear additionalVertexProcessingCode and lightProcessingCode.
-    /// Therefore, make sure to use this function BEFORE setting any code snippets.
+    /// \warning Setting this value will resize and clear additionalVertexProcessingCode, lightProcessingCode and
+    /// globalLightProcessingCode. Therefore, make sure to use this function BEFORE setting any code snippets.
     ///
     /// \throws std::invalid_argument if supportedLanguages vector was empty or a single language was specified
     /// multiple times.
@@ -248,9 +248,29 @@ public:
         this->lightProcessingCode = std::move(code);
     }
     
+    /// The code that computes global shading independent of lights (e.g., image based lighting). Must be written by a human.
+    /// The number of code strings in this vector and their languages must match what's defined in the 'languages' member of this struct.
+    ///
+    /// \warning The syntax of the provided code will only be checked when compiling the material shaders.
+    ///
+    /// \throws std::invalid_argument if the size of the provided vector did not match the size of the supportedLanguages
+    /// vector
+    inline void setGlobalLightProcessingCode(std::vector<std::string> code) {
+        if (code.size() != supportedLanguages.size()) {
+            throw std::invalid_argument("The size of the code vector must match the size of the supportedLanguages vector");
+        }
+        
+        this->globalLightProcessingCode = std::move(code);
+    }
+    
     /// \see setLightProcessingCode()
     inline const std::vector<std::string>& getLightProcessingCode() const {
         return lightProcessingCode;
+    }
+    
+    /// \see setGlobalLightProcessingCode
+    inline const std::vector<std::string>& getGlobalLightProcessingCode() const {
+        return globalLightProcessingCode;
     }
     
     /// Does the material family require normal data (e.g., to compute lighting)?
@@ -430,6 +450,7 @@ private:
     std::vector<ShaderLanguage> supportedLanguages;
     std::vector<std::string> additionalVertexProcessingCode;
     std::vector<std::string> lightProcessingCode;
+    std::vector<std::string> globalLightProcessingCode;
     
     std::vector<ShaderVariable> additionalVertexOutputs;
     

@@ -61,7 +61,7 @@ protected:
     /// \todo Dynamic resize? A different (bigger) default limit?
     static const std::size_t MaxDebugPontVertices = 8192;
 public:
-    DebugRenderer(AssetManager* assetManager, Renderer* renderer) : renderer(renderer), assetManager(assetManager), isInit(false) { }
+    DebugRenderer(AssetManager* assetManager, Renderer* renderer);
     
     virtual void initialize();
     virtual void dispose();
@@ -87,7 +87,7 @@ public:
         lineVertexCount += 2;
     }
     
-    virtual ~DebugRenderer() {}
+    virtual ~DebugRenderer();
 
     bool isInitialized() const {
         return isInit;

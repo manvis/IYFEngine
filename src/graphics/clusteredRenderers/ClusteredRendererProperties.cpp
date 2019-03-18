@@ -89,7 +89,7 @@ std::string ClusteredRendererProperties::makeLightLoops(ShaderLanguage language,
     ss << "        falloff *= falloff;\n";
     ss << "        falloff = falloff / (lightDistance * lightDistance + 1);\n\n";
     ss << "        vec3 lightColor = cameraAndLights.pointLights[i].color;\n";
-    ss << "        float lightIntensity = cameraAndLights.pointLights[i].intensity;\n\n";
+    ss << "        float lightIntensity = cameraAndLights.pointLights[i].intensity * falloff;\n\n";
     ss << "        if (falloff > 0.0f) {\n";
     ss << "            " << lightingFunction << "\n";
     ss << "        }\n";

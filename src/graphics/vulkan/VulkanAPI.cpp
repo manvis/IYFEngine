@@ -1713,11 +1713,10 @@ SemaphoreHnd VulkanAPI::getPresentationCompleteSemaphore() {
 }
 
 void VulkanAPI::waitUntilFrameCompletes() {
-#ifdef IYF_LOG_ORDER
-    LOG_D("Waiting until frame-in-flight {} completes ", currentFrameInFlight);
-#endif // IYF_LOG_ORDER
+    const std::size_t prevFrameID = currentFrameInFlight - 1;
+    const std::size_t fenceID = (prevFrameID > getMaxFramesInFlight()) ? (getMaxFramesInFlight() - 1) : prevFrameID;
     
-    VkFence fence = getCurrentFrameCompleteFence();
+    VkFence fence = frameCompleteFences[fenceID];
     checkResult(vkWaitForFences(logicalDevice.handle, 1, &fence, VK_TRUE, 50000000000), "Failed to wait on a fence."); //TODO good timeout value?
 }
 

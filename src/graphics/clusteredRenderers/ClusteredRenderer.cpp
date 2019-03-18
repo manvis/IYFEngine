@@ -42,6 +42,7 @@
 #include "core/World.hpp"
 #include "core/Engine.hpp"
 #include "core/InputState.hpp"
+#include "core/Logger.hpp"
 
 #include "physics/PhysicsSystem.hpp"
 
@@ -175,7 +176,7 @@ struct ClusterData {
     std::uint32_t lightIDs[MaxLightIDs];
 };
 
-ClusteredRenderer::ClusteredRenderer(Engine* engine, GraphicsAPI* gfx) : Renderer(engine, gfx) {
+ClusteredRenderer::ClusteredRenderer(Engine* engine, GraphicsAPI* gfx) : Renderer(engine, gfx), vsSimple(AssetHandle<Shader>::CreateInvalid()), fsSimpleFlat(AssetHandle<Shader>::CreateInvalid()), fullScreenQuad(AssetHandle<Mesh>::CreateInvalid()) {
 //     pickingEnabled = false;
 }
 
@@ -887,6 +888,8 @@ void ClusteredRenderer::drawVisibleOpaque(const GraphicsSystem* graphicsSystem) 
     const MeshComponent& firstComponent = static_cast<const MeshComponent&>(components.get(visibleComponents.opaqueMeshEntityIDs[0].componentID));
     const AssetHandle<Mesh>& firstMesh = firstComponent.getMesh();
     
+    assert(firstMesh.isValid());
+    
     std::uint8_t previousVBO = firstMesh->vboID;
     std::uint8_t previousIBO = firstMesh->iboID;
     
@@ -982,6 +985,8 @@ void ClusteredRenderer::drawDebugAndHelperMeshes(const World* world, const Debug
         assert(graphicsSystem != nullptr);
         
         const Camera& camera = graphicsSystem->getActiveCamera();
+        
+        assert(renderer != nullptr);
         
         renderer->draw(getCommandBuffer(CommandBufferID::World), &camera);
     }

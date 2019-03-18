@@ -26,45 +26,53 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef COLLIDER_HPP
-#define COLLIDER_HPP
-
-#include <btBulletDynamicsCommon.h>
-#include <optional>
+#ifndef IYF_RIGID_BODY_HPP
+#define IYF_RIGID_BODY_HPP
 
 #include "core/Component.hpp"
 #include "physics/CollisionShape.hpp"
-#include "physics/CollisionShapeCache.hpp"
-#include "physics/MotionState.hpp"
+
+#include <variant>
 
 namespace iyf {
-class Collider : public Component {
+class PhysicsEngineData;
+class PhysicsSystem;
+
+using CollisionShapeCreateInfo = std::variant<SphereCollisionShapeCreateInfo, BoxCollisionShapeCreateInfo, CapsuleCollisionShapeCreateInfo, StaticPlaceCollisionShapeCreateInfo, ConvexHullCollisionShapeCreateInfo, TriangleMeshCollisionShapeCreateInfo>;
+
+class RigidBody : public Component {
 public:
-    static constexpr ComponentType Type = ComponentType(ComponentBaseType::Physics, PhysicsComponent::Collider);
-    Collider() : Component(ComponentType(ComponentBaseType::Physics, PhysicsComponent::Collider)) { }
+    static constexpr ComponentType Type = ComponentType(ComponentBaseType::Physics, PhysicsComponent::RigidBody);
+    RigidBody();
     
-    /// btRigidBody does not have an empty "invalid" constructor, but I really
-    /// want to have all rigid bodies inside Collider objects, hence 
-    /// the use of optional
-    std::optional<btRigidBody> rigidBody;
+    virtual void attach(System* system, std::uint32_t ownID) final override;
+    virtual void detach(System* system, std::uint32_t ownID) final override;
+    virtual void onTransformationChanged(TransformationComponent* transformation) final override;
     
-    /// MotionState wraps a pointer to a TransformationComponent. This is possible
-    /// because TransformationComponents are stored in a ChunkedVector and their
-    /// position in memory is consistent throughout the existence of an Entity.
-    ///
-    /// \todo is this really enough or do I need aligned storage?
-    alignas(16) MotionState motionState;
+    virtual ~RigidBody() { }
     
-    /// Required here because we delay the creation of the rigidBody component
+    void setCollisionShapeCreateInfo(CollisionShapeCreateInfo info);
+    
+    void setMass(float newMass);
+    float getMass() const;
+    
+    const CollisionShapeCreateInfo& getCollisionShapeCreateInfo() const {
+        return createInfo;
+    }
+    
+    PhysicsEngineData* getPhysicsEngineData() {
+        return engineData;
+    }
+private:
+    friend class PhysicsSystem;
+    
+    void throwIfAttached();
+    
+    PhysicsEngineData* engineData;
+    PhysicsSystem* physicsSystem;
+    CollisionShapeCreateInfo createInfo;
     float mass;
-    
-    CollisionShapeHandle collisionShape;
-    
-    virtual void attach(System* system, std::uint32_t ownID) final;
-    virtual void detach(System* system, std::uint32_t ownID) final;
-    
-    virtual ~Collider() { }
 };
 }
 
-#endif // COLLIDER_HPP
+#endif // IYF_RIGID_BODY_HPP

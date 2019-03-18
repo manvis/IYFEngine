@@ -26,8 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef COLLISION_SHAPE_TYPE_HPP
-#define COLLISION_SHAPE_TYPE_HPP
+#ifndef IYF_COLLISION_SHAPE_TYPE_HPP
+#define IYF_COLLISION_SHAPE_TYPE_HPP
 
 #include <cstdint>
 
@@ -56,186 +56,183 @@ enum class CapsuleShapeAxis : std::uint8_t {
     Z
 };
 
-/// A key value that uniquely identifies a collision shape. Used in unordered_maps when caching
-class CollisionShapeKey {
+class CollisionShapeCreateInfoBase {
 public:
-    constexpr inline CollisionShapeKey(std::size_t key) : key(key) { }
+    CollisionShapeCreateInfoBase() : cacheKey(0) { }
     
-    std::size_t getKey() const {
-        return key;
+    virtual CollisionShapeType getCollisionShapeType() const = 0;
+    virtual ~CollisionShapeCreateInfoBase() {}
+    
+    /// Returns a cache key that allows the PhysicsSystem to reuse collision shapes
+    inline StringHash getCacheKey() const {
+        return cacheKey;
     }
     
-    friend bool operator==(const CollisionShapeKey& left, const CollisionShapeKey& right) {
-        return left.key == right.key;
+    inline void setCacheKey(StringHash cacheKey) {
+        this->cacheKey = cacheKey;
+    }
+    
+    inline bool hasCacheKey() const {
+        return cacheKey.value() != 0;
+    }
+    
+    virtual bool compare(const CollisionShapeCreateInfoBase& other) const {
+        return (getCollisionShapeType() == other.getCollisionShapeType()) && (cacheKey == other.cacheKey);
     }
 private:
-    std::size_t key;
+    StringHash cacheKey;
 };
 
-struct CollisionShapeCreateInfo {
-    CollisionShapeCreateInfo(bool allowCachedShapeReuse = true) : allowCachedShapeReuse(allowCachedShapeReuse) { }
+class SphereCollisionShapeCreateInfo : public CollisionShapeCreateInfoBase {
+public:
+    SphereCollisionShapeCreateInfo(float radius) : CollisionShapeCreateInfoBase(), radius(radius) {}
     
-    /// The type of the collision shape that you want to create. Should be automatically
-    /// set by the constructors of all structs deriving from CollisionShapeCreateInfo and
-    /// not changed by the user.
-    CollisionShapeType collisionShapeType;
-    /// If this is true, the PhysicsSystem will try to find and reuse an already created/loaded CollisionShape.
-    /// This saves memory, however, the lookup takes some time.
-    ///
-    /// \todo Allow the user to perform a cache lookup and store a temporary reference to a shape.
-    /// The said reference should allow the user to prepare multiple RigidBodyComponent objects that
-    /// use the same shape.
-    bool allowCachedShapeReuse;
-    
-    CollisionShapeKey makeKey() const {
-        throw std::logic_error("This should be hidden by deriving classes.");
+    virtual CollisionShapeType getCollisionShapeType() const final override {
+        return CollisionShapeType::Sphere;
     }
-};
 
-struct SphereCollisionShapeCreateInfo : public CollisionShapeCreateInfo {
-    SphereCollisionShapeCreateInfo(float radius, bool allowCachedShapeReuse = true) : CollisionShapeCreateInfo(allowCachedShapeReuse), radius(radius) {
-        collisionShapeType = CollisionShapeType::Sphere;
-    }
-    
     /// Radius of the sphere
     float radius;
     
-    CollisionShapeKey makeKey() const {
-        return std::hash<float>{}(radius);
-    }
-    
     friend bool operator==(const SphereCollisionShapeCreateInfo& left, const SphereCollisionShapeCreateInfo& right) {
-        return left.radius == right.radius;
+        return left.compare(right) && (left.radius == right.radius);
     }
 };
 
-struct BoxCollisionShapeCreateInfo : public CollisionShapeCreateInfo {
-    BoxCollisionShapeCreateInfo(const glm::vec3& halfExtents, bool allowCachedShapeReuse = true) : CollisionShapeCreateInfo(allowCachedShapeReuse), halfExtents(halfExtents) {
-        collisionShapeType = CollisionShapeType::Box;
-    }
+class BoxCollisionShapeCreateInfo : public CollisionShapeCreateInfoBase {
+public:
+    BoxCollisionShapeCreateInfo(glm::vec3 halfExtents) : CollisionShapeCreateInfoBase(), halfExtents(halfExtents) {}
     
+    virtual CollisionShapeType getCollisionShapeType() const final override {
+        return CollisionShapeType::Box;
+    }
+
     /// Half extents of the box
     glm::vec3 halfExtents;
     
-    CollisionShapeKey makeKey() const {
-        return std::hash<glm::vec3>{}(halfExtents);
-    }
-    
     friend bool operator==(const BoxCollisionShapeCreateInfo& left, const BoxCollisionShapeCreateInfo& right) {
-        return left.halfExtents == right.halfExtents;
+        return left.compare(right) && (left.halfExtents == right.halfExtents);
     }
 };
 
-struct CapsuleCollisionShapeCreateInfo : public CollisionShapeCreateInfo {
-    CapsuleCollisionShapeCreateInfo(float radius, float height, CapsuleShapeAxis capsuleShapeAxis, bool allowCachedShapeReuse = true) : CollisionShapeCreateInfo(allowCachedShapeReuse), radius(radius), height(height), capsuleShapeAxis(capsuleShapeAxis) {
-        collisionShapeType = CollisionShapeType::Capsule;
+class CapsuleCollisionShapeCreateInfo : public CollisionShapeCreateInfoBase {
+public:
+    CapsuleCollisionShapeCreateInfo(float radius, float height, CapsuleShapeAxis capsuleShapeAxis) : CollisionShapeCreateInfoBase(), radius(radius), height(height), capsuleShapeAxis(capsuleShapeAxis) {}
+    
+    virtual CollisionShapeType getCollisionShapeType() const final override {
+        return CollisionShapeType::Capsule;
     }
     
     float radius;
     float height;
     CapsuleShapeAxis capsuleShapeAxis;
     
-    CollisionShapeKey makeKey() const {
-        size_t seed = 0;
-
-        util::HashCombine(seed, std::hash<float>{}(radius));
-        util::HashCombine(seed, std::hash<float>{}(height));
-        util::HashCombine(seed, std::hash<std::underlying_type<CapsuleShapeAxis>::type>{}(static_cast<std::underlying_type<CapsuleShapeAxis>::type>(capsuleShapeAxis)));
-        
-        return seed;
-    }
-    
     friend bool operator==(const CapsuleCollisionShapeCreateInfo& left, const CapsuleCollisionShapeCreateInfo& right) {
-        return (left.radius == right.radius) && (left.height == right.height) && (left.capsuleShapeAxis == right.capsuleShapeAxis);
+        return left.compare(right) && (left.radius == right.radius) && (left.height == right.height) && (left.capsuleShapeAxis == right.capsuleShapeAxis);
     }
 };
 
-struct StaticPlaceCollisionShapeCreateInfo : public CollisionShapeCreateInfo {
-    StaticPlaceCollisionShapeCreateInfo(const glm::vec3& normal, float constant, bool allowCachedShapeReuse = true) : CollisionShapeCreateInfo(allowCachedShapeReuse), normal(normal), constant(constant) {
-        collisionShapeType = CollisionShapeType::StaticPlane;
-    }
+class StaticPlaceCollisionShapeCreateInfo : public CollisionShapeCreateInfoBase {
+public:
+    StaticPlaceCollisionShapeCreateInfo(const glm::vec3 normal, float constant) : CollisionShapeCreateInfoBase(), normal(normal), constant(constant) {}
     
+    virtual CollisionShapeType getCollisionShapeType() const final override {
+        return CollisionShapeType::StaticPlane;
+    }
+
     glm::vec3 normal;
     float constant;
     
-    CollisionShapeKey makeKey() const {
-        size_t seed = 0;
-
-        util::HashCombine(seed, std::hash<glm::vec3>{}(normal));
-        util::HashCombine(seed, std::hash<float>{}(constant));
-        
-        return seed;
-    }
-    
     friend bool operator==(const StaticPlaceCollisionShapeCreateInfo& left, const StaticPlaceCollisionShapeCreateInfo& right) {
-        return (left.normal == right.normal) && (left.constant == right.constant);
+        return left.compare(right) && (left.normal == right.normal) && (left.constant == right.constant);
     }
 };
 
-/// Uses a tag (typically a hashed name of the 3D mesh) to implement cached data lookup in physical media
-struct TaggedCollisionShapeCreateInfo : public CollisionShapeCreateInfo {
-    TaggedCollisionShapeCreateInfo(StringHash tag, bool rebuildCachedData = false, bool allowCachedShapeReuse = true) : CollisionShapeCreateInfo(allowCachedShapeReuse), rebuildCachedData(rebuildCachedData), tag(tag) {}
-    
-    CollisionShapeKey makeKey() const {
-        return CollisionShapeKey(tag);
-    }
-    
-    /// Certain collision shapes (e.g. convex hulls and triangle meshes) require additional processing before they can be used.
-    /// The processing can be lengthy, therefore, the results are cached and writen to physical media. This process happens automatically
-    /// when a non-cached mesh (determined by the tag) is first loaded, regardless of the rebuildCachedData value. 
-    ///
-    /// If the cached data already exists, setting rebuildCachedData to true will rebuild it. This is typically done when a mesh
-    /// is updated and reimported.
-    bool rebuildCachedData;
-    /// A tag that must uniquely identify the mesh that's going to be processed. It is also used to find loaded shapes for reuse when
-    /// allowCachedShapeReuse is set to true
-    StringHash tag;
-};
-
-struct ConvexHullCollisionShapeCreateInfo : public TaggedCollisionShapeCreateInfo {
+class ConvexHullCollisionShapeCreateInfo : public CollisionShapeCreateInfoBase {
+public:
     /// \warning Make sure that whatever the vertexData parameter is pointing to survives until the convex hull creation call returns.
     /// If the call fails to find cached data or allowCachedShapeReuse is set to false, it will make a copy of the vertices and then
     /// you'll be free to free (heh) the array.
     ///
     /// \todo Sane limit for the number of vertices
-    ConvexHullCollisionShapeCreateInfo(const GraphicsToPhysicsDataMapping& vertexData, StringHash tag, bool rebuildCachedData = false, bool allowCachedShapeReuse = true) : TaggedCollisionShapeCreateInfo(tag, rebuildCachedData, allowCachedShapeReuse), vertexData(vertexData) {
-        collisionShapeType = CollisionShapeType::ConvexHull;
+    ConvexHullCollisionShapeCreateInfo(const GraphicsToPhysicsDataMapping vertexData) : CollisionShapeCreateInfoBase(), vertexData(std::move(vertexData)) {}
+    
+    virtual CollisionShapeType getCollisionShapeType() const final override {
+        return CollisionShapeType::ConvexHull;
     }
 
     GraphicsToPhysicsDataMapping vertexData;
     
     friend bool operator==(const ConvexHullCollisionShapeCreateInfo& left, const ConvexHullCollisionShapeCreateInfo& right) {
-        return (left.tag == right.tag);
+        return left.compare(right) && (left.vertexData == right.vertexData);
     }
 };
 
-struct TriangleMeshCollisionShapeCreateInfo : public TaggedCollisionShapeCreateInfo {
+class TriangleMeshCollisionShapeCreateInfo : public CollisionShapeCreateInfoBase {
+public:
     /// \warning Both vertexData and indexData must survive for as long as the collision shape is in use.
     ///
     /// \todo Does the data really need to survive?
     ///
     /// \todo Materials
-    TriangleMeshCollisionShapeCreateInfo(const GraphicsToPhysicsDataMapping& vertexData, const GraphicsToPhysicsDataMapping& indexData, StringHash tag, bool rebuildCachedData = false, bool allowCachedShapeReuse = true) : TaggedCollisionShapeCreateInfo(tag, rebuildCachedData, allowCachedShapeReuse), vertexData(vertexData), indexData(indexData) {
-        collisionShapeType = CollisionShapeType::TriangleMesh;
+    TriangleMeshCollisionShapeCreateInfo(GraphicsToPhysicsDataMapping vertexData, GraphicsToPhysicsDataMapping indexData) : CollisionShapeCreateInfoBase(), vertexData(std::move(vertexData)), indexData(std::move(indexData)) {}
+    
+    virtual CollisionShapeType getCollisionShapeType() const final override {
+        return CollisionShapeType::TriangleMesh;
     }
     
     GraphicsToPhysicsDataMapping vertexData;
     GraphicsToPhysicsDataMapping indexData;
     
     friend bool operator==(const TriangleMeshCollisionShapeCreateInfo& left, const TriangleMeshCollisionShapeCreateInfo& right) {
-        return (left.tag == right.tag);
+        return left.compare(right) && (left.vertexData == right.vertexData) && (left.indexData == right.indexData);
+    }
+};
+}
+
+namespace std {
+template<>
+struct hash<iyf::SphereCollisionShapeCreateInfo> {
+    std::size_t operator()(const iyf::SphereCollisionShapeCreateInfo& ci) const noexcept {
+        return ci.getCacheKey();
+    }
+};
+
+template<>
+struct hash<iyf::CapsuleCollisionShapeCreateInfo> {
+    std::size_t operator()(const iyf::CapsuleCollisionShapeCreateInfo& ci) const noexcept {
+        return ci.getCacheKey();
+    }
+};
+
+template<>
+struct hash<iyf::BoxCollisionShapeCreateInfo> {
+    std::size_t operator()(const iyf::BoxCollisionShapeCreateInfo& ci) const noexcept {
+        return ci.getCacheKey();
+    }
+};
+
+template<>
+struct hash<iyf::StaticPlaceCollisionShapeCreateInfo> {
+    std::size_t operator()(const iyf::StaticPlaceCollisionShapeCreateInfo& ci) const noexcept {
+        return ci.getCacheKey();
+    }
+};
+
+template<>
+struct hash<iyf::ConvexHullCollisionShapeCreateInfo> {
+    std::size_t operator()(const iyf::ConvexHullCollisionShapeCreateInfo& ci) const noexcept {
+        return ci.getCacheKey();
+    }
+};
+
+template<>
+struct hash<iyf::TriangleMeshCollisionShapeCreateInfo> {
+    std::size_t operator()(const iyf::TriangleMeshCollisionShapeCreateInfo& ci) const noexcept {
+        return ci.getCacheKey();
     }
 };
 
 }
 
-namespace std {
-    template <>
-    struct hash<iyf::CollisionShapeKey> {
-        std::size_t operator()(const iyf::CollisionShapeKey& k) const { 
-            return k.getKey();
-        }
-    };
-}
-
-#endif //COLLISION_SHAPE_TYPE_HPP
+#endif // IYF_COLLISION_SHAPE_TYPE_HPP

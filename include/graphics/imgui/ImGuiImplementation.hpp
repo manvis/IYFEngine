@@ -67,13 +67,15 @@ protected:
     friend Renderer;
     
     struct ImGuiTextureData {
+        ImGuiTextureData() : texture(AssetHandle<Texture>::CreateInvalid()) {}
+        
         AssetHandle<Texture> texture;
         ImageViewHnd imageView;
         DescriptorSetHnd descriptorSet;
         std::uint64_t lastUsedOnFrame;
     };
     
-    ImGuiImplementation(Engine* engine) : engine(engine), frameHasAlreadyBegun(false), assetsInitialized(false) {}
+    ImGuiImplementation(Engine* engine) : engine(engine), frameHasAlreadyBegun(false), assetsInitialized(false), vertexShader(AssetHandle<Shader>::CreateInvalid()), fragmentShader(AssetHandle<Shader>::CreateInvalid()) {}
     void initialize();
     void dispose();
     

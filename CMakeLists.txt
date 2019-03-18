@@ -126,9 +126,19 @@ else (STATIC_PHYSFS)
     include_directories(${PHYSFS_INCLUDE_DIR})
 endif (STATIC_PHYSFS)
 
-find_package(Bullet REQUIRED)
-# Marking bullet as SYSTEM because it has an annoying warning
-include_directories(SYSTEM ${BULLET_INCLUDE_DIRS})
+set(PHYSICS_ENGINE "Bullet" CACHE STRING "Physics engine")
+set_property(CACHE PHYSICS_ENGINE PROPERTY STRINGS Bullet)
+
+if (${PHYSICS_ENGINE} STREQUAL "Bullet")
+    MESSAGE(STATUS "Using Bullet as the physics engine")
+    
+    find_package(Bullet REQUIRED)
+    # Marking bullet as SYSTEM because it has an annoying warning
+    include_directories(SYSTEM ${BULLET_INCLUDE_DIRS})
+    add_definitions(-DIYF_PHYSICS_BULLET)
+else()
+    message( FATAL_ERROR "You need to set a valid physics engine" )
+endif()
 
 option(USE_BOOST "Should boost be used for filesystem and some other stuff" OFF)
 

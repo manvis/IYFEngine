@@ -44,7 +44,7 @@ class Mesh;
 
 class CubemapSkybox : public Skybox {
 public:
-    CubemapSkybox(AssetManager* assetManager, Renderer* renderer, StringHash textureNameHash) : Skybox(renderer), assetManager(assetManager), textureNameHash(textureNameHash) {}
+    CubemapSkybox(AssetManager* assetManager, Renderer* renderer, StringHash textureNameHash);
     
     virtual void initialize() final;
     virtual void dispose() final;
