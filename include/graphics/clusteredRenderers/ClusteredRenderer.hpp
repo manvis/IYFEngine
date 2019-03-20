@@ -33,7 +33,7 @@
 #include "assets/AssetHandle.hpp"
 
 #include <mutex>
-#include <list>
+#include <queue>
 
 namespace iyf {
 class Shader;
@@ -98,7 +98,7 @@ protected:
     Framebuffer itemPickFramebuffer;
     Buffer pickResultBuffer;
     std::mutex promiseMutex;
-    std::list<std::promise<std::uint32_t>> promiseList;
+    std::queue<std::pair<std::uint64_t, std::promise<std::uint32_t>>> promiseQueue;
     
     Image depthImage;
     Image hdrAttachmentImage;

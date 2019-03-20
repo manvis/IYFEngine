@@ -27,6 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "graphics/MeshComponent.hpp"
+#include "core/EntitySystemManager.hpp"
 #include "core/TransformationComponent.hpp"
 #include "core/Logger.hpp"
 
@@ -35,8 +36,11 @@ void MeshComponent::onTransformationChanged(TransformationComponent* transformat
     updateCurrentBounds(transformation->getModelMatrix(), transformation->getScale());
 }
 
-void MeshComponent::attach(System*, std::uint32_t) {
+void MeshComponent::attach(System* system, std::uint32_t id) {
     assert(mesh.isValid());
+    
+    TransformationComponent& transformation = system->getManager()->getEntityTransformation(id);
+    updateCurrentBounds(transformation.getModelMatrix(), transformation.getScale());
 }
 
 void MeshComponent::detach(System*, std::uint32_t) {

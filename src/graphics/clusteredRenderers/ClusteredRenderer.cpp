@@ -54,6 +54,8 @@
 
 #include <iostream>
 
+//#define IYF_LOG_PICKING
+
 namespace iyf {
 const std::string FullScreenQuadSource = 
 R"code(#version 450
@@ -627,7 +629,10 @@ void ClusteredRenderer::disposeFramebuffers() {
         return;
     }
     
-    promiseList.clear();
+    while (!promiseQueue.empty()) {
+        promiseQueue.pop();
+    }
+    
     gfx->destroyImage(idImage);
 }
 
@@ -755,13 +760,18 @@ void ClusteredRenderer::drawWorld(const World* world) {
     worldBuffer->endRenderPass();
     
     if (isPickingEnabled()) {
+        const std::uint64_t currentFrameID = engine->getFrameID();
         bool pendingPromises;
         {
             std::lock_guard<std::mutex> lock(promiseMutex);
-            pendingPromises = !promiseList.empty();
+            pendingPromises = !promiseQueue.empty() && (promiseQueue.back().first == currentFrameID);
         }
         
         if (pendingPromises) {
+#ifdef IYF_LOG_PICKING
+            LOG_D("Recording pick command on frame {}", currentFrameID);
+#endif // IYF_LOG_PICKING
+            
             BufferImageCopy bic;
             bic.bufferRowLength = 0;
             bic.bufferImageHeight = 0;
@@ -1080,23 +1090,29 @@ void ClusteredRenderer::retrieveDataFromIDBuffer() {
     
     std::lock_guard<std::mutex> guard(promiseMutex);
     
-    if (promiseList.empty()) {
+    if (promiseQueue.empty()) {
         return;
     }
     
-    // TODO if I decide to have multiple frames in flight, should I start using different positions for different frames?
+    std::uint32_t value = 0;
+    bool dataRetrieved = false;
+    const std::uint64_t currentFrameID = engine->getFrameID();
     
-    gfx->waitUntilFrameCompletes();
-    
-    std::uint32_t value;
-    gfx->readHostVisibleBuffer(pickResultBuffer, {BufferCopy(0, 0, sizeof(value))}, &value);
-//     LOG_V("VAL: " << value);
-    
-    for (auto& p : promiseList) {
-        p.set_value(value);
+    while (!promiseQueue.empty() && (promiseQueue.front().first < currentFrameID)) {
+        if (!dataRetrieved) {
+#ifdef IYF_LOG_PICKING
+            LOG_D("Fetching pick data on frame {}", currentFrameID);
+#endif // IYF_LOG_PICKING
+            
+            gfx->waitUntilFrameCompletes();
+            gfx->readHostVisibleBuffer(pickResultBuffer, {BufferCopy(0, 0, sizeof(value))}, &value);
+            
+            dataRetrieved = true;
+        }
+        
+        promiseQueue.front().second.set_value(value);
+        promiseQueue.pop();
     }
-    
-    promiseList.clear();
 }
 
 std::future<std::uint32_t> ClusteredRenderer::getHoveredItemID() {
@@ -1106,7 +1122,12 @@ std::future<std::uint32_t> ClusteredRenderer::getHoveredItemID() {
     
     std::lock_guard<std::mutex> guard(promiseMutex);
     
-    promiseList.emplace_back();
-    return promiseList.back().get_future();
+    const std::uint64_t currentFrameID = engine->getFrameID();
+#ifdef IYF_LOG_PICKING
+    LOG_D("Requesting pick on frame {}", currentFrameID);
+#endif // IYF_LOG_PICKING
+    
+    promiseQueue.push({currentFrameID, std::promise<std::uint32_t>()});
+    return promiseQueue.back().second.get_future();
 }
 }

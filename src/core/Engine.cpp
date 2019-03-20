@@ -33,6 +33,9 @@
 #include <iostream>
 #include <string>
 #include <stdexcept>
+#include <vector>
+#include <chrono>
+#include <atomic>
 
 #include <SDL2/SDL.h>
 
@@ -71,12 +74,35 @@
 
 #include "fmt/ostream.h"
 
-namespace iyf
-{
-Engine::Engine(char* argv0, bool editorMode) : graphicsDelta(0L), ticks(std::chrono::milliseconds(TICKS)), pendingStackOperation(StackOperation::NoOperation), frameID(0), argv0(argv0) {
+namespace iyf {
+enum class StackOperation {
+    NoOperation,
+    Push,
+    Pop
+};
+
+struct EngineInternalData {
+    EngineInternalData() : ticks(std::chrono::milliseconds(TICKS)), frameID(0), pendingStackOperation(StackOperation::NoOperation) {}
+    
+    // Timing
+    std::chrono::time_point<std::chrono::steady_clock> currentTime;
+    std::chrono::time_point<std::chrono::steady_clock> previousTime;
+    std::chrono::time_point<std::chrono::steady_clock> logicTime;
+    const std::chrono::nanoseconds ticks;
+    
+    std::atomic<std::uint64_t> frameID;
+    
+    StackOperation pendingStackOperation;
+    std::unique_ptr<GameState> tempState;
+    std::vector<std::unique_ptr<GameState>> stateStack;
+};
+
+Engine::Engine(char* argv0, bool editorMode) : graphicsDelta(0L), argv0(argv0) {
     IYFT_PROFILER_NAME_THREAD("Main");
     
     engineMode = editorMode ? EngineMode::Editor : EngineMode::Game;
+    
+    internalData = std::make_unique<EngineInternalData>();
 
     init();
 }
@@ -262,6 +288,7 @@ Engine::~Engine() {
     graphicsAPI->waitUntilDone();
     
     // State cleanup
+    auto& stateStack = internalData->stateStack;
     while (!stateStack.empty()) {
         stateStack.back()->dispose();
         stateStack.pop_back();
@@ -306,6 +333,11 @@ void Engine::quit() {
 }
 
 void Engine::executeMainLoop() {
+    auto& currentTime = internalData->currentTime;
+    auto& previousTime = internalData->previousTime;
+    auto& logicTime = internalData->logicTime;
+    const std::chrono::nanoseconds ticks = internalData->ticks;
+    
     currentTime = std::chrono::steady_clock::now();
     previousTime = currentTime;
     logicTime = currentTime;
@@ -315,16 +347,18 @@ void Engine::executeMainLoop() {
         IYFT_PROFILER_NEXT_FRAME
         
         IYFT_PROFILE(Frame, iyft::ProfilerTag::Core)
-        if (pendingStackOperation == StackOperation::Push) {
+        auto& stateStack = internalData->stateStack;
+        
+        if (internalData->pendingStackOperation == StackOperation::Push) {
             // Pause the current state
             if (!stateStack.empty()) {
                 stateStack.back()->pause();
             }
 
             // Storing and initializing the new state
-            stateStack.push_back(std::move(tempState));
+            stateStack.push_back(std::move(internalData->tempState));
             stateStack.back()->init();
-        } else if (pendingStackOperation == StackOperation::Pop) {
+        } else if (internalData->pendingStackOperation == StackOperation::Pop) {
             // Clear data from the current state
             if (!stateStack.empty()) {
                 GameState *p = stateStack.back().get();
@@ -338,7 +372,7 @@ void Engine::executeMainLoop() {
             }
         }
         
-        pendingStackOperation = StackOperation::NoOperation;
+        internalData->pendingStackOperation = StackOperation::NoOperation;
         
         if (stateStack.empty()) {
             LOG_I("No more states in the stack. Quitting.")
@@ -364,7 +398,7 @@ void Engine::executeMainLoop() {
         
         std::chrono::nanoseconds logicDelta = std::chrono::steady_clock::now() - logicTime;
         
-        frameID++;
+        internalData->frameID++;
 
         // Catch up with logic (physics), if graphics are too slow
         while (logicDelta >= ticks) {
@@ -381,32 +415,32 @@ void Engine::executeMainLoop() {
 void Engine::step() {
     // TODO Is this really the best place for such updates?
     fetchLogString();
-    stateStack.back()->step();
+    internalData->stateStack.back()->step();
 }
 
 void Engine::frame(float delta) {
     graphicsAPI->startFrame();
 //     LOG_D("{}", graphicsAPI->getCurrentSwapImage())
-    stateStack.back()->frame(delta);
+    internalData->stateStack.back()->frame(delta);
     graphicsAPI->endFrame();
 }
 
 bool Engine::pushState(std::unique_ptr<GameState> gameState) {
-    if (pendingStackOperation != StackOperation::NoOperation) {
+    if (internalData->pendingStackOperation != StackOperation::NoOperation) {
         return false;
     }
     
-    tempState = std::move(gameState);
-    pendingStackOperation = StackOperation::Push;
+    internalData->tempState = std::move(gameState);
+    internalData->pendingStackOperation = StackOperation::Push;
     return true;
 }
 
 bool Engine::popState() {
-    if (pendingStackOperation != StackOperation::NoOperation) {
+    if (internalData->pendingStackOperation != StackOperation::NoOperation) {
         return false;
     }
     
-    pendingStackOperation = StackOperation::Pop;
+    internalData->pendingStackOperation = StackOperation::Pop;
     return true;
 }
 
@@ -417,6 +451,10 @@ void Engine::fetchLogString() {
     }
     
     log += output->getAndClearLogBuffer();
+}
+
+std::uint64_t Engine::getFrameID() const {
+    return internalData->frameID;
 }
 
 //void Engine::setUpFramebuffer() {

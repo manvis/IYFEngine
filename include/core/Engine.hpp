@@ -26,13 +26,10 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef ENGINE_HPP
-#define ENGINE_HPP
+#ifndef IYF_ENGINE_HPP
+#define IYF_ENGINE_HPP
 
-// C++ libraries
-#include <vector>
 #include <memory>
-#include <chrono>
 
 #include <SDL2/SDL.h>
 
@@ -53,6 +50,7 @@ class SoundAPI;
 class FileSystem;
 class Renderer;
 class Project;
+struct EngineInternalData;
 
 enum class EngineMode {
     Editor,
@@ -226,9 +224,7 @@ public:
         log.clear();
     }
     
-    inline std::uint64_t getFrameID() const {
-        return frameID;
-    }
+    std::uint64_t getFrameID() const;
     
 //        int getWidth();
 //        int getHeight();
@@ -274,37 +270,23 @@ private:
     // Input
     std::unique_ptr<InputState> inputState;
 
+    float graphicsDelta;
+    
     bool running;
     EngineMode engineMode;
     bool useDebugAndValidation;
-
-    // Timing
-    std::chrono::time_point<std::chrono::steady_clock> currentTime;
-    std::chrono::time_point<std::chrono::steady_clock> previousTime;
-    std::chrono::time_point<std::chrono::steady_clock> logicTime;
-    float graphicsDelta;
-    const std::chrono::nanoseconds ticks;
-    
-    enum class StackOperation {
-        NoOperation,
-        Push,
-        Pop
-    };
-    
-    StackOperation pendingStackOperation;
-    std::unique_ptr<GameState> tempState;
-    std::vector<std::unique_ptr<GameState>> stateStack;
 
     std::unique_ptr<Project> project;
 
     std::string log;
     std::unique_ptr<ImGuiImplementation> imguiImpl;
     
-    std::uint64_t frameID;
+    /// Contains data that I don't want to put in the header for some reason (e.g., it requires inclusion of a big and expensive C++ header)
+    std::unique_ptr<EngineInternalData> internalData;
     
     char* argv0;
 };
 
 }
 
-#endif // ENGINE_HPP
+#endif // IYF_ENGINE_HPP

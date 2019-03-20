@@ -38,6 +38,7 @@
 #include "AssetList.hpp"
 #include "utilities/DragDropAssetPayload.hpp"
 #include "core/Constants.hpp"
+#include "core/interfaces/InputListener.hpp"
 
 #include <future>
 #include <vector>
@@ -101,7 +102,7 @@ struct NextAssetToDelete {
     bool needToOpenModal;
 };
 
-class EditorState : public GameState {
+class EditorState : public GameState, public InputListener {
 public:    
     EditorState(Engine* engine);
     ~EditorState();
@@ -113,6 +114,14 @@ public:
 
     virtual void pause() override;
     virtual void resume() override;
+    
+    virtual void onMouseMoved(int cursorXPos, int cursorYPos, int deltaX, int deltaY, bool windowHasFocus) final override;
+    virtual void onMouseWheelMoved(int deltaX, int deltaY) final override;
+    virtual void onMouseButtonDown(int cursorXPos, int cursorYPos, int clickCount, MouseButton button) final override;
+    virtual void onMouseButtonUp(int cursorXPos, int cursorYPos, int clickCount, MouseButton button) final override;
+    virtual void onKeyPressed(SDL_Keycode keycode, SDL_Scancode scancode, KeyModifierFlags keyModifier) final override;
+    virtual void onKeyReleased(SDL_Keycode keycode, SDL_Scancode scancode, KeyModifierFlags keyModifier) final override;
+    virtual void onTextInput(const char* text) final override;
 
 protected:
     Project* currentProject;

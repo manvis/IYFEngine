@@ -29,7 +29,7 @@
 #ifndef IMGUIRENDERER_HPP
 #define IMGUIRENDERER_HPP
 
-#include "core/InputListener.hpp"
+#include "core/interfaces/InputListener.hpp"
 #include "graphics/GraphicsAPI.hpp"
 #include "utilities/NonCopyable.hpp"
 #include "utilities/hashing/Hashing.hpp"

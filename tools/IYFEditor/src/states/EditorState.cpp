@@ -88,6 +88,8 @@ EditorState::~EditorState() {
 
 void EditorState::initialize() {
     IYFT_PROFILE(EditorInitialize, iyft::ProfilerTag::Editor)
+    engine->getInputState()->addInputListener(this);
+    
     currentProject = engine->getProject();
     
     assetUpdateManager = std::make_unique<AssetUpdateManager>(engine);
@@ -202,6 +204,8 @@ void EditorState::initialize() {
 
 void EditorState::dispose() {
     IYFT_PROFILE(EditorDispose, iyft::ProfilerTag::Editor)
+    engine->getInputState()->removeInputListener(this);
+    
     if (world != nullptr) {
         world->dispose();
         delete world;
@@ -243,6 +247,16 @@ void EditorState::frame(float delta) {
     iyf::GraphicsAPI* api = engine->getGraphicsAPI();
     
 //    throw std::runtime_error("wrt");
+    if (hoveredItemIDFuture.valid() && (hoveredItemIDFuture.wait_for(0ms) == std::future_status::ready)) {
+        std::uint32_t id = hoveredItemIDFuture.get();
+        
+        if (id == std::numeric_limits<std::uint32_t>::max()) {
+            deselectCurrentItem();
+        } else {
+            changeSelection(id);
+            LOG_V("Picked item ID: {}", id);
+        }
+    }
     
     is->setMouseRelativeMode(cameraMode == CameraMode::Free);
 
@@ -511,34 +525,10 @@ void EditorState::frame(float delta) {
     ImGui::GetIO().MouseDrawCursor = (cameraMode == CameraMode::Stationary);
     
     if (world != nullptr) {
-        if (!ImGui::GetIO().WantCaptureMouse && is->isMouseClicked(MouseButton::Left)) {
-            int mouseX = is->getMouseX();
-            int mouseY = is->getMouseY();
-            
-            glm::uvec2 windowSize = api->getWindowSize();
-            if (mouseX >= 0 && mouseX <= static_cast<int>(windowSize.x) && mouseY >= 0 && mouseY <= static_cast<int>(windowSize.y)) {
-                //world->rayPick(mouseX, mouseY);
-                assert(engine->getRenderer()->isPickingEnabled());
-                assert(!hoveredItemIDFuture.valid());
-                hoveredItemIDFuture = engine->getRenderer()->getHoveredItemID();
-            }
-        }
-        
         world->setInputProcessingPaused(cameraMode != CameraMode::Free);
         world->update(delta);
         
-        // Fetch the selection data. This will use a fence to wait until the rendering of the current frame ends.
         engine->getRenderer()->retrieveDataFromIDBuffer();
-        if (hoveredItemIDFuture.valid()) {
-            std::uint32_t id = hoveredItemIDFuture.get();
-            
-            if (id == std::numeric_limits<std::uint32_t>::max()) {
-                deselectCurrentItem();
-            } else {
-                changeSelection(id);
-                LOG_V("Picked item ID: {}", id);
-            }
-        }
     }
 }
 
@@ -1685,6 +1675,28 @@ void ImGuiLog::show(const std::string& logStr) {
 //    ScrollToBottom = false;
     ImGui::EndChild();
     ImGui::End();
+}
+
+void EditorState::onMouseMoved(int, int, int, int, bool) {}
+void EditorState::onMouseWheelMoved(int, int) {}
+void EditorState::onMouseButtonUp(int, int, int, MouseButton) {}
+void EditorState::onKeyPressed(SDL_Keycode, SDL_Scancode, KeyModifierFlags) {}
+void EditorState::onKeyReleased(SDL_Keycode, SDL_Scancode, KeyModifierFlags) {}
+void EditorState::onTextInput(const char*) {}
+void EditorState::onMouseButtonDown(int cursorXPos, int cursorYPos, int, MouseButton button) {
+    if (world != nullptr && !ImGui::GetIO().WantCaptureMouse && (button == MouseButton::Left)) {
+        const glm::vec2 windowSize = engine->getGraphicsAPI()->getWindowSize();
+        const bool clickInsideWindow = (cursorXPos >= 0) &&
+                                        (cursorXPos <= static_cast<int>(windowSize.x)) &&
+                                        (cursorYPos >= 0) &&
+                                        (cursorYPos <= static_cast<int>(windowSize.y));
+        
+        if (clickInsideWindow && !hoveredItemIDFuture.valid()) {
+            //world->rayPick(cursorXPos, cursorYPos);
+            assert(engine->getRenderer()->isPickingEnabled());
+            hoveredItemIDFuture = engine->getRenderer()->getHoveredItemID();
+        }
+    }
 }
 
 }

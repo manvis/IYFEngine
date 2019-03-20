@@ -28,13 +28,22 @@
 
 #include "core/Engine.hpp"
 #include "core/Logger.hpp"
+#include "core/configuration/Configuration.hpp"
 #include "assets/AssetManager.hpp"
 #include "assets/typeManagers/TypeManager.hpp"
 
 #include "fmt/ostream.h"
 
 namespace iyf {
-TypeManager::TypeManager(AssetManager* manager) : manager(manager), loggingRemovals(true), loggingCreations(true) {
+TypeManager::TypeManager(AssetManager* manager) : manager(manager) {
+    if (manager == nullptr) {
+        throw std::runtime_error("Manager can't be nullptr");
+    }
+    
+    Configuration* config = manager->getEngine()->getConfiguration();
+    loggingRemovals = config->getValue(HS("logAssetRemovals"), ConfigurationValueNamespace::Engine);
+    loggingCreations = config->getValue(HS("logAssetCreations"), ConfigurationValueNamespace::Engine);
+    
     longTermWorkerPool = manager->getEngine()->getLongTermWorkerPool();
 }
 

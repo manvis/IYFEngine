@@ -326,6 +326,11 @@ EntityKey EntitySystemManager::create(const std::string& name, bool active) {
     EntityState* state = &entityStates[id];
     state->setActive(active);
     // state->setInitialized(false); // This should have been set automatically
+    
+    // Force a transform update to initialize matrix data
+    getEntityTransformation(id).forcedUpdate();
+    
+    // TODO FIXME do I really need to set the bit later? I don't think this is still valid
     awaitingInitialization.push_back(key);
     
     return key;
