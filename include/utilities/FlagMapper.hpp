@@ -26,8 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef FLAGMAPPER_HPP
-#define FLAGMAPPER_HPP
+#ifndef IYF_FLAG_MAPPER_HPP
+#define IYF_FLAG_MAPPER_HPP
 
 namespace iyf {
 /// Template class used to map engine native flags to API native flags. When assigning mappings, note that the 0th mapping
@@ -47,21 +47,13 @@ public:
     
     inline O operator()(I engineFlag) {
         if (static_cast<U>(engineFlag) == 0) {
-#ifndef ENG_DEBUG_MODE
             return flagMap[0];
-#else // Check bounds when debug mode is enabled
-            return flagMap.at(0);
-#endif
         } else {
             U gather = 0;
 
             for (U i = 1, c = 1; c <= N; i <<= 1, ++c) {
                 if (i & static_cast<U>(engineFlag)) {
-#ifndef ENG_DEBUG_MODE
                     gather |= flagMap[c];
-#else // Check bounds when debug mode is enabled
-                    gather |= flagMap.at(c);
-#endif
                 }
             }
             
@@ -90,5 +82,5 @@ public:
 };
 }
 
-#endif /* FLAGMAPPER_HPP */
+#endif // IYF_FLAG_MAPPER_HPP
 

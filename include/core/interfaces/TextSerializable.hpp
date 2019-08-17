@@ -64,6 +64,8 @@ public:
     ///
     /// \returns This object serialized to a JSON string.
     std::string getJSONString() const;
+    
+    virtual ~TextSerializable() {}
 };
 
 }

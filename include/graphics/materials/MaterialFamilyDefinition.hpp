@@ -76,6 +76,8 @@ class ShaderVariable : public Serializable {
 public:
     ShaderVariable() : ShaderVariable("unnamedVariable", ShaderDataType::Scalar, ShaderDataFormat::Float) {}
     
+    virtual ~ShaderVariable() {}
+    
     /// Create a new shader variable definition.
     ///
     /// \throws std::invalid_argument if the validation of the name fails.
@@ -114,6 +116,7 @@ private:
 class LightProcessingFunctionInput : public Serializable {
 public:
     LightProcessingFunctionInput() {}
+    virtual ~LightProcessingFunctionInput() {}
     
     LightProcessingFunctionInput(const std::string& name, ShaderDataType type, glm::vec4 defaultValue = glm::vec4()) 
         : defaultValue(std::move(defaultValue))

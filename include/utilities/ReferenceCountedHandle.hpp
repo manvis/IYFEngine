@@ -51,7 +51,7 @@ public:
         }
     }
     
-    inline ReferenceCountedHandle(ReferenceCountedHandle&& other) : ReferenceCountedHandle(CreateInvalid()) {
+    inline ReferenceCountedHandle(ReferenceCountedHandle&& other) : ReferenceCountedHandle(nullptr, nullptr) {
         swap(*this, other);
     }
     

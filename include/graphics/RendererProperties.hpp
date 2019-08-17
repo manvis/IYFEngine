@@ -39,6 +39,8 @@
 namespace iyf {
 class RendererProperties : private NonCopyable {
 public:
+    virtual ~RendererProperties() {}
+    
     /// A simple, filename friendly string (no spaces or special characters) that can be used by the shader generator or in logs.
     const std::string name;
     

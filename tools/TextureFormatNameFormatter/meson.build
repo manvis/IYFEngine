@@ -1,0 +1,1 @@
+executable('TextureFormatNameFormatter', ['TextureFormatNameFormatter.cpp'])

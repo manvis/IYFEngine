@@ -35,6 +35,8 @@ namespace iyf {
     
 class ClusteredRendererProperties : public RendererProperties {
 public:
+    virtual ~ClusteredRendererProperties() {}
+    
     virtual std::string makeRenderDataSet(ShaderLanguage language) const final;
     virtual std::string makeLightLoops(ShaderLanguage language, const std::string& lightingFunction) const final override;
     virtual const std::vector<SpecializationConstant>& getShaderSpecializationConstants() const final override;
