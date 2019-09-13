@@ -29,6 +29,7 @@
 #ifndef IYF_ASSET_CONSTANTS_HPP
 #define IYF_ASSET_CONSTANTS_HPP
 
+#include "assets/AssetType.hpp"
 #include "core/filesystem/cppFilesystem.hpp"
 
 namespace iyf {
@@ -36,38 +37,6 @@ enum class AssetsToEnableResult {
     HasAssetsToEnable, /// < The TypeManager has assets that are ready to be enabled
     NoAssetsToEnable, /// < The TypeManager doesn't have any assets that need to be enabled
     Busy /// < The TypeManager has assets that need to be enabled, but can't do it. E.g., a GPU upload buffer for this frame has been filled.
-};
-
-/// \brief Identifiers for different asset types.
-///
-/// \warning AssetType::ANY and AssetType::COUNT MUST NEVER BE USED IN THE ASSET DATABASE. Even if you add a custom asset type and then
-/// decide to stop using it, keep it in the enum to avoid moving AssetType::ANY and breaking your Project
-///
-/// \warning When updating or changing this:
-///   - update AssetTypeToPath;
-///   - update AssetTypeToTranslationString;
-///   - update the names of asset specific directories;
-///   - update the extensions
-///   - update the importers.
-///   - update the Metadata.cpp (include the changes in the switch)
-///
-/// \warning Updating these values may break existing projects.
-enum class AssetType : std::uint8_t {
-    Animation = 0,
-    Mesh = 1,
-    Texture = 2,
-    Font = 3,
-    Audio = 4,
-    Video = 5,
-    Script = 6,
-    Shader = 7,
-    Strings = 8,
-    Custom = 9,
-    MaterialTemplate = 10,
-    MaterialInstance = 11,
-    COUNT,
-    /// Any is equal to COUNT
-    ANY = COUNT
 };
 
 namespace con {

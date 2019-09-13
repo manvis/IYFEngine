@@ -30,6 +30,8 @@
 
 #include "core/Constants.hpp"
 
+#include <array>
+
 namespace iyf {
 VertexDataLayoutDefinition::VertexDataLayoutDefinition(std::string name, std::uint32_t size, std::initializer_list<VertexAttribute> attributeList) : name(name), size(size), attributes(attributeList) {
     if (size >= con::MaxVertexSize) {

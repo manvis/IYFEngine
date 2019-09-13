@@ -38,6 +38,9 @@
 #include "core/serialization/VirtualFileSystemSerializer.hpp"
 #include "utilities/ImGuiUtils.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 #include "imgui.h"
 #include "glm/gtc/type_ptr.hpp"
 

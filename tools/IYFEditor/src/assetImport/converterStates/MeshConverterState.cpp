@@ -28,6 +28,9 @@
 
 #include "assetImport/converterStates/MeshConverterState.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 namespace iyf::editor {
 static const char* USE_32_BIT_INDICES_FIELD_NAME = "use32BitIndices";
 static const char* CONVERT_ANIMATIONS_FIELD_NAME = "exportAnimations";

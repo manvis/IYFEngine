@@ -29,6 +29,7 @@
 #include "core/Constants.hpp"
 
 #include <algorithm>
+#include <stdexcept>
 
 namespace iyf {
 namespace con {

@@ -29,15 +29,14 @@
 #ifndef IYF_TEXT_SERIALIZABLE_HPP
 #define IYF_TEXT_SERIALIZABLE_HPP
 
-#define RAPIDJSON_HAS_STDSTRING 1
-#include "rapidjson/prettywriter.h"
-#include "rapidjson/document.h"
+// Set in meson.build #define RAPIDJSON_HAS_STDSTRING 1
+#include "rapidjson/fwd.h"
 
 namespace rj = rapidjson;
 
 namespace iyf {
-using PrettyStringWriter = rj::PrettyWriter<rj::StringBuffer>;
-using JSONObject = rj::Document::ValueType;
+using PrettyStringWriter = rj::PrettyWriter<rj::StringBuffer, rj::UTF8<char>, rj::UTF8<char>, rj::CrtAllocator, 0>;
+using JSONObject = rj::Value;//rj::Document::ValueType;
 
 /// This interface is used by classes that are capable of storing the representation of their state to pretty printed JSON, fit for
 /// (quite) efficient storage in version control systems or (minor - JSON isn't all that comfortable for manual manipulation) editing

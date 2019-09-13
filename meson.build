@@ -12,6 +12,9 @@ if cpp_comp_id == 'clang'# or cpp_comp_id == 'gcc'
         add_global_link_arguments('-fuse-ld=lld', language : 'cpp')
     endif
     
+    # Use https://github.com/aras-p/ClangBuildAnalyzer to examine the results 
+    # accross multiple files because the output is per-file and may be difficult
+    # to examine by hand
     if get_option('trace_compilation_times')
         add_global_arguments('-ftime-trace', language : 'cpp')
     endif

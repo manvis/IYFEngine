@@ -36,6 +36,7 @@
 
 #include "core/Constants.hpp"
 #include "core/Platform.hpp"
+#include "core/filesystem/cppFilesystem.hpp"
 #include "graphics/GraphicsAPIConstants.hpp"
 #include "graphics/VertexDataLayouts.hpp"
 #include "graphics/Lights.hpp"

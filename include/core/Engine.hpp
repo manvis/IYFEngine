@@ -31,7 +31,7 @@
 
 #include <memory>
 
-#include <SDL2/SDL.h>
+struct SDL_Window;
 
 namespace iyft {
 class ThreadPool;

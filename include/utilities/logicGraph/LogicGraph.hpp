@@ -35,11 +35,16 @@
 #include <unordered_set>
 #include <cassert>
 #include <type_traits>
+#include <sstream>
 
 #include "localization/LocalizationHandle.hpp"
 #include "core/Logger.hpp"
 #include "threading/ThreadProfiler.hpp"
 #include "core/interfaces/TextSerializable.hpp"
+
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 
 namespace iyf {
 

@@ -29,6 +29,9 @@
 
 #include "assetImport/converterStates/ShaderConverterState.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 namespace iyf::editor {
 static const char* STAGAE_FIELD_NAME = "stage";
 

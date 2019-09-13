@@ -28,6 +28,9 @@
 
 #include "assetImport/converterStates/TextureConverterState.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 namespace iyf::editor {
 std::uint64_t TextureConverterState::getLatestSerializedDataVersion() const {
     return 1;

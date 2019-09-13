@@ -26,8 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef TEXT_LOCALIZATION_HPP
-#define TEXT_LOCALIZATION_HPP
+#ifndef IYF_TEXT_LOCALIZATION_HPP
+#define IYF_TEXT_LOCALIZATION_HPP
 
 #include <string>
 #include <stdexcept>
@@ -41,6 +41,7 @@
 #include "utilities/ForceInline.hpp"
 #include "localization/LocalizationHandle.hpp"
 #include "core/Constants.hpp"
+#include "core/filesystem/cppFilesystem.hpp"
 #include "fmt/format.h"
 
 #define THROW_IF_MISSING
@@ -206,4 +207,4 @@ IYF_FORCE_INLINE std::string LOC(LocalizationHandle lh, Args ... args) {
 }
 
 }
-#endif // TEXT_LOCALIZATION_HPP
+#endif // IYF_TEXT_LOCALIZATION_HPP

@@ -27,6 +27,10 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assets/metadata/ShaderMetadata.hpp"
+
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 #include <stdexcept>
 
 namespace iyf {

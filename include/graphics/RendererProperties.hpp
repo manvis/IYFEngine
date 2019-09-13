@@ -35,6 +35,7 @@
 #include "utilities/NonCopyable.hpp"
 
 #include <string>
+#include <vector>
 
 namespace iyf {
 class RendererProperties : private NonCopyable {

@@ -33,6 +33,9 @@
 #include "utilities/ReadWholeFile.hpp"
 #include "utilities/Regexes.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 #include "fmt/ostream.h"
 
 #include <fstream>

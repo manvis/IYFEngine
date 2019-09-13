@@ -31,8 +31,8 @@
 
 #include <vector>
 #include <map>
-#include <algorithm>
 #include <memory>
+#include <unordered_map>
 
 #include "core/interfaces/ComponentContainer.hpp"
 #include "core/TransformationComponent.hpp"

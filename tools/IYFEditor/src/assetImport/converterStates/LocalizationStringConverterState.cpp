@@ -28,6 +28,9 @@
 
 #include "assetImport/converterStates/LocalizationStringConverterState.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 namespace iyf::editor {
 static const char* PRIORITY_FIELD_NAME = "priority";
 

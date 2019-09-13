@@ -32,6 +32,8 @@
 #include "core/Constants.hpp"
 #include "glm/vec3.hpp"
 
+#include <array>
+
 namespace iyf {
 /// \brief Must always be filled by TextureLoader::Load();
 class TextureData {

@@ -1,3 +1,6 @@
 meson build -Dshaderc_include_dir=$VULKAN_SDK/include -Dshaderc_lib_dir=$VULKAN_SDK/lib -Dcompressonator_include_dir=/home/manvis/Programming/Sources/Compressonator/Compressonator/Header -Dcompressonator_lib_dir=/home/manvis/Programming/Sources/Compressonator/Compressonator/Build/Linux
 cd build
 ninja
+
+Build with clang-9 and trace times
+CC=/usr/bin/clang-9 CXX=/usr/bin/clang++-9 meson build -Dshaderc_include_dir=$VULKAN_SDK/include -Dshaderc_lib_dir=$VULKAN_SDK/lib -Dcompressonator_include_dir=/home/manvis/Programming/Sources/Compressonator/Compressonator/Header -Dcompressonator_lib_dir=/home/manvis/Programming/Sources/Compressonator/Compressonator/Build/Linux -Dtrace_compilation_times=true

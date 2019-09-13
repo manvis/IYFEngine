@@ -36,6 +36,7 @@
 #include "graphics/VertexDataLayouts.hpp"
 
 #include <bitset>
+#include <unordered_map>
 
 namespace iyf {
 class MaterialTemplateMetadata : public MetadataBase {

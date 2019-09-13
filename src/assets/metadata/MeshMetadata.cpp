@@ -28,8 +28,13 @@
 
 #include "assets/metadata/MeshMetadata.hpp"
 #include "core/filesystem/File.hpp"
-#include <stdexcept>
+
 #include "utilities/hashing/Hashing.hpp"
+
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
+#include <stdexcept>
 
 namespace iyf {
 static const char* SUB_MESH_COUNT_FIELD_NAME = "subMesheCount";

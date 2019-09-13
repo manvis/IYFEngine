@@ -29,6 +29,9 @@
 #include "assets/metadata/MetadataBase.hpp"
 #include "utilities/hashing/Hashing.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 #include <stdexcept>
 
 namespace iyf {

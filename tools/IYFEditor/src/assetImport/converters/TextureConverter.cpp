@@ -45,6 +45,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <algorithm>
+#include <functional>
 
 #include "stb_image.h"
 #include "stb_image_resize.h"

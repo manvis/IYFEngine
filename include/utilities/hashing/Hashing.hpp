@@ -34,7 +34,6 @@
 // WARNING Murmur's borked
 // #include "utilities/hashing/murmur3.hpp"
 
-#include <functional>
 #include <string>
 #include <cstring>
 

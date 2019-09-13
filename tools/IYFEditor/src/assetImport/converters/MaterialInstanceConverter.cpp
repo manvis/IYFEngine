@@ -36,6 +36,9 @@
 #include "core/filesystem/File.hpp"
 #include "core/serialization/MemorySerializer.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 namespace iyf::editor {
 class MaterialInstanceInternalState : public InternalConverterState {
 public:

@@ -26,47 +26,45 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "assets/metadata/MaterialInstanceMetadata.hpp"
+#ifndef IYF_ASSET_TYPE_HPP
+#define IYF_ASSET_TYPE_HPP
 
-#include "rapidjson/prettywriter.h"
-#include "rapidjson/document.h"
-
-#include <stdexcept>
+#include <cstdint>
 
 namespace iyf {
-std::uint16_t MaterialInstanceMetadata::getLatestSerializedDataVersion() const {
-    return 1;
+
+/// \brief Identifiers for different asset types.
+///
+/// \warning AssetType::ANY and AssetType::COUNT MUST NEVER BE USED IN THE ASSET DATABASE. Even if you add a custom asset type and then
+/// decide to stop using it, keep it in the enum to avoid moving AssetType::ANY and breaking your Project
+///
+/// \warning When updating or changing this:
+///   - update AssetTypeToPath;
+///   - update AssetTypeToTranslationString;
+///   - update the names of asset specific directories;
+///   - update the extensions
+///   - update the importers.
+///   - update the Metadata.cpp (include the changes in the switch)
+///
+/// \warning Updating these values may break existing projects.
+enum class AssetType : std::uint8_t {
+    Animation = 0,
+    Mesh = 1,
+    Texture = 2,
+    Font = 3,
+    Audio = 4,
+    Video = 5,
+    Script = 6,
+    Shader = 7,
+    Strings = 8,
+    Custom = 9,
+    MaterialTemplate = 10,
+    MaterialInstance = 11,
+    COUNT,
+    /// Any is equal to COUNT
+    ANY = COUNT
+};
+
 }
 
-void MaterialInstanceMetadata::serializeImpl(Serializer& fw, std::uint16_t version) const {
-    assert(version == 1);
-    
-    fw.writeUInt64(materialTemplateDefinition);
-}
-
-void MaterialInstanceMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
-    assert(version == 1);
-    
-    materialTemplateDefinition = StringHash(fr.readUInt64());
-}
-
-constexpr const char* MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME = "materialTemplateDefinition";
-
-void MaterialInstanceMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
-    assert(version == 1);
-    
-    pw.String(MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME);
-    pw.Uint64(materialTemplateDefinition);
-}
-
-void MaterialInstanceMetadata::deserializeJSONImpl(JSONObject& jo, std::uint16_t version) {
-    assert(version == 1);
-    
-    materialTemplateDefinition = StringHash(jo[MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME].GetUint64());
-}
-
-void MaterialInstanceMetadata::displayInImGui() const {
-    throw std::runtime_error("Method not yet implemented");
-}
-}
-
+#endif // IYF_ASSET_TYPE_HPP

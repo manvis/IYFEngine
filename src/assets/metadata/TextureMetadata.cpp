@@ -28,6 +28,10 @@
 
 #include "assets/metadata/TextureMetadata.hpp"
 #include "core/filesystem/File.hpp"
+
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 #include <stdexcept>
 
 namespace iyf {

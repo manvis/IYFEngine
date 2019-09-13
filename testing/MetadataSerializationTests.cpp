@@ -43,6 +43,9 @@
 #include "assets/metadata/MaterialTemplateMetadata.hpp"
 #include "assets/metadata/MaterialInstanceMetadata.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 namespace iyf::test {
 const std::vector<std::string> tags = {"TagA", "TagB", "TagC"};
 

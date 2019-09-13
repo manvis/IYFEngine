@@ -29,6 +29,10 @@
 #include "assets/metadata/AnimationMetadata.hpp"
 #include "localization/TextLocalization.hpp"
 #include "graphics/imgui/imgui.h"
+
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 #include <stdexcept>
 
 namespace iyf {

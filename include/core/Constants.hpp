@@ -29,10 +29,7 @@
 #ifndef IYF_CONSTANTS_HPP
 #define IYF_CONSTANTS_HPP
 
-#include <string>
-#include <array>
-
-#include "core/filesystem/cppFilesystem.hpp"
+#include <cstdint>
 
 #undef None
 

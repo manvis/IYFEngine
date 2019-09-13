@@ -28,6 +28,9 @@
 
 #include "core/interfaces/TextSerializable.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 namespace iyf {
 bool TextSerializable::makesJSONRoot() const {
     return true;

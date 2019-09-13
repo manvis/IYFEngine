@@ -30,7 +30,8 @@
 #define METADATABASE_HPP
 
 #include <cstdint>
-#include "assets/AssetConstants.hpp"
+#include "assets/AssetType.hpp"
+#include "core/filesystem/cppFilesystem.hpp"
 #include "core/interfaces/Serializable.hpp"
 #include "core/interfaces/TextSerializable.hpp"
 #include "utilities/hashing/Hashing.hpp"

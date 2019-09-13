@@ -50,6 +50,9 @@
 
 #include "fmt/ostream.h"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 namespace iyf {
 namespace editor {
 ConverterManager::ConverterManager(const FileSystem* fileSystem, fs::path assetDestination) 

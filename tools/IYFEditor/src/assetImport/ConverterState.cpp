@@ -28,6 +28,9 @@
 
 #include "assetImport/ConverterState.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 namespace iyf::editor {
 static const char* CONTENTS_FIELD_NAME = "fileContents";
 static const char* CONTENTS_FIELD_VALUE = "ImporterSettingsJSON";

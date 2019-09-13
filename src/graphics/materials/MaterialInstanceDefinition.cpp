@@ -30,6 +30,9 @@
 #include "core/filesystem/File.hpp"
 #include "utilities/hashing/HashCombine.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 #include <cassert>
 
 namespace iyf {

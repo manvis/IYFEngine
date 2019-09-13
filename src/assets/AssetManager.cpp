@@ -57,6 +57,9 @@
 #include "utilities/DataSizes.hpp"
 #include "utilities/FileInDir.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 #include "fmt/ostream.h"
 
 #include <climits>

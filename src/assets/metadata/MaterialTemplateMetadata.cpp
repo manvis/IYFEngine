@@ -29,6 +29,9 @@
 #include "assets/metadata/MaterialTemplateMetadata.hpp"
 #include "core/Logger.hpp"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 namespace iyf {
 inline void SerializeMacroValue(Serializer& fw, const ShaderMacroValue& sv) {
     std::visit([&fw](auto&& arg) {
