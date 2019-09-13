@@ -48,7 +48,7 @@
 #include "graphics/vulkan/VulkanUtilities.hpp"
 #include "threading/ThreadProfiler.hpp"
 
-#include "libshaderc/shaderc.hpp"
+#include "shaderc/shaderc.hpp"
 #include "stb_image.h"
 
 namespace iyf {

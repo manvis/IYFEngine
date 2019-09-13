@@ -41,6 +41,7 @@ enum class GarbageCollectionRunPolicy {
 
 class GarbageCollecting {
 public:
+    virtual ~GarbageCollecting() {}
     virtual void collectGarbage(GarbageCollectionRunPolicy policy = GarbageCollectionRunPolicy::FullCollection) = 0;
 };
 

@@ -3,6 +3,7 @@ doxygen/*
 cmakeDownloads/*
 *~
 dependencies/*
+subprojects/*
 .vscode/*
 nbproject/*
 .kdev4/*

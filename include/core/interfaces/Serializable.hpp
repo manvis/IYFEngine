@@ -47,6 +47,8 @@ public:
     /// \warning The derived classes may throw a SerializerException or other, format specific, exceptions (e.g. if a VirtualFileSystemSerializer
     /// is used, a FileException may be thrown). Check the documentation to avoid crashing the Engine.
     virtual void deserialize(Serializer& fr) = 0;
+    
+    virtual ~Serializable() {}
 };
 
 }

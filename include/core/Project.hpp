@@ -83,7 +83,7 @@ public:
     /// file from there. This must be a real file system path.
     Project(fs::path root);
     
-    ~Project();
+    virtual ~Project();
     
     /// Check if the project is valid (everything was deserialized and created successfully).
     ///

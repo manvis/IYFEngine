@@ -34,10 +34,6 @@
 #include <algorithm>
 #include <memory>
 
-#ifdef ENG_DEBUG_MODE
-#include "core/Logger.hpp"
-#endif // ENG_DEBUG_MODE
-
 #include "core/interfaces/ComponentContainer.hpp"
 #include "core/TransformationComponent.hpp"
 #include "core/ComponentType.hpp"

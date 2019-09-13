@@ -39,6 +39,8 @@ public:
     
     /// Called on nullable values
     virtual void availabilityUpdated(StringHash nameHash, bool available) = 0;
+    
+    virtual ~BlackboardCallbackListener() {}
 };
 }
 

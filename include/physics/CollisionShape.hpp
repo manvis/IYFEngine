@@ -36,7 +36,6 @@
 #include "physics/GraphicsToPhysicsDataMapping.hpp"
 #include "utilities/hashing/Hashing.hpp"
 #include "utilities/hashing/HashCombine.hpp"
-#include "glm/gtx/hash.hpp"
 
 namespace iyf {
 /// List of all collision types supported by the engine

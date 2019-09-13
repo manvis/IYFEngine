@@ -14,9 +14,21 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXECUTABLE_OUTPUT_DIR})
 set(CMAKE_CXX_STANDARD 17)
 set(CXX_STANDARD_REQUIRED TRUE)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -fdiagnostics-color=always -fuse-ld=lld")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=lld")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -fdiagnostics-color=always")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g")
+
+#if (NOT ${CMAKE_GENERATOR} STREQUAL "Ninja")
+#    message(FATAL_ERROR "You should absolutely use ninja as the generator. Using: " ${CMAKE_GENERATOR})
+#endif()
+
+option(PERFORM_BUILD_PROFILING "Enables -ftime-trace, requires clang-9 or later" OFF)
+
+if (PERFORM_BUILD_PROFILING)
+    MESSAGE(STATUS "-ftime-trace enabled. Profiling build")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftime-trace")
+endif()
 
 # GLM
 add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
@@ -190,7 +202,7 @@ set_property(CACHE GRAPHICS_BACKEND PROPERTY STRINGS Vulkan OpenGL)
 
 if (GRAPHICS_BACKEND MATCHES "Vulkan")
     MESSAGE(STATUS "Building with Vulkan. Looking for SDK in:")
-    MESSAGE(STATUS $ENV{VULKAN_SDK}/include)
+    MESSAGE(STATUS $ENV{VULKAN_SDK})
 
     add_definitions(-DBUILD_WITH_VULKAN)
     

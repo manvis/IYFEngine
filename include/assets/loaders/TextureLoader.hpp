@@ -34,7 +34,8 @@
 
 namespace iyf {
 /// \brief Must always be filled by TextureLoader::Load();
-struct TextureData {
+class TextureData {
+public:
     TextureData() : loaded(false) {}
     
     std::uint32_t version;

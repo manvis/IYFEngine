@@ -26,8 +26,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef CONSTANTMAPPER_HPP
-#define CONSTANTMAPPER_HPP
+#ifndef IYF_CONSTANT_MAPPER_HPP
+#define IYF_CONSTANT_MAPPER_HPP
 
 #include <array>
 #include <type_traits>
@@ -45,11 +45,7 @@ public:
     static_assert(std::is_enum<I>::value, "I parameter used in ConstantMapper template is not an enum");
     
     inline O operator()(I engineConstant) {
-#ifndef ENG_DEBUG_MODE
         return constantMap[static_cast<size_t>(engineConstant)];
-#else // Check bounds when debug mode is enabled
-        return constantMap.at(static_cast<size_t>(engineConstant));
-#endif
     }
 
     // Keeping this public for the sake of easy initialization
@@ -58,5 +54,5 @@ public:
 }
 
 
-#endif /* CONSTANTMAPPER_HPP */
+#endif // IYF_CONSTANT_MAPPER_HPP
 

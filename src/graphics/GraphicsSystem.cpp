@@ -347,6 +347,6 @@ Component& GraphicsSystem::createAndAttachComponent(const EntityKey& key, const 
             throw std::runtime_error("COUNT is an invalid value");
     }
     
-    throw std::runtime_error("Invalid GraphicsComponent type");
+    throw std::runtime_error("Invalid GraphicsComponent value");
 }
 }

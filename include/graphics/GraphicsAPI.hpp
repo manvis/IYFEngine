@@ -62,8 +62,6 @@ public:
     Bytes size;
     BufferUsageFlags flags;
     MemoryUsage memoryUsage;
-private:
-    bool padding;
 public:
     /// If memoryUsage is MemoryUsage::GPUOnly and this bool is set, the GraphicsAPI will try to search for a memory heap that's both
     /// on device and CPU mappable. E.g., AMD GPUs have a 256 MB heap of such memory. It's quite useful for storing per-frame data

@@ -30,7 +30,7 @@
 #define IYF_SHADER_CONVERTER_HPP
 
 #include "assetImport/Converter.hpp"
-#include "libshaderc/shaderc.hpp"
+#include "shaderc/shaderc.hpp"
 
 namespace iyf::editor {
 

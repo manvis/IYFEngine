@@ -30,7 +30,7 @@
 #define VULKAN_GLSL_SHADER_GENERATOR_HPP
 
 #include "graphics/shaderGeneration/ShaderGenerator.hpp"
-#include "libshaderc/shaderc.hpp"
+#include "shaderc/shaderc.hpp"
 
 namespace iyf {
 class FileSystem;

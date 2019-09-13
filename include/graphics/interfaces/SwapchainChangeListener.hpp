@@ -35,6 +35,7 @@ namespace iyf {
 /// should implement this listener and register with the GraphicsAPI addSwapchainChangeListener() function;
 class SwapchainChangeListener {
 public:
+    virtual ~SwapchainChangeListener() {}
     virtual void onSwapchainChange() = 0;
 };
 }
