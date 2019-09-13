@@ -11,3 +11,4 @@ nbproject/*
 *.kdev4
 system/platforms/*
 !system/platforms/keepfolder
+.buildconfig
