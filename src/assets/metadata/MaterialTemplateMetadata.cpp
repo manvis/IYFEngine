@@ -175,41 +175,41 @@ void MaterialTemplateMetadata::deserializeImpl(Serializer& fr, std::uint16_t ver
 void MaterialTemplateMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
     assert(version == 1);
     
-    pw.String(MATERIAL_FAMILY_FIELD_NAME);
+    pw.Key(MATERIAL_FAMILY_FIELD_NAME);
     pw.Uint(static_cast<std::uint32_t>(family));
     
-    pw.String(MATERIAL_FAMILY_HASH_FIELD_NAME);
+    pw.Key(MATERIAL_FAMILY_HASH_FIELD_NAME);
     pw.Uint64(materialFamilyHash);
     
-    pw.String(MACRO_COMBO_HASH_FIELD_NAME);
+    pw.Key(MACRO_COMBO_HASH_FIELD_NAME);
     pw.Uint64(macroComboHash);
     
-    pw.String(SUPPORTED_VERTEX_DATA_LAYOUTS_FIELD_NAME);
+    pw.Key(SUPPORTED_VERTEX_DATA_LAYOUTS_FIELD_NAME);
     pw.Uint64(vertexDataLayouts.to_ullong());
     
-    pw.String(REQUIRED_VARIABLES_FIELD_NAME);
+    pw.Key(REQUIRED_VARIABLES_FIELD_NAME);
     pw.StartArray();
     for (const auto& v : requiredVariables) {
         pw.StartObject();
         
-        pw.String(NAME_FIELD_NAME);
+        pw.Key(NAME_FIELD_NAME);
         pw.String(v.getName().data(), v.getName().size(), true);
         
-        pw.String(COMPONENT_COUNT_FIELD_NAME);
+        pw.Key(COMPONENT_COUNT_FIELD_NAME);
         pw.Uint(v.getComponentCount());
         
-        pw.String(DEFAULT_VALUE_FIELD_NAME);
+        pw.Key(DEFAULT_VALUE_FIELD_NAME);
         pw.StartObject();
-        pw.String(X_FIELD_NAME);
+        pw.Key(X_FIELD_NAME);
         pw.Double(v.getDefaultValue().x);
         
-        pw.String(Y_FIELD_NAME);
+        pw.Key(Y_FIELD_NAME);
         pw.Double(v.getDefaultValue().y);
         
-        pw.String(Z_FIELD_NAME);
+        pw.Key(Z_FIELD_NAME);
         pw.Double(v.getDefaultValue().z);
         
-        pw.String(W_FIELD_NAME);
+        pw.Key(W_FIELD_NAME);
         pw.Double(v.getDefaultValue().w);
         pw.EndObject();
         
@@ -217,15 +217,15 @@ void MaterialTemplateMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::ui
     }
     pw.EndArray();
     
-    pw.String(REQUIRED_TEXTURES_FIELD_NAME);
+    pw.Key(REQUIRED_TEXTURES_FIELD_NAME);
     pw.StartArray();
     for (const auto& t : requiredTextures) {
         pw.StartObject();
         
-        pw.String(NAME_FIELD_NAME);
+        pw.Key(NAME_FIELD_NAME);
         pw.String(t.getName().data(), t.getName().size(), true);
         
-        pw.String(DEFAULT_VALUE_FIELD_NAME);
+        pw.Key(DEFAULT_VALUE_FIELD_NAME);
         pw.Uint64(t.getDefaultTexture());
         
         pw.EndObject();

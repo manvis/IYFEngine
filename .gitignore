@@ -1,4 +1,5 @@
 build/*
+build-old/*
 doxygen/*
 cmakeDownloads/*
 *~

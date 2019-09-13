@@ -108,27 +108,27 @@ void MetadataBase::serializeJSON(PrettyStringWriter& pw) const  {
     
     pw.StartObject();
     
-    pw.String(ASSET_TYPE_FIELD_NAME);
+    pw.Key(ASSET_TYPE_FIELD_NAME);
     pw.Uint(static_cast<unsigned int>(getAssetType()));
     
-    pw.String(FILE_HASH_FIELD_NAME);
+    pw.Key(FILE_HASH_FIELD_NAME);
     pw.Uint64(fileHash.value());
     
-    pw.String(SOURCE_ASSET_FIELD_NAME);
+    pw.Key(SOURCE_ASSET_FIELD_NAME);
     pw.String(sourceAsset.generic_string().c_str(), sourceAsset.generic_string().length(), true);
     
-    pw.String(SOURCE_FILE_HASH_FIELD_NAME);
+    pw.Key(SOURCE_FILE_HASH_FIELD_NAME);
     pw.Uint64(sourceFileHash);
     
-    pw.String(SERIALIZED_DATA_VERSION_FIELD_NAME);
+    pw.Key(SERIALIZED_DATA_VERSION_FIELD_NAME);
     pw.Uint(getLatestSerializedDataVersion());
     
     if (systemAsset) {
-        pw.String(IS_SYSTEM_ASSET_FIELD_NAME);
+        pw.Key(IS_SYSTEM_ASSET_FIELD_NAME);
         pw.Bool(systemAsset);
     }
     
-    pw.String(TAGS_FIELD_NAME);
+    pw.Key(TAGS_FIELD_NAME);
     pw.StartArray();
     for (const auto& tag : tags) {
         pw.String(tag.data(), tag.size(), true);

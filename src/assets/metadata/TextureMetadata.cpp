@@ -96,46 +96,46 @@ void TextureMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
 void TextureMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
     assert(version == 1);
     
-    pw.String(COMPRESSION_FORMAT_FIELD_NAME);
+    pw.Key(COMPRESSION_FORMAT_FIELD_NAME);
     pw.Uint(static_cast<unsigned int>(compressionFormat));
     
-    pw.String(IS_SRGB_VALUE_FIELD_NAME);
+    pw.Key(IS_SRGB_VALUE_FIELD_NAME);
     pw.Bool(issRGBVal);
     
-    pw.String(FACES_FIELD_NAME);
+    pw.Key(FACES_FIELD_NAME);
     pw.Uint(faces);
     
-    pw.String(CHANNELS_FIELD_NAME);
+    pw.Key(CHANNELS_FIELD_NAME);
     pw.Uint(channels);
     
-    pw.String(LEVELS_FIELD_NAME);
+    pw.Key(LEVELS_FIELD_NAME);
     pw.Uint(levels);
     
-    pw.String(FILTER_FIELD_NAME);
+    pw.Key(FILTER_FIELD_NAME);
     pw.Uint(static_cast<unsigned int>(filter));
     
-    pw.String(TILE_X_FIELD_NAME);
+    pw.Key(TILE_X_FIELD_NAME);
     pw.Uint(static_cast<unsigned int>(tileX));
     
-    pw.String(TILE_Y_FIELD_NAME);
+    pw.Key(TILE_Y_FIELD_NAME);
     pw.Uint(static_cast<unsigned int>(tileY));
     
-    pw.String(WIDTH_FIELD_NAME);
+    pw.Key(WIDTH_FIELD_NAME);
     pw.Uint(width);
     
-    pw.String(HEIGHT_FIELD_NAME);
+    pw.Key(HEIGHT_FIELD_NAME);
     pw.Uint(height);
     
-    pw.String(DEPTH_FIELD_NAME);
+    pw.Key(DEPTH_FIELD_NAME);
     pw.Uint(depth);
     
-    pw.String(LAYERS_FIELD_NAME);
+    pw.Key(LAYERS_FIELD_NAME);
     pw.Uint(layers);
     
-    pw.String(ANISOTROPY_FIELD_NAME);
+    pw.Key(ANISOTROPY_FIELD_NAME);
     pw.Uint(anisotropy);
     
-    pw.String(SIZE_FIELD_NAME);
+    pw.Key(SIZE_FIELD_NAME);
     pw.Uint64(size);
 }
 

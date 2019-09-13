@@ -33,7 +33,7 @@
 #include "rapidjson/document.h"
 
 namespace iyf::editor {
-static const char* STAGAE_FIELD_NAME = "stage";
+static const char* STAGE_FIELD_NAME = "stage";
 
 std::uint64_t ShaderConverterState::getLatestSerializedDataVersion() const {
     return 1;
@@ -42,14 +42,14 @@ std::uint64_t ShaderConverterState::getLatestSerializedDataVersion() const {
 void ShaderConverterState::serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const {
     assert(version == 1);
     
-    pw.String(STAGAE_FIELD_NAME);
+    pw.Key(STAGE_FIELD_NAME);
     pw.Uint(static_cast<unsigned int>(stage));
 }
 
 void ShaderConverterState::deserializeJSONImpl(JSONObject& jo, std::uint64_t version) {
     assert(version == 1);
     
-    stage = static_cast<ShaderStageFlagBits>(jo[STAGAE_FIELD_NAME].GetUint());
+    stage = static_cast<ShaderStageFlagBits>(jo[STAGE_FIELD_NAME].GetUint());
 }
 }
 

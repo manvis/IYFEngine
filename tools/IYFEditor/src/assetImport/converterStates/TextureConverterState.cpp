@@ -49,31 +49,31 @@ static const char* ANISOTROPY_FIELD_NAME = "preferredAnisotropy";
 void TextureConverterState::serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const {
     assert(version == 1);
     
-    pw.String(PREMULTIPLY_ALPHA_FIELD_NAME);
+    pw.Key(PREMULTIPLY_ALPHA_FIELD_NAME);
     pw.Bool(premultiplyAlpha);
     
-    pw.String(IS_SRGB_VALUE_FIELD_NAME);
+    pw.Key(IS_SRGB_VALUE_FIELD_NAME);
     pw.Bool(sRGBSource);
     
-    pw.String(NO_MIP_MAPS_FIELD_NAME);
+    pw.Key(NO_MIP_MAPS_FIELD_NAME);
     pw.Bool(noMipMaps);
     
-    pw.String(IMPORT_MODE_FIELD_NAME);
+    pw.Key(IMPORT_MODE_FIELD_NAME);
     pw.Uint(static_cast<unsigned int>(importMode));
     
-    pw.String(FILTER_FIELD_NAME);
+    pw.Key(FILTER_FIELD_NAME);
     pw.Uint(static_cast<unsigned int>(filteringMethod));
     
-    pw.String(TILE_X_FIELD_NAME);
+    pw.Key(TILE_X_FIELD_NAME);
     pw.Uint(static_cast<unsigned int>(xTiling));
     
-    pw.String(TILE_Y_FIELD_NAME);
+    pw.Key(TILE_Y_FIELD_NAME);
     pw.Uint(static_cast<unsigned int>(yTiling));
     
-    pw.String(QUALITY_FIELD_NAME);
+    pw.Key(QUALITY_FIELD_NAME);
     pw.Double(quality);
     
-    pw.String(ANISOTROPY_FIELD_NAME);
+    pw.Key(ANISOTROPY_FIELD_NAME);
     pw.Uint(preferredAnisotropy);
 }
 

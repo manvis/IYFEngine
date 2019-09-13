@@ -26,19 +26,21 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef VULKAN_BACKEND_HPP
-#define VULKAN_BACKEND_HPP
+#ifndef IYF_VULKAN_API_HPP
+#define IYF_VULKAN_API_HPP
 
 #ifdef BUILD_WITH_VULKAN
 #include <unordered_map>
 
 #include "graphics/GraphicsAPI.hpp"
-#include "graphics/vulkan/vk_mem_alloc.h"
 
-#include <vulkan/vulkan.h>
+// WARNING Do not include vulkan.h - it drags in OS dependencies that can be massive
+#include <vulkan/vk_platform.h>
+#include <vulkan/vulkan_core.h>
 
 namespace iyf {
 class VulkanAPI;
+
 class VulkanCommandPool : public CommandPool {
 public:
     VulkanCommandPool(VulkanAPI* backend, VkCommandPool commandPool) : CommandPool(), commandPool(commandPool), backend(backend) {}
@@ -116,15 +118,6 @@ protected:
     VkCommandBuffer cmdBuff;
     
     bool recording;
-};
-
-struct AllocationAndInfo {
-    AllocationAndInfo(VmaAllocation allocation, VmaAllocationInfo info, VkMemoryPropertyFlags memoryFlags)
-        : allocation(allocation), info(std::move(info)), memoryFlags(memoryFlags) {}
-    
-    VmaAllocation allocation;
-    VmaAllocationInfo info;
-    VkMemoryPropertyFlags memoryFlags;
 };
 
 struct VulkanDebugUserData {
@@ -326,10 +319,6 @@ protected:
     
     VulkanDebugUserData debugUserData;
     
-    VmaAllocator allocator;
-    VkBuffer imageTransferSource;
-    VmaAllocation imageTransferSourceAllocation;
-    
     VkInstance instance;
     
     PhysicalDevice physicalDevice;
@@ -412,14 +401,10 @@ protected:
     
     bool checkResult(VkResult result, const std::string& whatFailed, bool throwIfFailed = true);
     
-    /// Allows us to retrieve various info about backing memory based on a buffer's handle
-    std::unordered_map<VkBuffer, AllocationAndInfo> bufferToMemory;
-    
-    std::unordered_map<VkImage, AllocationAndInfo> imageToMemory;
     // Temporaries for conversions
     
     VkBufferUsageFlagBits mapBufferType(BufferType bufferType) const;
 };
 }
 #endif //BUILD_WITH_VULKAN
-#endif //VULKAN_BACKEND_HPP
+#endif //IYF_VULKAN_API_HPP

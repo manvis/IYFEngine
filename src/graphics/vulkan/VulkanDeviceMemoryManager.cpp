@@ -32,8 +32,11 @@
 #include "core/Logger.hpp"
 #include "threading/ThreadProfiler.hpp"
 #include "assets/loaders/TextureLoader.hpp"
+#include "utilities/DataSizes.hpp"
 
 namespace iyf {
+using namespace literals;
+
 inline Bytes getSize(const std::vector<Bytes>& sizes, MemoryBatch batch) {
     return sizes[static_cast<std::size_t>(batch)];
 }
@@ -54,6 +57,46 @@ inline std::string getDebugName(MemoryBatch batch) {
 
 VulkanDeviceMemoryManager::VulkanDeviceMemoryManager(VulkanAPI* gfx, std::vector<Bytes> stagingBufferSizes)
     : DeviceMemoryManager(std::move(stagingBufferSizes)), gfx(gfx), firstFrame(true) {}
+
+void VulkanDeviceMemoryManager::initializeAllocator() {
+    VmaAllocatorCreateInfo allocatorInfo = {};
+    
+    if (gfx->physicalDevice.dedicatedAllocationExtensionEnabled) {
+        allocatorInfo.flags |= VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT;
+        LOG_V("The VK_KHR_dedicated_allocation extension was found and enabled. Enabling its use in the allocator as well.");
+    }
+    
+    allocatorInfo.physicalDevice = gfx->physicalDevice.handle;
+    allocatorInfo.device = gfx->logicalDevice.handle;
+    // TODO set the heap size limit to simulate devices with less memory
+    // TODO set callbacks for profiling functions
+    
+    vmaCreateAllocator(&allocatorInfo, &allocator);
+    
+    std::string imageTransferSourceName = "imageTransferSource";
+    
+    VkBufferCreateInfo bci;
+    bci.sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bci.pNext                 = nullptr;
+    bci.flags                 = 0;
+    bci.size                  = Bytes(64_MiB).count(); // TODO make configurable
+    bci.usage                 = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    bci.sharingMode           = VK_SHARING_MODE_EXCLUSIVE; // TODO use a transfer queue (if available)
+    bci.queueFamilyIndexCount = 0;
+    bci.pQueueFamilyIndices   = nullptr;
+    
+    VmaAllocationCreateInfo aci = {};
+    aci.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
+    aci.usage = VMA_MEMORY_USAGE_CPU_ONLY; // Guarantees HOST_VISIBLE and HOST_COHERENT
+    aci.pUserData = &imageTransferSourceName[0];
+    
+    gfx->checkResult(vmaCreateBuffer(allocator, &bci, &aci, &imageTransferSource, &imageTransferSourceAllocation, nullptr), "Failed to create the image transfer source buffer.");
+}
+
+void VulkanDeviceMemoryManager::disposeAllocator() {
+    vmaDestroyBuffer(allocator, imageTransferSource, imageTransferSourceAllocation);
+    vmaDestroyAllocator(allocator);
+}
 
 void VulkanDeviceMemoryManager::initialize() {
     const auto& sizes = getStagingBufferSizes();
@@ -228,7 +271,7 @@ bool VulkanDeviceMemoryManager::updateBuffer(MemoryBatch batch, const Buffer& de
             std::memcpy(destination, source, c.size);
             
             if (needsFlushing) {
-                vmaFlushAllocation(gfx->allocator, destinationAllocationInfo->allocation, c.dstOffset, c.size);
+                vmaFlushAllocation(allocator, destinationAllocationInfo->allocation, c.dstOffset, c.size);
             }
         }
     } else {
@@ -261,7 +304,7 @@ bool VulkanDeviceMemoryManager::updateBuffer(MemoryBatch batch, const Buffer& de
             std::memcpy(destination, source, c.size);
             
             if (needsFlushing) {
-                vmaFlushAllocation(gfx->allocator, stagingAllocationInfo->allocation, c.dstOffset, c.size);
+                vmaFlushAllocation(allocator, stagingAllocationInfo->allocation, c.dstOffset, c.size);
             }
         }
         
@@ -388,7 +431,7 @@ bool VulkanDeviceMemoryManager::updateImage(MemoryBatch batch, const Image& imag
     std::memcpy(destination, data.data, data.size);
     
     if (needsFlushing) {
-        vmaFlushAllocation(gfx->allocator, stagingAllocationInfo->allocation, stagingBufferData.currentOffset, data.size);
+        vmaFlushAllocation(allocator, stagingAllocationInfo->allocation, stagingBufferData.currentOffset, data.size);
     }
     
     stagingBufferData.currentOffset = offset;
@@ -437,6 +480,166 @@ void VulkanDeviceMemoryManager::executeUpload(CommandBuffer* commandBuffer, bool
 //     } else {
 //         gfx->submitQueue(si);
 //     }
+}
+
+Buffer VulkanDeviceMemoryManager::createBuffer(const BufferCreateInfo& info, const char* name) {
+    VkBufferCreateInfo bci;
+    bci.sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bci.pNext                 = nullptr;
+    bci.flags                 = 0;
+    bci.size                  = info.size.count();
+    bci.usage                 = vk::bufferUsage(info.flags);
+    bci.sharingMode           = VK_SHARING_MODE_EXCLUSIVE; // TODO use a transfer queue (if available)
+    bci.queueFamilyIndexCount = 0;
+    bci.pQueueFamilyIndices   = nullptr;
+    
+    VmaAllocationCreateInfo aci = {};
+    
+    // TODO start using  info.frequentHostAccess;
+    
+    // VMA_ALLOCATION_CREATE_MAPPED_BIT will be ignored if the device memory cannot be mapped. Do not disable. The VulkanDeviceMemoryManager
+    // checks the allocationInfo.pMappedData to determine if a staging buffer is needed or not. If VMA_ALLOCATION_CREATE_MAPPED_BIT flag isn't
+    // present, pMappedData will always be null and that will confuse the VulkanDeviceMemoryManager.
+    aci.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
+    
+    // TODO for now, it's either CPU (visible and coherent) or GPU. Only enable the rest once proper flushing and invalidation
+    // during memory uploads or reads is implemented.
+    switch (info.memoryUsage) {
+        case MemoryUsage::GPUOnly:
+            aci.usage = VMA_MEMORY_USAGE_GPU_ONLY; // May end up being HOST_VISIBLE in some cases.
+            break;
+        case MemoryUsage::CPUToGPU:
+            aci.usage = VMA_MEMORY_USAGE_CPU_TO_GPU; // Guarantees host visible. Usually uncached.
+            break;
+        case MemoryUsage::GPUToCPU:
+            aci.usage = VMA_MEMORY_USAGE_GPU_TO_CPU; // Guarantees host visible and cached.
+            break;
+        case MemoryUsage::CPUOnly:
+            aci.usage = VMA_MEMORY_USAGE_CPU_ONLY; // Guarantees HOST_VISIBLE and HOST_COHERENT
+            break;
+    }
+    
+    if (name != nullptr) {
+        aci.flags |= VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
+        aci.pUserData = const_cast<char*>(name); // I'm pretty sure it doesn't actually modify the string
+    } else {
+        aci.pUserData = nullptr;
+    }
+    
+    VkBuffer handle;
+    VmaAllocation allocation;
+    VmaAllocationInfo allocationInfo;
+    gfx->checkResult(vmaCreateBuffer(allocator, &bci, &aci, &handle, &allocation, &allocationInfo), "Failed to create a buffer");
+    
+    // DO NOT set a name. VMA does it for us
+    
+    if (aci.usage != VMA_MEMORY_USAGE_GPU_ONLY && allocationInfo.pMappedData == nullptr) {
+        throw std::runtime_error("Was expecting a mapped buffer.");
+    }
+    
+    const Bytes finalSize = Bytes(allocationInfo.size);
+    VkMemoryPropertyFlags flags = 0;
+    vmaGetMemoryTypeProperties(allocator, allocationInfo.memoryType, &flags);
+    
+    auto iter = bufferToMemory.emplace(std::make_pair(handle, AllocationAndInfo(allocation, allocationInfo, flags)));
+    
+    return Buffer(BufferHnd(handle), info.flags, info.memoryUsage, finalSize, &(iter.first->second));
+}
+
+bool VulkanDeviceMemoryManager::destroyBuffer(const Buffer& buffer) {
+    VkBuffer handle = buffer.handle().toNative<VkBuffer>();
+    auto result = bufferToMemory.find(handle);
+    
+    if (result == bufferToMemory.end()) {
+        throw std::runtime_error("Can't destoy a non existing buffer");
+    }
+    
+    vmaDestroyBuffer(allocator, handle, result->second.allocation);
+    
+    bufferToMemory.erase(result);
+    
+    return true;
+}
+
+bool VulkanDeviceMemoryManager::readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) {
+    assert(buffer.memoryUsage() == MemoryUsage::CPUOnly);
+    
+    auto allocationAndInfo = bufferToMemory.find(buffer.handle().toNative<VkBuffer>());
+    assert(allocationAndInfo != bufferToMemory.end());
+    
+    void* p = allocationAndInfo->second.info.pMappedData;
+    // TODO non-coherent
+    
+    for (const auto& c : copies) {
+        const char* source = static_cast<const char*>(p);
+        source += c.srcOffset;
+        
+        char* destination = static_cast<char*>(data);
+        destination += c.dstOffset;
+        
+        std::memcpy(destination, source, c.size);
+    }
+    
+    return true;
+}
+
+Image VulkanDeviceMemoryManager::createImage(const ImageCreateInfo& info, const char* name) {
+    VkImageCreateInfo ici;
+    ici.sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    ici.pNext                 = nullptr;
+    ici.flags                 = (info.isCube) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0; //TODO CUBEMAP flags
+    ici.imageType             = VK_IMAGE_TYPE_2D;
+    ici.format                = vk::format(info.format);
+    ici.extent                = {info.extent.x, info.extent.y, info.extent.z};
+    ici.mipLevels             = info.mipLevels;
+    ici.arrayLayers           = info.arrayLayers;
+    ici.samples               = VK_SAMPLE_COUNT_1_BIT;
+    ici.tiling                = VK_IMAGE_TILING_OPTIMAL; // TODO determine if it can be optimally tiled
+    ici.usage                 = vk::imageUsage(info.usage);
+    ici.sharingMode           = VK_SHARING_MODE_EXCLUSIVE;
+    ici.queueFamilyIndexCount = 0;
+    ici.pQueueFamilyIndices   = nullptr;
+    ici.initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED;
+    
+    VmaAllocationCreateInfo aci = {};
+    aci.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    
+    if (name != nullptr) {
+        aci.flags = VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
+        aci.pUserData = const_cast<char*>(name); // I'm pretty sure it doesn't actually modify the string
+    } else {
+        aci.flags = 0;
+        aci.pUserData = nullptr;
+    }
+    
+    VkImage image;
+    VmaAllocation allocation;
+    VmaAllocationInfo allocationInfo;
+    gfx->checkResult(vmaCreateImage(allocator, &ici, &aci, &image, &allocation, &allocationInfo), "Failed to create an image");
+    
+    // DO NOT set a name. VMA does it for us
+    
+    VkMemoryPropertyFlags flags = 0;
+    vmaGetMemoryTypeProperties(allocator, allocationInfo.memoryType, &flags);
+    
+    auto iter = imageToMemory.emplace(std::make_pair(image, AllocationAndInfo(allocation, allocationInfo, flags)));
+    return Image(ImageHnd(image), info.extent, info.mipLevels, info.arrayLayers, info.usage, info.format, info.isCube ? ImageViewType::ImCube : ImageViewType::Im2D, &(iter.first->second));
+}
+
+bool VulkanDeviceMemoryManager::destroyImage(const Image& image) {
+    VkImage handle = image.getHandle().toNative<VkImage>();
+    
+    auto iter = imageToMemory.find(handle);
+    
+    if (iter == imageToMemory.end()) {
+        throw std::runtime_error("Can't destoy a non existing image");
+    }
+    
+    vmaDestroyImage(allocator, image.getHandle().toNative<VkImage>(), iter->second.allocation);
+    
+    imageToMemory.erase(iter);
+    
+    return true;
 }
 
 }

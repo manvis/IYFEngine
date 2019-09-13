@@ -55,7 +55,7 @@ void ShaderMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
 void ShaderMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
     assert(version == 1);
     
-    pw.String(STAGE_FLAGS_FIELD_NAME);
+    pw.Key(STAGE_FLAGS_FIELD_NAME);
     pw.Uint(std::uint32_t(stage));
 }
 

@@ -220,19 +220,43 @@ enum class MemoryBatch {
     Instant = COUNT, ///< Not batched, executes the upload immediately. If needed, this will create a temporary staging buffer.
 };
 
+class ImageCreateInfo {
+public:
+    ImageCreateInfo() : extent(0, 0, 0), mipLevels(0), arrayLayers(0), format(Format::Undefined), isCube(false) {}
+    ImageCreateInfo(glm::uvec3 extent, std::uint32_t mipLevels, std::uint32_t arrayLayers, ImageUsageFlags usage, Format format, bool isCube)
+        : extent(std::move(extent)), mipLevels(mipLevels), arrayLayers(arrayLayers), usage(usage), format(format), isCube(isCube) {}
+    
+    glm::uvec3 extent;
+    std::uint32_t mipLevels;
+    std::uint32_t arrayLayers;
+    
+    ImageUsageFlags usage;
+    
+    /// The data format of the Image you want to create.
+    Format format;
+    
+    /// If this is true, the Image will be a cubemap. If false, it's going to be a regular 2D Image.
+    bool isCube;
+};
+
+
 /// Handles all data uploads to the GPU
 ///
 /// \remark The DeviceMemoryManager is NOT thread safe an should only be called from the main thread.
 class DeviceMemoryManager {
 public:
-    /// \brief Creates a new DeviceMemoryManager
+    /// \brief Creates a new DeviceMemoryManager.
+    ///
+    /// \remark You shouldn't create a DeviceMemoryManager but use GraphicsAPI::getDeviceMemoryManager() instead.
     ///
     /// \param stagingBufferSizes The initial sizes of the staging buffers. Each element corresponds to a MemoryBatch enum value. All values must be
     /// set and > 0. The implementation is allowed to combine MemoryBatch::MeshAssetData and MemoryBatch::extureAssetData staging buffers into one.
     DeviceMemoryManager(std::vector<Bytes> stagingBufferSizes);
     
     virtual void initialize() = 0;
+    virtual void initializeAllocator() = 0;
     virtual void dispose() = 0;
+    virtual void disposeAllocator() = 0;
     
     virtual ~DeviceMemoryManager() {}
     
@@ -280,6 +304,11 @@ public:
     /// Transparently handles staging and batches data uploads.
     virtual bool updateImage(MemoryBatch batch, const Image& image, const TextureData& data) = 0;
     
+    virtual Buffer createBuffer(const BufferCreateInfo& info, const char* name) = 0;
+    virtual bool destroyBuffer(const Buffer& buffer) = 0;
+    virtual bool readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) = 0;
+    virtual Image createImage(const ImageCreateInfo& info, const char* name) = 0;
+    virtual bool destroyImage(const Image& image) = 0;
 protected:
     std::vector<Bytes> stagingBufferSizes;
 };
@@ -788,25 +817,6 @@ public:
     std::vector<AttachmentDescription> attachments;
     std::vector<SubpassDescription> subpasses;
     std::vector<SubpassDependency> dependencies;
-};
-
-class ImageCreateInfo {
-public:
-    ImageCreateInfo() : extent(0, 0, 0), mipLevels(0), arrayLayers(0), format(Format::Undefined), isCube(false) {}
-    ImageCreateInfo(glm::uvec3 extent, std::uint32_t mipLevels, std::uint32_t arrayLayers, ImageUsageFlags usage, Format format, bool isCube)
-        : extent(std::move(extent)), mipLevels(mipLevels), arrayLayers(arrayLayers), usage(usage), format(format), isCube(isCube) {}
-    
-    glm::uvec3 extent;
-    std::uint32_t mipLevels;
-    std::uint32_t arrayLayers;
-    
-    ImageUsageFlags usage;
-    
-    /// The data format of the Image you want to create.
-    Format format;
-    
-    /// If this is true, the Image will be a cubemap. If false, it's going to be a regular 2D Image.
-    bool isCube;
 };
 
 class UncompressedImageCreateInfo {

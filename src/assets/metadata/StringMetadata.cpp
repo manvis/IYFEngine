@@ -59,10 +59,10 @@ void StringMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
 void StringMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
     assert(version == 1);
     
-    pw.String(PRIORITY_FIELD_NAME);
+    pw.Key(PRIORITY_FIELD_NAME);
     pw.Int(priority);
     
-    pw.String(LOCALE_FIELD_NAME);
+    pw.Key(LOCALE_FIELD_NAME);
     pw.String(locale.data(), locale.length(), true);
 }
 

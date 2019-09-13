@@ -47,24 +47,24 @@ void ConverterState::serializeJSON(PrettyStringWriter& pw) const {
     
     const std::uint64_t version = getLatestSerializedDataVersion();
     
-    pw.String(CONTENTS_FIELD_NAME);
+    pw.Key(CONTENTS_FIELD_NAME);
     pw.String(CONTENTS_FIELD_VALUE);
     
-    pw.String(TYPE_FIELD_NAME);
+    pw.Key(TYPE_FIELD_NAME);
     pw.Uint(static_cast<unsigned int>(getType()));
     
-    pw.String(VERSION_FIELD_NAME);
+    pw.Key(VERSION_FIELD_NAME);
     pw.Uint64(version);
     
-    pw.String(SOURCE_HASH_FIELD_NAME);
+    pw.Key(SOURCE_HASH_FIELD_NAME);
     pw.Uint64(sourceFileHash.value());
     
     if (systemAsset) {
-        pw.String(IS_SYSTEM_ASSET_FIELD_NAME);
+        pw.Key(IS_SYSTEM_ASSET_FIELD_NAME);
         pw.Bool(systemAsset);
     }
     
-    pw.String(TAG_FIELD_NAME);
+    pw.Key(TAG_FIELD_NAME);
     pw.StartArray();
     for (const auto& tag : tags) {
         pw.String(tag.data(), tag.size(), true);
