@@ -38,7 +38,7 @@ std::uint64_t LocalizationStringConverterState::getLatestSerializedDataVersion()
 void LocalizationStringConverterState::serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const {
     assert(version == 1);
     
-    pw.String(PRIORITY_FIELD_NAME);
+    pw.Key(PRIORITY_FIELD_NAME);
     pw.Uint(priority);
 }
 

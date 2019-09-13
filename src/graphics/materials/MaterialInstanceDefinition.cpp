@@ -121,30 +121,30 @@ constexpr const char* W_FIELD_NAME = "w";
 void MaterialInstanceDefinition::serializeJSON(PrettyStringWriter& pw) const {
     pw.StartObject();
     
-    pw.String(MATERIAL_TEMPLATE_DEFINITION_FIELD_NAME);
+    pw.Key(MATERIAL_TEMPLATE_DEFINITION_FIELD_NAME);
     pw.Uint64(materialTemplateDefinition);
     
-    pw.String(RENDER_MODE_FIELD_NAME);
+    pw.Key(RENDER_MODE_FIELD_NAME);
     pw.Uint(static_cast<unsigned>(renderMode));
     
-    pw.String(VARIABLES_FIELD_NAME);
+    pw.Key(VARIABLES_FIELD_NAME);
     pw.StartArray();
     for (const auto& v : variables) {
         pw.StartObject();
         
-        pw.String(NAME_HASH_FIELD_NAME);
+        pw.Key(NAME_HASH_FIELD_NAME);
         pw.Uint64(v.first);
         
-        pw.String(VALUE_FIELD_NAME);
+        pw.Key(VALUE_FIELD_NAME);
         pw.StartObject();
         
-        pw.String(X_FIELD_NAME);
+        pw.Key(X_FIELD_NAME);
         pw.Double(v.second.x);
-        pw.String(Y_FIELD_NAME);
+        pw.Key(Y_FIELD_NAME);
         pw.Double(v.second.y);
-        pw.String(Z_FIELD_NAME);
+        pw.Key(Z_FIELD_NAME);
         pw.Double(v.second.z);
-        pw.String(W_FIELD_NAME);
+        pw.Key(W_FIELD_NAME);
         pw.Double(v.second.w);
         pw.EndObject();
         
@@ -153,15 +153,15 @@ void MaterialInstanceDefinition::serializeJSON(PrettyStringWriter& pw) const {
     pw.EndArray();
     
     
-    pw.String(TEXTURES_FIELD_NAME);
+    pw.Key(TEXTURES_FIELD_NAME);
     pw.StartArray();
     for (const auto& t : textures) {
         pw.StartObject();
         
-        pw.String(NAME_HASH_FIELD_NAME);
+        pw.Key(NAME_HASH_FIELD_NAME);
         pw.Uint64(t.first);
         
-        pw.String(VALUE_FIELD_NAME);
+        pw.Key(VALUE_FIELD_NAME);
         pw.Uint64(t.second);
         
         

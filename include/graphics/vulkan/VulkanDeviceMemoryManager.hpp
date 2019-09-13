@@ -28,14 +28,29 @@
 
 #include "graphics/vulkan/VulkanAPI.hpp"
 
+// Do not include this in VulkanAPI.hpp or any other headers that get included in many places.
+// This library pulls in vulkan.h and that includes a ton of OS specific stuff.
+#include "graphics/vulkan/vk_mem_alloc.h"
+
 namespace iyf {
+struct AllocationAndInfo {
+    AllocationAndInfo(VmaAllocation allocation, VmaAllocationInfo info, VkMemoryPropertyFlags memoryFlags)
+        : allocation(allocation), info(std::move(info)), memoryFlags(memoryFlags) {}
+    
+    VmaAllocation allocation;
+    VmaAllocationInfo info;
+    VkMemoryPropertyFlags memoryFlags;
+};
+
 class VulkanDeviceMemoryManager : public DeviceMemoryManager {
 public:
     VulkanDeviceMemoryManager(VulkanAPI* gfx, std::vector<Bytes> stagingBufferSizes);
     virtual ~VulkanDeviceMemoryManager();
     
     virtual void initialize() final override;
+    virtual void initializeAllocator() final override;
     virtual void dispose() final override;
+    virtual void disposeAllocator() final override;
     
     virtual void beginFrame() final override;
     virtual bool isStagingBufferNeeded(const Buffer& destinationBuffer) final override;
@@ -43,6 +58,12 @@ public:
     virtual bool updateBuffer(MemoryBatch batch, const Buffer& destinationBuffer, const std::vector<BufferCopy>& copies, const void* data) final override;
     virtual bool updateImage(MemoryBatch batch, const Image& image, const TextureData& data) final override;
     virtual bool beginBatchUpload(MemoryBatch batch) final override;
+    
+    virtual Buffer createBuffer(const BufferCreateInfo& info, const char* name) final override;
+    virtual bool destroyBuffer(const Buffer& buffer) final override;
+    virtual bool readHostVisibleBuffer(const Buffer& buffer, const std::vector<BufferCopy>& copies, void* data) final override;
+    virtual Image createImage(const ImageCreateInfo& info, const char* name) final override;
+    virtual bool destroyImage(const Image& image) final override;
 private:
     struct StagingBufferData {
         StagingBufferData() : currentOffset(0), maxRequestedUploadSize(0), uploadCalls(0), APIObjectsCreated(false) {}
@@ -103,6 +124,14 @@ private:
     FenceHnd uploadCompleteFence;
     std::array<StagingBufferData, StagingBufferCount> stagingBuffers;
     bool firstFrame;
+    
+    // Vulkan memory allocator library stuff
+    VmaAllocator allocator;
+    VkBuffer imageTransferSource;
+    VmaAllocation imageTransferSourceAllocation;
+    /// Allows us to retrieve various info about backing memory based on a buffer's handle
+    std::unordered_map<VkBuffer, AllocationAndInfo> bufferToMemory;
+    std::unordered_map<VkImage, AllocationAndInfo> imageToMemory;
 };
 }
 

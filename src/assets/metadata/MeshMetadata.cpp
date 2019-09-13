@@ -80,34 +80,34 @@ void MeshMetadata::deserializeImpl(Serializer& fr, std::uint16_t version) {
 void MeshMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
     assert(version == 1);
     
-    pw.String(SUB_MESH_COUNT_FIELD_NAME);
+    pw.Key(SUB_MESH_COUNT_FIELD_NAME);
     pw.Uint(numSubMeshes);
     
-    pw.String(HAS_BONES_FIELD_NAME);
+    pw.Key(HAS_BONES_FIELD_NAME);
     pw.Bool(hasBonesVal);
     
-    pw.String(INDICES_32_BIT_FIELD_NAME);
+    pw.Key(INDICES_32_BIT_FIELD_NAME);
     pw.Bool(indices32Bit);
     
-    pw.String(COLOR_CHANNEL_COUNT_FIELD_NAME);
+    pw.Key(COLOR_CHANNEL_COUNT_FIELD_NAME);
     pw.Uint(numColorChannels);
     
-    pw.String(VERTEX_COUNT_FIELD_NAME);
+    pw.Key(VERTEX_COUNT_FIELD_NAME);
     pw.Uint(vertexCount);
     
-    pw.String(INDEX_COUNT_FIELD_NAME);
+    pw.Key(INDEX_COUNT_FIELD_NAME);
     pw.Uint(indexCount);
     
-    pw.String(SKELETON_KEY_FIELD_NAME);
+    pw.Key(SKELETON_KEY_FIELD_NAME);
     pw.Uint(skeletonKey);
     
-    pw.String(BONE_COUNT_FIELD_NAME);
+    pw.Key(BONE_COUNT_FIELD_NAME);
     pw.Uint(boneCount);
     
-    pw.String(VERSION_FIELD_NAME);
+    pw.Key(VERSION_FIELD_NAME);
     pw.Uint(meshFormatVersion);
     
-    pw.String(UV_SET_COUNT_FIELD_NAME);
+    pw.Key(UV_SET_COUNT_FIELD_NAME);
     pw.Uint(numUVSets);
 }
 

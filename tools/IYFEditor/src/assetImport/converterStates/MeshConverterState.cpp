@@ -40,13 +40,13 @@ std::uint64_t MeshConverterState::getLatestSerializedDataVersion() const {
 void MeshConverterState::serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const {
     assert(version == 1);
     
-    pw.String(USE_32_BIT_INDICES_FIELD_NAME);
+    pw.Key(USE_32_BIT_INDICES_FIELD_NAME);
     pw.Bool(use32bitIndices);
     
-    pw.String(CONVERT_ANIMATIONS_FIELD_NAME);
+    pw.Key(CONVERT_ANIMATIONS_FIELD_NAME);
     pw.Bool(convertAnimations);
     
-    pw.String(MESH_SCALE_FIELD_NAME);
+    pw.Key(MESH_SCALE_FIELD_NAME);
     pw.Double(scale);
     
     // TODO serialize the not yet created fields

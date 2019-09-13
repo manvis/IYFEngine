@@ -247,33 +247,33 @@ bool Project::deserialize() {
 void Project::serializeJSON(PrettyStringWriter& pw) const {
     validOrFatalError();
     
-    pw.String(VERSION_FIELD_NAME);
+    pw.Key(VERSION_FIELD_NAME);
     pw.Uint(CURRENT_DATA_FORMAT_VERSION);
     
-    pw.String(GAME_NAME_FIELD_NAME);
+    pw.Key(GAME_NAME_FIELD_NAME);
     pw.String(gameName.c_str(), gameName.length(), true);
     
-    pw.String(COMPANY_NAME_FIELD_NAME);
+    pw.Key(COMPANY_NAME_FIELD_NAME);
     pw.String(companyName.c_str(), companyName.length(), true);
     
-    pw.String(FIRST_WORLD_FIELD_NAME);
+    pw.Key(FIRST_WORLD_FIELD_NAME);
     pw.String(firstWorldName.c_str(), firstWorldName.length(), true);
     
-    pw.String(GAME_VERSION_FIELD_NAME);
+    pw.Key(GAME_VERSION_FIELD_NAME);
     pw.StartObject();
     
-    pw.String(GAME_VERSION_MAJOR_FIELD_NAME);
+    pw.Key(GAME_VERSION_MAJOR_FIELD_NAME);
     pw.Uint(version.getMajor());
     
-    pw.String(GAME_VERSION_MINOR_FIELD_NAME);
+    pw.Key(GAME_VERSION_MINOR_FIELD_NAME);
     pw.Uint(version.getMinor());
     
-    pw.String(GAME_VERSION_PATCH_FIELD_NAME);
+    pw.Key(GAME_VERSION_PATCH_FIELD_NAME);
     pw.Uint(version.getPatch());
     
     pw.EndObject();
     
-    pw.String(BASE_LOCALE_FIELD_NAME);
+    pw.Key(BASE_LOCALE_FIELD_NAME);
     pw.String(baseLocale.c_str(), baseLocale.length(), true);
     
     // WARNING Do not serialize the root path. It will differ between users.

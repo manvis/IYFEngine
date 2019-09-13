@@ -307,37 +307,37 @@ void MaterialOutputNode::deserializeJSON(JSONObject& jo) {
 void MaterialOutputNode::serializeJSON(PrettyStringWriter& pw) const {
     LogicGraphNode::serializeJSON(pw);
     
-    pw.String(CULL_MODE_FIELD_NAME);
+    pw.Key(CULL_MODE_FIELD_NAME);
     pw.Uint(std::uint32_t(cullMode));
     
-    pw.String(DEPTH_COMPARE_OP_FIELD_NAME);
+    pw.Key(DEPTH_COMPARE_OP_FIELD_NAME);
     pw.Uint(static_cast<std::uint32_t>(depthCompareOp));
     
-    pw.String(DEPTH_WRITE_ENABLED_FIELD_NAME);
+    pw.Key(DEPTH_WRITE_ENABLED_FIELD_NAME);
     pw.Bool(depthWriteEnabled);
     
-    pw.String(DEPTH_TEST_ENABLED_FIELD_NAME);
+    pw.Key(DEPTH_TEST_ENABLED_FIELD_NAME);
     pw.Bool(depthTestEnabled);
     
-    pw.String(BLEND_ENABLED_FIELD_NAME);
+    pw.Key(BLEND_ENABLED_FIELD_NAME);
     pw.Bool(blendEnabled);
     
-    pw.String(SRC_COLOR_BLEND_FACTOR_FIELD_NAME);
+    pw.Key(SRC_COLOR_BLEND_FACTOR_FIELD_NAME);
     pw.Uint(static_cast<std::uint32_t>(srcColorBlendFactor));
     
-    pw.String(DST_COLOR_BLEND_FACTOR_FIELD_NAME);
+    pw.Key(DST_COLOR_BLEND_FACTOR_FIELD_NAME);
     pw.Uint(static_cast<std::uint32_t>(dstColorBlendFactor));
     
-    pw.String(SRC_ALPHA_BLEND_FACTOR_FIELD_NAME);
+    pw.Key(SRC_ALPHA_BLEND_FACTOR_FIELD_NAME);
     pw.Uint(static_cast<std::uint32_t>(srcAlphaBlendFactor));
     
-    pw.String(DST_ALPHA_BLEND_FACTOR_FIELD_NAME);
+    pw.Key(DST_ALPHA_BLEND_FACTOR_FIELD_NAME);
     pw.Uint(static_cast<std::uint32_t>(dstAlphaBlendFactor));
     
-    pw.String(COLOR_BLEND_OP_FIELD_NAME);
+    pw.Key(COLOR_BLEND_OP_FIELD_NAME);
     pw.Uint(static_cast<std::uint32_t>(colorBlendOp));
     
-    pw.String(ALPHA_BLEND_OP_FIELD_NAME);
+    pw.Key(ALPHA_BLEND_OP_FIELD_NAME);
     pw.Uint(static_cast<std::uint32_t>(alphaBlendOp));
 }
 
@@ -396,7 +396,7 @@ bool TextureInputNode::onModeChange(std::size_t, std::size_t requestedModeID, bo
 void TextureInputNode::serializeJSON(PrettyStringWriter& pw) const {
     LogicGraphNode::serializeJSON(pw);
     
-    pw.String(DEFAULT_TEXTURE_FIELD_NAME);
+    pw.Key(DEFAULT_TEXTURE_FIELD_NAME);
     pw.Uint64(defaultTexture.value());
 }
 
@@ -517,19 +517,19 @@ bool VariableNode::onModeChange(std::size_t, std::size_t requestedModeID, bool) 
 void VariableNode::serializeJSON(PrettyStringWriter& pw) const {
     LogicGraphNode::serializeJSON(pw);
     
-    pw.String(VALUE_FIELD_NAME);
+    pw.Key(VALUE_FIELD_NAME);
     pw.StartObject();
     
-    pw.String(CONSTANT_X_FIELD_NAME);
+    pw.Key(CONSTANT_X_FIELD_NAME);
     pw.Double(value.x);
     
-    pw.String(CONSTANT_Y_FIELD_NAME);
+    pw.Key(CONSTANT_Y_FIELD_NAME);
     pw.Double(value.y);
     
-    pw.String(CONSTANT_Z_FIELD_NAME);
+    pw.Key(CONSTANT_Z_FIELD_NAME);
     pw.Double(value.z);
     
-    pw.String(CONSTANT_W_FIELD_NAME);
+    pw.Key(CONSTANT_W_FIELD_NAME);
     pw.Double(value.w);
     
     pw.EndObject();
@@ -1022,17 +1022,17 @@ const int MATERIAL_INFO_VERSION = 1;
 void MaterialLogicGraph::serializeJSON(PrettyStringWriter& pw) const {
     LogicGraph::serializeJSON(pw);
     
-    pw.String(MATERIAL_INFO_FIELD_NAME);
+    pw.Key(MATERIAL_INFO_FIELD_NAME);
     
     pw.StartObject();
     
-    pw.String(MATERIAL_INFO_VERSION_FIELD_NAME);
+    pw.Key(MATERIAL_INFO_VERSION_FIELD_NAME);
     pw.Uint(MATERIAL_INFO_VERSION);
     
-    pw.String(MATERIAL_FAMILY_ID_FIELD_NAME);
+    pw.Key(MATERIAL_FAMILY_ID_FIELD_NAME);
     pw.Uint64(static_cast<std::uint64_t>(materialFamily));
     
-    pw.String(MATERIAL_FAMILY_HASH_FIELD_NAME);
+    pw.Key(MATERIAL_FAMILY_HASH_FIELD_NAME);
     pw.Uint64(con::GetMaterialFamilyDefinition(materialFamily).computeHash());
     
     pw.EndObject();

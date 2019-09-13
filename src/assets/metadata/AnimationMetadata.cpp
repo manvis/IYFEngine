@@ -59,13 +59,13 @@ constexpr const char* FORMAT_VERSION_FIELD_NAME = "formatVersion";
 void AnimationMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
     assert(version == 1);
     
-    pw.String(DURATION_FIELD_NAME);
+    pw.Key(DURATION_FIELD_NAME);
     pw.Double(duration);
     
-    pw.String(TICKS_PER_SECOND_FIELD_NAME);
+    pw.Key(TICKS_PER_SECOND_FIELD_NAME);
     pw.Double(ticksPerSecond);
     
-    pw.String(FORMAT_VERSION_FIELD_NAME);
+    pw.Key(FORMAT_VERSION_FIELD_NAME);
     pw.Uint(animationFormatVersion);
 }
 

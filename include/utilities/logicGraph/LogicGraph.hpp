@@ -304,33 +304,33 @@ public:
     }
     
     virtual void serializeJSON(PrettyStringWriter& pw) const override {
-        pw.String(VERSION_FIELD_NAME);
+        pw.Key(VERSION_FIELD_NAME);
         pw.Uint(getVersion());
         
-        pw.String(NODE_KEY_FIELD_NAME);
+        pw.Key(NODE_KEY_FIELD_NAME);
         pw.Uint64(key);
         
-        pw.String(NODE_TYPE_FIELD_NAME);
+        pw.Key(NODE_TYPE_FIELD_NAME);
         pw.Uint64(static_cast<std::uint64_t>(getType()));
         
-        pw.String(POSITION_FIELD_NAME);
+        pw.Key(POSITION_FIELD_NAME);
         pw.StartObject();
         
-        pw.String(POSITION_X_FIELD_NAME);
+        pw.Key(POSITION_X_FIELD_NAME);
         pw.Double(position.x);
         
-        pw.String(POSITION_Y_FIELD_NAME);
+        pw.Key(POSITION_Y_FIELD_NAME);
         pw.Double(position.y);
         
         pw.EndObject();
         
         if (hasName()) {
-            pw.String(NAME_FIELD_NAME);
+            pw.Key(NAME_FIELD_NAME);
             pw.String(name);
         }
         
         if (supportsMultipleModes()) {
-            pw.String(MODE_FIELD_NAME);
+            pw.Key(MODE_FIELD_NAME);
             pw.Uint64(selectedMode);
         }
     }
@@ -944,10 +944,10 @@ public:
     }
     
     virtual void serializeJSON(PrettyStringWriter& pw) const override {
-        pw.String(VERSION_FIELD_NAME);
+        pw.Key(VERSION_FIELD_NAME);
         pw.Uint(1);
         
-        pw.String(NEXT_KEY_FIELD_NAME);
+        pw.Key(NEXT_KEY_FIELD_NAME);
         pw.Uint64(nextKey);
         
         // Sort nodes. A consistent order is important for version control
@@ -959,7 +959,7 @@ public:
         
         std::sort(sortedNodes.begin(), sortedNodes.end());
         
-        pw.String(NODE_ARRAY_FIELD_NAME);
+        pw.Key(NODE_ARRAY_FIELD_NAME);
         pw.StartArray();
         for (const NodeKey k : sortedNodes) {
             const NodeType* n = getNode(k);
@@ -980,16 +980,16 @@ public:
         
         std::sort(sortedInputs.begin(), sortedInputs.end());
         
-        pw.String(CONNECTION_ARRAY_FIELD_NAME);
+        pw.Key(CONNECTION_ARRAY_FIELD_NAME);
         pw.StartArray();
         for (const KeyConnectorPair& i : sortedInputs) {
             const auto src = busyInputs.find(i);
             
             pw.StartObject();
-            pw.String(SOURCE_FIELD_NAME);
+            pw.Key(SOURCE_FIELD_NAME);
             serializeKeyConnectorPair(pw, src->second);
             
-            pw.String(DESTINATION_FIELD_NAME);
+            pw.Key(DESTINATION_FIELD_NAME);
             serializeKeyConnectorPair(pw, i);
             pw.EndObject();
         }
@@ -1081,10 +1081,10 @@ protected:
     
     inline void serializeKeyConnectorPair(PrettyStringWriter& pw, const KeyConnectorPair& c) const {
         pw.StartObject();
-        pw.String(NodeType::NODE_KEY_FIELD_NAME);
+        pw.Key(NodeType::NODE_KEY_FIELD_NAME);
         pw.Uint64(c.getNodeKey());
         
-        pw.String(NodeType::NODE_CONNECTOR_FIELD_NAME);
+        pw.Key(NodeType::NODE_CONNECTOR_FIELD_NAME);
         pw.Uint64(c.getConnectorID());
         pw.EndObject();
     }

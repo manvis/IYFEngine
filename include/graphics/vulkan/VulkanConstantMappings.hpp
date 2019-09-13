@@ -29,7 +29,9 @@
 #ifndef VULKANCONSTANTMAPPINGS_HPP
 #define VULKANCONSTANTMAPPINGS_HPP
 
-#include <vulkan/vulkan.h>
+// WARNING Do not include vulkan.h - it drags in OS dependencies that can be massive
+#include <vulkan/vk_platform.h>
+#include <vulkan/vulkan_core.h>
 
 #include "graphics/GraphicsAPI.hpp"
 #include "utilities/ConstantMapper.hpp"

@@ -69,6 +69,16 @@ bool VulkanAPI::initialize() {
     createSurface();
     choosePhysicalDevice();
     createLogicalDevice();
+    
+    // TODO make configurable
+    std::vector<Bytes> stagingBufferSizes = {
+        Mebibytes(16), // MeshAssetData
+        Mebibytes(16), // TextureAssetData
+        Mebibytes(16), // PerFrameData
+        Mebibytes(32),  // Instant
+    };
+    deviceMemoryManager = new VulkanDeviceMemoryManager(this, stagingBufferSizes);
+    deviceMemoryManager->initializeAllocator();
     createVulkanMemoryAllocatorAndHelperBuffers();
     
     vkCreateSwapchain = (PFN_vkCreateSwapchainKHR)vkGetDeviceProcAddr(logicalDevice.handle, "vkCreateSwapchainKHR");
@@ -129,15 +139,7 @@ bool VulkanAPI::initialize() {
     mainCommandBuffer = allocateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, false);//TODO allocate >1
     imageUploadCommandBuffer = allocateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, false);
     
-    // TODO make configurable
-    std::vector<Bytes> stagingBufferSizes = {
-        Mebibytes(16), // MeshAssetData
-        Mebibytes(16), // TextureAssetData
-        Mebibytes(16), // PerFrameData
-        Mebibytes(32),  // Instant
-    };
     
-    deviceMemoryManager = new VulkanDeviceMemoryManager(this, stagingBufferSizes);
     isInit = true;
     
     deviceMemoryManager->initialize();
@@ -893,38 +895,7 @@ void VulkanAPI::createLogicalDevice() {
 }
 
 void VulkanAPI::createVulkanMemoryAllocatorAndHelperBuffers() {
-    VmaAllocatorCreateInfo allocatorInfo = {};
     
-    if (physicalDevice.dedicatedAllocationExtensionEnabled) {
-        allocatorInfo.flags |= VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT;
-        LOG_V("The VK_KHR_dedicated_allocation extension was found and enabled. Enabling its use in the allocator as well.");
-    }
-    
-    allocatorInfo.physicalDevice = physicalDevice.handle;
-    allocatorInfo.device = logicalDevice.handle;
-    // TODO set the heap size limit to simulate devices with less memory
-    // TODO set callbacks for profiling functions
-    
-    vmaCreateAllocator(&allocatorInfo, &allocator);
-    
-    std::string imageTransferSourceName = "imageTransferSource";
-    
-    VkBufferCreateInfo bci;
-    bci.sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bci.pNext                 = nullptr;
-    bci.flags                 = 0;
-    bci.size                  = Bytes(64_MiB).count(); // TODO make configurable
-    bci.usage                 = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    bci.sharingMode           = VK_SHARING_MODE_EXCLUSIVE; // TODO use a transfer queue (if available)
-    bci.queueFamilyIndexCount = 0;
-    bci.pQueueFamilyIndices   = nullptr;
-    
-    VmaAllocationCreateInfo aci = {};
-    aci.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
-    aci.usage = VMA_MEMORY_USAGE_CPU_ONLY; // Guarantees HOST_VISIBLE and HOST_COHERENT
-    aci.pUserData = &imageTransferSourceName[0];
-    
-    checkResult(vmaCreateBuffer(allocator, &bci, &aci, &imageTransferSource, &imageTransferSourceAllocation, nullptr), "Failed to create the image transfer source buffer.");
 }
 
 bool VulkanAPI::evaluatePhysicalDeviceSurfaceCapabilities(PhysicalDevice& device) {

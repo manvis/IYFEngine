@@ -51,7 +51,7 @@ constexpr const char* MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME = "materialTemplate
 void MaterialInstanceMetadata::serializeJSONImpl(PrettyStringWriter& pw, std::uint16_t version) const {
     assert(version == 1);
     
-    pw.String(MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME);
+    pw.Key(MATERIAL_TEMPLATE_DEFINTION_FIELD_NAME);
     pw.Uint64(materialTemplateDefinition);
 }
 

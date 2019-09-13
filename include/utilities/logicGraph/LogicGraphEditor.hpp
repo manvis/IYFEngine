@@ -154,13 +154,13 @@ protected:
     static constexpr const char* POS_Y_FIELD_NAME = "editorYPos";
     
     static void StoreEditorValues(float scale, const ImVec2& canvasPosition, PrettyStringWriter& pw) {
-        pw.String(SCALE_FIELD_NAME);
+        pw.Key(SCALE_FIELD_NAME);
         pw.Double(scale);
         
-        pw.String(POS_X_FIELD_NAME);
+        pw.Key(POS_X_FIELD_NAME);
         pw.Double(canvasPosition.x);
         
-        pw.String(POS_Y_FIELD_NAME);
+        pw.Key(POS_Y_FIELD_NAME);
         pw.Double(canvasPosition.y);
     }
     
