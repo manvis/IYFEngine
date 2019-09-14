@@ -141,8 +141,9 @@ if not shaderc_dep.found()
     shaderc_dir = get_option('shaderc_lib_dir')
     
     combined_lib = cpp_comp.find_library('shaderc_combined', dirs : [shaderc_dir])
+    shaderc_inc_dir = include_directories(get_option('shaderc_include_dir'))
     shaderc_dep = declare_dependency(
-        include_directories : get_option('shaderc_include_dir'),
+        include_directories : shaderc_inc_dir,
         dependencies : combined_lib,
     )
 endif
@@ -156,8 +157,9 @@ if get_option('iyf_build_tools')
     compr_dir = get_option('compressonator_lib_dir')
     
     compr_lib = cpp_comp.find_library('compressonator', dirs : [compr_dir])
+    compr_inc_dir = include_directories(get_option('compressonator_include_dir'))
     compressonator_dep = declare_dependency(
-        include_directories : get_option('compressonator_include_dir'),
+        include_directories : compr_inc_dir,
         dependencies : compr_lib,
     )
     
