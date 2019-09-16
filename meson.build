@@ -1,6 +1,6 @@
 project('IYFEngine', ['cpp', 'c'], 
     license : ['BSD-3-Clause'],
-    default_options : ['cpp_std=c++17', 'warning_level=3'])
+    default_options : ['cpp_std=c++17', 'warning_level=3']) #, 'layout=flat'])
 
 cpp_comp = meson.get_compiler('cpp')
 cpp_comp_id = cpp_comp.get_id()
@@ -19,6 +19,8 @@ if cpp_comp_id == 'clang'# or cpp_comp_id == 'gcc'
         add_global_arguments('-ftime-trace', language : 'cpp')
     endif
 endif
+
+add_global_link_arguments('-lstdc++fs', language : 'cpp')
 
 add_global_arguments(
     # GLM definitions

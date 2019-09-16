@@ -52,9 +52,11 @@ SystemAssetPacker::SystemAssetPacker(char* argv) {
     
     fs::path path(filesystem->getBaseDirectory());
     path /= "..";
+    path /= "..";
+    path /= "..";
     path /= "system";
     
-    LOG_V("Expected asset dir: {}", path.string());
+    LOG_V("Expected system asset dir: {}", path.string());
     
     if (!fs::exists(path)) {
         throw std::runtime_error(WrongDirError);
@@ -208,17 +210,19 @@ void SystemAssetPacker::pack() {
     }
     
     // Copy the files for the current platform next to the executable
+    
+    const fs::path destination = filesystem->getBaseDirectory() / ".." / "IYFEditor";
     if (processedPlatform == con::GetCurrentPlatform()) {
-        LOG_V("Copying the files for current platfom to {}", filesystem->getBaseDirectory());
+        LOG_V("Copying the files for current platfom to {}", destination);
 #ifdef IYF_USE_BOOST_FILESYSTEM
-        fs::copy_file(archivePath, filesystem->getBaseDirectory() / systemArchiveName, fs::copy_option::overwrite_if_exists);
+        fs::copy_file(archivePath, destination / systemArchiveName, fs::copy_option::overwrite_if_exists);
 #else // IYF_USE_BOOST_FILESYSTEM
-        fs::copy_file(archivePath, filesystem->getBaseDirectory() / systemArchiveName, fs::copy_options::overwrite_existing);
+        fs::copy_file(archivePath, destination / systemArchiveName, fs::copy_options::overwrite_existing);
 #endif // IYF_USE_BOOST_FILESYSTEM
         
         // Create a project file for the editor, otherwise, it won't start.
-        if (!Project::CreateProjectFile(filesystem->getBaseDirectory(), "IYFEditor", "The IYFEngine Team", "en_US", con::EditorVersion)) {
-            LOG_E("Failed to create the project file in {}", filesystem->getBaseDirectory());
+        if (!Project::CreateProjectFile(destination, "IYFEditor", "The IYFEngine Team", "en_US", con::EditorVersion)) {
+            LOG_E("Failed to create the project file in {}", destination);
             throw std::runtime_error("Failed to create the project file ");
         }
     }
