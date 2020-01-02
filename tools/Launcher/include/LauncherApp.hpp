@@ -1,6 +1,6 @@
 // The IYFEngine
 //
-// Copyright (C) 2015-2018, Manvydas Šliamka
+// Copyright (C) 2015-2019, Manvydas Šliamka
 // 
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -26,36 +26,39 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_SYSTEM_ASSET_PACKER_HPP
-#define IYF_SYSTEM_ASSET_PACKER_HPP
+#ifndef IYF_LAUNCHER_APP_HPP
+#define IYF_LAUNCHER_APP_HPP
 
-#include <memory>
+#include <gtkmm/application.h>
 
-#include "core/Constants.hpp"
-#include "core/Platform.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
+namespace iyf::launcher {
+class LauncherAppWindow;
 
-namespace iyf {
-class FileSystem;
-
-namespace editor {
-class ConverterManager;
-}
-
-class SystemAssetPacker {
+class LauncherApp : public Gtk::Application {
 public:
-    SystemAssetPacker(int argc, char* argv[]);
-    ~SystemAssetPacker();
+    static Glib::RefPtr<LauncherApp> Create();
+    static int RunInPipe(const std::string& command, std::stringstream& ss);
     
-    int pack();
-    void recursiveExport(const fs::path& path, const editor::ConverterManager& cm, PlatformIdentifier platformID);
+    void saveDataFile(const std::string& data);
+protected:
+    LauncherApp();
+    
+    void on_activate() override;
+    void on_startup() override;
 private:
-    fs::path makeArchiveName() const;
+    LauncherAppWindow* createMainWindow();
     
-    std::unique_ptr<FileSystem> filesystem;
-    fs::path outputDir;
-    bool isValid;
+    void onWindowHide(Gtk::Window* window);
+    void onAbout();
+    void onQuit();
+    void onAddVersion();
+    void onAddProject();
+    void onNewProject();
+    void showError(const std::string& text);
+    
+    LauncherAppWindow* mainWindow;
+    Glib::RefPtr<Gio::File> dataFile;
 };
-
 }
-#endif // IYF_SYSTEM_ASSET_PACKER_HPP
+
+#endif // IYF_LAUNCHER_APP_HPP

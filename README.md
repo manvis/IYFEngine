@@ -19,27 +19,30 @@ I do my best to immediately fix (**NOT SILENCE**) most warnings that I come acro
 ## Building the engine
 0. Clone the code stored in this repository.
 1. Open the DEPENDENCIES.md file and download/install all listed dependencies.
-2. Create the *build* folder in the root directory (where this README.md file is located). The name *build* is important because it is included in *.gitignore* and it's also used in some system asset packaging tools. Use this:
+2. To create the *build* folder, use the following command in the root directory (where this README.md file is located). The name *build* is important because it is included in *.gitignore* and it's also used in some system asset packaging tools.
 
   ```bash
-  mkdir build && cd build
+  meson build
   ```
 
-3. Run make:
+3. Run ninja:
 
   ```bash
-  make -j8
+  cd build
+  ninja
   ```
-4. Convert and pack the system assets. Run the SystemAssetPacker executable that was created in the *build* folder:
+4. Convert and pack the system assets. Use the build target that runs the SystemAssetPacker executable:
 
   ```bash
-  ./SystemAssetPacker
+  ninja system.iyfpak
   ```
 
 5. That's it. You can now start the editor:
 
   ```bash
-  ./IYFEditor
+  cd tools/IYFEditor
+  ./IYFEditor --project PATH-TO-PROJECT # Loads an existing project
+  ./IYFEditor --new-project PROJECT-NAME COMPANY-NAME PATH-TO-PROJECT # Creates and loads a new project
   ```
 
 ## FAQs

@@ -607,7 +607,7 @@ void EditorWelcomeState::frame(float delta) {
             FileSystem* fileSystem = engine->getFileSystem();
             
             LOG_V("Write path before project change: {}", fileSystem->getCurrentWriteDirectory());
-            engine->setProject(std::move(project));
+            //engine->setProject(std::move(project));
             LOG_V("Write path after project change: {}", fileSystem->getCurrentWriteDirectory());
             
             // TODO should I initialize the editor state here?

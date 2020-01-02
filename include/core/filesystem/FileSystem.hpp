@@ -215,15 +215,6 @@ private:
     friend class Engine;
     friend class SystemAssetPacker;
     
-    /// Set PHYSFS search and write paths to those required by the iyf::Project. Called by our friend Engine.
-    ///.
-    /// If the Engine is running in game mode, this function is called once during the startup. If the Engine is running in
-    /// editor mode, it is called every time the iyf::EditorState is initialized with a new iyf::Project instance.
-    ///
-    /// \throw std::runtime_error If any PHYSFS operations failed
-    /// \param[in] project the project
-    void setResourcePathsForProject(const Project* project);
-    
     /// Adds a read path. Called by setResourcePathsForProject() and our friend SystemAssetPacker that needs to set
     /// up custom dirs for asset packing
     void addReadPath(fs::path realPath, const fs::path& virtualPath, bool appendToSearchPath);
@@ -232,7 +223,7 @@ private:
     /// up custom dirs for asset packing
     void setWritePath(fs::path realPath);
     
-    FileSystem(bool editorMode, char* argv, bool skipSystemPackageMounting = false);
+    FileSystem(const Project* project, bool editorMode, char* argv, bool skipSystemPackageMounting = false);
     
     bool editorMode;
     

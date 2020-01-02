@@ -44,7 +44,7 @@
 #include "fmt/ostream.h"
 
 namespace iyf {
-FileSystem::FileSystem(bool editorMode, char* argv, bool skipSystemPackageMounting) : editorMode(editorMode) {
+    FileSystem::FileSystem(const Project* project, bool editorMode, char* argv, bool skipSystemPackageMounting) : editorMode(editorMode) {
     PHYSFS_init(argv);
     
     if (editorMode) {
@@ -55,15 +55,76 @@ FileSystem::FileSystem(bool editorMode, char* argv, bool skipSystemPackageMounti
     dirSeparator = PHYSFS_getDirSeparator();
     baseDir = PHYSFS_getBaseDir();
 
-    // Only skipped when running the SystemAssetPackager. It is a tool that makes the SystemAssetPacks we want to mount here
-    if (!skipSystemPackageMounting) {
-        // System assets should always be stored next to the executable
-        fs::path systemAssetRealPath = baseDir / con::SystemAssetPackName();
+    // The rest of the constructor is only skipped when running the SystemAssetPackager.
+    // It is a tool that makes the SystemAssetPacks we have to mount here
+    if (skipSystemPackageMounting) {
+        assert(project == nullptr);
+        return;
+    }
+    
+    assert(project != nullptr);
+    
+    // First of all, handle the system file package
+    // System assets should always be stored next to the executable
+    fs::path systemAssetRealPath = baseDir / con::SystemAssetPackName();
+    
+    if (PHYSFS_mount(systemAssetRealPath.c_str(), "", 1) == 0) {
+        LOG_E("Failed to mount the system asset archive ({}). PHYSFS error: {}", systemAssetRealPath, getLastErrorText());
+        throw std::runtime_error(std::string("PHYSFS failed to mount a mandatory archive"));
+    }
+    
+    // Next, handle the write directory
+    if (editorMode) {
+        // When running in editor mode, the write path matches the Project root
+        const auto& projectRoot = project->getRootPath();
+        setWritePath(projectRoot.string());
         
-        if (PHYSFS_mount(systemAssetRealPath.c_str(), "", 1) == 0) {
-            LOG_E("Failed to mount the system asset archive ({}). PHYSFS error: {}", systemAssetRealPath, getLastErrorText());
-            throw std::runtime_error(std::string("PHYSFS failed to mount a mandatory archive"));
+        // This function creates the folders automatically if they don't exist.
+        // We use editor specific constants when running in editor mode.
+        const char* prefPath = PHYSFS_getPrefDir("IYFTeam", "IYFEngine");
+        if (prefPath == nullptr) {
+            LOG_E("Couldn't create the save directory");
+            throw std::runtime_error("Couldn't create the save directory");
         }
+        
+        prefDir = prefPath;
+    } else {
+        // When running in game mode, use the constants provided by the user to create a game specific preference directory
+        const char* prefPath = PHYSFS_getPrefDir(project->getCompanyName().c_str(), project->getGameName().c_str());
+        if (prefPath == nullptr) {
+            LOG_E("Couldn't create the save directory");
+            throw std::runtime_error("Couldn't create the save directory");
+        }
+        
+        prefDir = prefPath;
+        
+        setWritePath(prefPath);
+    }
+    
+    assert(readPaths.empty());
+    
+    // Next, handle the read directories
+    if (editorMode) {
+        // When running in editor mode, the read path matches the project root 
+        const auto& projectRoot = project->getRootPath();
+        addReadPath(projectRoot.string(), "/", true);
+        
+        const fs::path platformAssetPath = projectRoot / con::PlatformIdentifierToName(con::GetCurrentPlatform());
+        
+        if (fs::exists(platformAssetPath)) {
+            LOG_V("Mounting the asset folder for the current platform: {}", platformAssetPath);
+            addReadPath(platformAssetPath, "/", true);
+        } else {
+            /// This can happen before the first real project is loaded and, therefore, it's not an error.
+            LOG_I("The asset path for the current platform ({}) does not exist. Skipping its mounnting.", platformAssetPath);
+        }
+    } else {
+        // When running in game mode, mount the data archive that contains the contents of the asset path
+        fs::path assetPackPath = project->getRootPath();
+        assetPackPath /= con::DefaultReleasePackName();
+        addReadPath(assetPackPath.string(), con::BaseAssetPath().generic_string(), true);
+        
+        // TODO mount patches, mods and DLCs
     }
 }
 
@@ -103,72 +164,6 @@ void FileSystem::addReadPath(fs::path realPath, const fs::path& virtualPath, boo
     }
     
     readPaths.push_back(std::move(realPath));
-}
-
-void FileSystem::setResourcePathsForProject(const Project* project) {
-    // First of all, handle the write directory
-    if (editorMode) {
-        // When running in editor mode, the write path matches the Project root
-        const auto& projectRoot = project->getRootPath();
-        setWritePath(projectRoot.string());
-        
-        // This function creates the folders automatically if they don't exist.
-        // We use editor specific constants when running in editor mode.
-        const char* prefPath = PHYSFS_getPrefDir("IYFTeam", "IYFEngine");
-        if (prefPath == nullptr) {
-            LOG_E("Couldn't create the save directory");
-            throw std::runtime_error("Couldn't create the save directory");
-        }
-        
-        prefDir = prefPath;
-    } else {
-        // When running in game mode, use the constants provided by the user to create a game specific preference directory
-        const char* prefPath = PHYSFS_getPrefDir(project->getCompanyName().c_str(), project->getGameName().c_str());
-        if (prefPath == nullptr) {
-            LOG_E("Couldn't create the save directory");
-            throw std::runtime_error("Couldn't create the save directory");
-        }
-        
-        prefDir = prefPath;
-        
-        setWritePath(prefPath);
-    }
-    
-    // Unmount all existing read paths, except for the system asset path.
-    if (!readPaths.empty()) {
-        for (const auto& rp : readPaths) {
-            if (PHYSFS_unmount(rp.c_str()) == 0) {
-                LOG_E("Failed to unmount a read path ({}) that was used by a previous project. PHYSFS error: {}", rp, getLastErrorText());
-                throw std::runtime_error("Failed to unmount a read path");
-            }
-        }
-        
-        readPaths.clear();
-    }
-    
-    // Next, handle the read directories
-    if (editorMode) {
-        // When running in editor mode, the read path matches the project root 
-        const auto& projectRoot = project->getRootPath();
-        addReadPath(projectRoot.string(), "/", true);
-        
-        const fs::path platformAssetPath = projectRoot / con::PlatformIdentifierToName(con::GetCurrentPlatform());
-        
-        if (fs::exists(platformAssetPath)) {
-            LOG_V("Mounting the asset folder for the current platform: {}", platformAssetPath);
-            addReadPath(platformAssetPath, "/", true);
-        } else {
-            /// This can happen before the first real project is loaded and, therefore, it's not an error.
-            LOG_I("The asset path for the current platform ({}) does not exist. Skipping its mounnting.", platformAssetPath);
-        }
-    } else {
-        // When running in game mode, mount the data archive that contains the contents of the asset path
-        fs::path assetPackPath = project->getRootPath();
-        assetPackPath /= con::DefaultReleasePackName();
-        addReadPath(assetPackPath.string(), con::BaseAssetPath().generic_string(), true);
-        
-        // TODO mount patches, mods and DLCs
-    }
 }
 
 bool FileSystem::openInFileBrowser(const fs::path& path) const {

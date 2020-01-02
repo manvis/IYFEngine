@@ -1,6 +1,6 @@
 // The IYFEngine
 //
-// Copyright (C) 2015-2018, Manvydas Šliamka
+// Copyright (C) 2015-2019, Manvydas Šliamka
 // 
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -26,36 +26,60 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_SYSTEM_ASSET_PACKER_HPP
-#define IYF_SYSTEM_ASSET_PACKER_HPP
+#ifndef IYF_LAUNCHER_APP_WINDOW_HPP
+#define IYF_LAUNCHER_APP_WINDOW_HPP
 
-#include <memory>
+#include <gtkmm/applicationwindow.h>
+#include <map>
+#include <string>
 
-#include "core/Constants.hpp"
-#include "core/Platform.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
+#include "LauncherData.hpp"
 
-namespace iyf {
-class FileSystem;
-
-namespace editor {
-class ConverterManager;
+namespace Gtk {
+class Builder;
+class Button;
+class StackSwitcher;
+class ListBox;
+class PopoverMenu;
 }
 
-class SystemAssetPacker {
+namespace iyf::launcher {
+
+class LauncherAppWindow : public Gtk::ApplicationWindow {
 public:
-    SystemAssetPacker(int argc, char* argv[]);
-    ~SystemAssetPacker();
+    LauncherAppWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder);
     
-    int pack();
-    void recursiveExport(const fs::path& path, const editor::ConverterManager& cm, PlatformIdentifier platformID);
+    void bindMenuModel(Glib::RefPtr<Gio::MenuModel> model);
+    void bindAddMenuModel(Glib::RefPtr<Gio::MenuModel> model);
+    
+    static LauncherAppWindow* Create();
+    void rebuildLists();
+    
+    std::string addVersion(EngineVersionInfo version);
+    std::string addProject(ProjectInfo projectInfo);
+    
+    void deserializeData(char* data, std::size_t length);
+    std::string serializeData();
 private:
-    fs::path makeArchiveName() const;
+    void onAddVersion();
+    void onAddProject();
+    void onNewProject();
+    void onVersionDeleteClicked(Glib::ustring data);
+    void onProjectDeleteClicked(Glib::ustring data);
+    void clearLists();
     
-    std::unique_ptr<FileSystem> filesystem;
-    fs::path outputDir;
-    bool isValid;
+    Glib::RefPtr<Gtk::Builder> builder;
+    Gtk::StackSwitcher* stackSwitcher;
+    Gtk::ListBox* versionList;
+    Gtk::ListBox* projectList;
+    Gtk::PopoverMenu* menuPopover;
+    Gtk::PopoverMenu* addMenuPopover;
+    
+    std::map<std::string, EngineVersionInfo> versions;
+    std::map<std::string, ProjectInfo> projects;
 };
 
 }
-#endif // IYF_SYSTEM_ASSET_PACKER_HPP
+
+
+#endif // IYF_LAUNCHER_APP_WINDOW_HPP

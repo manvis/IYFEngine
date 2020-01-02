@@ -164,4 +164,9 @@ if get_option('iyf_build_tools')
     tiny_file_dialogs_inc = include_directories('dependencies/tinyfiledialogs')
     subdir('tools')
     subdir('testing')
+    
+    custom_target('system_assets',
+                  command: [asset_packer, '--output', IYFEditor],
+                  depends: [IYFEditor],
+                  output: ['system.iyfpak'])
 endif

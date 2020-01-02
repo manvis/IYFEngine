@@ -41,17 +41,47 @@
 #include "assetImport/converterStates/LocalizationStringConverterState.hpp"
 
 #include "fmt/ostream.h"
+#include <iostream>
 
 namespace iyf {
 const std::string WrongDirError = "Failed to find required directories. Are you sure you're running the SystemAssetPacker from the build folder?";
 
-SystemAssetPacker::SystemAssetPacker(char* argv) {
-    filesystem = std::unique_ptr<FileSystem>(new FileSystem(true, argv, true));
+SystemAssetPacker::SystemAssetPacker(int argc, char* argv[]) : isValid(true) {
+    if (argc != 3 || argv[1] != std::string_view("--output")) {
+        std::cout << "System asset packer must be called like this: ./SystemAssetPacker --output SOME-OUTPUT-PATH\n";
+        isValid = false;
+        return;
+    }
+    
+    const std::string_view temp = argv[2];
+    const std::size_t lastChar = temp.size() - 1;
+    const bool startsWithQuotes = temp[0] == '\"';
+    const bool endsWithQuotes = temp[lastChar] == '\"';
+    
+    if (startsWithQuotes != endsWithQuotes) {
+        std::cout << "Path needs to be quoted from both sides or not quoted at all\n";
+        isValid = false;
+        return;
+    }
+    
+    outputDir = temp;
+    if (!fs::exists(outputDir)) {
+        std::cout << "Output dir " << outputDir << " does not exist\n";
+        isValid = false;
+        return;
+    }
+    
+    if (!fs::is_directory(outputDir)) {
+        outputDir = outputDir.parent_path();
+        outputDir /= makeArchiveName();
+    }
+    
+    filesystem = std::unique_ptr<FileSystem>(new FileSystem(nullptr, true, argv[0], true));
     
     LOG_V("Starting system asset packer. Base dir: {}", filesystem->getBaseDirectory());
     
     fs::path path(filesystem->getBaseDirectory());
-    path /= "..";
+    path /= "../../..";
     path /= "system";
     
     LOG_V("Expected asset dir: {}", path.string());
@@ -140,7 +170,15 @@ void SystemAssetPacker::recursiveExport(const fs::path& path, const editor::Conv
     }
 }
 
-void SystemAssetPacker::pack() {
+fs::path SystemAssetPacker::makeArchiveName() const {
+    return ("system" + con::PackFileExtension());
+}
+
+int SystemAssetPacker::pack() {
+    if (!isValid) {
+        return 1;
+    }
+    
     const fs::path platformDataBasePath = fs::path("platforms");
     const editor::ConverterManager cm(filesystem.get(), platformDataBasePath);
     
@@ -152,7 +190,7 @@ void SystemAssetPacker::pack() {
     const fs::path platformDataPath = cm.getAssetDestinationPath(processedPlatform);
     const fs::path realPlatformDataPath = filesystem->getRealDirectory(platformDataPath.generic_string());
     
-    const fs::path systemArchiveName = ("system" + con::PackFileExtension());
+    const fs::path systemArchiveName = makeArchiveName();
     const fs::path archivePath = realPlatformDataPath / systemArchiveName;
     
     if (processedPlatform == con::GetCurrentPlatform()) {
@@ -209,19 +247,21 @@ void SystemAssetPacker::pack() {
     
     // Copy the files for the current platform next to the executable
     if (processedPlatform == con::GetCurrentPlatform()) {
-        LOG_V("Copying the files for current platfom to {}", filesystem->getBaseDirectory());
+        LOG_V("Copying the files for current platfom to {}", outputDir);
 #ifdef IYF_USE_BOOST_FILESYSTEM
-        fs::copy_file(archivePath, filesystem->getBaseDirectory() / systemArchiveName, fs::copy_option::overwrite_if_exists);
+        fs::copy_file(archivePath, outputDir, fs::copy_option::overwrite_if_exists);
 #else // IYF_USE_BOOST_FILESYSTEM
-        fs::copy_file(archivePath, filesystem->getBaseDirectory() / systemArchiveName, fs::copy_options::overwrite_existing);
+        fs::copy_file(archivePath, outputDir, fs::copy_options::overwrite_existing);
 #endif // IYF_USE_BOOST_FILESYSTEM
         
-        // Create a project file for the editor, otherwise, it won't start.
-        if (!Project::CreateProjectFile(filesystem->getBaseDirectory(), "IYFEditor", "The IYFEngine Team", "en_US", con::EditorVersion)) {
-            LOG_E("Failed to create the project file in {}", filesystem->getBaseDirectory());
-            throw std::runtime_error("Failed to create the project file ");
-        }
+//         // Create a project file for the editor, otherwise, it won't start.
+//         if (!Project::CreateProjectFile(filesystem->getBaseDirectory(), "IYFEditor", "The IYFEngine Team", "en_US", con::EditorVersion)) {
+//             LOG_E("Failed to create the project file in {}", filesystem->getBaseDirectory());
+//             throw std::runtime_error("Failed to create the project file ");
+//         }
     }
+    
+    return 0;
 }
 
 }

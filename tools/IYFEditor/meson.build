@@ -39,7 +39,7 @@ IYFTools_lib = static_library('IYFTools', iyf_tool_src,
     link_with : [IYFEngine_lib]
 )
 
-executable('IYFEditor', 'src/main.cpp',
+IYFEditor = executable('IYFEditor', 'src/main.cpp',
     include_directories : [common_project_inc, iyf_tool_inc],
     link_with : [IYFTools_lib]
 )

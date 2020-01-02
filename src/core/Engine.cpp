@@ -75,10 +75,71 @@
 #include "fmt/ostream.h"
 
 namespace iyf {
+inline bool ExtractCommandValue(const char* argument, std::string_view& value) {
+    const std::string_view argValue(argument);
+    
+    if (argValue.empty()) {
+        value = argValue;
+        return false;
+    }
+    
+    const std::size_t lastChar = argValue.size() - 1;
+    const bool startsWithQuotes = argValue[0] == '\"';
+    const bool endsWithQuotes = argValue[lastChar] == '\"';
+    
+    if (startsWithQuotes != endsWithQuotes) {
+        std::cout << "Argument needs to be quoted from both sides or not quoted at all\n";
+        return false;
+    }
+    
+    if (startsWithQuotes) {
+        if (argValue.size() <= 2) {
+            value = std::string_view();
+        } else {
+            value = argValue.substr(1, argValue.size() - 2);
+        }
+    } else {
+        value = argValue;
+    }
+    
+    return true;
+}
+
+inline bool IsCommand(std::size_t length, const char* arg) {
+    return length >= 3 && arg[0] == '-' && arg[1] == '-';
+}
+
 enum class StackOperation {
     NoOperation,
     Push,
     Pop
+};
+
+enum class CommandLineOptionID : std::uint16_t {
+    Version,
+    Project,
+    NewProject
+};
+
+enum class CommandLineOptionType : std::uint8_t {
+    Any,
+    EditorOnly,
+    GameOnly,
+};
+
+struct CommandLineOption {
+    CommandLineOption(CommandLineOptionID id, std::uint8_t paramCount = 0, CommandLineOptionType type = CommandLineOptionType::Any)
+    : id(id), paramCount(paramCount), type(type) {}
+    
+    CommandLineOptionID id;
+    std::uint8_t paramCount;
+    CommandLineOptionType type;
+};
+
+const std::unordered_map<std::string_view, CommandLineOption> COMMAND_LINE_OPTIONS = {
+    {"version", CommandLineOption(CommandLineOptionID::Version)},
+    {"project", CommandLineOption(CommandLineOptionID::Project, 1, CommandLineOptionType::EditorOnly)},
+    {"new-project", CommandLineOption(CommandLineOptionID::NewProject, 3, CommandLineOptionType::EditorOnly)},
 };
 
 struct EngineInternalData {
@@ -97,53 +158,192 @@ struct EngineInternalData {
     std::vector<std::unique_ptr<GameState>> stateStack;
 };
 
-Engine::Engine(char* argv0, bool editorMode) : graphicsDelta(0L), argv0(argv0) {
+Engine::Engine(int argc, char* argv[], EngineMode engineMode) : graphicsDelta(0L), engineMode(engineMode), argv0(argv[0]), skipRunning(false), returnValue(0) {
     IYFT_PROFILER_NAME_THREAD("Main");
     
-    engineMode = editorMode ? EngineMode::Editor : EngineMode::Game;
-    
     internalData = std::make_unique<EngineInternalData>();
-
+    
+    skipRunning = !parseCommandLine(argc, argv);
     init();
 }
 
-void Engine::setProject(std::unique_ptr<Project> project) {
-    if (isGameMode()) {
-        throw std::logic_error("Can't change the project if the Engine is running in game mode");
+bool Engine::parseCommandLine(int argc, char* argv[]) {
+//     for (int i = 0; i < argc; ++i) {
+//         LOG_V(argv[i]);
+//     }
+    bool needToQuit = false;
+    
+    if (argc > 1) {
+        int versionCommand = -1;
+        int projectDir = -1;
+        int newProjectDir = -1;
+        
+        for (int i = 1; i < argc; ++i) {
+            const char* arg = argv[i];
+            const std::size_t length = std::strlen(arg);
+            
+            if (IsCommand(length, arg)) {
+                const std::string_view view(arg + 2);
+                
+                const auto iter = COMMAND_LINE_OPTIONS.find(view);
+                if (iter != COMMAND_LINE_OPTIONS.end()) {
+                    if (iter->second.type == CommandLineOptionType::EditorOnly && engineMode != EngineMode::Editor) {
+                        std::cout << "You can't use this command line option \"" << arg << "\" with and IYFEngine executable that wasn't compiled in editor mode.\n";
+                        returnValue = 1;
+                        return false;
+                    }
+                    
+                    if (iter->second.type == CommandLineOptionType::GameOnly && engineMode != EngineMode::Game) {
+                        std::cout << "You can't use this command line option \"" << arg << "\" with and IYFEngine executable that wasn't compiled in game mode.\n";
+                        returnValue = 1;
+                        return false;
+                    }
+                    
+                    switch (iter->second.id) {
+                        case CommandLineOptionID::Version:
+                            versionCommand = i;
+                            break;
+                        case CommandLineOptionID::Project:
+                            projectDir = i;
+                            break;
+                        case CommandLineOptionID::NewProject:
+                            newProjectDir = i;
+                            break;
+                        default:
+                            LOG_E("Handler for option \"{}\" is not implemented", arg);
+                            throw std::runtime_error("Handler for option not implemented.");
+                    }
+                    
+                    if (i + iter->second.paramCount >= argc) {
+                        std::cout << "Option: " << arg << " is missing parameters\n";
+                        returnValue = 1;
+                        return false;
+                    }
+                    
+                    for (int x = i + 1; x <= i + iter->second.paramCount; ++x) {
+                        const char* par = argv[x];
+                        const std::size_t parLength = std::strlen(par);
+                        
+                        if (IsCommand(parLength, par)) {
+                            std::cout << "Option: " << arg << " is missing parameters. Next option was found too early.\n";
+                            returnValue = 1;
+                            return false;
+                        }
+                    }
+                    
+                    i += iter->second.paramCount;
+                } else {
+                    std::cout << "Unknown command line option: " << arg << "\n";
+                    returnValue = 1;
+                    return false;
+                }
+            } else {
+                std::cout << "One or more options formatted incorrectly. Check " << arg << " and what comes after it\n";
+                returnValue = 1;
+                return false;
+            }
+        }
+        
+        if (engineMode == EngineMode::Editor) {
+            if (projectDir != -1 && newProjectDir != -1) {
+                std::cout << "Options --project and --new-project are mutually exclusive\n";
+                returnValue = 1;
+                return false;
+            }
+        }
+        
+        if (versionCommand != -1) {
+            const auto& edVer = con::EditorVersion;
+            std::cout << "IYFEditor. Version: " << edVer.getMajor() << "." << edVer.getMinor() << "." << edVer.getPatch() << "\n";
+            
+            const auto& enVer = con::EngineVersion;
+            std::cout << "Powered by IYFEngine. Version: " << enVer.getMajor() << "." << enVer.getMinor() << "." << enVer.getPatch() << "\n";
+        }
+        
+        // Must be last!
+        if (engineMode == EngineMode::Editor) {
+            if (projectDir != -1) {
+                std::string_view path;
+                ExtractCommandValue(argv[projectDir + 1], path);
+                project = std::make_unique<Project>(path);
+            }
+            
+            if (newProjectDir != -1) {
+                std::string_view path;
+                ExtractCommandValue(argv[newProjectDir + 1], path);
+                
+                std::string_view name;
+                ExtractCommandValue(argv[newProjectDir + 2], name);
+                
+                std::string_view company;
+                ExtractCommandValue(argv[newProjectDir + 3], company);
+                
+                const auto creationResult = Project::Create(path, std::string(name), std::string(company), nullptr, "en_US");
+                if (creationResult != Project::CreationResult::CreatedSuccessfully) {
+                    std::cout << "Failed to create the new project:\n";
+                    switch (creationResult) {
+                        case Project::CreationResult::EmptyPath:
+                            std::cout << "The project directory parameter cannot be empty.";
+                            break;
+                        case Project::CreationResult::EmptyName:
+                            std::cout << "The project name parameter cannot be empty.";
+                            break;
+                        case Project::CreationResult::NotADirectory:
+                            std::cout << "The project directory does not exist or it exists, but it is not a directory (e.g., you specified a file).";
+                            break;
+                        case Project::CreationResult::NonEmptyDirectory:
+                            std::cout << "The final project directory exists, but it is not empty.";
+                            break;
+                        case Project::CreationResult::FolderCreationFailed:
+                            std::cout << "Failed to create required project folders.";
+                            break;
+                        case Project::CreationResult::ProjectFileCreationFailed:
+                            std::cout << "Failed to create the Project file.";
+                            break;
+                        case Project::CreationResult::CreatedSuccessfully:
+                            break;
+                    }
+                    std::cout << "\n";
+                    
+                    returnValue = 1;
+                    return false;
+                }
+                
+                fs::path finalPath = path;
+                finalPath /= name;
+                
+                project = std::make_unique<Project>(finalPath);
+            }
+            
+            if (projectDir == -1 && newProjectDir == -1) {
+                return false;
+            }
+        }
+    } else if (engineMode == EngineMode::Editor) {
+        std::cout << "Can't start. IYFEngine compiled in editor mode requires at least one command. E.g. a project path may be specified using --project\n";
+        return false;
     }
     
-    if (project == nullptr) {
-        throw std::runtime_error("The Project was nullptr");
-    }
-    
-    this->project = std::move(project);
-    fileSystem->setResourcePathsForProject(this->project.get());
-    
-    // Remove the assets of the previous project. They should have been unloaded
-    // when the last EditorState was popped. If they weren't, we will crash.
-    assetManager->removeNonSystemAssetsFromManifest();
-    assetManager->buildManifestFromFilesystem();
-    
-    materialDatabase->removeNonSystemData();
-    materialDatabase->rebuildFromFilesystem();
+    return !needToQuit;
 }
 
 void Engine::init() {
+    if (skipRunning) {
+        return;
+    }
+
+    assert((engineMode == EngineMode::Editor && project != nullptr) || (engineMode == EngineMode::Game && project == nullptr));
+    if (engineMode == EngineMode::Game) {
+        project = std::make_unique<Project>(fileSystem->getBaseDirectory());
+    }
+    
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         // Just throw an exception here. We can't log this one since
         // the file system may not have been initialized
         throw std::runtime_error("Couldn't initialize SDL");
     }
 
-    fileSystem = std::unique_ptr<FileSystem>(new FileSystem(isEditorMode(), argv0));
-    
-    // Set the project and activate it in the filesystem. When running in game mode, this is the first and only
-    // project change. If running in editor mode, the Project will soon get overriden, however, we still need
-    // to set a default project in order to find system asset paths.
-    //
-    // Don't use setProject() here. It only works in editor mode and requires the asset manager to be initialized.
-    project = std::make_unique<Project>(fileSystem->getBaseDirectory());
-    fileSystem->setResourcePathsForProject(project.get());
+    fileSystem = std::unique_ptr<FileSystem>(new FileSystem(project.get(), isEditorMode(), argv0));
     
     // TODO set log direcotory here
     LOG_V("Sanitizer(s) that the engine was built with: {}", ACTIVE_SANITIZER_NAME);
@@ -285,6 +485,10 @@ void Engine::init() {
 }
 
 Engine::~Engine() {
+    if (skipRunning) {
+        return;
+    }
+    
     graphicsAPI->waitUntilDone();
     
     // State cleanup
@@ -333,6 +537,10 @@ void Engine::quit() {
 }
 
 void Engine::executeMainLoop() {
+    if (skipRunning) {
+        return;
+    }
+    
     auto& currentTime = internalData->currentTime;
     auto& previousTime = internalData->previousTime;
     auto& logicTime = internalData->logicTime;

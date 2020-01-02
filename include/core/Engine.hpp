@@ -59,7 +59,7 @@ enum class EngineMode {
 
 class Engine {
 public:
-    Engine(char* argv0, bool editorMode = false);
+    Engine(int argc, char* argv[], EngineMode engineMode);
     ~Engine();
 
     void executeMainLoop();
@@ -77,15 +77,6 @@ public:
     inline bool isGameMode() const {
         return engineMode == EngineMode::Game;
     }
-    
-    /// Set the current Project. This will automatically update all virtual file system paths
-    /// and clean 
-    ///
-    /// \warning This can only be used if the Engine was created in Editor mode.
-    ///
-    /// \throws std::runtime_error if the Project is a nullptr
-    /// \throws std::logic_error if the Engine is running in game mode
-    void setProject(std::unique_ptr<Project> project);
 
     /// \brief Finish the main loop and quit after finishing this frame.
     ///
@@ -226,11 +217,16 @@ public:
     
     std::uint64_t getFrameID() const;
     
+    std::uint8_t getReturnValue() const {
+        return returnValue;
+    }
+    
 //        int getWidth();
 //        int getHeight();
 
 //        std::shared_ptr<Font> getDefaultFont();
 private:
+    bool parseCommandLine(int argc, char* argv[]);
     void init();
 
     void step();
@@ -285,6 +281,8 @@ private:
     std::unique_ptr<EngineInternalData> internalData;
     
     char* argv0;
+    bool skipRunning;
+    std::uint8_t returnValue;
 };
 
 }

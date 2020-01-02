@@ -1,6 +1,6 @@
 // The IYFEngine
 //
-// Copyright (C) 2015-2018, Manvydas Šliamka
+// Copyright (C) 2015-2019, Manvydas Šliamka
 // 
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -26,36 +26,10 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_SYSTEM_ASSET_PACKER_HPP
-#define IYF_SYSTEM_ASSET_PACKER_HPP
+#include "LauncherApp.hpp"
 
-#include <memory>
-
-#include "core/Constants.hpp"
-#include "core/Platform.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
-
-namespace iyf {
-class FileSystem;
-
-namespace editor {
-class ConverterManager;
+int main(int argc, char *argv[])
+{
+  auto app = iyf::launcher::LauncherApp::Create();
+  return app->run(argc, argv);
 }
-
-class SystemAssetPacker {
-public:
-    SystemAssetPacker(int argc, char* argv[]);
-    ~SystemAssetPacker();
-    
-    int pack();
-    void recursiveExport(const fs::path& path, const editor::ConverterManager& cm, PlatformIdentifier platformID);
-private:
-    fs::path makeArchiveName() const;
-    
-    std::unique_ptr<FileSystem> filesystem;
-    fs::path outputDir;
-    bool isValid;
-};
-
-}
-#endif // IYF_SYSTEM_ASSET_PACKER_HPP

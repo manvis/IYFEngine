@@ -80,8 +80,13 @@ constexpr std::uint16_t EditorVersionMajor = 0;
 constexpr std::uint16_t EditorVersionMinor = 0;
 constexpr std::uint16_t EditorVersionPatch = 25;
 
+constexpr std::uint16_t LauncherVersionMajor = 1;
+constexpr std::uint16_t LauncherVersionMinor = 0;
+constexpr std::uint16_t LauncherVersionPatch = 0;
+
 constexpr Version EngineVersion(EngineVersionMajor, EngineVersionMinor, EngineVersionPatch);
 constexpr Version EditorVersion(EditorVersionMajor, EditorVersionMinor, EditorVersionPatch);
+constexpr Version LauncherVersion(LauncherVersionMajor, LauncherVersionMinor, LauncherVersionPatch);
 
 }
 

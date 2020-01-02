@@ -41,7 +41,7 @@
 #include "utilities/hashing/crc64.hpp"
 
 #include "utilities/hashing/Hashing.hpp"
-#include "states/EditorWelcomeState.hpp"
+#include "states/EditorState.hpp"
 
 const char MAGIC_NUMBER[4] = {'I', 'Y', 'F', 'M'};
 
@@ -78,54 +78,9 @@ void recursivePass(const aiScene* scene, const aiNode* node, int depth) {
 int main(int argc, char* argv[]) {
     assert(argc >= 1);
     
-    std::unique_ptr<iyf::Engine> gameEngine(new iyf::Engine(argv[0], true));
-//    gameEngine->changeState(new MeshImporterState(gameEngine.get()));
-    gameEngine->pushState(std::make_unique<iyf::editor::EditorWelcomeState>(gameEngine.get()));
+    std::unique_ptr<iyf::Engine> gameEngine(new iyf::Engine(argc, argv, iyf::EngineMode::Editor));
+    gameEngine->pushState(std::make_unique<iyf::editor::EditorState>(gameEngine.get()));
     gameEngine->executeMainLoop();
-//    MeshConverter meshConverter;
-    //meshLoader.load("inPath");
-//    meshConverter.convert("texturedTest.fbx", "texturedTest.out", 1);
     
-//    std::stringstream ss;
-//    for (auto s : File::getDirectoryContents(".")) {
-//        ss << s << "\n";
-//    }
-//    LOG_D(ss.str())
-    
-//    LOG_D(iyf::crc32::crc32("trial") << " " << iyf::crc64::crc64("trial") << " " << HS("trial"))
-    
-//    LOG_D(HS("pussy.jpeg"))
-//    LOG_D(crc32("pussy.jpeg"))
-//    LOG_D(HS(std::string("pussy.jpeg").c_str()))
-    
-//    Assimp::Importer importer;
-//    const aiScene *scene =
-//        importer.ReadFile("testSimple.fbx", aiProcessPreset_TargetRealtime_Quality);
-//        importer.ReadFile("testHarder.fbx", aiProcessPreset_TargetRealtime_Quality);
-//        importer.ReadFile("testDual.fbx", aiProcessPreset_TargetRealtime_Quality);
-//        importer.ReadFile("testBoned.fbx", aiProcessPreset_TargetRealtime_Quality);
-//        importer.ReadFile("testBonedDual.fbx", aiProcessPreset_TargetRealtime_Quality);
-//        importer.ReadFile("testCpl.fbx", aiProcessPreset_TargetRealtime_Quality);
-//    importer.ReadFile("testMax.fbx", aiProcessPreset_TargetRealtime_Quality);
-//       importer.ReadFile("meshAnimTest.fbx", aiProcessPreset_TargetRealtime_Quality);
-//           importer.ReadFile("meshAnim.dae", aiProcessPreset_TargetRealtime_Quality);
-
-//    if(!scene){
-//        throw std::runtime_error(importer.GetErrorString());
-//    }
-//    
-//    std::size_t numNodesWithMeshes = 0;
-//    for (std::size_t i = 0; i < scene->mRootNode->mNumChildren; ++i) {
-////        unsigned int numMeshes = scene->mRootNode->mChildren[i]->mNumMeshes
-////        if ()
-//    }
-//    
-//    recursivePass(scene, scene->mRootNode, 0);
-//    
-//    std::cout << "Num anim:" << scene->mNumAnimations << "\n";
-//    for (std::size_t i = 0; i < scene->mNumAnimations; ++i) {
-//        std::cout << i << " " << scene->mAnimations[i]->mName.C_Str() << "\n";
-//    }
-    
-    return 0;
+    return gameEngine->getReturnValue();
 }

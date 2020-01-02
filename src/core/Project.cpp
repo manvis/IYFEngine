@@ -55,7 +55,9 @@ static const char* BASE_LOCALE_FIELD_NAME = "base_locale";
 
 Project::CreationResult Project::Create(const fs::path& newProjectPath, const std::string& projectName, const std::string& companyName,
                                         std::function<void(const std::string&)> callback, const std::string& baseLocale) {
-    callback("Validating parameters");
+    if (callback != nullptr) {
+        callback("Validating parameters");
+    }
     
     if (newProjectPath.empty()) {
         return CreationResult::EmptyPath;
@@ -73,7 +75,9 @@ Project::CreationResult Project::Create(const fs::path& newProjectPath, const st
     const fs::path finalPath = newProjectPath / projectName;
     const bool finalPathExists = fs::exists(finalPath);
     
-    callback("Looking for existing directories");
+    if (callback != nullptr) {
+        callback("Looking for existing directories");
+    }
     
     if (finalPathExists && !fs::is_empty(finalPath)) {
         return CreationResult::NonEmptyDirectory;
@@ -81,19 +85,25 @@ Project::CreationResult Project::Create(const fs::path& newProjectPath, const st
         fs::create_directories(finalPath);
     }
     
-    callback("Creating new directories");
+    if (callback != nullptr) {
+        callback("Creating new directories");
+    }
     
     if (!CreateImportedAssetDirectories(finalPath, con::GetCurrentPlatform()) || !CreateImportsDirectory(finalPath)) {
         return CreationResult::FolderCreationFailed;
     }
     
-    callback("Creating the project file");
+    if (callback != nullptr) {
+        callback("Creating the project file");
+    }
     
     if (!CreateProjectFile(finalPath, projectName, companyName, baseLocale)) {
         return CreationResult::ProjectFileCreationFailed;
     }
     
-    callback("Done");
+    if (callback != nullptr) {
+        callback("Done");
+    }
     
     return CreationResult::CreatedSuccessfully;
 }

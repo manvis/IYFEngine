@@ -28,9 +28,7 @@
 
 #include "SystemAssetPacker.hpp"
 
-int main(int, char* argv[]) {
-    iyf::SystemAssetPacker sap(argv[0]);
-    sap.pack();
-    
-    return 0;
+int main(int argc, char* argv[]) {
+    iyf::SystemAssetPacker sap(argc, argv);
+    return sap.pack();
 }

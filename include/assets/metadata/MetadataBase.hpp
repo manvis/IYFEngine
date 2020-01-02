@@ -26,15 +26,17 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef METADATABASE_HPP
-#define METADATABASE_HPP
+#ifndef IYF_METADATA_BASE_HPP
+#define IYF_METADATA_BASE_HPP
 
-#include <cstdint>
 #include "assets/AssetType.hpp"
 #include "core/filesystem/cppFilesystem.hpp"
 #include "core/interfaces/Serializable.hpp"
 #include "core/interfaces/TextSerializable.hpp"
 #include "utilities/hashing/Hashing.hpp"
+
+#include <cstdint>
+#include <vector>
 
 namespace iyf {
 
@@ -149,5 +151,5 @@ private:
 };
 }
 
-#endif /* METADATABASE_HPP */
+#endif // IYF_METADATA_BASE_HPP
 
