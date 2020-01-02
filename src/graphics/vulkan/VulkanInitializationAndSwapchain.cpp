@@ -386,7 +386,10 @@ void VulkanAPI::choosePhysicalDevice() {
     if (compatibleDevices.size() == 0) {
         throw std::runtime_error("No compatible devices were found.");
     }
+    
     physicalDevice = std::move(compatibleDevices[0]);
+    
+    LOG_V("Chose {} as the physical device", physicalDevice.properties.deviceName)
 }
 
 static void checkFeature(std::stringstream& ss, const char* name, VkBool32& available, bool required, bool& allAvailable) {
@@ -567,18 +570,18 @@ bool VulkanAPI::evaluatePhysicalDeviceProperties(PhysicalDevice& device) {
                                        << "\n\t\t" << "Driver version: " << VK_VERSION_MAJOR(driverVersion) << "." << VK_VERSION_MINOR(driverVersion) << "." << VK_VERSION_PATCH(driverVersion)
                                        << "\n\t\t" << "API version: " << VK_VERSION_MAJOR(version) << "." << VK_VERSION_MINOR(version) << "." << VK_VERSION_PATCH(version);
     LOG_V("{}", ss.str());
-    ss.clear();
-            
+    
+    std::stringstream ss2;
     // TODO print and evaluate all limits based on the needs of the engine
-    ss << "Physical device limits"
+    ss2 << "Physical device limits"
             << "\n\t\tMaxSamplerAllocationCount " << device.properties.limits.maxSamplerAllocationCount
             << "\n\t\tMaxVertexInputBindings " << device.properties.limits.maxVertexInputBindings
             << "\n\t\tMaxComputeSharedMemorySize " << device.properties.limits.maxComputeSharedMemorySize
             << "\n\t\tMaxComputeWorkGroupInvocations " << device.properties.limits.maxComputeWorkGroupInvocations
             << "\n\t\tMaxDescriptorSetStorageBuffers " << device.properties.limits.maxDescriptorSetStorageBuffers
             << "\n\t\tMaxMemoryAllocationCount " << device.properties.limits.maxMemoryAllocationCount;
-    LOG_V("{}", ss.str())
-            
+    LOG_V("{}", ss2.str())
+    
     return true;
 }
 

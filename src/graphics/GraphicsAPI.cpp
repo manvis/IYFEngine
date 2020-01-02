@@ -264,13 +264,14 @@ void GraphicsAPI::openWindow() {
         std::stringstream ss;
         
         for (int i = 0; i < numVideoDisplays; ++i) {
-            ss << "SCREEN: " << i << "\n\t";
+            ss << "SCREEN: " << i << "\n";
             for (int j = 0; j < SDL_GetNumDisplayModes(i); ++j) {
+                ss << "\t\tDisplay mode " << j << ":\n";
                 SDL_GetDisplayMode(i, j, &mode);
-                ss << "\tWidth: " << mode.w << "\n"
-                   << "\tHeight: " << mode.h << "\n"
-                   << "\tRefresh rate: " << mode.refresh_rate << "\n"
-                   << "\tPixel mode: " << SDL_BITSPERPIXEL(mode.format) << " " << SDL_GetPixelFormatName(mode.format);
+                ss << "\t\t\tWidth: " << mode.w << "\n"
+                   << "\t\t\tHeight: " << mode.h << "\n"
+                   << "\t\t\tRefresh rate: " << mode.refresh_rate << "\n"
+                   << "\t\t\tPixel mode: " << SDL_BITSPERPIXEL(mode.format) << " " << SDL_GetPixelFormatName(mode.format) << "\n";
             }
         }
         
@@ -315,10 +316,10 @@ void GraphicsAPI::openWindow() {
     
     // TODO this only applies if full screen mode is chosen. Figure out what to log otherwise
     LOG_D("Chosen display mode: "
-          "\n\tWidth: {}"
-          "\n\tHeight: {}"
-          "\n\tRefresh rate: {}"
-          "\n\tPixel mode: {} {}", mode.w, mode.h, mode.refresh_rate, SDL_BITSPERPIXEL(mode.format), SDL_GetPixelFormatName(mode.format));
+          "\n\t\tWidth: {}"
+          "\n\t\tHeight: {}"
+          "\n\t\tRefresh rate: {}"
+          "\n\t\tPixel mode: {} {}", mode.w, mode.h, mode.refresh_rate, SDL_BITSPERPIXEL(mode.format), SDL_GetPixelFormatName(mode.format));
 
     std::uint32_t flags = SDL_WINDOW_SHOWN;
     

@@ -1,6 +1,6 @@
 project('IYFEngine', ['cpp', 'c'], 
     license : ['BSD-3-Clause'],
-    default_options : ['cpp_std=c++17', 'warning_level=3'])
+    default_options : ['cpp_std=c++17', 'warning_level=3']) #, 'layout=flat'])
 
 cpp_comp = meson.get_compiler('cpp')
 cpp_comp_id = cpp_comp.get_id()
@@ -19,6 +19,8 @@ if cpp_comp_id == 'clang'# or cpp_comp_id == 'gcc'
         add_global_arguments('-ftime-trace', language : 'cpp')
     endif
 endif
+
+add_global_link_arguments('-lstdc++fs', language : 'cpp')
 
 add_global_arguments(
     # GLM definitions
@@ -141,8 +143,9 @@ if not shaderc_dep.found()
     shaderc_dir = get_option('shaderc_lib_dir')
     
     combined_lib = cpp_comp.find_library('shaderc_combined', dirs : [shaderc_dir])
+    shaderc_inc_dir = include_directories(get_option('shaderc_include_dir'))
     shaderc_dep = declare_dependency(
-        include_directories : get_option('shaderc_include_dir'),
+        include_directories : shaderc_inc_dir,
         dependencies : combined_lib,
     )
 endif
@@ -156,8 +159,9 @@ if get_option('iyf_build_tools')
     compr_dir = get_option('compressonator_lib_dir')
     
     compr_lib = cpp_comp.find_library('compressonator', dirs : [compr_dir])
+    compr_inc_dir = include_directories(get_option('compressonator_include_dir'))
     compressonator_dep = declare_dependency(
-        include_directories : get_option('compressonator_include_dir'),
+        include_directories : compr_inc_dir,
         dependencies : compr_lib,
     )
     
