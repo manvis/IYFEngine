@@ -22,6 +22,7 @@ If you're on Linux, most of these libraries should be available in the OS reposi
 5. [Bullet Physics](http://www.bulletphysics.org/)
 6. [Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
 7. [Compressonator SDK](https://github.com/GPUOpen-Tools/Compressonator): this may be a bit troublesome. First, of all clone the repo by using `git clone https://github.com/GPUOpen-Tools/Compressonator.git`. Next, clone the submodules by calling `git submodule update --init --recursive`. Finally, go into {clonedDirRoot}/Compressonator/Make/ExampleMake and run the makefile there. Once that's done, you'll need to manually point the IYFEngine's CMAKE to the include dir (COMPRESSONATOR\_INCLUDE\_PATH) and to the shared library (COMPRESSONATOR\_LIB).
+8. [physfs](https://icculus.org/physfs/). Version 3.0.2 or later.
 
 ##Regular dependencies
 Before you can build the IYFEngine, you must create a *dependencies* folder in the root directory of this project (in the same directory as this file). Don't worry about polluting the source tree - the *dependencies* folder is included in *.gitignore*. 
@@ -35,10 +36,9 @@ Next, download and put the appropriate libraries into those folders. Each folder
 0. [glm](https://github.com/g-truc/glm)
 1. [sol2](https://github.com/ThePhD/sol2/)
 2. [recastnavigation](https://github.com/recastnavigation/recastnavigation/)
-3. [physfs](https://icculus.org/physfs/): make sure to use version 3 or newer.
-4. [rapidjson](https://github.com/Tencent/rapidjson.git)
-5. [sqlite](https://www.sqlite.org/download.html): using the amalgamation.
-6. [fmt](https://github.com/fmtlib/fmt): make sure the version is 5.3.0 or newer
+3. [rapidjson](https://github.com/Tencent/rapidjson.git)
+4. [sqlite](https://www.sqlite.org/download.html): using the amalgamation.
+5. [fmt](https://github.com/fmtlib/fmt): make sure the version is 5.3.0 or newer
 
 If you receive compilation errors that talk about missing headers or source files, look into the *CMakeLists.txt* files for hints. If you cloned the repositories directly into the created folders, it's possible that you ended up with something like *dependencies/glm/glm/glm/glm.hpp* (note the extra subdirectory) when you actually needed *dependencies/glm/glm/glm.hpp*.
     

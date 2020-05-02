@@ -172,6 +172,6 @@ IYFEngine_lib = static_library('IYFEngine', [iyf_core_src, physics_src],
                     shaderc_dep,
                     thread_dep,
                     vulkan_dep,
-                    fmt_dep],
-    link_with : [physfs_lib]
+                    fmt_dep,
+                    physfs_dep]
 )

@@ -65,34 +65,6 @@ if get_option('physics_engine') == 'bullet'
     add_global_arguments('-DIYF_PHYSICS_BULLET', language : ['cpp', 'c'])
 endif
 
-# Build physfs as a static library
-physfs_src = [
-    'dependencies/physfs/src/physfs.c',
-    'dependencies/physfs/src/physfs_archiver_7z.c',
-    'dependencies/physfs/src/physfs_archiver_dir.c',
-    'dependencies/physfs/src/physfs_archiver_grp.c',
-    'dependencies/physfs/src/physfs_archiver_hog.c',
-    'dependencies/physfs/src/physfs_archiver_iso9660.c',
-    'dependencies/physfs/src/physfs_archiver_mvl.c',
-    'dependencies/physfs/src/physfs_archiver_qpak.c',
-    'dependencies/physfs/src/physfs_archiver_slb.c',
-    'dependencies/physfs/src/physfs_archiver_unpacked.c',
-    'dependencies/physfs/src/physfs_archiver_vdf.c',
-    'dependencies/physfs/src/physfs_archiver_wad.c',
-    'dependencies/physfs/src/physfs_archiver_zip.c',
-    'dependencies/physfs/src/physfs_byteorder.c',
-    #'dependencies/physfs/src/physfs_platform_apple.m',  # TODO add this when apple platforms are finally supported
-    'dependencies/physfs/src/physfs_platform_haiku.cpp',
-    'dependencies/physfs/src/physfs_platform_os2.c',
-    'dependencies/physfs/src/physfs_platform_posix.c',
-    'dependencies/physfs/src/physfs_platform_qnx.c',
-    'dependencies/physfs/src/physfs_platform_unix.c',
-    'dependencies/physfs/src/physfs_platform_windows.c',
-    'dependencies/physfs/src/physfs_platform_winrt.cpp',
-    'dependencies/physfs/src/physfs_unicode.c']
-physfs_inc = include_directories('dependencies/physfs/src')
-physfs_lib = static_library('physfs', physfs_src, include_directories : physfs_inc)
-
 # Deeply integrated library dependencies
 imgui_inc = include_directories('include/graphics/imgui')
 stb_inc = include_directories('include/stb')
@@ -119,7 +91,6 @@ common_project_inc = [iyf_core_inc,
                       miniz_inc,
                       glm_inc,
                       rapidjson_inc,
-                      physfs_inc,
                       recast_inc,
                       detour_inc,
                       detour_crowd_inc,
@@ -135,6 +106,7 @@ thread_dep = dependency('threads')
 sdl2_dep = dependency('sdl2', version : '>=2.0.9')
 vulkan_dep = dependency('vulkan', method : 'system')
 fmt_dep = dependency('fmt')
+physfs_dep = dependency('physfs', version: '>=3.0.2')
 
 shaderc_dep = dependency('shaderc', static : true, required : false)
 if not shaderc_dep.found()
@@ -158,7 +130,7 @@ if get_option('iyf_build_tools')
     # TODO add more checks and explicit error messages
     compr_dir = get_option('compressonator_lib_dir')
     
-    compr_lib = cpp_comp.find_library('compressonator', dirs : [compr_dir])
+    compr_lib = cpp_comp.find_library('Compressonator', dirs : [compr_dir])
     compr_inc_dir = include_directories(get_option('compressonator_include_dir'))
     compressonator_dep = declare_dependency(
         include_directories : compr_inc_dir,
