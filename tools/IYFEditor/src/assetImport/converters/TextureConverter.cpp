@@ -51,7 +51,6 @@
 #include "stb_image_resize.h"
 #include "stb_image_write.h"
 #include "Compressonator.h"
-#include "tools/Compressonator_Test_Helpers.h"
 #include "glm/gtc/packing.hpp"
 #include "fmt/ostream.h"
 
@@ -196,14 +195,15 @@ inline TextureCompressionFormat CompressonatorToEngineFormat(CMP_FORMAT format) 
 }
 
 void saveCompressedImage([[maybe_unused]]const CMP_Texture& source, CMP_Texture& destination, const fs::path& path, std::size_t f, std::size_t l, [[maybe_unused]]bool needToSwizzleRB) {
-    fs::path debugPath = path.stem();
-    debugPath += "_";
-    debugPath += std::to_string(f);
-    debugPath += "_";
-    debugPath += std::to_string(l);
-    debugPath += "_conv";
-    debugPath += ".dds";
-    SaveDDSFile(debugPath.c_str(), destination);
+    // fs::path debugPath = path.stem();
+    // debugPath += "_";
+    // debugPath += std::to_string(f);
+    // debugPath += "_";
+    // debugPath += std::to_string(l);
+    // debugPath += "_conv";
+    // debugPath += ".dds";
+    // SaveDDSFile(debugPath.c_str(), destination);
+    LOG_W("saveCompressedImage currently lacks an implementation!!!");
     
     // This has some corner cases as well (e.g. empty images when decompressing BC6H). It's better to save a dds and open
     // it in external tool.
@@ -632,7 +632,7 @@ bool TextureConverter::compressonatorCompress(Serializer& serializer, std::vecto
     snprintf(options.CmdSet[2].strParameter, sizeof(AMD_CMD_SET::strParameter), "8");
     options.NumCmds = 3;
     
-    CMP_ERROR result = CMP_ConvertTexture(&sourceTexture, &destinationTexture, &options, nullptr, 0, 0);
+    CMP_ERROR result = CMP_ConvertTexture(&sourceTexture, &destinationTexture, &options, nullptr);
     if (result != CMP_OK) {
         throwCompressonatorError(result);
     }

@@ -25,7 +25,6 @@ iyf_tool_src = [
     'src/assetImport/converters/FontConverter.cpp',
     'src/tools/AssetCreatorWindow.cpp',
     'src/tools/AssetUpdateManager.cpp',
-    'src/tools/Compressonator_Test_Helpers.cpp',
     'src/tools/MaterialEditor.cpp',
     'src/tools/MaterialFamilyEditor.cpp',
     'src/tools/MaterialInstanceEditor.cpp',
