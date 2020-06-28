@@ -139,7 +139,7 @@ struct CommandLineOption {
 const std::unordered_map<std::string_view, CommandLineOption> COMMAND_LINE_OPTIONS = {
     {"version", CommandLineOption(CommandLineOptionID::Version)},
     {"project", CommandLineOption(CommandLineOptionID::Project, 1, CommandLineOptionType::EditorOnly)},
-    {"new-project", CommandLineOption(CommandLineOptionID::NewProject, 3, CommandLineOptionType::EditorOnly)},
+    {"new-project", CommandLineOption(CommandLineOptionID::NewProject, 4, CommandLineOptionType::EditorOnly)},
 };
 
 struct EngineInternalData {
@@ -253,11 +253,9 @@ bool Engine::parseCommandLine(int argc, char* argv[]) {
         }
         
         if (versionCommand != -1) {
-            const auto& edVer = con::EditorVersion;
-            std::cout << "IYFEditor. Version: " << edVer.getMajor() << "." << edVer.getMinor() << "." << edVer.getPatch() << "\n";
-            
             const auto& enVer = con::EngineVersion;
-            std::cout << "Powered by IYFEngine. Version: " << enVer.getMajor() << "." << enVer.getMinor() << "." << enVer.getPatch() << "\n";
+            std::cout << "IYFEditor. Powered by IYFEngine. Version: " 
+                << enVer.getMajor() << "." << enVer.getMinor() << "." << enVer.getPatch() << "\n";
         }
         
         // Must be last!
@@ -278,7 +276,10 @@ bool Engine::parseCommandLine(int argc, char* argv[]) {
                 std::string_view company;
                 ExtractCommandValue(argv[newProjectDir + 3], company);
                 
-                const auto creationResult = Project::Create(path, std::string(name), std::string(company), nullptr, "en_US");
+                std::string_view locale;
+                ExtractCommandValue(argv[newProjectDir + 4], locale);
+                
+                const auto creationResult = Project::Create(path, std::string(name), std::string(company), nullptr, std::string(locale));
                 if (creationResult != Project::CreationResult::CreatedSuccessfully) {
                     std::cout << "Failed to create the new project:\n";
                     switch (creationResult) {

@@ -51,6 +51,10 @@ static const char* GAME_VERSION_FIELD_NAME = "game_version";
 static const char* GAME_VERSION_MAJOR_FIELD_NAME = "game_version_major";
 static const char* GAME_VERSION_MINOR_FIELD_NAME = "game_version_minor";
 static const char* GAME_VERSION_PATCH_FIELD_NAME = "game_version_patch";
+static const char* ENGINE_VERSION_FIELD_NAME = "engine_version";
+static const char* ENGINE_VERSION_MAJOR_FIELD_NAME = "engine_version_major";
+static const char* ENGINE_VERSION_MINOR_FIELD_NAME = "engine_version_minor";
+static const char* ENGINE_VERSION_PATCH_FIELD_NAME = "engine_version_patch";
 static const char* BASE_LOCALE_FIELD_NAME = "base_locale";
 
 Project::CreationResult Project::Create(const fs::path& newProjectPath, const std::string& projectName, const std::string& companyName,
@@ -125,6 +129,7 @@ bool Project::CreateProjectFile(const fs::path& path, const std::string& project
     project.setVersion(version);
     project.setBaseLocale(baseLocale);
     project.setFirstWorldName(con::DefaultWorldFile());
+    project.setEngineVersion(con::EngineVersion);
     
     if (!project.serialize()) {
         return false;
@@ -285,6 +290,20 @@ void Project::serializeJSON(PrettyStringWriter& pw) const {
     pw.Uint(version.getPatch());
     
     pw.EndObject();
+
+    pw.Key(ENGINE_VERSION_FIELD_NAME);
+    pw.StartObject();
+    
+    pw.Key(ENGINE_VERSION_MAJOR_FIELD_NAME);
+    pw.Uint(engineVersion.getMajor());
+    
+    pw.Key(ENGINE_VERSION_MINOR_FIELD_NAME);
+    pw.Uint(engineVersion.getMinor());
+    
+    pw.Key(ENGINE_VERSION_PATCH_FIELD_NAME);
+    pw.Uint(engineVersion.getPatch());
+
+    pw.EndObject();
     
     pw.Key(BASE_LOCALE_FIELD_NAME);
     pw.String(baseLocale.c_str(), baseLocale.length(), true);
@@ -308,6 +327,10 @@ void Project::deserializeJSON(JSONObject& jo) {
     const std::uint16_t patch = jo[GAME_VERSION_FIELD_NAME][GAME_VERSION_PATCH_FIELD_NAME].GetUint();
     
     version = Version(major, minor, patch);
+    
+    const std::uint16_t engMajor = jo[ENGINE_VERSION_FIELD_NAME][ENGINE_VERSION_MAJOR_FIELD_NAME].GetUint();
+    const std::uint16_t engMinor = jo[ENGINE_VERSION_FIELD_NAME][ENGINE_VERSION_MINOR_FIELD_NAME].GetUint();
+    const std::uint16_t engPatch = jo[ENGINE_VERSION_FIELD_NAME][ENGINE_VERSION_PATCH_FIELD_NAME].GetUint();
 
     baseLocale = jo[BASE_LOCALE_FIELD_NAME].GetString();
 }
@@ -370,6 +393,18 @@ void Project::setBaseLocale(std::string locale) {
     validOrFatalError();
     
     baseLocale = locale;
+}
+
+Version Project::getEngineVersion() const {
+    validOrFatalError();
+    
+    return engineVersion;
+}
+
+void Project::setEngineVersion(Version engineVersion) {
+    validOrFatalError();
+    
+    this->engineVersion = engineVersion;
 }
 
 }

@@ -188,6 +188,14 @@ public:
     /// Used in the localization system to determine the string file that contains the base list of strings that can
     /// be translated.
     void setBaseLocale(std::string locale);
+
+    /// Gets the minimal project version required by the project.
+    Version getEngineVersion() const;
+
+    /// Sets the minimal project version required by the project.
+    ///
+    /// \warning This function does not save the value to the configuration file. Use serialize() to do so.
+    void setEngineVersion(Version engineVersion);
 private:
     void validOrFatalError() const;
     
@@ -199,6 +207,7 @@ private:
     std::string firstWorldName;
     std::string baseLocale;
     Version version;
+    Version engineVersion;
     
     bool valid;
 };
