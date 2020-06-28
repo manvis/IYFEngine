@@ -32,6 +32,7 @@
 #include <gtkmm/applicationwindow.h>
 #include <map>
 #include <string>
+#include <mutex>
 
 #include "LauncherData.hpp"
 
@@ -55,10 +56,22 @@ public:
     static LauncherAppWindow* Create();
     void rebuildLists();
     
+    /// \remark NOT thread safe
     std::string addVersion(EngineVersionInfo version);
+
+    /// \remark NOT thread safe
     std::string addProject(ProjectInfo projectInfo);
+
+    /// \remark NOT thread safe
+    const std::map<std::string, EngineVersionInfo>& getVersions() const;
+
+    /// \remark NOT thread safe
+    const std::map<std::string, ProjectInfo>& getProjects() const;
     
+    /// \remark NOT thread safe
     void deserializeData(char* data, std::size_t length);
+
+    /// \remark NOT thread safe
     std::string serializeData();
 private:
     void onAddVersion();

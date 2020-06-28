@@ -14,6 +14,7 @@ launcher_sources = [
     'main.cpp',
     'src/LauncherApp.cpp',
     'src/LauncherAppWindow.cpp',
+    'src/ProgressDialog.cpp',
     iyf_launcher_res
 ]
 

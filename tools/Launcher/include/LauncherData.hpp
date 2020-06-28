@@ -24,10 +24,10 @@ struct EngineVersionInfo {
 
 struct ProjectInfo {
     ProjectInfo() {}
-    ProjectInfo(std::string path, std::string editorPath) : path(std::move(path)), editorPath(std::move(editorPath)) {}
+    ProjectInfo(std::string path) : path(std::move(path)) {}
     
     std::string path;
-    std::string editorPath;
+    // TODO version and make sure to refresh it
     
     void serialize(rapidjson::PrettyWriter<rapidjson::StringBuffer>& wr) const;
     bool deserialize(const rapidjson::Value& doc);

@@ -3,13 +3,13 @@
     <menu id="addmenu">
         <section>
             <item>
-                <attribute name="label"  translatable="yes">_Add Version</attribute>
+                <attribute name="label"  translatable="yes">_Engine Version</attribute>
                 <attribute name="action">app.add_version</attribute>
             </item>
         </section>
         <section>
             <item>
-                <attribute name="label" translatable="yes">_Add Project</attribute>
+                <attribute name="label" translatable="yes">_Existing Project</attribute>
                 <attribute name="action">app.add_project</attribute>
             </item>
             <item>

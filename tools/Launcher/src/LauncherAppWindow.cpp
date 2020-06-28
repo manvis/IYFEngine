@@ -44,7 +44,7 @@
 #include <glib/gi18n.h>
 
 namespace iyf::launcher {
-void CheckError(const char* name, void* object, const char* fileName = "launcher.glade") {
+inline void CheckError(const char* name, void* object, const char* fileName = "launcher.glade") {
     if (!object) {
         std::stringstream ss;
         ss << "Failed to find a \"" << name << "\" object in " << fileName;
@@ -115,27 +115,30 @@ void LauncherAppWindow::rebuildLists() {
         box->set_orientation(Gtk::Orientation::ORIENTATION_VERTICAL);
         
         auto* path = Gtk::make_managed<Gtk::Label>(v.second.path);
-        path->set_line_wrap_mode(Pango::WRAP_WORD);
+        path->set_line_wrap(false);
+        //path->set_line_wrap_mode(Pango::WRAP_WORD);
         path->set_alignment(Gtk::ALIGN_START);
+        path->set_ellipsize(Pango::EllipsizeMode::ELLIPSIZE_END);
         
         std::stringstream ss;
         ss << _("Engine Version: ") << v.second.major << "." << v.second.minor << "." << v.second.patch;
         auto* version = Gtk::make_managed<Gtk::Label>(ss.str());
-        version->set_line_wrap_mode(Pango::WRAP_WORD);
+        //version->set_line_wrap_mode(Pango::WRAP_WORD);
+        version->set_line_wrap(false);
         version->set_alignment(Gtk::ALIGN_START);
+        version->set_ellipsize(Pango::EllipsizeMode::ELLIPSIZE_END);
         version->set_margin_bottom(4);
         
         auto* deleteButton = Gtk::make_managed<Gtk::Button>();
         deleteButton->set_image_from_icon_name("edit-delete-symbolic");
         deleteButton->signal_clicked().connect(sigc::bind<Glib::ustring>(sigc::mem_fun(*this, &LauncherAppWindow::onVersionDeleteClicked), v.second.path));
-        //deleteButton->get_style_context()->add_class("image-button");
         
         auto* row = Gtk::make_managed<Gtk::ListBoxRow>();
         
         box->pack_start(*version);
         box->pack_start(*path);
-        hBox->pack_start(*box);
-        hBox->pack_end(*deleteButton);
+        hBox->pack_start(*box, true, true, 0);
+        hBox->pack_end(*deleteButton, Gtk::PackOptions::PACK_SHRINK, false, 0);
         row->add(*hBox);
         versionList->insert(*row, -1);
     }
@@ -162,21 +165,38 @@ void LauncherAppWindow::rebuildLists() {
         auto* deleteButton = Gtk::make_managed<Gtk::Button>();
         deleteButton->set_image_from_icon_name("edit-delete-symbolic");
         deleteButton->signal_clicked().connect(sigc::bind<Glib::ustring>(sigc::mem_fun(*this, &LauncherAppWindow::onProjectDeleteClicked), p.second.path));
-        //deleteButton->get_style_context()->add_class("image-button");
         
-        auto* name = Gtk::make_managed<Gtk::Label>(filePath->get_basename());
-        name->set_line_wrap_mode(Pango::WRAP_WORD);
+        std::string baseName = filePath->get_basename();
+        const std::size_t dotLocation = baseName.find_last_of(".");
+        if (dotLocation != std::string::npos) {
+            baseName = baseName.substr(0, dotLocation);
+        }
+        auto* name = Gtk::make_managed<Gtk::Label>(baseName);
+        name->set_line_wrap(false);
         name->set_alignment(Gtk::ALIGN_START);
+        name->set_ellipsize(Pango::EllipsizeMode::ELLIPSIZE_END);
+        name->set_margin_bottom(4);
         
-        auto* path = Gtk::make_managed<Gtk::Label>(p.second.editorPath);
-        path->set_line_wrap_mode(Pango::WRAP_WORD);
+        auto* engineVersion = Gtk::make_managed<Gtk::Label>("Engine Version 0.0.0");
+        engineVersion->set_line_wrap(false);
+        engineVersion->set_alignment(Gtk::ALIGN_START);
+        engineVersion->set_ellipsize(Pango::EllipsizeMode::ELLIPSIZE_END);
+        
+        auto* path = Gtk::make_managed<Gtk::Label>(filePath->get_path());
+        path->set_line_wrap(false);
         path->set_alignment(Gtk::ALIGN_START);
+        path->set_ellipsize(Pango::EllipsizeMode::ELLIPSIZE_END);
         
         auto* row = Gtk::make_managed<Gtk::ListBoxRow>();
         
         box->pack_start(*name);
+        box->pack_start(*engineVersion);
         box->pack_start(*path);
-        hBox->pack_start(*box);
+
+        hBox->pack_start(*box, true, true, 0);
+        hBox->pack_end(*deleteButton, Gtk::PackOptions::PACK_SHRINK, false, 0);
+
+        row->add(*hBox);
         projectList->insert(*row, -1);
     }
     
@@ -192,7 +212,13 @@ void LauncherAppWindow::onVersionDeleteClicked(Glib::ustring data) {
     launcherApp->saveDataFile(serializeData());
 }
 
-void LauncherAppWindow::onProjectDeleteClicked(Glib::ustring data) {}
+void LauncherAppWindow::onProjectDeleteClicked(Glib::ustring data) {
+    projects.erase(data);
+    rebuildLists();
+    
+    auto launcherApp = Glib::RefPtr<LauncherApp>::cast_dynamic(get_application());
+    launcherApp->saveDataFile(serializeData());
+}
 
 void LauncherAppWindow::clearLists() {
     for (Gtk::Widget* child : versionList->get_children()) {
@@ -207,11 +233,10 @@ void LauncherAppWindow::clearLists() {
 LauncherAppWindow* LauncherAppWindow::Create() {
     auto builder = Gtk::Builder::create_from_resource("/com/iyfengine/iyflauncher/launcher.glade");
     
-    LauncherAppWindow* window = nullptr;
+    LauncherAppWindow* window;
     
     builder->get_widget_derived("main_window", window);
     CheckError("main_window", window);
-    //main_menu
     
     auto menuBuilder = Gtk::Builder::create_from_resource("/com/iyfengine/iyflauncher/menu.ui");
     auto menuObject = menuBuilder->get_object("launchermenu");
@@ -283,20 +308,6 @@ void LauncherAppWindow::deserializeData(char* data, std::size_t length) {
 }
 
 std::string LauncherAppWindow::serializeData() {
-//     std::vector<EngineVersionInfo> tempVersions;
-//     tempVersions.reserve(versions.size());
-//     for (const auto& version : versions) {
-//         tempVersions.emplace_back(version.second);
-//     }
-//     SortVersionVector(tempVersions);
-//     
-//     std::vector<ProjectInfo> tempProjects;
-//     tempProjects.reserve(projects.size());
-//     for (const auto& project : projects) {
-//         tempProjects.emplace_back(project.second);
-//     }
-//     SortProjectVector(tempProjects);
-    
     rapidjson::StringBuffer sb;
     rapidjson::PrettyWriter<rapidjson::StringBuffer> pw(sb);
     
@@ -335,12 +346,28 @@ std::string LauncherAppWindow::addVersion(EngineVersionInfo version) {
     return serializeData();
 }
 
+std::string LauncherAppWindow::addProject(ProjectInfo projectInfo) {
+    projects.insert_or_assign(projectInfo.path, projectInfo);
+    
+    rebuildLists();
+    
+    return serializeData();
+}
+
+const std::map<std::string, EngineVersionInfo>& LauncherAppWindow::getVersions() const {
+    return versions;
+}
+
+const std::map<std::string, ProjectInfo>& LauncherAppWindow::getProjects() const {
+    return projects;
+}
+
 bool operator==(const EngineVersionInfo& a, const EngineVersionInfo& b) {
     return (a.path == b.path) && (a.major == b.major) && (a.minor == b.minor) && (a.patch == b.patch);
 }
 
 bool operator==(const ProjectInfo& a, const ProjectInfo& b) {
-    return (a.path == b.path) && (a.editorPath == b.editorPath);
+    return (a.path == b.path);
 }
 
 void EngineVersionInfo::serialize(rapidjson::PrettyWriter<rapidjson::StringBuffer>& wr) const {
@@ -390,25 +417,21 @@ void ProjectInfo::serialize(rapidjson::PrettyWriter<rapidjson::StringBuffer>& wr
     wr.Key("path");
     wr.String(path);
     
-    wr.Key("editorPath");
-    wr.String(editorPath);
-    
     wr.EndObject();
 }
 
 bool ProjectInfo::deserialize(const rapidjson::Value& doc) {
-    if (!doc.HasMember("path") || !doc.HasMember("editorPath")) {
+    if (!doc.HasMember("path")) {
         std::cerr << "Required ProjectInfo member(s) missing\n";
         return false;
     }
     
-    if (!doc["path"].IsString() || !doc["editorPath"].IsUint()) {
+    if (!doc["path"].IsString()) {
         std::cerr << "ProjectInfo member(s) are of incorrect type missing\n";
         return false;
     }
     
     path = doc["path"].GetString();
-    editorPath = doc["editorPath"].GetString();
     
     return true;
 }

@@ -1,6 +1,6 @@
 // The IYFEngine
 //
-// Copyright (C) 2015-2019, Manvydas Šliamka
+// Copyright (C) 2015-2020, Manvydas Šliamka
 // 
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -26,43 +26,29 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IYF_LAUNCHER_APP_HPP
-#define IYF_LAUNCHER_APP_HPP
-
-#include <gtkmm/application.h>
-#include <glibmm/regex.h>
+#include <gtkmm/dialog.h>
+#include <gtkmm/progressbar.h>
+#include <glibmm/dispatcher.h>
+#include <future>
+#include <functional>
 
 namespace iyf::launcher {
-class LauncherAppWindow;
-
-class LauncherApp : public Gtk::Application {
+class ProgressDialog {
 public:
-    static Glib::RefPtr<LauncherApp> Create();
-    static int RunInPipe(const std::string& command, std::stringstream& ss);
-    
-    void saveDataFile(const std::string& data);
-protected:
-    LauncherApp();
-    
-    void on_activate() override;
-    void on_startup() override;
+    static constexpr int TickIntervalMs = 100;
+    ProgressDialog(Gtk::Window& parent, std::function<void()>&& task);
+    ~ProgressDialog();
+
+    int run();
 private:
-    LauncherAppWindow* createMainWindow();
+    bool timerTick();
     
-    void onWindowHide(Gtk::Window* window);
-    void onAbout();
-    void onQuit();
-    void onAddVersion();
-    std::string openAddProjectDialog() const;
-    void onAddProject();
-    void onNewProject();
-    void showError(const std::string& text);
-    
-    LauncherAppWindow* mainWindow;
-    Glib::RefPtr<Gio::File> dataFile;
-    Glib::RefPtr<Glib::Regex> validNameRegex;
-    Glib::RefPtr<Glib::Regex> validLocaleRegex;
+    Gtk::Dialog dialog;
+    Gtk::VBox vbox;
+    Gtk::ProgressBar progressBar;
+    sigc::connection recurringTask;
+
+    std::future<void> future;
+    std::function<void()> task;
 };
 }
-
-#endif // IYF_LAUNCHER_APP_HPP
