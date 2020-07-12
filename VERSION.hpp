@@ -66,10 +66,37 @@ public:
     constexpr std::uint32_t getPackedVersion() const {
         return version;
     }
+
+    constexpr friend bool operator<(const Version& a, const Version& b) {
+        if ((a.getMajor() < b.getMajor()) ||
+            (a.getMajor() == b.getMajor() && a.getMinor() < b.getMinor()) ||
+            (a.getMajor() == b.getMajor() && a.getMinor() == b.getMinor() && a.getPatch() < b.getPatch())) {
+            return true;
+        }
+
+        return false;
+    }
+
+    constexpr friend bool operator>(const Version& a, const Version& b) {
+        if ((a.getMajor() > b.getMajor()) ||
+            (a.getMajor() == b.getMajor() && a.getMinor() > b.getMinor()) ||
+            (a.getMajor() == b.getMajor() && a.getMinor() == b.getMinor() && a.getPatch() > b.getPatch())) {
+            return true;
+        }
+
+        return false;
+    }
+
+    constexpr friend bool operator==(const Version& a, const Version& b) {
+        return a.version == b.version;
+    }
+    
+    constexpr friend bool operator!=(const Version& a, const Version& b) {
+        return a.version != b.version;
+    }
 private:
     std::uint32_t version;
 };
-
 namespace con {
 
 constexpr std::uint16_t EngineVersionMajor = 0;
