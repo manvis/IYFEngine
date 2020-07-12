@@ -3,6 +3,7 @@
     <gresource prefix="/com/iyfengine/iyflauncher">
         <file preprocess="xml-stripblanks">launcher.glade</file>
         <file preprocess="xml-stripblanks">new_project_dialog.glade</file>
+        <file preprocess="xml-stripblanks">open_project_dialog.glade</file>
         <file preprocess="xml-stripblanks">menu.ui</file>
         <file preprocess="xml-stripblanks">add_menu.ui</file>
     </gresource>

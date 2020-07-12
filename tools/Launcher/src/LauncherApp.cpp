@@ -130,12 +130,16 @@ void LauncherApp::on_activate() {
         gsize length;
         dataFile->load_contents(data, length);
         
-        mainWindow->deserializeData(data, length);
+        auto progDialog = std::make_unique<ProgressDialog>(*mainWindow, [window, data, length](){
+            window->deserializeData(data, length);
+        });
+        
+        progDialog->run();
+        progDialog = nullptr;
         
         g_free(data);
         
         mainWindow->rebuildLists();
-        //dataFile->read()->read_all();
     } catch (const Glib::Error& e) {
         std::cerr << "Glib::Error in LauncherApp::on_activate: " << e.what() << std::endl;
     } catch (const std::exception& e) {

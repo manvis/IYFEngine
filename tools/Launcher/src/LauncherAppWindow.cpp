@@ -28,6 +28,7 @@
 
 #include "LauncherAppWindow.hpp"
 #include "LauncherApp.hpp"
+#include "ProgressDialog.hpp"
 
 #include <gtkmm/builder.h>
 #include <gtkmm/button.h>
@@ -38,13 +39,16 @@
 #include <gtkmm/label.h>
 #include <gtkmm/popovermenu.h>
 #include <gtkmm/filechooserdialog.h>
+#include <gtkmm/messagedialog.h>
+
+#include "../../VERSION.hpp"
 
 #include <sstream>
 #include <iostream>
 #include <glib/gi18n.h>
 
 namespace iyf::launcher {
-inline void CheckError(const char* name, void* object, const char* fileName = "launcher.glade") {
+inline void CheckError(const char* name, void* object, const char* fileName) {
     if (!object) {
         std::stringstream ss;
         ss << "Failed to find a \"" << name << "\" object in " << fileName;
@@ -73,20 +77,20 @@ inline void SortProjectVector(std::vector<ProjectInfo>& vec) {
 LauncherAppWindow::LauncherAppWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
 : Gtk::ApplicationWindow(cobject), builder(builder), stackSwitcher(nullptr), versionList(nullptr), projectList(nullptr) {
     builder->get_widget("stack_switcher", stackSwitcher);
-    CheckError("stack_switcher", stackSwitcher);
+    CheckError("stack_switcher", stackSwitcher, Filename);
     // addButton->signal_clicked().connect(sigc::mem_fun(*this, &LauncherAppWindow::onAddNew));
     
     builder->get_widget("version_list", versionList);
-    CheckError("version_list", versionList);
+    CheckError("version_list", versionList, Filename);
     
     builder->get_widget("project_list", projectList);
-    CheckError("project_list", projectList);
+    CheckError("project_list", projectList, Filename);
     
     builder->get_widget("main_menu", menuPopover);
-    CheckError("main_menu", menuPopover);
+    CheckError("main_menu", menuPopover, Filename);
     
     builder->get_widget("add_menu", addMenuPopover);
-    CheckError("add_menu", addMenuPopover);
+    CheckError("add_menu", addMenuPopover, Filename);
 }
 
 void LauncherAppWindow::bindMenuModel(Glib::RefPtr<Gio::MenuModel> model) {
@@ -149,6 +153,54 @@ void LauncherAppWindow::rebuildLists() {
     
     for (const auto& p : projects) {
         auto filePath = Gio::File::create_for_path(p.second.path);
+        std::uint32_t major = 0;
+        std::uint32_t minor = 0;
+        std::uint32_t patch = 0;
+
+        try {
+            char* data;
+            gsize length;
+            if (!filePath->load_contents(data, length)) {
+                std::cerr << "Failed to load a project file called: \"" << p.second.path << "\".\n";
+                continue;
+            }
+            
+            rapidjson::Document doc;
+            doc.Parse(data, length);
+            
+            if (doc.HasParseError()) {
+                std::cerr << "Failed to parse \"" << p.second.path << "\". Error code: " << doc.GetParseError() <<"\n";
+                return;
+            }
+
+            if (!doc.HasMember("engine_version") || !doc["engine_version"].IsObject())
+            {
+                std::cerr << "Failed to parse \"" << p.second.path << "\". Missing engine_version\n";
+                return;
+            }
+
+            const auto& versionObj = doc["engine_version"];
+
+            if (!versionObj.HasMember("engine_version_major") ||
+                !versionObj.HasMember("engine_version_minor") ||
+                !versionObj.HasMember("engine_version_patch") ||
+                !versionObj["engine_version_major"].IsUint() ||
+                !versionObj["engine_version_minor"].IsUint() ||
+                !versionObj["engine_version_patch"].IsUint())
+            {
+                std::cerr << "Failed to parse \"" << p.second.path << "\". Missing engine_version details\n";
+                return;
+            }
+
+            major = versionObj["engine_version_major"].GetUint();
+            minor = versionObj["engine_version_minor"].GetUint();
+            patch = versionObj["engine_version_patch"].GetUint();
+
+            g_free(data);
+        } catch (Glib::Exception& e) {
+            // TODO add an error indication here and next to continues above?
+            continue;
+        }
         
         auto* hBox = Gtk::make_managed<Gtk::Box>();
         hBox->set_homogeneous(false);
@@ -165,6 +217,11 @@ void LauncherAppWindow::rebuildLists() {
         auto* deleteButton = Gtk::make_managed<Gtk::Button>();
         deleteButton->set_image_from_icon_name("edit-delete-symbolic");
         deleteButton->signal_clicked().connect(sigc::bind<Glib::ustring>(sigc::mem_fun(*this, &LauncherAppWindow::onProjectDeleteClicked), p.second.path));
+
+        auto* openButton = Gtk::make_managed<Gtk::Button>();
+        openButton->set_image_from_icon_name("document-open-symbolic");
+        openButton->signal_clicked().connect(sigc::bind<Glib::ustring>(sigc::mem_fun(*this, &LauncherAppWindow::onProjectOpened),
+            p.second.path, major, minor, patch));
         
         std::string baseName = filePath->get_basename();
         const std::size_t dotLocation = baseName.find_last_of(".");
@@ -177,7 +234,10 @@ void LauncherAppWindow::rebuildLists() {
         name->set_ellipsize(Pango::EllipsizeMode::ELLIPSIZE_END);
         name->set_margin_bottom(4);
         
-        auto* engineVersion = Gtk::make_managed<Gtk::Label>("Engine Version 0.0.0");
+        std::stringstream ss;
+        ss << _("Engine version") << " " << major << "." << minor << "." << patch;
+
+        auto* engineVersion = Gtk::make_managed<Gtk::Label>(ss.str());
         engineVersion->set_line_wrap(false);
         engineVersion->set_alignment(Gtk::ALIGN_START);
         engineVersion->set_ellipsize(Pango::EllipsizeMode::ELLIPSIZE_END);
@@ -195,6 +255,7 @@ void LauncherAppWindow::rebuildLists() {
 
         hBox->pack_start(*box, true, true, 0);
         hBox->pack_end(*deleteButton, Gtk::PackOptions::PACK_SHRINK, false, 0);
+        hBox->pack_end(*openButton, Gtk::PackOptions::PACK_SHRINK, false, 0);
 
         row->add(*hBox);
         projectList->insert(*row, -1);
@@ -205,19 +266,152 @@ void LauncherAppWindow::rebuildLists() {
 }
 
 void LauncherAppWindow::onVersionDeleteClicked(Glib::ustring data) {
-    versions.erase(data);
-    rebuildLists();
+    Gtk::MessageDialog yesNoDialog(_("Are you sure you wish to delete this version?\n\nIt's not managed by the launcher and won't be uninstalled."), true, Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
+    const int result = yesNoDialog.run();
+
+    if (result == Gtk::RESPONSE_YES) {
+        versions.erase(data);
+        rebuildLists();
+        
+        auto launcherApp = Glib::RefPtr<LauncherApp>::cast_dynamic(get_application());
+        launcherApp->saveDataFile(serializeData());
+    }
+}
+
+void LauncherAppWindow::onProjectOpened(Glib::ustring data, std::uint32_t major, std::uint32_t minor, std::uint32_t patch) {
+    auto projectPath = Gio::File::create_for_path(data);
+    auto projectDir = projectPath->get_parent();
+
+    const iyf::Version expected(major, minor, patch);
+
+    std::vector<std::pair<Version, const std::string*>> versionNumbers;
+    versionNumbers.reserve(versions.size());
+    for (const auto& v : versions) {
+        Version current(v.second.major, v.second.minor, v.second.patch);
+
+        if (current < expected) {
+            continue;
+        }
+
+        versionNumbers.emplace_back(current, &v.first);
+    }
+
+    if (versionNumbers.empty()) {
+        Gtk::MessageDialog noCompatibleVersions(_("No engine versions are compatible with this project."), true, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
+        noCompatibleVersions.run();
+
+        return;
+    }
+
+    std::sort(versionNumbers.begin(), versionNumbers.end(), [](const auto& a, const auto& b) {
+        return a.first < b.first;
+    });
+
+    const char* filename = "open_project_dialog.glade";
+    auto builder = Gtk::Builder::create_from_resource("/com/iyfengine/iyflauncher/open_project_dialog.glade");
     
-    auto launcherApp = Glib::RefPtr<LauncherApp>::cast_dynamic(get_application());
-    launcherApp->saveDataFile(serializeData());
+    Gtk::Dialog* openProjectDialog = nullptr;
+
+    builder->get_widget("open_project_dialog", openProjectDialog);
+    CheckError("open_project_dialog", openProjectDialog, filename);
+
+    openProjectDialog->signal_hide().connect([openProjectDialog](){
+        openProjectDialog->response(0);
+    });
+
+    openProjectDialog->set_transient_for(*this);
+    openProjectDialog->set_attached_to(*this);
+
+    Gtk::Button* cancel = nullptr;
+    builder->get_widget("cancel_open_project", cancel);
+    CheckError("cancel_open_project", cancel, filename);
+    cancel->signal_clicked().connect([openProjectDialog](){
+        openProjectDialog->response(Gtk::RESPONSE_CANCEL);
+    });
+
+    Gtk::Button* open = nullptr;
+    builder->get_widget("open_project", open);
+    CheckError("open_project", open, filename);
+    open->signal_clicked().connect([openProjectDialog](){
+        openProjectDialog->response(Gtk::RESPONSE_ACCEPT);
+    });
+
+    Gtk::ListBox* list = nullptr;
+    builder->get_widget("project_open_version_list", list);
+    CheckError("project_open_version_list", list, filename);
+
+    for (auto& vn : versionNumbers) {
+        std::stringstream ss;
+        ss << vn.first.getMajor() << "." << vn.first.getMinor() << "." << vn.first.getPatch();
+
+        auto* versionLabel = Gtk::make_managed<Gtk::Label>(ss.str());
+        auto* row = Gtk::make_managed<Gtk::ListBoxRow>();
+        row->add(*versionLabel);
+        row->set_data("extra", &vn);
+        list->insert(*row, -1);
+    }
+
+    list->show_all();
+
+    int result = openProjectDialog->run();
+
+    if (result == Gtk::RESPONSE_ACCEPT)
+    {
+        auto* chosen = static_cast<std::pair<Version, const std::string*>*>(list->get_selected_row()->get_data("extra"));
+        const std::string* chosenEnginePath = chosen->second;
+
+        auto enginePath = Gio::File::create_for_path(*chosenEnginePath);
+        auto engineDir = enginePath->get_parent();
+
+        delete openProjectDialog;
+        
+        std::string errorText;
+        auto command = [this, &errorText, &projectDir, &engineDir, chosenEnginePath]() {
+            if (!projectDir) {
+                errorText = "Invalid project path.";
+                return;
+            }
+
+            // TODO Windows compatibility
+            std::stringstream ss;
+            ss << "cd " << engineDir->get_path();
+            ss << " && ";
+            ss << (*chosenEnginePath) <<  " --project \"" << (projectDir->get_path()) << "\" &";
+
+            const std::string command = ss.str();
+            std::system(command.c_str());
+        };
+
+        auto progDialog = std::make_unique<ProgressDialog>(*this, std::move(command));
+        progDialog->run();
+        progDialog = nullptr;
+
+        if (errorText.empty()) {
+            this->hide();
+        } else {
+            errorText.append("\n\nYou may wish to check the engine logs for more info");
+
+            Gtk::MessageDialog errorDialog(errorText, true, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
+            errorDialog.run();
+        }
+    } else {
+        delete openProjectDialog;
+    }
 }
 
 void LauncherAppWindow::onProjectDeleteClicked(Glib::ustring data) {
-    projects.erase(data);
-    rebuildLists();
-    
-    auto launcherApp = Glib::RefPtr<LauncherApp>::cast_dynamic(get_application());
-    launcherApp->saveDataFile(serializeData());
+    Gtk::MessageDialog yesNoDialog(_("Are you sure you wish to delete this project?\n\nFiles on disk won't be touched."), true, Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
+    const int result = yesNoDialog.run();
+
+    if (result == Gtk::RESPONSE_YES) {
+        // TODO should files be deleted?
+
+        projects.erase(data);
+        rebuildLists();
+        
+        auto launcherApp = Glib::RefPtr<LauncherApp>::cast_dynamic(get_application());
+        launcherApp->saveDataFile(serializeData());
+    }
 }
 
 void LauncherAppWindow::clearLists() {
@@ -236,7 +430,7 @@ LauncherAppWindow* LauncherAppWindow::Create() {
     LauncherAppWindow* window;
     
     builder->get_widget_derived("main_window", window);
-    CheckError("main_window", window);
+    CheckError("main_window", window, Filename);
     
     auto menuBuilder = Gtk::Builder::create_from_resource("/com/iyfengine/iyflauncher/menu.ui");
     auto menuObject = menuBuilder->get_object("launchermenu");

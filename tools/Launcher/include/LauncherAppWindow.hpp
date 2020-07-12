@@ -79,6 +79,7 @@ private:
     void onNewProject();
     void onVersionDeleteClicked(Glib::ustring data);
     void onProjectDeleteClicked(Glib::ustring data);
+    void onProjectOpened(Glib::ustring data, std::uint32_t major, std::uint32_t minor, std::uint32_t patch);
     void clearLists();
     
     Glib::RefPtr<Gtk::Builder> builder;
@@ -90,6 +91,8 @@ private:
     
     std::map<std::string, EngineVersionInfo> versions;
     std::map<std::string, ProjectInfo> projects;
+
+    static constexpr const char* Filename = "launcher.glade";
 };
 
 }
