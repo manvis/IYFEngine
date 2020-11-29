@@ -30,6 +30,7 @@
 #define IYF_ENGINE_VERSION_HPP
 
 #include <cstdint>
+#include <stdexcept>
 
 namespace iyf {
 

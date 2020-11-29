@@ -28,6 +28,8 @@
 
 #include "utilities/BufferRangeSet.hpp"
 
+#include <stdexcept>
+
 namespace iyf {
 bool BufferRangeSet::insert(const BufferRange& value) {
     if (value.offset + value.size > totalSpace) {

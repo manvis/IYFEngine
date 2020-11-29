@@ -101,19 +101,7 @@ private:
     };
     
     constexpr static std::size_t StagingBufferCount = 3;
-    inline StagingBufferData& getStagingBufferForBatch(MemoryBatch batch) {
-        switch (batch) {
-            case MemoryBatch::MeshAssetData:
-            case MemoryBatch::TextureAssetData:
-                return stagingBuffers[0];
-            case MemoryBatch::PerFrameData:
-                return stagingBuffers[1];
-            case MemoryBatch::Instant:
-                return stagingBuffers[2];
-        }
-        
-        throw std::runtime_error("Invalid or unknown MemoryBatch");
-    }
+    StagingBufferData& getStagingBufferForBatch(MemoryBatch batch);
     
     bool initOrUpdateStagingBuffer(MemoryBatch batch, Bytes size);
     void executeUpload(CommandBuffer* commandBuffer, bool waitForCompletion);

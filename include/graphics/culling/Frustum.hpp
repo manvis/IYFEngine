@@ -112,17 +112,7 @@ public:
     
     /// \param[in] plane either Frustum::Plane::Near or Frustum::Plane::Far
     /// \param[in] vertex one of Frustum::PlaneVertex
-    inline glm::vec3 getVertex(Plane plane, PlaneVertex vertex) {
-        if (plane != Plane::Near && plane != Plane::Far) {
-            throw std::logic_error("Must use near plane or far plane.");
-        }
-        
-        if (plane == Plane::Near) {
-            return nearVertices[static_cast<std::size_t>(vertex)];
-        } else {
-            return farVertices[static_cast<std::size_t>(vertex)];
-        }
-    }
+    glm::vec3 getVertex(Plane plane, PlaneVertex vertex);
 protected:
 private:
     std::array<glm::vec3, 4> nearVertices;

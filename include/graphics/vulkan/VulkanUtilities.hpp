@@ -32,6 +32,7 @@
 #include "core/Constants.hpp"
 #include "graphics/GraphicsAPIConstants.hpp"
 #include "graphics/vulkan/VulkanConstantMappings.hpp"
+#include <stdexcept>
 
 namespace iyf {
 namespace vkutil {

@@ -155,4 +155,16 @@ void Frustum::drawDebug(DebugRenderer* renderer) {
     renderer->drawLine(getVertex(Plane::Far, PlaneVertex::TopLeft), getVertex(Plane::Far, PlaneVertex::BottomLeft), color);
 }
 
+glm::vec3 Frustum::getVertex(Plane plane, PlaneVertex vertex) {
+    if (plane != Plane::Near && plane != Plane::Far) {
+        throw std::logic_error("Must use near plane or far plane.");
+    }
+    
+    if (plane == Plane::Near) {
+        return nearVertices[static_cast<std::size_t>(vertex)];
+    } else {
+        return farVertices[static_cast<std::size_t>(vertex)];
+    }
+}
+
 }

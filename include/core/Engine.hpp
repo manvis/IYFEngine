@@ -30,6 +30,7 @@
 #define IYF_ENGINE_HPP
 
 #include <memory>
+#include <string>
 
 struct SDL_Window;
 

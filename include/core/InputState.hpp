@@ -32,6 +32,7 @@
 #include <memory>
 #include <array>
 #include <vector>
+#include <string>
 #include <SDL2/SDL.h>
 
 #include "core/InputMappings.hpp"

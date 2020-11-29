@@ -145,6 +145,20 @@ void VulkanDeviceMemoryManager::dispose() {
     gfx->destroyCommandPool(commandPool);
 }
 
+VulkanDeviceMemoryManager::StagingBufferData& VulkanDeviceMemoryManager::getStagingBufferForBatch(MemoryBatch batch) {
+    switch (batch) {
+        case MemoryBatch::MeshAssetData:
+        case MemoryBatch::TextureAssetData:
+            return stagingBuffers[0];
+        case MemoryBatch::PerFrameData:
+            return stagingBuffers[1];
+        case MemoryBatch::Instant:
+            return stagingBuffers[2];
+    }
+    
+    throw std::runtime_error("Invalid or unknown MemoryBatch");
+}
+
 bool VulkanDeviceMemoryManager::initOrUpdateStagingBuffer(MemoryBatch batch, Bytes size) {
     StagingBufferData& stagingBufferData = getStagingBufferForBatch(batch);
     
