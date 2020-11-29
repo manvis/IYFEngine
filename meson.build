@@ -128,10 +128,13 @@ if get_option('iyf_build_tools')
     assimp_dep = dependency('assimp')
     # Create a dependency from user set options
     # TODO add more checks and explicit error messages
-    compr_dir = get_option('compressonator_lib_dir')
+    compr_dir = 'dependencies/compressonator'
     
-    compr_lib = cpp_comp.find_library('Compressonator', dirs : [compr_dir])
-    compr_inc_dir = include_directories(get_option('compressonator_include_dir'))
+    compr_lib = cpp_comp.find_library('compressonator',
+        required: true,
+        static: true,
+        dirs : [meson.current_source_dir() + '/' + compr_dir])
+    compr_inc_dir = include_directories(compr_dir)
     compressonator_dep = declare_dependency(
         include_directories : compr_inc_dir,
         dependencies : compr_lib,

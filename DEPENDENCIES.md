@@ -1,4 +1,4 @@
-#Dependencies
+# Dependencies
 **TODO** dependencies should probably be downloaded automatically via CMake scripts.
 
 **WARNING**: You should always prefer to use stable versions of the libraries mentioned in this document.
@@ -21,10 +21,9 @@ If you're on Linux, most of these libraries should be available in the OS reposi
 4. [Boost](http://www.boost.org/): at the moment, the only Boost component we're using is boost::filesystem. We've already bumped up the C++ standard to C++17 and switched to std::variant, std::optional and std::any. Unfortunately, as of this writing, filesystem support in GCC is still experimental. We may remove the dependency on Boost once std::filesystem is supported everywhere.
 5. [Bullet Physics](http://www.bulletphysics.org/)
 6. [Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
-7. [Compressonator SDK](https://github.com/GPUOpen-Tools/Compressonator): this may be a bit troublesome. First, of all clone the repo by using `git clone https://github.com/GPUOpen-Tools/Compressonator.git`. Next, clone the submodules by calling `git submodule update --init --recursive`. Finally, go into {clonedDirRoot}/Compressonator/Make/ExampleMake and run the makefile there. Once that's done, you'll need to manually point the IYFEngine's CMAKE to the include dir (COMPRESSONATOR\_INCLUDE\_PATH) and to the shared library (COMPRESSONATOR\_LIB).
-8. [physfs](https://icculus.org/physfs/). Version 3.0.2 or later.
+7. [physfs](https://icculus.org/physfs/). Version 3.0.2 or later.
 
-##Regular dependencies
+## Regular dependencies
 Before you can build the IYFEngine, you must create a *dependencies* folder in the root directory of this project (in the same directory as this file). Don't worry about polluting the source tree - the *dependencies* folder is included in *.gitignore*. 
 
 Create sub-folders named after these libraries in the "depedencies" folder. You can use the following command on Linux:
@@ -39,10 +38,45 @@ Next, download and put the appropriate libraries into those folders. Each folder
 3. [rapidjson](https://github.com/Tencent/rapidjson.git)
 4. [sqlite](https://www.sqlite.org/download.html): using the amalgamation.
 5. [fmt](https://github.com/fmtlib/fmt): make sure the version is 5.3.0 or newer
+6. [Compressonator SDK](https://github.com/GPUOpen-Tools/Compressonator): this may be a bit troublesome. Follow the [docs](https://compressonator.readthedocs.io/en/latest/build_from_source/build_instructions.html#build-instructions-for-compressonator-sdk-libs). When I last tried it, *CMakeLists.txt* files were all in lower case. I used this to perform the rename:
+```c++
+// TO BUILD AND RUN
+// g++ -std=c++17 CompressonatorRenamer.cpp
+// ./a.out
+
+#include <iostream>
+#include <filesystem>
+#include <vector>
+
+namespace fs = std::filesystem;
+
+int main() {
+    std::vector<fs::path> toChange;
+    
+    for (const auto& di : fs::recursive_directory_iterator("compressonator")) {
+        if (di.path().filename() == "cmakelists.txt") {
+            toChange.emplace_back(di.path());
+        }
+    }
+    
+    for (const fs::path& path : toChange) {
+        fs::path newPath = path;
+        newPath.remove_filename();
+        
+        newPath += "CMakeLists.txt";
+        
+        std::cout << path << "->" << newPath << "\n";
+        fs::rename(path, newPath);
+    }
+    
+    return 0;
+}
+```
+After the build, go to the *lib* folder and copy the *libCMP_Compressonator.a* to *dependencies/compressonator/compressonator.a*. Likewise, copy *cmp_compressonatorlib/compressonator.h* to *dependencies/compressonator/Compressonator.h*
 
 If you receive compilation errors that talk about missing headers or source files, look into the *CMakeLists.txt* files for hints. If you cloned the repositories directly into the created folders, it's possible that you ended up with something like *dependencies/glm/glm/glm/glm.hpp* (note the extra subdirectory) when you actually needed *dependencies/glm/glm/glm.hpp*.
     
-##Internal dependencies
+## Internal dependencies
 Unless you're one of IYFEngine's developers or **really** need a newer version, you don't have to do anything because these have already been included and will be built automatically.
 
 0. [Dear Imgui](https://github.com/ocornut/imgui): stored in *include/graphics/imgui* and *src/graphics/imgui* This library is stored in the source tree because of the customized *imconfig.h* file and an engine specific backend (check *ImGuiImplementation.cpp*). Make sure to **NEVER OVERWRITE** *imconfig.h* when updating this library or **Bad Things™** will happen.
@@ -64,7 +98,7 @@ Unless you're one of IYFEngine's developers or **really** need a newer version, 
 1. Steam audio or OpenAL soft for 3D audio.
 2. Valve's GameNetworkingSockets OR netcode.io OR doing things from scratch with ASIO (which, considering my lack of network programming experience, may end up being a recipe for disaster) for networking.
     
-##No longer used
+## No longer used
 These libraries have been replaced on removed.
 
 0. [gli](https://github.com/g-truc/gli): was replaced because I started using a custom texture format.
