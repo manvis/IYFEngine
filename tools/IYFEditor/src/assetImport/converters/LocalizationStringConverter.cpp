@@ -39,8 +39,6 @@
 #include "utilities/Regexes.hpp"
 #include "utilities/hashing/HashCombine.hpp"
 
-#include "fmt/ostream.h"
-
 #include <string_view>
 
 namespace iyf::editor {

@@ -37,8 +37,6 @@
 
 #include "assets/metadata/MeshMetadata.hpp"
 
-#include "fmt/ostream.h"
-
 #include <vector>
 #include <cstring>
 

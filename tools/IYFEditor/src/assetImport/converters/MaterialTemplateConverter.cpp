@@ -41,7 +41,6 @@
 #include "logging/Logger.hpp"
 #include "core/filesystem/VirtualFileSystem.hpp"
 #include "fmt/format.h"
-#include "fmt/ostream.h"
 
 #include "tools/MaterialEditor.hpp"
 

@@ -52,7 +52,6 @@
 #include "stb_image_write.h"
 #include "Compressonator.h"
 #include "glm/gtc/packing.hpp"
-#include "fmt/ostream.h"
 
 /// Same as the one used in stb_image_resize. Used to prevent alpha premultiplication from removing the color data in transparent pixels
 #define IYF_ALPHA_EPSILON ((float)1 / (1 << 20) / (1 << 20) / (1 << 20) / (1 << 20))

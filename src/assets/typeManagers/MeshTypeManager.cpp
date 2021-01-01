@@ -31,7 +31,6 @@
 #include "core/Engine.hpp"
 #include "io/serialization/FileSerializer.hpp"
 #include "logging/Logger.hpp"
-#include "fmt/ostream.h"
 
 namespace iyf {
 using namespace iyf::literals;

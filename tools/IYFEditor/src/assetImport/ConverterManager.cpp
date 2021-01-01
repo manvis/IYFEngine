@@ -48,8 +48,6 @@
 
 #include "utilities/Regexes.hpp"
 
-#include "fmt/ostream.h"
-
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/document.h"
 

@@ -63,8 +63,6 @@
 #include "utilities/IntegerPacking.hpp"
 #include "utilities/ImGuiUtils.hpp"
 
-#include "fmt/ostream.h"
-
 #include "glm/gtx/string_cast.hpp"
 
 // TODO move the test to tests

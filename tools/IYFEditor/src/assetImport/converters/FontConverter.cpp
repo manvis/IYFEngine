@@ -35,7 +35,6 @@
 #include "logging/Logger.hpp"
 #include "io/File.hpp"
 
-#include "fmt/ostream.h"
 #include "stb_truetype.h"
 
 namespace iyf::editor {

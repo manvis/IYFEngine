@@ -41,7 +41,6 @@
 #include "assetImport/ConverterManager.hpp"
 #include "assetImport/converterStates/LocalizationStringConverterState.hpp"
 
-#include "fmt/ostream.h"
 #include <iostream>
 
 namespace iyf {

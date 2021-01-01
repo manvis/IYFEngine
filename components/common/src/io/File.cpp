@@ -33,8 +33,6 @@
 #include "logging/Logger.hpp"
 #include "io/exceptions/FileOpenException.hpp"
 
-#include "fmt/ostream.h"
-
 namespace iyf {
 File::File(const Path& path, FileOpenMode openMode)
     : path(path), openMode(openMode) {}

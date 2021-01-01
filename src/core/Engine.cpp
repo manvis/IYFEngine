@@ -73,8 +73,6 @@
 
 #include "../../VERSION.hpp"
 
-#include "fmt/ostream.h"
-
 namespace iyf {
 inline bool ExtractCommandValue(const char* argument, std::string_view& value) {
     const std::string_view argValue(argument);

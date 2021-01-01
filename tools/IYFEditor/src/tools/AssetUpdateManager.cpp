@@ -42,7 +42,6 @@
 #include "threading/ThreadProfiler.hpp"
 
 #include "imgui.h"
-#include "fmt/ostream.h"
 
 // If defined, all received file events be logged
 // #define IYF_EDITOR_LOG_RECEIVED_FILE_EVENT_LIST

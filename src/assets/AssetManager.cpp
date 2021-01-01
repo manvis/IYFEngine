@@ -62,8 +62,6 @@
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/document.h"
 
-#include "fmt/ostream.h"
-
 #include <climits>
 
 namespace iyf {

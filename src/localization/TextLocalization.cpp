@@ -35,8 +35,6 @@
 #include "utilities/StringUtilities.hpp"
 #include "utilities/Regexes.hpp"
 
-#include "fmt/ostream.h"
-
 #include <cstring>
 #include <cassert>
 

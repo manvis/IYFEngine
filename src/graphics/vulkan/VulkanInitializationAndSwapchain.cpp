@@ -37,8 +37,6 @@
 #include "logging/Logger.hpp"
 #include "core/Engine.hpp"
 
-#include "fmt/ostream.h"
-
 // WARNING DO NOT TOUCH these undefs. Vulkan headers pull in X11, Project.hpp pulls in RapidJSON,
 // names clash, things explode. This solves it.
 #undef None

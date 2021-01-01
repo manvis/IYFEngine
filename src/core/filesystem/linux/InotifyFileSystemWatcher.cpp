@@ -39,8 +39,6 @@
 #include "logging/Logger.hpp"
 #include "utilities/StringUtilities.hpp"
 
-#include "fmt/ostream.h"
-
 namespace iyf {
 
 namespace fs = std::filesystem;
@@ -182,7 +180,7 @@ bool InotifyFileSystemWatcher::addDirectory(const MonitoredDirectory& monitoredD
                 result = false;
                 
                 // TODO should I return immediately? Throw an exception
-                LOG_W("Failed to add path to inotify watch list: {}", p.path());
+                LOG_W("Failed to add path to inotify watch list: {}", p.path().native());
             }
         }
         

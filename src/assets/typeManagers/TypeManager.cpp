@@ -32,8 +32,6 @@
 #include "assets/AssetManager.hpp"
 #include "assets/typeManagers/TypeManager.hpp"
 
-#include "fmt/ostream.h"
-
 namespace iyf {
 TypeManager::TypeManager(AssetManager* manager) : manager(manager) {
     if (manager == nullptr) {

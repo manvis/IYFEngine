@@ -62,8 +62,6 @@
 
 #include "assetImport/ConverterManager.hpp"
 
-#include "fmt/ostream.h"
-
 namespace iyf {
 namespace editor {
 

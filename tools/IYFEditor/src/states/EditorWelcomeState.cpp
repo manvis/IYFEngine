@@ -48,8 +48,6 @@
 #include <chrono>
 #include <iomanip>
 
-#include "fmt/ostream.h"
-
 namespace iyf::editor {
 const std::string AUTO_LOAD_PROJECT_CONFIG_NAME = "autoLoadLast";
 

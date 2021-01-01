@@ -33,8 +33,6 @@
 #include "logging/Logger.hpp"
 #include "io/exceptions/FileOpenException.hpp"
 
-#include "fmt/ostream.h"
-
 namespace iyf {
 VirtualFileSystemFile::VirtualFileSystemFile(const Path& path, FileOpenMode openMode)
     : File(path, openMode), file(nullptr), isOpen(true) {

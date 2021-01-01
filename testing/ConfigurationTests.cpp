@@ -30,8 +30,6 @@
 #include "configuration/Configuration.hpp"
 #include "io/DefaultFileSystem.hpp"
 
-#include "fmt/ostream.h"
-
 #include <sstream>
 #include <fstream>
 

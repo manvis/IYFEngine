@@ -37,8 +37,6 @@
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/document.h"
 
-#include "fmt/ostream.h"
-
 #include <fstream>
 
 // TODO validate the inputs

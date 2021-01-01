@@ -30,8 +30,6 @@
 #include "miniz/miniz.h"
 #include "logging/Logger.hpp"
 
-#include "fmt/ostream.h"
-
 #include <filesystem>
 namespace fs = std::filesystem;
 
@@ -74,7 +72,8 @@ bool CompressDirectoryToZip(const Path& dir, const Path& zipPath, CompressionLev
             status = mz_zip_writer_add_file(&archive, relativePath.c_str(), d.path().c_str(), nullptr, 0, compressionLevel);
             
             if (!status) {
-                LOG_E("Failed to write {} to zip {}. Miniz error: {}", d, zipPath, mz_zip_get_error_string(archive.m_last_error));
+                LOG_E("Failed to write {} to zip {}. Miniz error: {}", d.path().c_str(), zipPath,
+                    mz_zip_get_error_string(archive.m_last_error));
                 break;
             }
         }

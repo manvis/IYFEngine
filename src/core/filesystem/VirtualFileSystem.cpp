@@ -44,8 +44,6 @@
 #include "core/Project.hpp"
 #include "core/Constants.hpp"
 
-#include "fmt/ostream.h"
-
 namespace iyf {
 inline const char* GetLastErrorText() {
     return PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode());

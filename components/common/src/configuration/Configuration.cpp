@@ -44,8 +44,6 @@
 #include "utilities/StringUtilities.hpp"
 #include "utilities/TypeHelpers.hpp"
 
-#include "fmt/ostream.h"
-
 namespace iyf {
 namespace con {
 const std::string& GetConfigurationValueNamespaceName(ConfigurationValueNamespace namespaceID) {
