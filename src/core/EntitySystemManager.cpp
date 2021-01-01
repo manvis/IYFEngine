@@ -28,7 +28,7 @@
 
 #include <stdexcept>
 
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "graphics/GraphicsSystem.hpp"
 #include "physics/PhysicsSystem.hpp"
 #include "core/EntitySystemManager.hpp"
@@ -522,8 +522,8 @@ void Entity::setName(std::string newName) {
     name = std::move(newName);
 }
 
-std::string EntitySystemManager::filePathToEntityName(const fs::path& name) const {
-    return makeUniqueName(name.stem().generic_string());
+std::string EntitySystemManager::filePathToEntityName(const Path& name) const {
+    return makeUniqueName(name.stem().getGenericString());
 }
 
 std::string EntitySystemManager::makeUniqueName(const std::string& name) const {

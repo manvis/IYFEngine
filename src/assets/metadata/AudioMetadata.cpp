@@ -27,7 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assets/metadata/AudioMetadata.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include <stdexcept>
 
 namespace iyf {

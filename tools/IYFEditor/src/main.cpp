@@ -35,7 +35,6 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-//#include "core/Engine.hpp"
 #include "MeshImporterState.h"
 #include "assetImport/converters/MeshConverter.hpp"
 #include "utilities/hashing/crc64.hpp"

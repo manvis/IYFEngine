@@ -50,13 +50,13 @@
 #include "graphics/culling/BoundingVolumes.hpp"
 #include "graphics/MeshFormats.hpp"
 
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "core/Constants.hpp"
-#include "core/filesystem/File.hpp"
-#include "core/filesystem/FileSystem.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
-#include "core/serialization/VirtualFileSystemSerializer.hpp"
-#include "core/serialization/MemorySerializer.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
+#include "io/File.hpp"
+#include "io/FileSystem.hpp"
+#include "io/serialization/FileSerializer.hpp"
+#include "io/serialization/MemorySerializer.hpp"
 
 #include "utilities/hashing/Hashing.hpp"
 
@@ -88,7 +88,7 @@ MeshConverter::MeshConverter(const ConverterManager* manager) : Converter(manage
     //
 }
 
-std::unique_ptr<ConverterState> MeshConverter::initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const {
+std::unique_ptr<ConverterState> MeshConverter::initializeConverter(const Path& inPath, PlatformIdentifier platformID) const {
     std::unique_ptr<MeshConverterInternalState> internalState = std::make_unique<MeshConverterInternalState>(this);
     internalState->importer = std::make_unique<Assimp::Importer>();
     
@@ -198,10 +198,10 @@ bool MeshConverter::convertV1(ConverterState& state) const {
     
     Assimp::Importer* importer = internalState->importer.get();
     
-    const fs::path inFile = manager->getFileSystem()->getRealDirectory(state.getSourceFilePath());
+    const Path inFile = manager->getFileSystem()->getRealDirectory(state.getSourceFilePath());
     
     // aiProcessPreset_TargetRealtime_Quality does all the required optimizations, it even limits bone weights to 4
-    const aiScene *scene = importer->ReadFile(inFile.c_str(), aiProcessPreset_TargetRealtime_Quality);
+    const aiScene *scene = importer->ReadFile(inFile.getCString(), aiProcessPreset_TargetRealtime_Quality);
     int property = importer->GetPropertyInteger(AI_CONFIG_PP_LBW_MAX_WEIGHTS);
     if (property != 4 && property != static_cast<int>(0xffffffff)) {
         LOG_I("Assimp mesh import bone limit property must be 4 or unset (0xffffffff), was {}. It was reset back to 4", property)
@@ -409,7 +409,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
     // WRITE: First - magic number, second - version number, then - number of sub-meshes, total number of vertices, total number of indices
     // and, finally, the number of bones
     //iyf::MemorySerializer fw(1024 * 512);
-    const fs::path meshOutputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), AssetType::Mesh, state.getPlatformIdentifier());
+    const Path meshOutputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), AssetType::Mesh, state.getPlatformIdentifier());
     iyf::MemorySerializer fw(1024 * 512);
     writeHeader(fw, versionNumber);
     fw.writeUInt8(numSubMeshes);
@@ -602,21 +602,21 @@ bool MeshConverter::convertV1(ConverterState& state) const {
             aiString aiPath;
             m->GetTexture(aiTextureType_DIFFUSE, 0, &aiPath);
             
-            fs::path path = aiPath.C_Str();
+            Path path = aiPath.C_Str();
             
             // Base path that is used for error output
-            fs::path textureFileName = path.filename();
+            Path textureFileName = path.filename();
             
             // Where engine is expecting to find the texture. This will be hashed and stored to file
             // TODO full or not full? Not full (like now) doesn't break hashes when defaults are changed. However, maybe there are advantages to keeping it full (like commented out)?
-//            fs::path finalTexturePath = fs::path(con::TexturePath);
+//            Path finalTexturePath = Path(con::TexturePath);
 //            finalTexturePath += textureFileName;
-            fs::path finalTexturePath = textureFileName;
+            Path finalTexturePath = textureFileName;
             
 //            LOG_D(finalTexturePath)
             
             // Just the extension to check if this texture format is supported
-            fs::path extension = textureFileName.extension().generic_string();
+            Path extension = textureFileName.extension().getGenericString();
 
 //            std::string textureFileName(path.C_Str());
 //            
@@ -652,7 +652,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
 //            finalNormalPath.insert(formatSeparator, "_normal");
 //            finalNormalPath.insert(0, con::TexturePath);
             
-            StringHash diffuseHash(HS(finalTexturePath.c_str()));
+            StringHash diffuseHash(HS(finalTexturePath.getGenericString()));
 //            LOG_D("Texture name: " << textureFileName << "; hash: " << diffuseHash.value())
             
             // 0 is reserved in this case
@@ -874,14 +874,14 @@ bool MeshConverter::convertV1(ConverterState& state) const {
                 }
             }
             
-            fs::path animIn = state.getSourceFilePath();
+            Path animIn = state.getSourceFilePath();
             animIn += "_";
             animIn += animationName;
             
-            const fs::path animOut = manager->makeFinalPathForAsset(animIn, AssetType::Animation, state.getPlatformIdentifier());
+            const Path animOut = manager->makeFinalPathForAsset(animIn, AssetType::Animation, state.getPlatformIdentifier());
             
             // WRITE: hashed animation name for finding and loading it later
-            fw.writeUInt64(HS(animOut.c_str()));
+            fw.writeUInt64(HS(animOut.getGenericString()));
             
             const std::uint16_t animationVersionNumber = 1;
             iyf::MemorySerializer aw(1024*512);
@@ -926,9 +926,9 @@ bool MeshConverter::convertV1(ConverterState& state) const {
                 }
             }
             
-            iyf::File animationFile(animOut, File::OpenMode::Write);
-            animationFile.writeBytes(aw.data(), aw.size());
-            animationFile.close();
+            auto animationFile = VirtualFileSystem::Instance().openFile(animOut, FileOpenMode::Write);
+            animationFile->writeBytes(aw.data(), aw.size());
+            animationFile->close();
             
             FileHash fileHash = HF(aw.data(), aw.size());
             AnimationMetadata animationMeta(fileHash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(),
@@ -945,9 +945,9 @@ bool MeshConverter::convertV1(ConverterState& state) const {
         fw.writeUInt32(0);
     }
     
-    iyf::File meshFile(meshOutputPath, File::OpenMode::Write);
-    meshFile.writeBytes(fw.data(), fw.size());
-    meshFile.close();
+    auto meshFile = VirtualFileSystem::Instance().openFile(meshOutputPath, FileOpenMode::Write);
+    meshFile->writeBytes(fw.data(), fw.size());
+    meshFile->close();
     
     FileHash fileHash = HF(fw.data(), fw.size());
     MeshMetadata meshMetadata(fileHash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags(),
@@ -961,7 +961,7 @@ bool MeshConverter::convertV1(ConverterState& state) const {
     return true;
 }
 
-void MeshConverter::outputError(const fs::path& inPath, const std::string& lacking, const aiMesh* mesh) const {
+void MeshConverter::outputError(const Path& inPath, const std::string& lacking, const aiMesh* mesh) const {
     if (mesh->mName.length == 0) {
         LOG_W("File {}, sub-mesh !UNNAMED! is lacking {}", inPath, lacking)
     } else {

@@ -31,7 +31,7 @@
 #include <array>
 #include <stdexcept>
 
-#include "SDL_endian.h"
+#include "utilities/Endianess.hpp"
 
 namespace iyf {
 const int MAX_STR_LENGTH = 64;
@@ -62,9 +62,7 @@ bool ProductID::serialize(const std::string& path) const {
     std::uint32_t temp = version;
     
     // File stores version in a little endian format
-    if (SDL_BYTEORDER == SDL_BIG_ENDIAN) {
-        temp = SDL_Swap32(temp);
-    }
+    temp = util::SwapLE(temp);
     
     out.write(reinterpret_cast<char*>(&temp), sizeof(temp));
     
@@ -103,9 +101,7 @@ bool ProductID::deserialize(const std::string& path) {
     in.read(reinterpret_cast<char*>(&tempVersion), sizeof(tempVersion));
     
     // File stores version in a little endian format
-    if (SDL_BYTEORDER == SDL_BIG_ENDIAN) {
-        tempVersion = SDL_Swap32(tempVersion);
-    }
+    tempVersion = util::SwapLE(tempVersion);
     
     version = tempVersion;
     

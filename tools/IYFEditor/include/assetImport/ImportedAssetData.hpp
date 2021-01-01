@@ -35,8 +35,8 @@
 namespace iyf::editor {
 class ImportedAssetData {
 public:
-    ImportedAssetData(AssetType type, Metadata metadata, fs::path destinationPath) : type(type), metadata(std::move(metadata)), destinationPath(std::move(destinationPath)) {
-        destinationPathHash = HS(this->destinationPath.generic_string());
+    ImportedAssetData(AssetType type, Metadata metadata, Path destinationPath) : type(type), metadata(std::move(metadata)), destinationPath(std::move(destinationPath)) {
+        destinationPathHash = HS(this->destinationPath.getGenericString());
     }
     
     AssetType getType() const {
@@ -47,7 +47,7 @@ public:
         return metadata;
     }
     
-    const fs::path& getDestinationPath() const {
+    const Path& getDestinationPath() const {
         return destinationPath;
     }
     
@@ -58,7 +58,7 @@ private:
     AssetType type;
     Metadata metadata;
     StringHash destinationPathHash;
-    fs::path destinationPath;
+    Path destinationPath;
 };
 
 }

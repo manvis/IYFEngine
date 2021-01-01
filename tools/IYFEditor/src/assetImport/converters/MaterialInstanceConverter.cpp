@@ -32,9 +32,10 @@
 #include "assets/metadata/MaterialInstanceMetadata.hpp"
 #include "graphics/materials/MaterialInstanceDefinition.hpp"
 #include "assetImport/ConverterManager.hpp"
-#include "core/Logger.hpp"
-#include "core/filesystem/File.hpp"
-#include "core/serialization/MemorySerializer.hpp"
+#include "logging/Logger.hpp"
+#include "io/File.hpp"
+#include "io/serialization/MemorySerializer.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
 
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/document.h"
@@ -48,18 +49,18 @@ public:
     std::size_t size;
 };
 
-std::unique_ptr<ConverterState> MaterialInstanceConverter::initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const {
+std::unique_ptr<ConverterState> MaterialInstanceConverter::initializeConverter(const Path& inPath, PlatformIdentifier platformID) const {
     std::unique_ptr<MaterialInstanceInternalState> internalState = std::make_unique<MaterialInstanceInternalState>(this);
     
-    File inFile(inPath, File::OpenMode::Read);
-    std::size_t size = inFile.seek(0, File::SeekFrom::End);
-    inFile.seek(0, File::SeekFrom::Start);
+    auto inFile = VirtualFileSystem::Instance().openFile(inPath, FileOpenMode::Read);
+    std::size_t size = inFile->seek(0, File::SeekFrom::End);
+    inFile->seek(0, File::SeekFrom::Start);
     
     internalState->data = std::make_unique<char[]>(size);
     internalState->size = size;
     char* buffer = internalState->data.get();
     
-    inFile.readBytes(buffer, size);
+    inFile->readBytes(buffer, size);
     
     const FileHash sourceFileHash = HF(reinterpret_cast<const char*>(internalState->data.get()), internalState->size);
     
@@ -70,7 +71,7 @@ bool MaterialInstanceConverter::convert(ConverterState& state) const {
     MaterialInstanceInternalState* internalState = dynamic_cast<MaterialInstanceInternalState*>(state.getInternalState());
     assert(internalState != nullptr);
     
-    fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
+    Path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
     
     rj::Document document;
     document.Parse(internalState->data.get(), internalState->size);
@@ -86,8 +87,8 @@ bool MaterialInstanceConverter::convert(ConverterState& state) const {
     MemorySerializer ms(4096);
     mid.serialize(ms);
     
-    File fw(outputPath, File::OpenMode::Write);
-    fw.writeBytes(ms.data(), ms.size());
+    auto fw = VirtualFileSystem::Instance().openFile(outputPath, FileOpenMode::Write);
+    fw->writeBytes(ms.data(), ms.size());
     
     return true;
 }

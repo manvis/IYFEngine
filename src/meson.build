@@ -29,12 +29,8 @@ iyf_core_src = [
     'assets/typeManagers/TextureTypeManager.cpp',
     'assets/typeManagers/TypeManager.cpp',
     #------- core directory
-    'core/configuration/Configuration.cpp',
-    'core/interfaces/Configurable.cpp',
     'core/interfaces/ComponentContainer.cpp',
     'core/interfaces/TextSerializable.cpp',
-    'core/serialization/MemorySerializer.cpp',
-    'core/serialization/VirtualFileSystemSerializer.cpp',
     'core/ComponentType.cpp',
     'core/Constants.cpp',
     'core/DefaultWorld.cpp',
@@ -43,7 +39,6 @@ iyf_core_src = [
     'core/GameState.cpp',
     'core/InputListener.cpp',
     'core/InputState.cpp',
-    'core/Logger.cpp',
     'core/Platform.cpp',
     'core/ProductID.cpp',
     'core/Project.cpp',
@@ -51,9 +46,9 @@ iyf_core_src = [
     'core/World.cpp',
     #------- filesystem directory
     'core/filesystem/physfs/physfsrwops.c',
-    'core/filesystem/File.cpp',
-    'core/filesystem/FileSystem.cpp',
     'core/filesystem/FileSystemWatcher.cpp',
+    'core/filesystem/VirtualFileSystem.cpp',
+    'core/filesystem/VirtualFileSystemFile.cpp',
     'core/filesystem/linux/InotifyFileSystemWatcher.cpp',
     #------- graphics directory
     'graphics/Camera.cpp',
@@ -117,8 +112,6 @@ iyf_core_src = [
     'utilities/Compression.cpp',
     'utilities/ImGuiUtils.cpp',
     'utilities/stbImpl.cpp',
-    'utilities/StringUtilities.cpp',
-    'utilities/ReadWholeFile.cpp',
     'utilities/Regexes.cpp',
     #------- separately stored third party dependencies
     #--------------------- sqlite
@@ -167,6 +160,7 @@ endif
 
 IYFEngine_lib = static_library('IYFEngine', [iyf_core_src, physics_src],
     include_directories : [common_project_inc],
+    link_with : [IYFCommon_lib],
     dependencies : [physics_dep,
                     sdl2_dep,
                     shaderc_dep,

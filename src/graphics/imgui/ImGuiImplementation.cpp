@@ -30,7 +30,7 @@
 #include "core/InputState.hpp"
 #include "ImGuiImplementation.hpp"
 #include "core/Constants.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "assets/AssetManager.hpp"
 #include "assets/assetTypes/Shader.hpp"
 #include "assets/assetTypes/Font.hpp"

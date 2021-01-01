@@ -43,12 +43,14 @@
 
 #include "graphics/MeshComponent.hpp"
 #include "core/Constants.hpp"
-#include "core/Logger.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
+#include "logging/Logger.hpp"
 #include "core/Platform.hpp"
 #include "core/Engine.hpp"
-#include "core/filesystem/FileSystem.hpp"
-#include "core/serialization/VirtualFileSystemSerializer.hpp"
-#include "core/interfaces/TextSerializable.hpp"
+#include "io/serialization/FileSerializer.hpp"
+#include "io/FileSystem.hpp"
+#include "io/serialization/FileSerializer.hpp"
+#include "io/interfaces/TextSerializable.hpp"
 #include "assets/typeManagers/TypeManager.hpp"
 #include "assets/typeManagers/FontTypeManager.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
@@ -103,7 +105,7 @@ AssetManager::AssetManager(Engine* engine) : engine(engine), asyncLoadWindow(con
 
 AssetManager::~AssetManager() { }
 
-AssetType AssetManager::GetAssetTypeFromExtension(const fs::path& pathToFile) {
+AssetType AssetManager::GetAssetTypeFromExtension(const Path& pathToFile) {
     static const std::unordered_map<std::string, AssetType> ExtensionToType = {
         {".ttf", AssetType::Font},
         {".otf", AssetType::Font},
@@ -144,7 +146,7 @@ AssetType AssetManager::GetAssetTypeFromExtension(const fs::path& pathToFile) {
         {con::MaterialTemplateFormatExtension(), AssetType::MaterialTemplate},
         {con::MaterialInstanceFormatExtension(), AssetType::MaterialInstance},
     };
-    std::string extension = pathToFile.extension().string();
+    std::string extension = pathToFile.extension().getGenericString();
     
     if (extension.empty()) {
         return AssetType::Custom;
@@ -225,12 +227,12 @@ struct FileDiscoveryResults {
     }
     
     StringHash nameHash;
-    fs::path filePath;
-    fs::path textMetadataPath;
-    fs::path binaryMetadataPath;
+    Path filePath;
+    Path textMetadataPath;
+    Path binaryMetadataPath;
 };
 
-inline void findAndSetFileDiscoveryResults(std::unordered_map<StringHash, FileDiscoveryResults>& results, StringHash nameHash, FileDiscoveryResults::Field field, const fs::path& path) {
+inline void findAndSetFileDiscoveryResults(std::unordered_map<StringHash, FileDiscoveryResults>& results, StringHash nameHash, FileDiscoveryResults::Field field, const Path& path) {
     auto result = results.find(nameHash);
     
     if (result == results.end()) {
@@ -282,18 +284,18 @@ inline bool isFileNameValid(const std::string& name) {
 }
 
 template <typename T>
-inline T loadMetadata(const fs::path& path, bool isJSON) {
+inline T loadMetadata(const Path& path, bool isJSON) {
     T metadata;
     
     if (isJSON) {
-        File jsonFile(path, File::OpenMode::Read);
-        const auto wholeFile = jsonFile.readWholeFile();
+        auto jsonFile = VirtualFileSystem::Instance().openFile(path, FileOpenMode::Read);
+        const auto wholeFile = jsonFile->readWholeFile();
         
         rj::Document document;
         document.Parse(wholeFile.first.get(), wholeFile.second);
         metadata.deserializeJSON(document);
     } else {
-        VirtualFileSystemSerializer file(path, File::OpenMode::Read);
+        FileSerializer file(VirtualFileSystem::Instance(), path, FileOpenMode::Read);
         metadata.deserialize(file);
     }
     
@@ -303,7 +305,7 @@ inline T loadMetadata(const fs::path& path, bool isJSON) {
 }
 
 /// Loads the metadata and creates a AssetManager::ManifestElement from it
-inline AssetManager::ManifestElement buildManifestElement(AssetType type, bool isJSON, const fs::path& metadataPath, const fs::path& filePath) {
+inline AssetManager::ManifestElement buildManifestElement(AssetType type, bool isJSON, const Path& metadataPath, const Path& filePath) {
     AssetManager::ManifestElement me;
     me.type = type;
     me.path = filePath;
@@ -358,8 +360,8 @@ inline AssetManager::ManifestElement buildManifestElement(AssetType type, bool i
 ///
 /// \warning Make sure this is always protected by a mutex
 inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unordered_map<StringHash, AssetManager::ManifestElement>& manifest) {
-    const fs::path& baseDir = con::AssetTypeToPath(type);
-    LOG_V("Examining contents of \"{}\"", baseDir.generic_string());
+    const Path& baseDir = con::AssetTypeToPath(type);
+    LOG_V("Examining contents of \"{}\"", baseDir.getGenericString());
     const auto contents = filesystem->getDirectoryContents(baseDir);
     
     // Used to detect errors.
@@ -367,8 +369,8 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
     std::unordered_map<StringHash, FileDiscoveryResults> results;
     
     for (const auto& p : contents) {
-        const fs::path fullPath = baseDir / p;
-        const std::string stem = fullPath.stem().generic_string();
+        const Path fullPath = baseDir / p;
+        const std::string stem = fullPath.stem().getGenericString();
         
         const bool validName = isFileNameValid(stem);
         if (!validName) {
@@ -423,7 +425,7 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
         }
         
         const bool isJSON = hasTextMetadata;
-        const fs::path metadataPath = isJSON ? result.second.textMetadataPath : result.second.binaryMetadataPath;
+        const Path metadataPath = isJSON ? result.second.textMetadataPath : result.second.binaryMetadataPath;
         
         auto me = buildManifestElement(type, isJSON, metadataPath, result.second.filePath);
         
@@ -440,7 +442,7 @@ inline void addFilesToManifest(FileSystem* filesystem, AssetType type, std::unor
 }
 
 void AssetManager::buildManifestFromFilesystem() {
-    FileSystem* filesystem = engine->getFileSystem();
+    VirtualFileSystem* filesystem = engine->getFileSystem();
     
     LOG_V("Building the manifest using the following search path:\n\t{}", filesystem->logSearchPath("\n\t"));
     
@@ -528,8 +530,8 @@ void AssetManager::loadSystemAssets() {
     LOG_W("SYSTEM ASSETS NOT PRELOADED");
 }
 
-static inline fs::path MakeMetadataPathName(const fs::path& filePath, bool binary) {
-    fs::path result = filePath;
+static inline Path MakeMetadataPathName(const Path& filePath, bool binary) {
+    Path result = filePath;
     if (binary) {
         result += con::MetadataExtension();
     } else {
@@ -539,7 +541,7 @@ static inline fs::path MakeMetadataPathName(const fs::path& filePath, bool binar
     return result;
 }
 
-static inline std::optional<StringHash> ValidateAndHashPath(const FileSystem* fs, const fs::path& path) {
+static inline std::optional<StringHash> ValidateAndHashPath(const FileSystem* fs, const Path& path) {
     if (path.empty()) {
         LOG_W("Couldn't process the file because an empty path was provided.");
         return std::nullopt;
@@ -550,7 +552,7 @@ static inline std::optional<StringHash> ValidateAndHashPath(const FileSystem* fs
         return std::nullopt;
     }
     
-    const std::string stem = path.stem().generic_string();
+    const std::string stem = path.stem().getGenericString();
     const bool validName = isFileNameValid(stem);
     if (!validName) {
         LOG_W("Couldn't process \"{}\". It has a non-numeric name.", path);
@@ -581,12 +583,12 @@ static inline std::optional<StringHash> ValidateAndHashPath(const FileSystem* fs
     return StringHash(parsedNumber);
 }
 
-void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
+void AssetManager::requestAssetRefresh(AssetType type, const Path& path) {
     if (!editorMode) {
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
     
-    const FileSystem* fs = engine->getFileSystem();
+    const VirtualFileSystem* fs = engine->getFileSystem();
     
     auto validationResult = ValidateAndHashPath(fs, path);
     if (!validationResult) {
@@ -595,8 +597,8 @@ void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
     
     const StringHash nameHash = *validationResult;
     
-    const fs::path binaryMetadataPath = MakeMetadataPathName(path, true);
-    const fs::path textMetadataPath = MakeMetadataPathName(path, false);
+    const Path binaryMetadataPath = MakeMetadataPathName(path, true);
+    const Path textMetadataPath = MakeMetadataPathName(path, false);
     
     // Don't move these file operations to any other thread. Editor APIs are kept synchronous on purpose
     // to avoid race conditions.
@@ -635,7 +637,7 @@ void AssetManager::requestAssetRefresh(AssetType type, const fs::path& path) {
     }
 }
 
-void AssetManager::requestAssetDeletion(const fs::path& path, [[maybe_unused]] bool isDir) {
+void AssetManager::requestAssetDeletion(const Path& path, [[maybe_unused]] bool isDir) {
     if (!editorMode) {
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
@@ -643,7 +645,7 @@ void AssetManager::requestAssetDeletion(const fs::path& path, [[maybe_unused]] b
     std::lock_guard<std::mutex> manifestLock(manifestMutex);
     std::lock_guard<std::mutex> assetLock(loadedAssetListMutex);
     
-    const FileSystem* fs = engine->getFileSystem();
+    const VirtualFileSystem* fs = engine->getFileSystem();
     
     if (isDir) {
 #ifndef NDEBUG
@@ -657,7 +659,7 @@ void AssetManager::requestAssetDeletion(const fs::path& path, [[maybe_unused]] b
         //
         // What I want you to do future me (or my helper) is to make sure the events ALWAYS arrive on all platforms.
 //         for (const auto& me : manifest) {
-//             fs::path src;
+//             Path src;
 //             bool inDir = std::visit([&path, &src](auto&& meta) {
 //                 src = meta.getSourceAssetPath();
 //                 return util::FileInDir(path, src);
@@ -683,8 +685,8 @@ void AssetManager::requestAssetDeletion(const fs::path& path, [[maybe_unused]] b
         }
         
         // All metadata operations are synchronous in editor mode
-        const fs::path binaryMetadataPath = MakeMetadataPathName(path, true);
-        const fs::path textMetadataPath = MakeMetadataPathName(path, false);
+        const Path binaryMetadataPath = MakeMetadataPathName(path, true);
+        const Path textMetadataPath = MakeMetadataPathName(path, false);
         
         bool binaryMetadataExists = fs->exists(binaryMetadataPath);
         if (binaryMetadataExists) {
@@ -700,7 +702,7 @@ void AssetManager::requestAssetDeletion(const fs::path& path, [[maybe_unused]] b
     }
 }
 
-void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& destinationPath, [[maybe_unused]] bool isDir) {
+void AssetManager::requestAssetMove(const Path& sourcePath, const Path& destinationPath, [[maybe_unused]] bool isDir) {
     if (!editorMode) {
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
@@ -718,24 +720,24 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
         MetadataBase& meta = me.second.metadata.getBase();
         assert(meta.getMetadataSource() == MetadataSource::JSON);
         
-        const fs::path currentSourceAssetPath = meta.getSourceAssetPath();
+        const Path currentSourceAssetPath = meta.getSourceAssetPath();
         const bool inDir = util::FileInDir(sourcePath, currentSourceAssetPath);
         
-        const std::string currentSourceAssetPathString = currentSourceAssetPath.generic_string();
-        const std::string sourceDirectoryString = sourcePath.generic_string();
+        const std::string currentSourceAssetPathString = currentSourceAssetPath.getGenericString();
+        const std::string sourceDirectoryString = sourcePath.getGenericString();
         
         if (inDir) {
             assert(currentSourceAssetPathString.compare(0, sourceDirectoryString.length(), sourceDirectoryString) == 0);
             
-            const FileSystem* fs = engine->getFileSystem();
-            const fs::path fullNewPath = destinationPath / fs::path(currentSourceAssetPathString.substr(sourceDirectoryString.length()));
+            const VirtualFileSystem* fs = engine->getFileSystem();
+            const Path fullNewPath = destinationPath / Path(currentSourceAssetPathString.substr(sourceDirectoryString.length()));
             
             const StringHash currentSourceHash = ComputeNameHash(currentSourceAssetPath);
             const StringHash newPathHash = ComputeNameHash(fullNewPath);
             
             assert(currentSourceHash == me.first);
             
-            fs::path postMoveAssetPath(me.second.path.parent_path());
+            Path postMoveAssetPath(me.second.path.parentPath());
             postMoveAssetPath /= std::to_string(newPathHash.value());
             
             if (checkForHashCollisionImpl(newPathHash, fullNewPath)) {
@@ -750,32 +752,32 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
             }
             
             // The paths in the virtual filesystem are used to retrieve and serialize metadata
-            const fs::path moveSourceVirtualFS = me.second.path;
-            fs::path moveDestinationVirtualFS = moveSourceVirtualFS.parent_path();
+            const Path moveSourceVirtualFS = me.second.path;
+            Path moveDestinationVirtualFS = moveSourceVirtualFS.parentPath();
             moveDestinationVirtualFS /= std::to_string(newPathHash.value());
             
             // The paths in the real filesystem are used for actual file moves.
-            const fs::path fullMoveSource = fs->getRealDirectory(moveSourceVirtualFS);
+            const Path fullMoveSource = fs->getRealDirectory(moveSourceVirtualFS);
             assert(!fullMoveSource.empty());
             
-            fs::path fullMoveDestination = fullMoveSource.parent_path();
+            Path fullMoveDestination = fullMoveSource.parentPath();
             fullMoveDestination /= std::to_string(newPathHash.value());
             
             fs->rename(fullMoveSource, fullMoveDestination);
             
             // Retrieve metadata
-            const fs::path binaryMetadataPath = MakeMetadataPathName(moveSourceVirtualFS, true);
-            const fs::path textMetadataPath = MakeMetadataPathName(moveSourceVirtualFS, false);
+            const Path binaryMetadataPath = MakeMetadataPathName(moveSourceVirtualFS, true);
+            const Path textMetadataPath = MakeMetadataPathName(moveSourceVirtualFS, false);
             
-//             LOG_D(currentSourceAssetPathString << "\n\t" << fullNewPath.generic_string() << "\n\t" << 
+//             LOG_D(currentSourceAssetPathString << "\n\t" << fullNewPath.getGenericString() << "\n\t" << 
 //                   me.second.path << "\n\t" << postMoveAssetPath << "\n\t" <<
 //                   binaryMetadataPath << "\n\t" << textMetadataPath);
             
             bool binaryMetadataExists = fs->exists(binaryMetadataPath);
             if (binaryMetadataExists) {
-                bool removed = fs->remove(binaryMetadataPath);
-                if (!removed) {
-                    LOG_E("Failed to remove a binary metadata file: {}\n\tLast filesystem error: {}", binaryMetadataPath, fs->getLastErrorText());
+                FileSystemResult removalResult = fs->remove(binaryMetadataPath);
+                if (removalResult != FileSystemResult::Success) {
+                    LOG_E("Failed to remove a binary metadata file: {}", binaryMetadataPath);
                     
                     throw std::logic_error("Failed to remove a metadata file. Check log.");
                 }
@@ -783,9 +785,9 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
             
             bool textMetadataExists = fs->exists(textMetadataPath);
             if (textMetadataExists) {
-                bool removed = fs->remove(textMetadataPath);
-                if (!removed) {
-                    LOG_E("Failed to remove a text metadata file: {}\n\tLast filesystem error: {}", textMetadataPath, fs->getLastErrorText());
+                FileSystemResult removalResult = fs->remove(textMetadataPath);
+                if (removalResult != FileSystemResult::Success) {
+                    LOG_E("Failed to remove a text metadata file: {}", textMetadataPath);
                     
                     throw std::logic_error("Failed to remove a metadata file. Check log.");
                 }
@@ -799,12 +801,12 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
             if (textMetadataExists || (!textMetadataExists && !binaryMetadataExists)) {
                 const std::string jsonString = meta.getJSONString();
                 
-                const fs::path newMetadataPath = MakeMetadataPathName(moveDestinationVirtualFS, false);
-                File metadataOutput(newMetadataPath, File::OpenMode::Write);
-                metadataOutput.writeString(jsonString);
+                const Path newMetadataPath = MakeMetadataPathName(moveDestinationVirtualFS, false);
+                auto metadataOutput = VirtualFileSystem::Instance().openFile(newMetadataPath, FileOpenMode::Write);
+                metadataOutput->writeString(jsonString);
             } else {
-                const fs::path newMetadataPath = MakeMetadataPathName(moveDestinationVirtualFS, true);
-                VirtualFileSystemSerializer serializer(newMetadataPath, File::OpenMode::Write);
+                const Path newMetadataPath = MakeMetadataPathName(moveDestinationVirtualFS, true);
+                FileSerializer serializer(VirtualFileSystem::Instance(), newMetadataPath, FileOpenMode::Write);
                 meta.serialize(serializer);
             }
 
@@ -825,7 +827,7 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
         }
     }
     
-    for (const auto fm : fileMoves) {
+    for (const auto& fm : fileMoves) {
         auto node = manifest.extract(fm.first);
         assert(!node.empty());
         
@@ -834,7 +836,7 @@ void AssetManager::requestAssetMove(const fs::path& sourcePath, const fs::path& 
     }
 }
 
-void AssetManager::appendAssetToManifest(StringHash nameHash, const fs::path& path, const Metadata& metadata) {
+void AssetManager::appendAssetToManifest(StringHash nameHash, const Path& path, const Metadata& metadata) {
     if (!editorMode) {
         throw std::logic_error("This method can't be used when the engine is running in game mode.");
     }
@@ -886,7 +888,7 @@ void AssetManager::removeNonSystemAssetsFromManifest() {
     }
 }
 
-std::optional<fs::path> AssetManager::checkForHashCollision(StringHash nameHash, const fs::path& checkPath) const {
+std::optional<Path> AssetManager::checkForHashCollision(StringHash nameHash, const Path& checkPath) const {
     if (!editorMode) {
         throw std::logic_error("This method can only be used when the engine is running in editor mode.");
     }
@@ -896,10 +898,10 @@ std::optional<fs::path> AssetManager::checkForHashCollision(StringHash nameHash,
     return checkForHashCollisionImpl(nameHash, checkPath);
 }
 
-std::optional<fs::path> AssetManager::checkForHashCollisionImpl(StringHash nameHash, const fs::path& checkPath) const {
+std::optional<Path> AssetManager::checkForHashCollisionImpl(StringHash nameHash, const Path& checkPath) const {
     auto result = manifest.find(nameHash);
     if (result != manifest.end()) {
-        const fs::path foundPath = result->second.metadata.getBase().getSourceAssetPath();
+        const Path foundPath = result->second.metadata.getBase().getSourceAssetPath();
         if (foundPath != checkPath) {
             return foundPath;
         }

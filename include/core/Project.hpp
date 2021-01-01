@@ -29,9 +29,8 @@
 #ifndef IYF_PROJECT_HPP
 #define IYF_PROJECT_HPP
 
-#include "core/configuration/Configuration.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
-#include "core/interfaces/TextSerializable.hpp"
+#include "io/interfaces/TextSerializable.hpp"
+#include "configuration/Configuration.hpp"
 #include "core/Platform.hpp"
 #include "../VERSION.hpp"
 
@@ -63,11 +62,11 @@ public:
     /// etc. If the game is available in multiple languages, the language file corresponding to the base locale will be
     /// the one that defines all strings that need to be translated into other languages.
     /// \return new project object that can be used by EditorState or classed deriving from it
-    static CreationResult Create(const fs::path& newProjectPath, const std::string& projectName, const std::string& companyName, 
+    static CreationResult Create(const Path& newProjectPath, const std::string& projectName, const std::string& companyName, 
                                  std::function<void(const std::string&)> callback, const std::string& baseLocale);
     
-    static bool CreateImportedAssetDirectories(const fs::path& path, PlatformIdentifier platformID);
-    static bool CreateImportsDirectory(const fs::path& path);
+    static bool CreateImportedAssetDirectories(const Path& path, PlatformIdentifier platformID);
+    static bool CreateImportsDirectory(const Path& path);
     
     /// Creates and serializes a new Project file with some default values set.
     /// 
@@ -77,11 +76,11 @@ public:
     /// \param[in] companyName the name of your company
     /// \param[in] baseLocale the default locale
     /// \param[in] version the starting version to use
-    static bool CreateProjectFile(const fs::path& newProjectPath, const std::string& projectName, const std::string& companyName, const std::string& baseLocale, const Version& version = Version(0, 0, 0));
+    static bool CreateProjectFile(const Path& newProjectPath, const std::string& projectName, const std::string& companyName, const std::string& baseLocale, const Version& version = Version(0, 0, 0));
     
     /// Sets the project root to the specified path and automatically deserializes (by calling deserialize()) the project configuration
     /// file from there. This must be a real file system path.
-    Project(fs::path root);
+    Project(Path root);
     
     virtual ~Project();
     
@@ -117,7 +116,7 @@ public:
     /// always safe to call. Calling any other function when isValid() is false will trigger a fatal error.
     virtual bool makesJSONRoot() const final override;
     
-    const fs::path& getRootPath() const;
+    const Path& getRootPath() const;
     
     /// Sets the name of the first World that will be loaded when the game loads for the first time.
     ///
@@ -199,8 +198,8 @@ public:
 private:
     void validOrFatalError() const;
     
-    Project(fs::path root, bool deserializeFile);
-    fs::path root;
+    Project(Path root, bool deserializeFile);
+    Path root;
     
     std::string companyName;
     std::string gameName;

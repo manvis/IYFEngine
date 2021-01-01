@@ -31,10 +31,11 @@
 #include <fstream>
 #include <random>
 #include <cassert>
+#include <filesystem>
 
-#include "core/Logger.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
+#include "logging/Logger.hpp"
 
+namespace fs = std::filesystem;
 namespace iyf::test {
 /// If this is true, and the test was created in verbose mode, the file monitor backends will output
 /// all events (including those that aren't sent to the callback) to log files. This may make the
@@ -698,10 +699,10 @@ std::string FileMonitorTests::printEvent(const iyf::FileSystemEvent& event) {
         throw std::runtime_error("Unknown event flag was reported to the print function.");
     }
     
-    ss << "\t\tSource:      " << event.getSource().string();
+    ss << "\t\tSource:      " << event.getSource().getNativeString();
     
     if (event.getType() == iyf::FileSystemEventFlags::Moved) {
-        ss << "\n\t\tDestination: " << event.getDestination().string();
+        ss << "\n\t\tDestination: " << event.getDestination().getNativeString();
     }
     
     return ss.str();
@@ -989,10 +990,10 @@ void FileMonitorTests::monitorCallback(std::vector<FileSystemEvent> events) {
             break;
         case FileMonitorTestStep::DirectoryMovedIn: {
                 for (const auto& e : events) {
-                    auto result = dirMoveEventMap.find(e.getSource().string());
+                    auto result = dirMoveEventMap.find(e.getSource().getNativeString());
                     
                     if (result == dirMoveEventMap.end()) {
-                        dirMoveEventMap.insert({e.getSource().string(), {e}});
+                        dirMoveEventMap.insert({e.getSource().getNativeString(), {e}});
                     } else {
                         result->second.push_back(e);
                     }
@@ -1033,7 +1034,7 @@ void FileMonitorTests::monitorCallback(std::vector<FileSystemEvent> events) {
     }
 }
 
-void FileMonitorTests::printMonitoredDirectories(const std::vector<fs::path>& directories) {
+void FileMonitorTests::printMonitoredDirectories(const std::vector<Path>& directories) {
     if (!isOutputVerbose()) {
         return;
     }
@@ -1042,7 +1043,7 @@ void FileMonitorTests::printMonitoredDirectories(const std::vector<fs::path>& di
     
     ss << "Currently monitored directories: ";
     for (const auto& d : directories) {
-        ss << "\n\t\t\t" << d.string();
+        ss << "\n\t\t\t" << d.getNativeString();
     }
     
     LOG_V("{}", ss.str());

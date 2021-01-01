@@ -54,7 +54,7 @@ private:
     virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
     
-    MeshConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash)
+    MeshConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const Path& sourcePath, FileHash sourceFileHash)
         : ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash), convertAnimations(true), scale(1.0f) {}
 };
 

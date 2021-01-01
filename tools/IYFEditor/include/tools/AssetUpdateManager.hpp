@@ -35,7 +35,6 @@
 #include <chrono>
 #include <map>
 
-#include "core/filesystem/cppFilesystem.hpp"
 #include "core/filesystem/FileSystemEvent.hpp"
 
 #include "utilities/hashing/Hashing.hpp"
@@ -57,7 +56,7 @@ enum class AssetOperationType : std::uint32_t {
 };
 
 struct AssetOperation {
-    fs::path destination;
+    Path destination;
     StringHash nameHash;
     AssetOperationType type;
     std::chrono::steady_clock::time_point timePoint;
@@ -73,7 +72,7 @@ public:
     void dispose();
     
     bool update();
-    void forceReimport(const fs::path& path);
+    void forceReimport(const Path& path);
 private:
     void watcherCallback(std::vector<FileSystemEvent> eventList);
     
@@ -82,7 +81,7 @@ private:
     std::function<void()> executeAssetOperation(std::string path, AssetOperation op) const;
     
     Engine* engine;
-    fs::path importsDir;
+    Path importsDir;
     
     std::unique_ptr<ConverterManager> converterManager;
     
@@ -90,8 +89,8 @@ private:
     std::thread fileSystemWatcherThread;
     std::chrono::steady_clock::time_point lastFileSystemUpdate;
     
-    std::map<fs::path, AssetOperation> assetOperations;
-    std::pair<fs::path, AssetOperation> currentlyProcessedAsset;
+    std::map<Path, AssetOperation> assetOperations;
+    std::pair<Path, AssetOperation> currentlyProcessedAsset;
     
     std::mutex assetOperationMutex;
     std::future<std::unique_ptr<ConverterState>> assetConverterInitFuture;

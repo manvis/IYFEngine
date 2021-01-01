@@ -29,10 +29,11 @@
 #include "tools/AssetUpdateManager.hpp"
 
 #include "core/Engine.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "core/Project.hpp"
-#include "core/filesystem/FileSystem.hpp"
+#include "io/FileSystem.hpp"
 #include "core/filesystem/FileSystemWatcher.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
 
 #include "assets/AssetManager.hpp"
 #include "assetImport/ConverterManager.hpp"
@@ -94,10 +95,10 @@ void AssetUpdateManager::initialize() {
         }
     });
     
-    const FileSystem* fs = engine->getFileSystem();
+    const VirtualFileSystem* fs = engine->getFileSystem();
     converterManager = std::make_unique<ConverterManager>(fs, "");
-    const fs::path platformDataPath = converterManager->getAssetDestinationPath(con::GetCurrentPlatform());
-    const fs::path realPlatformDataPath = fs->getRealDirectory(platformDataPath.generic_string());
+    const Path platformDataPath = converterManager->getAssetDestinationPath(con::GetCurrentPlatform());
+    const Path realPlatformDataPath = fs->getRealDirectory(platformDataPath.getGenericString());
     LOG_V("Converted assets for the current platform will be written to: {}", realPlatformDataPath);
     
     isInit = true;
@@ -129,29 +130,29 @@ void AssetUpdateManager::watcherCallback(std::vector<FileSystemEvent> eventList)
     for (const auto& e : eventList) {
         const bool isDirectory = e.getOrigin() == FileSystemEventOrigin::Directory;
         
-        const fs::path finalSourcePath = e.getSource().lexically_relative(importsDir);
-        const fs::path finalDestinationPath = e.getDestination().lexically_relative(importsDir);
+        const Path finalSourcePath = e.getSource().lexicallyRelative(importsDir);
+        const Path finalDestinationPath = e.getDestination().lexicallyRelative(importsDir);
         
         // TODO updated settings files (e.g. via version control) should probably trigger a re-import as well
         if (!isDirectory && finalSourcePath.extension() == con::ImportSettingsExtension()) {
             continue;
         }
         
-        const StringHash hashedName = HS(finalSourcePath.generic_string());
+        const StringHash hashedName = HS(finalSourcePath.getGenericString());
         
         const char* t = "InvalidOP";
         switch (e.getType()) {
         case FileSystemEventFlags::Created:
             t = "Created";
-            assetOperations[finalSourcePath] = {fs::path(), hashedName, AssetOperationType::Created, lastFileSystemUpdate, isDirectory};
+            assetOperations[finalSourcePath] = {Path(), hashedName, AssetOperationType::Created, lastFileSystemUpdate, isDirectory};
             break;
         case FileSystemEventFlags::Deleted:
             t = "Deleted";
-            assetOperations[finalSourcePath] = {fs::path(), hashedName, AssetOperationType::Deleted, lastFileSystemUpdate, isDirectory};
+            assetOperations[finalSourcePath] = {Path(), hashedName, AssetOperationType::Deleted, lastFileSystemUpdate, isDirectory};
             break;
         case FileSystemEventFlags::Modified:
             t = "Modified";
-            assetOperations[finalSourcePath] = {fs::path(), hashedName, AssetOperationType::Updated, lastFileSystemUpdate, isDirectory};
+            assetOperations[finalSourcePath] = {Path(), hashedName, AssetOperationType::Updated, lastFileSystemUpdate, isDirectory};
             break;
         case FileSystemEventFlags::Moved:
             t = "Moved";
@@ -174,14 +175,14 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(std::string path
                 // We don't track folders as assets
                 return []{};
             case AssetOperationType::Deleted: {
-                const fs::path sourcePath = con::ImportPath() / path;
+                const Path sourcePath = con::ImportPath() / path;
                 return [assetManager, sourcePath]{
                     assetManager->requestAssetDeletion(sourcePath, true);
                 };
             }
             case AssetOperationType::Moved: {
-                const fs::path sourcePath = con::ImportPath() / path;
-                const fs::path destinationPath = con::ImportPath() / op.destination;
+                const Path sourcePath = con::ImportPath() / path;
+                const Path destinationPath = con::ImportPath() / op.destination;
                 return [assetManager, sourcePath, destinationPath] {
                     assetManager->requestAssetMove(sourcePath, destinationPath, true);
                 };
@@ -197,7 +198,7 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(std::string path
             // No need to prepend con::ImportPath here. The hash does not contain it and computeNameHash would only strip it.
             const StringHash nameHash = AssetManager::ComputeNameHash(path);
             
-            const fs::path sourcePath = con::ImportPath() / path;
+            const Path sourcePath = con::ImportPath() / path;
             auto collisionCheckResult = assetManager->checkForHashCollision(nameHash, sourcePath);
             if (collisionCheckResult) {
                 LOG_W("Failed to import {}. Detected a hash collision with {}", path, *collisionCheckResult);
@@ -209,7 +210,7 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(std::string path
             
             if (converterState != nullptr) {
                 if (converterManager->convert(*converterState)) {
-                    const fs::path finalPath = converterManager->makeFinalPathForAsset(sourcePath, converterState->getType(), platform);
+                    const Path finalPath = converterManager->makeFinalPathForAsset(sourcePath, converterState->getType(), platform);
                     const AssetType assetType = converterState->getType();
                     
                     return [assetManager, assetType, finalPath] {
@@ -225,8 +226,8 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(std::string path
             }
         }
         case AssetOperationType::Deleted: {
-            const fs::path sourcePath = con::ImportPath() / path;
-            const fs::path settingsPath = fs::path(sourcePath).concat(con::ImportSettingsExtension());
+            const Path sourcePath = con::ImportPath() / path;
+            const Path settingsPath = Path(sourcePath).concat(con::ImportSettingsExtension());
             
             const FileSystem* fs = engine->getFileSystem();
             if (fs->exists(settingsPath)) {
@@ -234,23 +235,23 @@ std::function<void()> AssetUpdateManager::executeAssetOperation(std::string path
             }
             
             const PlatformIdentifier platform = con::GetCurrentPlatform();
-            const fs::path finalPath = converterManager->makeFinalPathForAsset(sourcePath, AssetManager::GetAssetTypeFromExtension(sourcePath), platform);
+            const Path finalPath = converterManager->makeFinalPathForAsset(sourcePath, AssetManager::GetAssetTypeFromExtension(sourcePath), platform);
             
             return [assetManager, finalPath]{
                 assetManager->requestAssetDeletion(finalPath, false);
             };
         }
         case AssetOperationType::Moved: {
-            const fs::path sourcePath = importsDir / path;
-            const fs::path destinationPath = importsDir / op.destination;
+            const Path sourcePath = importsDir / path;
+            const Path destinationPath = importsDir / op.destination;
             
-            const fs::path settingsSourcePath = fs::path(sourcePath).concat(con::ImportSettingsExtension());
-            const fs::path settingsDestinationPath = fs::path(destinationPath).concat(con::ImportSettingsExtension());
+            const Path settingsSourcePath = Path(sourcePath).concat(con::ImportSettingsExtension());
+            const Path settingsDestinationPath = Path(destinationPath).concat(con::ImportSettingsExtension());
             
             const FileSystem* fs = engine->getFileSystem();
-            bool result = fs->rename(settingsSourcePath, settingsDestinationPath);
+            const FileSystemResult result = fs->rename(settingsSourcePath, settingsDestinationPath);
             
-            if (!result) {
+            if (result != FileSystemResult::Success) {
                 LOG_W("Failed to move an import settings file");
             }
             
@@ -270,7 +271,7 @@ bool AssetUpdateManager::update() {
     if (valid && assetProcessingFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
         std::function<void()> notificationFunction = assetProcessingFuture.get();
         if (notificationFunction == nullptr) {
-            LOG_W("Failed to process changes. File: {}", currentlyProcessedAsset.first.generic_string());
+            LOG_W("Failed to process changes. File: {}", currentlyProcessedAsset.first.getGenericString());
         } else {
             notificationFunction();
         }
@@ -287,7 +288,8 @@ bool AssetUpdateManager::update() {
             if (duration.count() >= MIN_STABLE_FILE_SIZE_DURATION_SECONDS) {
                 iyft::ThreadPool* tp = engine->getLongTermWorkerPool();
                 currentlyProcessedAsset = *it;
-                assetProcessingFuture = tp->addTaskWithResult(&AssetUpdateManager::executeAssetOperation, this, currentlyProcessedAsset.first, currentlyProcessedAsset.second);
+                assetProcessingFuture = tp->addTaskWithResult(&AssetUpdateManager::executeAssetOperation, this,
+                    currentlyProcessedAsset.first.getGenericString(), currentlyProcessedAsset.second);
                 
                 assetOperations.erase(it);
                 break;
@@ -307,7 +309,7 @@ bool AssetUpdateManager::update() {
     bool result = false;
     
     if (ImGui::BeginPopupModal(modalName, NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("Processing %s, %lu more item(s) remain(s)", currentlyProcessedAsset.first.generic_string().c_str(), operationCount);
+        ImGui::Text("Processing %s, %lu more item(s) remain(s)", currentlyProcessedAsset.first.getGenericString().c_str(), operationCount);
         if (!popupShouldBeOpen) {
             result = true;
             ImGui::CloseCurrentPopup();
@@ -319,8 +321,8 @@ bool AssetUpdateManager::update() {
     return result;
 }
 
-void AssetUpdateManager::forceReimport(const fs::path& path) {
-    FileSystemEvent event(FileSystemEventFlags::Modified, FileSystemEventOrigin::File, path, fs::path());
+void AssetUpdateManager::forceReimport(const Path& path) {
+    FileSystemEvent event(FileSystemEventFlags::Modified, FileSystemEventOrigin::File, path, Path());
     watcherCallback({std::move(event)});
 }
 

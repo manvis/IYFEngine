@@ -28,7 +28,7 @@
 
 #include "physics/RigidBody.hpp"
 #include "physics/PhysicsSystem.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 
 namespace iyf {
 RigidBody::RigidBody() : Component(ComponentType(ComponentBaseType::Physics, PhysicsComponent::RigidBody)), 

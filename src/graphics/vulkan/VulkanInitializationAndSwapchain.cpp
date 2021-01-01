@@ -34,7 +34,7 @@
 
 #include "utilities/hashing/Hashing.hpp"
 #include "utilities/DataSizes.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "core/Engine.hpp"
 
 #include "fmt/ostream.h"
@@ -257,7 +257,13 @@ void VulkanAPI::createInstance() {
     if (isDebug) {
         std::string layerNamesCfg = config->getValue(HS("validationLayers"), ConfigurationValueNamespace::Engine);
 
-        layerNamesSplit = util::split(layerNamesCfg, ',');
+        const auto splitResult = util::splitString(layerNamesCfg, ",");
+
+        layerNamesSplit.reserve(splitResult.size());
+        for (const auto& name : splitResult)
+        {
+            layerNamesSplit.emplace_back(name);
+        }
         
         validationLayerNames.reserve(layerNamesSplit.size());
 

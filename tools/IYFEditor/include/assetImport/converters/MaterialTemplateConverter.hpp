@@ -36,8 +36,8 @@
 
 namespace iyf {
 class VulkanGLSLShaderGenerator;
-class ShaderCompilationSettings;
 class MemorySerializer;
+struct ShaderCompilationSettings;
 }
 
 namespace iyf::editor {
@@ -48,7 +48,7 @@ public:
     MaterialTemplateConverter(const ConverterManager* manager);
     virtual ~MaterialTemplateConverter();
     
-    virtual std::unique_ptr<ConverterState> initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const final override;
+    virtual std::unique_ptr<ConverterState> initializeConverter(const Path& inPath, PlatformIdentifier platformID) const final override;
     virtual bool convert(ConverterState& state) const final override;
 private:
     /// Compiles a shader variant into bytecode fit for driver consumption

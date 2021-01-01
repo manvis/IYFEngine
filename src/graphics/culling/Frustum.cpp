@@ -28,7 +28,7 @@
 
 #include "graphics/culling/Frustum.hpp"
 #include "graphics/Camera.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "graphics/DebugRenderer.hpp"
 #include "core/TransformationComponent.hpp"
 

@@ -30,7 +30,7 @@
 #define IYF_ASSET_CONSTANTS_HPP
 
 #include "assets/AssetType.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
+#include "io/Path.hpp"
 
 namespace iyf {
 enum class AssetsToEnableResult {
@@ -44,16 +44,16 @@ namespace con {
 // Directories
 // -----------------------------------------------------------------------------
 /// \brief Base path of all assets used by the game
-const fs::path& BaseAssetPath();
+const Path& BaseAssetPath();
 
 /// \brief Path to system strings used by the editor and tools
-const fs::path& SystemStringPath();
+const Path& SystemStringPath();
 
 /// \brief Path to imports
-const fs::path& ImportPath();
+const Path& ImportPath();
 
 /// \brief Default paths for each AssetType. AssetType::Any and AssetType::COUNT return empty strings they are helper values.
-const fs::path& AssetTypeToPath(AssetType type);
+const Path& AssetTypeToPath(AssetType type);
 
 /// \brief Default translation strings for each AssetType. Usage: submit these to LOC macro and get the human readable string in current language
 const std::string& AssetTypeToTranslationString(AssetType type);
@@ -95,10 +95,10 @@ const std::string& ImGuiFont();
 const std::string& LocalizationDatabase();
 
 /// \brief Default texture to use when one is missing.
-const fs::path& MissingTexture();
+const Path& MissingTexture();
 
 /// \brief Default mesh to use when one is missing.
-const fs::path& MissingMesh();
+const Path& MissingMesh();
 
 const std::string& EngineBaseConfigFile();
 

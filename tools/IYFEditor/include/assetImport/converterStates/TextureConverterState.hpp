@@ -78,7 +78,7 @@ private:
     virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
     
-    TextureConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash)
+    TextureConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const Path& sourcePath, FileHash sourceFileHash)
         : ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash), premultiplyAlpha(true), sRGBSource(true), noMipMaps(false),
           importMode(TextureImportMode::Regular), filteringMethod(TextureFilteringMethod::Trilinear), xTiling(TextureTilingMethod::Repeat), 
           yTiling(TextureTilingMethod::Repeat), quality(0.05f), preferredAnisotropy(0), cubemap(false), sourceDataHDR(false), width(0), height(0), channels(0) {}

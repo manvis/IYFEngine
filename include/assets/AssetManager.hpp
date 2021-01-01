@@ -70,14 +70,14 @@ public:
     ///
     /// \warning This function DOES NOT access the contents of the file. This leads to some limitations. E.g., since animations are
     /// imported from mesh files, this function will return AssetType::Mesh, even if the file contains nothing but an animation library.
-    static AssetType GetAssetTypeFromExtension(const fs::path& pathToFile);
+    static AssetType GetAssetTypeFromExtension(const Path& pathToFile);
     
     /// Computes the hash of the provided path. If the path starts with con::ImportPath, it is stripped before computing the hash.
-    static inline StringHash ComputeNameHash(const fs::path& sourcePath) {
-        if (*sourcePath.begin() == con::ImportPath()) {
-            return HS(sourcePath.lexically_relative(con::ImportPath()).generic_string());
+    static inline StringHash ComputeNameHash(const Path& sourcePath) {
+        if (*(sourcePath.begin()) == con::ImportPath()) {
+            return HS(sourcePath.lexicallyRelative(con::ImportPath()).getGenericString());
         } else {
-            return HS(sourcePath.generic_string());
+            return HS(sourcePath.getGenericString());
         }
     }
     
@@ -191,7 +191,7 @@ public:
     /// \warning This function can only be used if the Engine that was passed to the constructor is running in game mode.
     ///
     /// \return A path to the colliding file or a nullopt if no hash collisions have been detected.
-    std::optional<fs::path> checkForHashCollision(StringHash nameHash, const fs::path& checkPath) const;
+    std::optional<Path> checkForHashCollision(StringHash nameHash, const Path& checkPath) const;
     
     /// \brief Obtains a copy of a Metadata object that corresponds to the file with the specified nameHash or an std::nullopt if
     /// the nameHash wasn't found in the manifest.
@@ -214,7 +214,7 @@ public:
     ///
     /// \remark This method is always thread safe. However, when running in editor mode, it is possible that the path is
     /// no longer relevant by the time you get to read it (e.g., the file may have been deleted)
-    inline std::optional<fs::path> getAssetPathCopy(StringHash nameHash) const {
+    inline std::optional<Path> getAssetPathCopy(StringHash nameHash) const {
         auto manifestLock = editorMode ? std::unique_lock<std::mutex>(manifestMutex) : std::unique_lock<std::mutex>();
         
         auto result = manifest.find(nameHash);
@@ -248,7 +248,7 @@ public:
     /// \warning This function can only be used if the Engine that was passed to the constructor is running in game mode.
     ///
     /// \throws std::logic_error if this AssetManager was constructed using an Engine instance running in editor mode.
-    inline const fs::path* getAssetPath(StringHash nameHash) const {
+    inline const Path* getAssetPath(StringHash nameHash) const {
         if (editorMode) {
             throw std::logic_error("This method can't be used when the engine is running in editor mode.");
         }
@@ -302,17 +302,17 @@ public:
     ///
     /// \param type The type of the asset. Could be determined by examining the path, howerver, it's always present when requestAssetRefresh needs to be called
     /// \param path The destination path of the imported file
-    void requestAssetRefresh(AssetType type, const fs::path& path);
+    void requestAssetRefresh(AssetType type, const Path& path);
    
     /// Used by the editor to delete a specific asset (or a folder of assets)
     /// 
     /// \throws std::logic_error if this AssetManager was constructed using an Engine running in game mode.
-    void requestAssetDeletion(const fs::path& path, bool isDir);
+    void requestAssetDeletion(const Path& path, bool isDir);
     
     /// Used by the editor to rename or move a specific asset (or a folder of assets)
     /// 
     /// \throws std::logic_error if this AssetManager was constructed using an Engine running in game mode.
-    void requestAssetMove(const fs::path& sourcePath, const fs::path& destinationPath, bool isDir);
+    void requestAssetMove(const Path& sourcePath, const Path& destinationPath, bool isDir);
     
     /// Removes all non-system assets from the manifest. Typically used when closing a Project. For performance reasons, 
     /// this function should only be called after all Entity objects that use non-system assets have been unloaded.
@@ -323,14 +323,14 @@ public:
     void removeNonSystemAssetsFromManifest();
 //---------------- Editor API end
     struct ManifestElement {
-        fs::path path;
+        Path path;
         AssetType type;
         bool systemAsset;
         Metadata metadata;
     };
 private:
     /// Called by checkForHashCollision(). Needed to avoid a deadlock when checking for hash collisions during asset move.
-    std::optional<fs::path> checkForHashCollisionImpl(StringHash nameHash, const fs::path& checkPath) const;
+    std::optional<Path> checkForHashCollisionImpl(StringHash nameHash, const Path& checkPath) const;
     
     /// \brief Adds a file to the manifest.
     ///
@@ -347,7 +347,7 @@ private:
     /// \param nameHash Hashed path to the file that you want to add to the manifest.
     /// \param path Path to the file that you want to add to the manifest
     /// \param metadata additional metadata
-    void appendAssetToManifest(StringHash nameHash, const fs::path& path, const Metadata& metadata);
+    void appendAssetToManifest(StringHash nameHash, const Path& path, const Metadata& metadata);
     
     /// \brief Removes a file from the manifest. If the asset in question has already been loaded, replaces it with a "missing" one.
     ///

@@ -31,8 +31,8 @@
 #include <algorithm>
 #include <unordered_map>
 
-#include "core/configuration/Configuration.hpp"
-#include "core/Logger.hpp"
+#include "configuration/Configuration.hpp"
+#include "logging/Logger.hpp"
 #include "core/interfaces/InputListener.hpp"
 #include "core/Engine.hpp"
 #include "threading/ThreadProfiler.hpp"

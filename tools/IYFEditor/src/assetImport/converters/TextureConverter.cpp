@@ -32,12 +32,12 @@
 #include "assets/metadata/TextureMetadata.hpp"
 
 #include "core/Engine.hpp"
-#include "core/Logger.hpp"
-#include "core/filesystem/FileSystem.hpp"
-#include "core/filesystem/File.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
-#include "core/serialization/MemorySerializer.hpp"
-#include "core/serialization/VirtualFileSystemSerializer.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
+#include "logging/Logger.hpp"
+#include "io/FileSystem.hpp"
+#include "io/File.hpp"
+#include "io/serialization/MemorySerializer.hpp"
+#include "io/serialization/FileSerializer.hpp"
 #include "utilities/BitFunctions.hpp"
 
 #include "assetImport/ConverterManager.hpp"
@@ -103,7 +103,7 @@ inline TextureCompressionFormat CompressonatorToEngineFormat(CMP_FORMAT format) 
     }
 }
 
-[[maybe_unused]] void debugWriteImageHDR(const fs::path& path, const float* source, std::size_t width, std::size_t height, std::size_t channels, bool premultiplied) {
+[[maybe_unused]] void debugWriteImageHDR(const Path& path, const float* source, std::size_t width, std::size_t height, std::size_t channels, bool premultiplied) {
     const std::size_t size = width * height * channels;
     float* destination = new float[size];
     
@@ -124,7 +124,7 @@ inline TextureCompressionFormat CompressonatorToEngineFormat(CMP_FORMAT format) 
         }
     }
     
-    int result = stbi_write_hdr(path.c_str(), width, height, channels, destination);
+    int result = stbi_write_hdr(path.getCString(), width, height, channels, destination);
     if (!result) {
         throw std::runtime_error("Failed to write a debug image");
     }
@@ -132,7 +132,7 @@ inline TextureCompressionFormat CompressonatorToEngineFormat(CMP_FORMAT format) 
     delete[] destination;
 }
 
-[[maybe_unused]] void debugWriteImage(const fs::path& path, const float* source, std::size_t width, std::size_t height, std::size_t channels, bool premultiplied, bool unpremultiply, bool sRGBSource) {
+[[maybe_unused]] void debugWriteImage(const Path& path, const float* source, std::size_t width, std::size_t height, std::size_t channels, bool premultiplied, bool unpremultiply, bool sRGBSource) {
     const std::size_t pixelCount = width * height;
     std::uint8_t* destination = new std::uint8_t[pixelCount * channels];
     
@@ -186,7 +186,7 @@ inline TextureCompressionFormat CompressonatorToEngineFormat(CMP_FORMAT format) 
         }
     }
     
-    int result = stbi_write_png(path.c_str(), width, height, channels, destination, 0);
+    int result = stbi_write_png(path.getCString(), width, height, channels, destination, 0);
     if (!result) {
         throw std::runtime_error("Failed to write a debug image");
     }
@@ -194,8 +194,8 @@ inline TextureCompressionFormat CompressonatorToEngineFormat(CMP_FORMAT format) 
     delete[] destination;
 }
 
-void saveCompressedImage([[maybe_unused]]const CMP_Texture& source, CMP_Texture& destination, const fs::path& path, std::size_t f, std::size_t l, [[maybe_unused]]bool needToSwizzleRB) {
-    // fs::path debugPath = path.stem();
+void saveCompressedImage([[maybe_unused]]const CMP_Texture& source, CMP_Texture& destination, const Path& path, std::size_t f, std::size_t l, [[maybe_unused]]bool needToSwizzleRB) {
+    // Path debugPath = path.stem();
     // debugPath += "_";
     // debugPath += std::to_string(f);
     // debugPath += "_";
@@ -255,7 +255,7 @@ void saveCompressedImage([[maybe_unused]]const CMP_Texture& source, CMP_Texture&
 //         throw std::runtime_error("Debug conversion failed");
 //     }
 //     
-//     fs::path debugPath2 = path.stem();
+//     Path debugPath2 = path.stem();
 //     debugPath2 += "_";
 //     debugPath2 += std::to_string(f);
 //     debugPath2 += "_";
@@ -274,7 +274,7 @@ void saveCompressedImage([[maybe_unused]]const CMP_Texture& source, CMP_Texture&
 }
 
 inline void writeMipMapImage(std::vector<TextureConverter::MipmapLevelData>& mipMapLevelData, const TextureConverterState& textureState, std::size_t face, std::size_t level, bool sRGBSource) {
-    fs::path debugPath = textureState.getSourceFilePath().stem();
+    Path debugPath = textureState.getSourceFilePath().stem();
     debugPath += "_";
     debugPath += std::to_string(face);
     debugPath += "_";
@@ -660,11 +660,11 @@ TextureConverter::~TextureConverter() {
     CMP_ShutdownBCLibrary();
 }
 
-std::unique_ptr<ConverterState> TextureConverter::initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const {
+std::unique_ptr<ConverterState> TextureConverter::initializeConverter(const Path& inPath, PlatformIdentifier platformID) const {
      std::unique_ptr<TextureConverterInternalState> internalState = std::make_unique<TextureConverterInternalState>(this);
     
-    File inFile(inPath, File::OpenMode::Read);
-    auto data = inFile.readWholeFile();
+    auto inFile = VirtualFileSystem::Instance().openFile(inPath, FileOpenMode::Read);
+    auto data = inFile->readWholeFile();
     
     internalState->rawData = std::move(data.first);
     internalState->size = data.second;
@@ -677,13 +677,13 @@ std::unique_ptr<ConverterState> TextureConverter::initializeConverter(const fs::
     int channels = 0;
     
     if (!stbi_info_from_memory(ucData, internalState->size, &x, &y, &channels)) {
-        LOG_W("stb_image failed to extract information from {}", inPath.generic_string());
+        LOG_W("stb_image failed to extract information from {}", inPath.getGenericString());
         return nullptr;
     }
     const bool sourceDataHDR = stbi_is_hdr_from_memory(ucData, internalState->size);
     
     if (x <= 0 || y <= 0) {
-        LOG_W("Cannot import a invalid texture from {}", inPath.generic_string());
+        LOG_W("Cannot import a invalid texture from {}", inPath.getGenericString());
         return nullptr;
     }
     
@@ -738,7 +738,7 @@ bool TextureConverter::convert(ConverterState& state) const {
         imageData = ImageDataPtr(stbi_loadf_from_memory(ucData, internalState->size, &x, &y, &c, 0), [](float* p){stbi_image_free(p);});
         
         if (imageData == nullptr) {
-            LOG_W("stb_image failed to load the image from {}", state.getSourceFilePath().generic_string());
+            LOG_W("stb_image failed to load the image from {}", state.getSourceFilePath().getGenericString());
             return false;
         }
         
@@ -754,7 +754,7 @@ bool TextureConverter::convert(ConverterState& state) const {
         stbi_uc* temp = stbi_load_from_memory(ucData, internalState->size, &x, &y, &c, 0);
         
         if (temp == nullptr) {
-            LOG_W("stb_image failed to load the image from {}", state.getSourceFilePath().generic_string());
+            LOG_W("stb_image failed to load the image from {}", state.getSourceFilePath().getGenericString());
             return false;
         }
         
@@ -886,14 +886,14 @@ bool TextureConverter::convert(ConverterState& state) const {
         }
     }
     
-    const fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
+    const Path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
     
     std::uint64_t fullSize = fw.size();
     std::uint64_t dataSize = fullSize - headerSize;
     
-    File textureFile(outputPath, File::OpenMode::Write);
-    textureFile.writeBytes(fw.data(), fw.size());
-    textureFile.close();
+    auto textureFile = VirtualFileSystem::Instance().openFile(outputPath, FileOpenMode::Write);
+    textureFile->writeBytes(fw.data(), fw.size());
+    textureFile->close();
     
     FileHash fileHash = HF(fw.data(), fw.size());
     TextureMetadata textureMetadata(fileHash, textureState.getSourceFilePath(), textureState.getSourceFileHash(), state.isSystemAsset(), state.getTags(), topLevelWidth, topLevelHeight, 1, faceCount, 1,

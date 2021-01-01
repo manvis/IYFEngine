@@ -37,7 +37,7 @@ public:
     inline VideoMetadata() : MetadataBase(AssetType::Video) {}
     
     inline VideoMetadata(FileHash fileHash,
-                         const fs::path& sourceAsset,
+                         const Path& sourceAsset,
                          FileHash sourceFileHash,
                          bool systemAsset,
                          const std::vector<std::string>& tags)

@@ -37,7 +37,7 @@ public:
     LocalizationStringConverter(const ConverterManager* manager) : Converter(manager) {}
     virtual ~LocalizationStringConverter() {}
     
-    virtual std::unique_ptr<ConverterState> initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const final override;
+    virtual std::unique_ptr<ConverterState> initializeConverter(const Path& inPath, PlatformIdentifier platformID) const final override;
     virtual bool convert(ConverterState& state) const final override;
 };
 }

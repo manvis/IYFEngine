@@ -33,7 +33,7 @@
 #include <unordered_map>
 #include "graphics/materials/MaterialInputs.hpp"
 #include "graphics/materials/MaterialRenderMode.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
+#include "io/Path.hpp"
 
 namespace iyf {
 class Engine;
@@ -53,8 +53,8 @@ public:
     MaterialInstanceEditor(Engine* engine);
     
     void show(bool* showing);
-    void setFilePath(const fs::path& path);
-    inline const fs::path& getFilePath() const {
+    void setFilePath(const Path& path);
+    inline const Path& getFilePath() const {
         return filePath;
     }
     
@@ -64,7 +64,7 @@ protected:
     
     StringHash materialTemplateAsset;
     
-    fs::path filePath;
+    Path filePath;
     Engine* engine;
     AssetManager* assetManager;
     std::unique_ptr<MaterialInstanceDefinition> instanceDefinition;

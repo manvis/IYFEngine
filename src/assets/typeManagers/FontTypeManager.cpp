@@ -27,9 +27,10 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assets/typeManagers/FontTypeManager.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
 #include "core/Engine.hpp"
-#include "core/filesystem/File.hpp"
-#include "core/Logger.hpp"
+#include "io/File.hpp"
+#include "logging/Logger.hpp"
 
 namespace iyf {
 FontTypeManager::FontTypeManager(AssetManager* manager) : ChunkedVectorTypeManager(manager) {
@@ -37,10 +38,10 @@ FontTypeManager::FontTypeManager(AssetManager* manager) : ChunkedVectorTypeManag
     api = engine->getGraphicsAPI();
 }
 
-std::unique_ptr<LoadedAssetData> FontTypeManager::readFile(StringHash, const fs::path& path, const Metadata& metadata, Font& assetData) {
-    File file(path, File::OpenMode::Read);
+std::unique_ptr<LoadedAssetData> FontTypeManager::readFile(StringHash, const Path& path, const Metadata& metadata, Font& assetData) {
+    auto file = VirtualFileSystem::Instance().openFile(path, FileOpenMode::Read);
     
-    return std::make_unique<LoadedAssetData>(metadata, assetData, file.readWholeFile());
+    return std::make_unique<LoadedAssetData>(metadata, assetData, file->readWholeFile());
 }
 
 void FontTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool) {

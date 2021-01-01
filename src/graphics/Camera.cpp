@@ -28,7 +28,7 @@
 
 #include "graphics/Camera.hpp"
 
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "core/EntitySystemManager.hpp"
 
 #include <glm/glm.hpp>

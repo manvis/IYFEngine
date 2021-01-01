@@ -32,11 +32,13 @@
 #include <chrono>
 #include <cstdio>
 
-#include "core/filesystem/FileSystem.hpp"
-#include "core/filesystem/File.hpp"
-#include "core/serialization/VirtualFileSystemSerializer.hpp"
+#include "io/FileSystem.hpp"
+#include "io/File.hpp"
+#include "io/DefaultFileSystem.hpp"
+#include "io/serialization/FileSerializer.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
 #include "core/InputState.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "core/Project.hpp"
 #include "graphics/GraphicsSystem.hpp"
 #include "graphics/MeshComponent.hpp"
@@ -1184,7 +1186,7 @@ void EditorState::showMeshComponentEditor(Entity& entity) {
     auto path = assetManager->getAssetPathCopy(mesh->getNameHash());
     
     if (path) {
-        ImGui::Text("Mesh file: %s", (*path).c_str());
+        ImGui::Text("Mesh file: %s", (*path).getCString());
     } else {
         assert("Missing mesh not handled");
     }
@@ -1302,7 +1304,7 @@ void EditorState::draw2DColorDataSlot(std::pair<std::uint32_t, std::string>& con
 
 void EditorState::showAssetWindow() {
     IYFT_PROFILE(EditorAssetWindow, iyft::ProfilerTag::Editor)
-    FileSystem* filesystem = engine->getFileSystem();
+    VirtualFileSystem* filesystem = engine->getFileSystem();
     AssetManager* assetManager = engine->getAssetManager();
     
     // TODO implement search (select statements are done)
@@ -1322,7 +1324,7 @@ void EditorState::showAssetWindow() {
 //         ImGui::BeginChild("AssetList", ImVec2(ImGui::GetWindowContentRegionWidth() - contentHeight - spacing, 0), false);
 
         const bool showUpNavigation = (currentlyOpenDir != con::ImportPath());
-        ImGui::Text("Current path: %s", currentlyOpenDir.c_str());
+        ImGui::Text("Current path: %s", currentlyOpenDir.getCString());
         
         ImGui::Separator();
         
@@ -1342,7 +1344,7 @@ void EditorState::showAssetWindow() {
             
             if (ImGui::Selectable("Directory")) {
                 assert(assetCreatorWindow == nullptr);
-                assetCreatorWindow = std::make_unique<AssetCreatorWindow>(engine, currentlyOpenDir.generic_string());
+                assetCreatorWindow = std::make_unique<AssetCreatorWindow>(engine, currentlyOpenDir.getGenericString());
                 needToOpenCreatorWindow = true;
             }
             
@@ -1350,13 +1352,13 @@ void EditorState::showAssetWindow() {
             
             if (ImGui::Selectable("Material Instance Definition")) {
                 assert(assetCreatorWindow == nullptr);
-                assetCreatorWindow = std::make_unique<AssetCreatorWindow>(engine, currentlyOpenDir.generic_string(), AssetType::MaterialInstance);
+                assetCreatorWindow = std::make_unique<AssetCreatorWindow>(engine, currentlyOpenDir.getGenericString(), AssetType::MaterialInstance);
                 needToOpenCreatorWindow = true;
             }
             
             if (ImGui::Selectable("Material Template")) {
                 assert(assetCreatorWindow == nullptr);
-                assetCreatorWindow = std::make_unique<AssetCreatorWindow>(engine, currentlyOpenDir.generic_string(), AssetType::MaterialTemplate);
+                assetCreatorWindow = std::make_unique<AssetCreatorWindow>(engine, currentlyOpenDir.getGenericString(), AssetType::MaterialTemplate);
                 needToOpenCreatorWindow = true;
             }
             
@@ -1382,21 +1384,21 @@ void EditorState::showAssetWindow() {
             
             const AssetType assetFilterType = static_cast<AssetType>(currentlyPickedAssetType);
             for (const auto& p : paths) {
-                const fs::path finalPath = currentlyOpenDir / p;
+                const Path finalPath = currentlyOpenDir / p;
                 
                 // con::ImportPath is not supposed to be a part of the hash
-                const fs::path pathToHash = finalPath.lexically_relative(con::ImportPath());
+                const Path pathToHash = finalPath.lexicallyRelative(con::ImportPath());
                 
-                PHYSFS_Stat stat;
-                filesystem->getFileSystemStatistics(finalPath, stat);
+                FileStat stat;
+                filesystem->getStats(finalPath, stat);
                 
                 AssetListItem listItem;
                 listItem.path = finalPath;
-                listItem.hash = HS(pathToHash.generic_string());
-                if (stat.filetype == PHYSFS_FileType::PHYSFS_FILETYPE_DIRECTORY) {
+                listItem.hash = HS(pathToHash.getGenericString());
+                if (stat.type == FileType::Directory) {
                     listItem.isDirectory = true;
                     listItem.imported = false;
-                } else if (stat.filetype == PHYSFS_FileType::PHYSFS_FILETYPE_REGULAR) {
+                } else if (stat.type == FileType::Regular) {
                     if (p.extension() == con::ImportSettingsExtension()) {
                         continue;
                     }
@@ -1455,7 +1457,7 @@ void EditorState::showAssetWindow() {
         
         if (showUpNavigation) {
             if (ImGui::Selectable("..", false, ImGuiSelectableFlags_SpanAllColumns)) {
-                currentlyOpenDir = currentlyOpenDir.parent_path();
+                currentlyOpenDir = currentlyOpenDir.parentPath();
                 assetBrowserPathChanged = true;
             }
             
@@ -1472,7 +1474,7 @@ void EditorState::showAssetWindow() {
         }
         
         for (const auto& a : assetList) {
-            const std::string fileName = a.path.filename().generic_string();
+            const std::string fileName = a.path.filename().getGenericString();
             if (ImGui::Selectable(fileName.c_str(), false, ImGuiSelectableFlags_SpanAllColumns)) {
                 if (a.isDirectory) {
                     currentlyOpenDir /= a.path.filename();
@@ -1513,7 +1515,7 @@ void EditorState::showAssetWindow() {
                 ImGui::Separator();
                 
                 if (ImGui::Selectable("Open in File Browser")) {
-                    filesystem->openInFileBrowser(filesystem->getRealDirectory(a.path.parent_path()));
+                    filesystem->openInFileBrowser(filesystem->getRealDirectory(a.path.parentPath()));
                 }
                 
                 if (ImGui::Selectable("Open in External Editor")) {
@@ -1584,16 +1586,15 @@ void EditorState::showAssetWindow() {
             ImGui::Spacing();
             
             if (ImGui::Button("Delete")) {
-                const fs::path& realPath = nextAssetToDelete.path;
+                const Path& realPath = nextAssetToDelete.path;
                 
+                auto& fs = DefaultFileSystem::Instance();
                 if (isDir) {
-                    iyf::ErrorCode ec;
-                    if (fs::remove_all(realPath, ec) == static_cast<std::uintmax_t>(-1)) {
+                    if (fs.removeRecursive(realPath) != FileSystemResult::Success) {
                         LOG_W("Failed to delete {}", realPath);
                     }
                 } else {
-                    iyf::ErrorCode ec;
-                    if (!fs::remove(realPath, ec)) {
+                    if (fs.remove(realPath) != FileSystemResult::Success) {
                         LOG_W("Failed to delete {}", realPath);
                     }
                 }

@@ -28,9 +28,9 @@
 
 #include "graphics/shaderGeneration/ShaderGenerator.hpp"
 #include "graphics/Renderer.hpp"
-#include "core/filesystem/FileSystem.hpp"
-#include "core/Logger.hpp"
-#include "core/filesystem/File.hpp"
+#include "io/FileSystem.hpp"
+#include "logging/Logger.hpp"
+#include "io/File.hpp"
 #include "fmt/format.h"
 #include "utilities/StringUtilities.hpp"
 

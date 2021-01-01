@@ -40,7 +40,7 @@
 #include "assets/metadata/MaterialTemplateMetadata.hpp"
 #include "assets/metadata/MaterialInstanceMetadata.hpp"
 
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 
 #include <new>
 

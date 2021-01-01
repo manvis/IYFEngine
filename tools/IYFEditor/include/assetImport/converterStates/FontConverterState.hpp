@@ -45,7 +45,7 @@ private:
     virtual void serializeJSONImpl(PrettyStringWriter& pw, std::uint64_t version) const final override;
     virtual void deserializeJSONImpl(JSONObject& jo, std::uint64_t version) final override;
     
-    FontConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash) :
+    FontConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const Path& sourcePath, FileHash sourceFileHash) :
         ConverterState(platformID, std::move(internalState), sourcePath, sourceFileHash) {}
 };
 }

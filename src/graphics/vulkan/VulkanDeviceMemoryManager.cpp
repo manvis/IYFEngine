@@ -29,7 +29,7 @@
 #include "graphics/vulkan/VulkanDeviceMemoryManager.hpp"
 #include "graphics/vulkan/VulkanUtilities.hpp"
 #include "graphics/vulkan/vk_mem_alloc.h"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "threading/ThreadProfiler.hpp"
 #include "assets/loaders/TextureLoader.hpp"
 #include "utilities/DataSizes.hpp"

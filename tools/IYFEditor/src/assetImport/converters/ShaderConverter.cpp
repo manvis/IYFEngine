@@ -31,13 +31,14 @@
 #include "assetImport/converterStates/ShaderConverterState.hpp"
 #include "assets/metadata/ShaderMetadata.hpp"
 
-#include "core/filesystem/File.hpp"
-#include "core/Logger.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
+#include "io/File.hpp"
+#include "logging/Logger.hpp"
 #include "fmt/format.h"
 
 namespace iyf::editor {
-static ShaderStageFlagBits StageBitsFromPath(const fs::path& path) {
-    const std::string extension = path.extension().generic_string();
+static ShaderStageFlagBits StageBitsFromPath(const Path& path) {
+    const std::string extension = path.extension().getGenericString();
     return static_cast<ShaderStageFlagBits>(con::ExtensionToShaderStage(extension).uint64());
 }
 
@@ -53,11 +54,11 @@ ShaderConverter::ShaderConverter(const ConverterManager* manager) : Converter(ma
     compilerOptions.SetOptimizationLevel(shaderc_optimization_level_size);
 }
 
-std::unique_ptr<ConverterState> ShaderConverter::initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const {
+std::unique_ptr<ConverterState> ShaderConverter::initializeConverter(const Path& inPath, PlatformIdentifier platformID) const {
     std::unique_ptr<ShaderConverterInternalState> internalState = std::make_unique<ShaderConverterInternalState>(this);
     
-    File shaderFile(inPath, File::OpenMode::Read);
-    auto result = shaderFile.readWholeFile();
+    auto shaderFile = VirtualFileSystem::Instance().openFile(inPath, FileOpenMode::Read);
+    auto result = shaderFile->readWholeFile();
     
     internalState->code = std::move(result.first);
     internalState->size = result.second;
@@ -104,7 +105,7 @@ bool ShaderConverter::convert(ConverterState& state) const {
             throw std::invalid_argument("An unknown shader stage has been specified.");
     }
     
-    const std::string filePath = state.getSourceFilePath().generic_string();
+    const std::string filePath = state.getSourceFilePath().getGenericString();
     if (state.isDebugOutputRequested()) {
         shaderc::AssemblyCompilationResult result = compiler.CompileGlslToSpvAssembly(internalState->code.get(),
                                                                                       shaderKind,
@@ -127,15 +128,15 @@ bool ShaderConverter::convert(ConverterState& state) const {
     const std::vector<std::uint32_t> content(result.begin(), result.end());
     const std::size_t outputByteCount = content.size() * sizeof(std::uint32_t);
     
-    const fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
+    const Path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
     
     FileHash hash = HF(reinterpret_cast<const char*>(content.data()), outputByteCount);
     ShaderMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags(), shaderStage);
     ImportedAssetData iad(state.getType(), metadata, outputPath);
     state.getImportedAssets().push_back(std::move(iad));
     
-    File fw(outputPath, File::OpenMode::Write);
-    fw.writeBytes(content.data(), outputByteCount);
+    auto fw = VirtualFileSystem::Instance().openFile(outputPath, FileOpenMode::Write);
+    fw->writeBytes(content.data(), outputByteCount);
     
     return true;
 }

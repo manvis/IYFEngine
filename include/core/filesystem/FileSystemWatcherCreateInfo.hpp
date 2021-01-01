@@ -39,7 +39,7 @@ struct MonitoredDirectory {
     MonitoredDirectory() : monitoredEvents(FileSystemEventFlags::All), recursive(true) {}
     
     /// The path to the directory to monitor
-    fs::path path;
+    Path path;
     /// Flags indicating events to monitor. FileSystemEventFlags::All is the default.
     FileSystemEventFlags monitoredEvents;
     /// Should subdirectories (if any) be monitored?

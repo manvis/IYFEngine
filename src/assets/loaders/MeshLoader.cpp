@@ -29,10 +29,10 @@
 #include "assets/loaders/MeshLoader.hpp"
 
 #include "core/Engine.hpp"
-#include "core/filesystem/FileSystem.hpp"
-#include "core/filesystem/File.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
+#include "io/File.hpp"
 #include "graphics/MeshFormats.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "graphics/culling/BoundingVolumes.hpp"
 
 #include "assets/metadata/MeshMetadata.hpp"
@@ -47,66 +47,87 @@
 namespace iyf {
 using namespace iyf::literals;
 
-bool MeshLoader::loadMesh(const fs::path& path, LoadedMeshData& submeshes, void* vertexBuffer, void* indexBuffer, std::vector<Bone>* skeleton) const {
-    FileSystem* fileSystem = engine->getFileSystem();
-    bool exists = fileSystem->exists(path);
+bool MeshLoader::loadMesh(const Path& path, LoadedMeshData& submeshes, void* vertexBuffer, void* indexBuffer, std::vector<Bone>* skeleton) const {
+    VirtualFileSystem* fileSystem = engine->getFileSystem();
+
+    FileSystemResult result;
+    bool exists = fileSystem->exists(path, result);
+
+    if (result != FileSystemResult::Success) {
+        LOG_E("Can't load mesh from {}. Failed to determine if the file exists", path);
+        return false;
+    }
     
     if (exists) {
-        File fr(path, File::OpenMode::Read);
-        auto headerData = readHeader(fr);
+        auto fr = fileSystem->openFile(path, FileOpenMode::Read);
+        auto headerData = readHeader(*fr);
         
         if (!headerData.first) {
-            LOG_E("Can't load mesh from {}. Magic number is not {}", path, mf::MagicNumber)
+            LOG_E("Can't load mesh from {}. Magic number is not {}", path, mf::MagicNumber);
             
             return false;
         }
         
         switch (headerData.second) {
         case 1:
-            return loadMeshV1(fr, submeshes, vertexBuffer, indexBuffer, skeleton);
+            return loadMeshV1(*fr, submeshes, vertexBuffer, indexBuffer, skeleton);
         default:
-            LOG_E("Can't load mesh from {}. Unknown version number: {}", headerData.second, path)
+            LOG_E("Can't load mesh from {}. Unknown version number: {}", headerData.second, path);
             return false;
         }
     } else {
-        LOG_E("Can't load mesh from {}. File does not exist.", path)
+        LOG_E("Can't load mesh from {}. File does not exist.", path);
         return false;
     }
 }
 
-bool MeshLoader::loadAnimation(const fs::path& path, Animation& buffer) const {
-    FileSystem* fileSystem = engine->getFileSystem();
-    bool exists = fileSystem->exists(path);
+bool MeshLoader::loadAnimation(const Path& path, Animation& buffer) const {
+    VirtualFileSystem* fileSystem = engine->getFileSystem();
+    
+    FileSystemResult result;
+    bool exists = fileSystem->exists(path, result);
+
+    if (result != FileSystemResult::Success) {
+        LOG_E("Can't load animation from {}. Failed to determine if the file exists", path);
+        return false;
+    }
     
     if (exists) {
-        File fr(path, File::OpenMode::Read);
-        auto headerData = readAnimationHeader(fr);
+        auto fr = fileSystem->openFile(path, FileOpenMode::Read);
+        auto headerData = readAnimationHeader(*fr);
         
         if (!headerData.first) {
-            LOG_E("Can't load animation from {}. Magic number is not {}", path, af::MagicNumber)
+            LOG_E("Can't load animation from {}. Magic number is not {}", path, af::MagicNumber);
             return false;
         }
         
         switch (headerData.second) {
         case 1:
-            return loadAnimationV1(fr, buffer);
+            return loadAnimationV1(*fr, buffer);
         default:
-            LOG_E("Can't load animation from {}. Unknown version number: {}", path, headerData.second)
+            LOG_E("Can't load animation from {}. Unknown version number: {}", path, headerData.second);
             return false;
         }
     } else {
-        LOG_E("Can't load animation from {}. File does not exist.", path)
+        LOG_E("Can't load animation from {}. File does not exist.", path);
         return false;
     }
 }
 
-MeshLoader::MemoryRequirements MeshLoader::getMeshMemoryRequirements(const fs::path& path) const {
-    FileSystem* fileSystem = engine->getFileSystem();
-    bool exists = fileSystem->exists(path);
+MeshLoader::MemoryRequirements MeshLoader::getMeshMemoryRequirements(const Path& path) const {
+    VirtualFileSystem* fileSystem = engine->getFileSystem();
+
+    FileSystemResult result;
+    bool exists = fileSystem->exists(path, result);
+
+    if (result != FileSystemResult::Success) {
+        LOG_E("Can't load mesh from {}. Failed to determine if the file exists", path);
+        throw std::runtime_error("Failed to determine if a mesh exists.");
+    }
     
     if (exists) {
-        File fr(path, File::OpenMode::Read);
-        auto headerData = readHeader(fr);
+        auto fr = fileSystem->openFile(path, FileOpenMode::Read);
+        auto headerData = readHeader(*fr);
         
         if (!headerData.first) {
             LOG_E("Can't load mesh from {}. Magic number is not {}", path, mf::MagicNumber)
@@ -115,7 +136,7 @@ MeshLoader::MemoryRequirements MeshLoader::getMeshMemoryRequirements(const fs::p
         
         switch (headerData.second) {
         case 1:
-            return getMemoryRequirementsV1(fr);
+            return getMemoryRequirementsV1(*fr);
         default:
             LOG_E("Can't load mesh from {}. Unknown version number: {}", path, headerData.second)
             throw std::runtime_error("Mesh file is of an unknown version.");

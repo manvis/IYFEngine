@@ -30,10 +30,10 @@
 #include "graphics/Renderer.hpp"
 #include "graphics/materials/MaterialLogicGraph.hpp"
 #include "core/Engine.hpp"
-#include "core/filesystem/FileSystem.hpp"
-#include "core/filesystem/File.hpp"
+#include "io/FileSystem.hpp"
+#include "io/File.hpp"
 #include "fmt/format.h"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 
 #include <stdexcept>
 
@@ -241,7 +241,7 @@ VulkanGLSLShaderGenerator::VulkanGLSLShaderGenerator(const FileSystem* fileSyste
 
 VulkanGLSLShaderGenerator::~VulkanGLSLShaderGenerator() {}
 
-fs::path VulkanGLSLShaderGenerator::getShaderStageFileExtension(ShaderStageFlagBits stage) const {
+Path VulkanGLSLShaderGenerator::getShaderStageFileExtension(ShaderStageFlagBits stage) const {
     switch (stage) {
         case ShaderStageFlagBits::Vertex:
             return ".vert.glsl";

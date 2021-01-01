@@ -31,8 +31,8 @@
 
 #include "utilities/hashing/Hashing.hpp"
 #include "core/Constants.hpp"
-#include "core/interfaces/Serializable.hpp"
-#include "core/interfaces/TextSerializable.hpp"
+#include "io/interfaces/Serializable.hpp"
+#include "io/interfaces/TextSerializable.hpp"
 #include "graphics/materials/MaterialRenderMode.hpp"
 
 #include "glm/vec4.hpp"

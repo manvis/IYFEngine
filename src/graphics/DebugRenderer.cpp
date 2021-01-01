@@ -28,7 +28,7 @@
 
 #include "graphics/DebugRenderer.hpp"
 
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 
 #include "graphics/Camera.hpp"
 #include "graphics/Renderer.hpp"

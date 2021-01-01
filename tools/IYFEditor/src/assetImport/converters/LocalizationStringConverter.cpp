@@ -29,11 +29,12 @@
 #include "assetImport/converters/LocalizationStringConverter.hpp"
 #include "assetImport/converterStates/LocalizationStringConverterState.hpp"
 
+#include "core/filesystem/VirtualFileSystem.hpp"
 #include "assetImport/ConverterManager.hpp"
 #include "assets/metadata/StringMetadata.hpp"
-#include "core/filesystem/File.hpp"
-#include "core/Logger.hpp"
-#include "core/serialization/MemorySerializer.hpp"
+#include "io/File.hpp"
+#include "logging/Logger.hpp"
+#include "io/serialization/MemorySerializer.hpp"
 #include "localization/LocalizationCSVParser.hpp"
 #include "utilities/Regexes.hpp"
 #include "utilities/hashing/HashCombine.hpp"
@@ -51,23 +52,23 @@ public:
     std::size_t size;
 };
 
-std::unique_ptr<ConverterState> LocalizationStringConverter::initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const {
+std::unique_ptr<ConverterState> LocalizationStringConverter::initializeConverter(const Path& inPath, PlatformIdentifier platformID) const {
     std::unique_ptr<LocalizationConverterInternalState> internalState = std::make_unique<LocalizationConverterInternalState>(this);
     
-    if (!std::regex_match(inPath.filename().string(), SystemRegexes().LocalizationFileNameValidationRegex)) {
+    if (!std::regex_match(inPath.filename().getGenericString(), SystemRegexes().LocalizationFileNameValidationRegex)) {
         LOG_E("The name of the string file did not match the expected format. You need something like \"filename.en_US.csv\"");
         return nullptr;
     }
     
-    File inFile(inPath, File::OpenMode::Read);
-    auto data = inFile.readWholeFile();
+    auto inFile = VirtualFileSystem::Instance().openFile(inPath, FileOpenMode::Read);
+    auto data = inFile->readWholeFile();
     internalState->data = std::move(data.first);
     internalState->size = data.second;
     
     const FileHash sourceFileHash = HF(internalState->data.get(), internalState->size);
     auto locState = std::unique_ptr<LocalizationStringConverterState>(new LocalizationStringConverterState(platformID, std::move(internalState), inPath, sourceFileHash));
     locState->priority = 0;
-    locState->locale = inPath.stem().extension().string().substr(1);
+    locState->locale = inPath.stem().extension().getGenericString().substr(1);
     return locState;
 }
 
@@ -131,7 +132,7 @@ bool LocalizationStringConverter::convert(ConverterState& state) const {
         }
     }
     
-    const fs::path outputPath = locState.systemTranslations ? manager->makeFinalPathForSystemStrings(state.getSourceFilePath(), state.getPlatformIdentifier())
+    const Path outputPath = locState.systemTranslations ? manager->makeFinalPathForSystemStrings(state.getSourceFilePath(), state.getPlatformIdentifier())
                                                             : manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
     
     const std::array<char, 4> magicNumber = {'I', 'Y', 'F', 'S'};
@@ -156,8 +157,8 @@ bool LocalizationStringConverter::convert(ConverterState& state) const {
     
     LOG_D("OP: {} {} {}", outputPath, locState.systemTranslations, static_cast<std::size_t>(state.getType()));
     
-    File file(outputPath, File::OpenMode::Write);
-    file.writeBytes(ms.data(), ms.size());
+    auto file = VirtualFileSystem::Instance().openFile(outputPath, FileOpenMode::Write);
+    file->writeBytes(ms.data(), ms.size());
     
     return true;
 }

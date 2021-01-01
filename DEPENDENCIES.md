@@ -51,7 +51,7 @@ Next, download and put the appropriate libraries into those folders. Each folder
 namespace fs = std::filesystem;
 
 int main() {
-    std::vector<fs::path> toChange;
+    std::vector<Path> toChange;
     
     for (const auto& di : fs::recursive_directory_iterator("compressonator")) {
         if (di.path().filename() == "cmakelists.txt") {
@@ -59,8 +59,8 @@ int main() {
         }
     }
     
-    for (const fs::path& path : toChange) {
-        fs::path newPath = path;
+    for (const Path& path : toChange) {
+        Path newPath = path;
         newPath.remove_filename();
         
         newPath += "CMakeLists.txt";

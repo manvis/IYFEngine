@@ -28,9 +28,12 @@
 
 #include "utilities/Compression.hpp"
 #include "miniz/miniz.h"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 
 #include "fmt/ostream.h"
+
+#include <filesystem>
+namespace fs = std::filesystem;
 
 namespace iyf::util {
 inline mz_uint OurCompressionLevelToMinizCompressionLevel(CompressionLevel level) {
@@ -48,26 +51,26 @@ inline mz_uint OurCompressionLevelToMinizCompressionLevel(CompressionLevel level
     throw std::runtime_error("An invalid CompressionLevel was provided");
 }
 
-bool CompressDirectoryToZip(const fs::path& dir, const fs::path& zipPath, CompressionLevel level) {
+bool CompressDirectoryToZip(const Path& dir, const Path& zipPath, CompressionLevel level) {
     mz_zip_archive archive;
     mz_zip_zero_struct(&archive);
     
     const mz_uint compressionLevel = OurCompressionLevelToMinizCompressionLevel(level);
     
-    if (!mz_zip_writer_init_file_v2(&archive, zipPath.c_str(), 0, compressionLevel)) {
+    if (!mz_zip_writer_init_file_v2(&archive, zipPath.getCString(), 0, compressionLevel)) {
         LOG_E("Failed to create a zip file located in {}. Miniz error: {}", zipPath, mz_zip_get_error_string(archive.m_last_error));
         return false;
     }
     
     bool status = true;
-    for (const auto& d : fs::recursive_directory_iterator(dir)) {
+    for (const auto& d : fs::recursive_directory_iterator(dir.getNativeString())) {
         if (!fs::is_directory(d)) {
             if (d == zipPath) {
                 LOG_V("The current zip file ({}) was found in the file list. Skipping it.", zipPath);
                 continue;
             }
             
-            const fs::path relativePath = d.path().lexically_relative(dir);
+            const fs::path relativePath = d.path().lexically_relative(dir.getNativeString());
             status = mz_zip_writer_add_file(&archive, relativePath.c_str(), d.path().c_str(), nullptr, 0, compressionLevel);
             
             if (!status) {
@@ -92,33 +95,33 @@ bool CompressDirectoryToZip(const fs::path& dir, const fs::path& zipPath, Compre
     return status;
 }
 
-bool CompressFileListToZip(const std::vector<PathToCompress>& paths, const fs::path& zipPath, CompressionLevel level) {
+bool CompressFileListToZip(const std::vector<PathToCompress>& paths, const Path& zipPath, CompressionLevel level) {
     mz_zip_archive archive;
     mz_zip_zero_struct(&archive);
     
     const mz_uint compressionLevel = OurCompressionLevelToMinizCompressionLevel(level);
     
-    if (!mz_zip_writer_init_file_v2(&archive, zipPath.c_str(), 0, compressionLevel)) {
+    if (!mz_zip_writer_init_file_v2(&archive, zipPath.getCString(), 0, compressionLevel)) {
         LOG_E("Failed to create a zip file located in {}. Miniz error: {}", zipPath, mz_zip_get_error_string(archive.m_last_error));
         return false;
     }
     
     bool status = true;
     for (const auto& p : paths) {
-        auto stat = fs::status(p.filePath);
+        auto stat = fs::status(p.filePath.getNativeString());
         if (!fs::exists(stat)) {
             LOG_E("Failed to compress {} to {}. This file does not exist.", p.filePath, zipPath);
             status = false;
             break;
         }
         
-        if (!fs::is_directory(p.filePath)) {
+        if (!fs::is_directory(stat)) {
             if (p.filePath == zipPath) {
                 LOG_V("The current zip file ({}) was found in the file list. Skipping it.", zipPath);
                 continue;
             }
             
-            status = mz_zip_writer_add_file(&archive, p.archivePath.c_str(), p.filePath.c_str(), nullptr, 0, compressionLevel);
+            status = mz_zip_writer_add_file(&archive, p.archivePath.getCString(), p.filePath.getCString(), nullptr, 0, compressionLevel);
             
             if (!status) {
                 LOG_E("Failed to write {} to zip {}. Miniz error: {}", p.filePath, zipPath, mz_zip_get_error_string(archive.m_last_error));

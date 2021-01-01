@@ -33,7 +33,7 @@
 #include <iomanip>
 
 #include "ai/Blackboard.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 
 #define IYF_LOG_BEHAVIOUR_NODE_ACTIONS
 

@@ -1,6 +1,6 @@
 project('IYFEngine', ['cpp', 'c'], 
     license : ['BSD-3-Clause'],
-    default_options : ['cpp_std=c++17', 'warning_level=3']) #, 'layout=flat'])
+    default_options : ['cpp_std=c++17', 'warning_level=3'])
 
 cpp_comp = meson.get_compiler('cpp')
 cpp_comp_id = cpp_comp.get_id()
@@ -19,8 +19,6 @@ if cpp_comp_id == 'clang'# or cpp_comp_id == 'gcc'
         add_global_arguments('-ftime-trace', language : 'cpp')
     endif
 endif
-
-add_global_link_arguments('-lstdc++fs', language : 'cpp')
 
 add_global_arguments(
     # GLM definitions
@@ -84,8 +82,10 @@ detour_debug_inc = include_directories('dependencies/recastnavigation/DebugUtils
 sqlite_inc = include_directories('dependencies/sqlite')
 
 iyf_core_inc = include_directories('include')
+iyf_common_inc = include_directories('components/common/src')
 
 common_project_inc = [iyf_core_inc,
+                      iyf_common_inc,
                       imgui_inc,
                       stb_inc,
                       miniz_inc,
@@ -122,6 +122,7 @@ if not shaderc_dep.found()
     )
 endif
 
+subdir('components/common')
 subdir('src')
 
 if get_option('iyf_build_tools')

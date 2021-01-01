@@ -29,7 +29,7 @@
 #include "graphics/shaderGeneration/ShaderMacroCombiner.hpp"
 #include "graphics/Renderer.hpp"
 
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 
 #include <unordered_set>
 

@@ -33,14 +33,13 @@
 #include <vector>
 #include <unordered_map>
 
-#include "core/filesystem/cppFilesystem.hpp"
 #include "utilities/hashing/Hashing.hpp"
 #include "assets/metadata/Metadata.hpp"
 
 #include "assetImport/ConverterState.hpp"
 
 namespace iyf {
-class FileSystem;
+class VirtualFileSystem;
 
 namespace editor {
 class ConverterManager;
@@ -55,7 +54,7 @@ public:
     
     /// Creates an initial ConverterState with default conversion settings. If present, ConverterManager
     /// will replace them with deserialized data
-    virtual std::unique_ptr<ConverterState> initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const = 0;
+    virtual std::unique_ptr<ConverterState> initializeConverter(const Path& inPath, PlatformIdentifier platformID) const = 0;
     virtual bool convert(ConverterState& state) const = 0;
     virtual ~Converter() {}
 protected:

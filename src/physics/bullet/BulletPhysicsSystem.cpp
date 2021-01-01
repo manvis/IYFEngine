@@ -28,7 +28,7 @@
 
 #include "physics/bullet/BulletPhysicsSystem.hpp"
 #include "core/Engine.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "physics/bullet/MotionState.hpp"
 #include "physics/bullet/BulletPhysicsDebugRenderer.hpp"
 #include "utilities/hashing/Hashing.hpp"

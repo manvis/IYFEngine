@@ -27,24 +27,27 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ConfigurationTests.hpp"
-#include "core/configuration/Configuration.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
+#include "configuration/Configuration.hpp"
+#include "io/DefaultFileSystem.hpp"
 
 #include "fmt/ostream.h"
 
 #include <sstream>
 #include <fstream>
 
+#include <filesystem>
+namespace fs = std::filesystem;
+
 namespace iyf::test {
 struct ExpectedConfigTestValues {
-    std::vector<std::pair<fs::path, ConfigurationFile::ParseResult>> parseResults;
+    std::vector<std::pair<Path, ConfigurationFile::ParseResult>> parseResults;
     ConfigurationFile configFilePreAdd;
     ConfigurationFile configFilePostAdd;
 };
 
-const fs::path ConfigurationTests::configFileDirName = "confTest";
-const fs::path ConfigurationTests::configFileName = "system.conf";
-const fs::path ConfigurationTests::userConfigFileName = "user.conf";
+const Path ConfigurationTests::configFileDirName = "confTest";
+const Path ConfigurationTests::configFileName = "system.conf";
+const Path ConfigurationTests::userConfigFileName = "user.conf";
 const std::size_t ConfigurationTests::expectedValueCount = 13;
 
 ConfigurationTests::ConfigurationTests(bool verbose) : iyf::test::TestBase(verbose) {}
@@ -83,7 +86,7 @@ void ConfigurationTests::initialize() {
         ".dodo =\"now-a-string\"\n" // 2
         ".zimpl = false";           // 3
     
-    ErrorCode ec;
+    std::error_code ec;
     destinationPath = fs::current_path(ec);
     if (ec) {
         throw std::runtime_error("Fatal test error. Failed to retrieve the current path.");
@@ -93,7 +96,7 @@ void ConfigurationTests::initialize() {
     
     destinationPath /= configFileDirName;
     
-    const bool destinationExists = fs::exists(destinationPath, ec);
+    const bool destinationExists = fs::exists(destinationPath.getNativeString(), ec);
     if (ec) {
         throw std::runtime_error("Fatal test error. Failed to determine if the test destination exists.");
     }
@@ -103,13 +106,13 @@ void ConfigurationTests::initialize() {
             LOG_V("Test destination directory {} already exists. Deleting and recreating it.", destinationPath);
         }
         
-        fs::remove_all(destinationPath, ec);
+        fs::remove_all(destinationPath.getNativeString(), ec);
         if (ec) {
             throw std::runtime_error("Fatal test error. Failed to delete old test directory.");
         }
     }
     
-    const bool created = fs::create_directory(destinationPath, ec);
+    const bool created = fs::create_directory(destinationPath.getNativeString(), ec);
     if (ec || !created) {
         throw std::runtime_error("Fatal test error. Failed to create the test directory.");
     } else if (isOutputVerbose()) {
@@ -119,14 +122,14 @@ void ConfigurationTests::initialize() {
     configFilePath = destinationPath;
     configFilePath /= configFileName;
     
-    std::ofstream outConfig(configFilePath, std::ios::out | std::ios::binary);
+    std::ofstream outConfig(configFilePath.getNativeString(), std::ios::out | std::ios::binary);
     outConfig << configFileContents;
     outConfig.close();
     
     userConfigFilePath = destinationPath;
     userConfigFilePath /= userConfigFileName;
     
-    std::ofstream outUserConfig(userConfigFilePath, std::ios::out | std::ios::binary);
+    std::ofstream outUserConfig(userConfigFilePath.getNativeString(), std::ios::out | std::ios::binary);
     outUserConfig << userConfigFileContents;
     outUserConfig.close();
     
@@ -170,14 +173,14 @@ void ConfigurationTests::initialize() {
     }
 
 TestResults ConfigurationTests::run() {
-    const std::vector<ConfigurationFilePath> paths = {
-        ConfigurationFilePath(configFilePath, ConfigurationFilePath::PathType::Real),
-        ConfigurationFilePath(userConfigFilePath, ConfigurationFilePath::PathType::Real)
+    const std::vector<ConfigurationPath> paths = {
+        ConfigurationPath(configFilePath, &DefaultFileSystem::Instance()),
+        ConfigurationPath(userConfigFilePath, &DefaultFileSystem::Instance())
     };
     
-    std::vector<std::pair<fs::path, ConfigurationFile::ParseResult>> results;
+    std::vector<std::pair<Path, ConfigurationFile::ParseResult>> results;
     
-    Configuration cfg(paths, Configuration::Mode::Editable, nullptr, &results);
+    Configuration cfg(paths, Configuration::Mode::Editable, &results);
     
     if (expectedValues->parseResults.size() != results.size()) {
         return TestResults(false, "The count of ParseResult entries differs");
@@ -230,7 +233,7 @@ TestResults ConfigurationTests::run() {
     
     cfg.serialize();
     
-    Configuration cfg2(paths, Configuration::Mode::Editable, nullptr, &results);
+    Configuration cfg2(paths, Configuration::Mode::Editable, &results);
     
     if (cfg.resolvedConfigurationValues.data != cfg2.resolvedConfigurationValues.data) {
         return TestResults(false, "Configuration values changed during serialization");

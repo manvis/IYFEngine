@@ -38,9 +38,9 @@
 #include <sstream>
 
 #include "localization/LocalizationHandle.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "threading/ThreadProfiler.hpp"
-#include "core/interfaces/TextSerializable.hpp"
+#include "io/interfaces/TextSerializable.hpp"
 
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/document.h"

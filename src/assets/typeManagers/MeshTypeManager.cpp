@@ -29,8 +29,8 @@
 #include "assets/typeManagers/MeshTypeManager.hpp"
 #include "assets/loaders/MeshLoader.hpp"
 #include "core/Engine.hpp"
-#include "core/Logger.hpp"
-#include "core/serialization/VirtualFileSystemSerializer.hpp"
+#include "io/serialization/FileSerializer.hpp"
+#include "logging/Logger.hpp"
 #include "fmt/ostream.h"
 
 namespace iyf {
@@ -80,7 +80,7 @@ void MeshTypeManager::initMissingAssetHandle() {
     // TODO this is old - update
 //     /// Initialize the missing asset data
 //     std::uint32_t idOut = 0;
-//     VirtualFileSystemSerializer fr((con::MeshPath / (con::MissingMesh + con::MetadataExtension)).generic_string(), File::OpenMode::Read);
+//     VirtualFileSystemSerializer fr((con::MeshPath / (con::MissingMesh + con::MetadataExtension)).getGenericString(), File::OpenMode::Read);
 //     MeshMetadata meshMeta;
 //     meshMeta.deserialize(fr);
 //     Metadata metadata = meshMeta;
@@ -166,7 +166,7 @@ MeshTypeManager::RangeDataResult MeshTypeManager::findRange(Bytes size, Bytes al
     return {BufferRange(0_B, size), nullptr, false, 0};
 }
 
-std::unique_ptr<LoadedAssetData> MeshTypeManager::readFile(StringHash, const fs::path& path, const Metadata& meta, Mesh& assetData) {
+std::unique_ptr<LoadedAssetData> MeshTypeManager::readFile(StringHash, const Path& path, const Metadata& meta, Mesh& assetData) {
     const MeshLoader loader(engine);
     MeshLoader::MemoryRequirements requirements = loader.getMeshMemoryRequirements(meta);
     

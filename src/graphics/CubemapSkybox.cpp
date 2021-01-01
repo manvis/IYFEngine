@@ -38,7 +38,7 @@
 #include "assets/assetTypes/Texture.hpp"
 #include "assets/assetTypes/Mesh.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 
 #include <glm/mat4x4.hpp>
 

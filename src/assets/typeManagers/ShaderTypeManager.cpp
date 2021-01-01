@@ -29,8 +29,9 @@
 #include "assets/typeManagers/ShaderTypeManager.hpp"
 #include "assets/metadata/ShaderMetadata.hpp"
 #include "core/Engine.hpp"
-#include "core/filesystem/File.hpp"
-#include "core/Logger.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
+#include "io/File.hpp"
+#include "logging/Logger.hpp"
 #include "graphics/GraphicsAPI.hpp"
 
 namespace iyf {
@@ -45,16 +46,16 @@ void ShaderTypeManager::performFree(Shader& assetData) {
     }
 }
 
-std::unique_ptr<LoadedAssetData> ShaderTypeManager::readFile(StringHash, const fs::path& path, const Metadata& meta, Shader& assetData) {
-    File file(path, File::OpenMode::Read);
-    return std::make_unique<LoadedAssetData>(meta, assetData, file.readWholeFile());
+std::unique_ptr<LoadedAssetData> ShaderTypeManager::readFile(StringHash, const Path& path, const Metadata& meta, Shader& assetData) {
+    auto file = VirtualFileSystem::Instance().openFile(path, FileOpenMode::Read);
+    return std::make_unique<LoadedAssetData>(meta, assetData, file->readWholeFile());
 }
 
 void ShaderTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool) {
     const ShaderMetadata& shaderMeta = loadedAssetData->metadata.get<ShaderMetadata>();
     Shader& assetData = static_cast<Shader&>(loadedAssetData->assetData);
     
-    const std::string name = fmt::format("Managed shader from {}", shaderMeta.getSourceAssetPath().string());
+    const std::string name = fmt::format("Managed shader from {}", shaderMeta.getSourceAssetPath().getNativeString());
     assetData.handle = api->createShader(shaderMeta.getShaderStage(), loadedAssetData->rawData.first.get(), loadedAssetData->rawData.second, name.c_str());
     assetData.stage = shaderMeta.getShaderStage();
     assetData.setLoaded(true);

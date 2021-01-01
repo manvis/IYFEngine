@@ -32,8 +32,8 @@
 #include "graphics/Renderer.hpp"
 #include "graphics/shaderGeneration/VulkanGLSLShaderGenerator.hpp"
 #include "core/Engine.hpp"
-#include "core/filesystem/File.hpp"
-#include "core/filesystem/FileSystem.hpp"
+#include "io/File.hpp"
+#include "io/FileSystem.hpp"
 #include "utilities/Regexes.hpp"
 
 #include <glm/vec4.hpp>

@@ -35,6 +35,7 @@
 
 namespace iyf {
 class LocalizationHandle {
+
 public:
     explicit IYF_FORCE_INLINE constexpr LocalizationHandle(StringHash handle) : handle(handle) {}
     

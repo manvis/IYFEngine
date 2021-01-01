@@ -47,7 +47,7 @@ public:
 protected:
     virtual void initMissingAssetHandle() final override;
     
-    virtual std::unique_ptr<LoadedAssetData> readFile(StringHash nameHash, const fs::path& path, const Metadata& meta, Texture& assetData) final override;
+    virtual std::unique_ptr<LoadedAssetData> readFile(StringHash nameHash, const Path& path, const Metadata& meta, Texture& assetData) final override;
     virtual void enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool canBatch) final override;
     virtual void performFree(Texture& assetData) final override;
     virtual void executeBatchOperations() final override;

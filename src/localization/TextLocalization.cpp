@@ -28,15 +28,17 @@
 
 #include "localization/TextLocalization.hpp"
 #include "assets/AssetConstants.hpp"
-#include "core/Logger.hpp"
-#include "core/filesystem/FileSystem.hpp"
-#include "core/filesystem/File.hpp"
+#include "logging/Logger.hpp"
+#include "io/FileSystem.hpp"
+#include "io/File.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
 #include "utilities/StringUtilities.hpp"
 #include "utilities/Regexes.hpp"
 
 #include "fmt/ostream.h"
 
 #include <cstring>
+#include <cassert>
 
 // #define IYF_LOG_ALL_LOADED_STRINGS
 
@@ -57,7 +59,7 @@ TextLocalizer::TextLocalizer() : pendingSwap(false) {}
 TextLocalizer::~TextLocalizer() {}
 
 
-TextLocalizer::LoadResult TextLocalizer::loadStringsForLocale(const FileSystem* fs, const fs::path& localizationFileDirectory, const std::string& locale, bool clearIfNone) {
+TextLocalizer::LoadResult TextLocalizer::loadStringsForLocale(const FileSystem* fs, const Path& localizationFileDirectory, const std::string& locale, bool clearIfNone) {
     if (pendingSwap) {
         return LoadResult::PendingSwap;
     }
@@ -81,7 +83,7 @@ TextLocalizer::LoadResult TextLocalizer::loadStringsForLocale(const FileSystem* 
     return result;
 }
 
-TextLocalizer::StringCheckResult TextLocalizer::checkForMissingStrings(const FileSystem* fs, const fs::path& localizationFileDirectory, const std::string& localeA, const std::string& localeB, std::vector<MissingString>& missingStrings) {
+TextLocalizer::StringCheckResult TextLocalizer::checkForMissingStrings(const FileSystem* fs, const Path& localizationFileDirectory, const std::string& localeA, const std::string& localeB, std::vector<MissingString>& missingStrings) {
     if (localeA == localeB) {
         return StringCheckResult::SameLocale;
     }
@@ -132,14 +134,15 @@ TextLocalizer::StringCheckResult TextLocalizer::checkForMissingStrings(const Fil
 }
 
 struct FilePriorityCount {
-    FilePriorityCount(File file, std::int32_t priority, std::uint32_t count) : file(std::move(file)), priority(priority), count(count) {}
+    FilePriorityCount(std::unique_ptr<File> file, std::int32_t priority, std::uint32_t count)
+        : file(std::move(file)), priority(priority), count(count) {}
     
-    File file;
+    std::unique_ptr<File> file;
     std::int32_t priority;
     std::uint32_t count;
 };
 
-TextLocalizer::LoadResult TextLocalizer::loadToMap(const FileSystem* fs, const fs::path& localizationFileDirectory, const std::string& locale, std::unordered_map<StringHash, std::string>& map) {
+TextLocalizer::LoadResult TextLocalizer::loadToMap(const FileSystem* fs, const Path& localizationFileDirectory, const std::string& locale, std::unordered_map<StringHash, std::string>& map) {
     assert(map.empty());
     
     auto fileNames = fs->getDirectoryContents(localizationFileDirectory);
@@ -152,30 +155,30 @@ TextLocalizer::LoadResult TextLocalizer::loadToMap(const FileSystem* fs, const f
     
     for (const auto& name : fileNames) {
         // Making sure to skip metadata files
-        const bool stringFile = util::startsWith(name.stem().string(), locale) &&
+        const bool stringFile = util::startsWith(name.stem().getGenericString(), locale) &&
                                 (name.extension() != con::MetadataExtension()) && 
                                 (name.extension() != con::TextMetadataExtension());
         
         if (stringFile) {
-            File file(localizationFileDirectory / name, File::OpenMode::Read);
+            auto file = VirtualFileSystem::Instance().openFile(localizationFileDirectory / name, FileOpenMode::Read);
             
             std::array<char, 4> magicTest{};
-            file.readBytes(magicTest.data(), 4);
+            file->readBytes(magicTest.data(), 4);
             
             if (magicNumber != magicTest) {
                 LOG_E("Failed to load a string file: {}. Incorrect magic number", (localizationFileDirectory / name));
                 return LoadResult::Failure;
             }
             
-            const std::uint32_t version = file.readUInt32();
+            const std::uint32_t version = file->readUInt32();
             if (version != 1) {
                 LOG_E("Failed to load a string file: {}. Unsupported version: {}", (localizationFileDirectory / name), version);
                 return LoadResult::Failure;
             }
             
-            const std::int32_t priority = file.readInt32();
+            const std::int32_t priority = file->readInt32();
             
-            const std::uint32_t count = file.readUInt32();
+            const std::uint32_t count = file->readUInt32();
             stringTotal += count;
             
             filesWithPriorities.emplace_back(std::move(file), priority, count);
@@ -186,22 +189,25 @@ TextLocalizer::LoadResult TextLocalizer::loadToMap(const FileSystem* fs, const f
         return LoadResult::NoFilesForLocale;
     }
     
-    std::sort(filesWithPriorities.begin(), filesWithPriorities.end(), [](const FilePriorityCount& a, const FilePriorityCount& b){ return a.priority < b.priority; });
+    std::sort(filesWithPriorities.begin(), filesWithPriorities.end(),
+        [](const FilePriorityCount& a, const FilePriorityCount& b) {
+            return a.priority < b.priority;
+        });
     
     for (auto& f : filesWithPriorities) {
-        LOG_V("Loading strings from {}; PRIORITY: {}", f.file.getPath(), f.priority);
+        LOG_V("Loading strings from {}; PRIORITY: {}", f.file->getPath(), f.priority);
         
         //buffer.reserve(1024);
         for (std::size_t i = 0; i < f.count; ++i) {
-            const StringHash strHash(f.file.readUInt64());
+            const StringHash strHash(f.file->readUInt64());
             
             std::string buffer;
-            f.file.readString(buffer, StringLengthIndicator::UInt32);
+            f.file->readString(buffer, StringLengthIndicator::UInt32);
             
             map[strHash] = buffer;
         }
         
-        assert(f.file.isEOF());
+        assert(f.file->isEOF());
     }
 
 #ifdef IYF_LOG_ALL_LOADED_STRINGS

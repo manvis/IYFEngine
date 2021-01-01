@@ -29,10 +29,11 @@
 #include "assetImport/converters/FontConverter.hpp"
 #include "assetImport/converterStates/FontConverterState.hpp"
 
+#include "core/filesystem/VirtualFileSystem.hpp"
 #include "assets/metadata/FontMetadata.hpp"
 #include "assetImport/ConverterManager.hpp"
-#include "core/Logger.hpp"
-#include "core/filesystem/File.hpp"
+#include "logging/Logger.hpp"
+#include "io/File.hpp"
 
 #include "fmt/ostream.h"
 #include "stb_truetype.h"
@@ -46,19 +47,19 @@ public:
     std::size_t size;
 };
 
-std::unique_ptr<ConverterState> FontConverter::initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const {
+std::unique_ptr<ConverterState> FontConverter::initializeConverter(const Path& inPath, PlatformIdentifier platformID) const {
     std::unique_ptr<FontConverterInternalState> internalState = std::make_unique<FontConverterInternalState>(this);
     
     // This is done to check if the file is a valid font file.
-    File inFile(inPath, File::OpenMode::Read);
-    std::size_t size = inFile.seek(0, File::SeekFrom::End);
-    inFile.seek(0, File::SeekFrom::Start);
+    auto inFile = VirtualFileSystem::Instance().openFile(inPath, FileOpenMode::Read);
+    std::size_t size = inFile->seek(0, File::SeekFrom::End);
+    inFile->seek(0, File::SeekFrom::Start);
     
     internalState->data = std::make_unique<unsigned char[]>(size);
     internalState->size = size;
     unsigned char* buffer = internalState->data.get();
     
-    inFile.readBytes(buffer, size);
+    inFile->readBytes(buffer, size);
     
     int numFonts = stbtt_GetNumberOfFonts(buffer);
     if (numFonts < 1) {
@@ -80,15 +81,15 @@ bool FontConverter::convert(ConverterState& state) const {
     FontConverterInternalState* internalState = dynamic_cast<FontConverterInternalState*>(state.getInternalState());
     assert(internalState != nullptr);
     
-    fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
+    Path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
     
     FileHash hash = HF(reinterpret_cast<const char*>(internalState->data.get()), internalState->size);
     FontMetadata metadata(hash, state.getSourceFilePath(), state.getSourceFileHash(), state.isSystemAsset(), state.getTags());
     ImportedAssetData iad(state.getType(), metadata, outputPath);
     state.getImportedAssets().push_back(std::move(iad));
     
-    File fw(outputPath, File::OpenMode::Write);
-    fw.writeBytes(internalState->data.get(), internalState->size);
+    auto fw = VirtualFileSystem::Instance().openFile(outputPath, FileOpenMode::Write);
+    fw->writeBytes(internalState->data.get(), internalState->size);
     
     return true;
 }

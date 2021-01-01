@@ -27,7 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assets/metadata/MeshMetadata.hpp"
-#include "core/filesystem/File.hpp"
+#include "io/File.hpp"
 
 #include "utilities/hashing/Hashing.hpp"
 

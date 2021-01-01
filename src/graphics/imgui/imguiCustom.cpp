@@ -37,10 +37,10 @@
 #include <iostream>
 
 #include "core/Constants.hpp"
-#include "core/filesystem/FileSystem.hpp"
-#include "core/filesystem/File.hpp"
-#include "core/interfaces/Serializable.hpp"
-#include "core/Logger.hpp"
+#include "io/FileSystem.hpp"
+#include "io/File.hpp"
+#include "io/interfaces/Serializable.hpp"
+#include "logging/Logger.hpp"
 #include "utilities/IntegerPacking.hpp"
 
 namespace ImGui {

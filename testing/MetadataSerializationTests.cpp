@@ -28,7 +28,7 @@
 
 #include "MetadataSerializationTests.hpp"
 
-#include "core/serialization/MemorySerializer.hpp"
+#include "io/serialization/MemorySerializer.hpp"
 
 #include "assets/metadata/AnimationMetadata.hpp"
 #include "assets/metadata/MeshMetadata.hpp"
@@ -56,7 +56,7 @@ void MetadataSerializationTests::initialize() {}
 
 #define RUN_META_TEST(Type, ...)\
     {\
-        Type meta(FileHash(256), fs::path("asset/test/path.ast"), FileHash(1024), false, __VA_ARGS__);\
+        Type meta(FileHash(256), Path("asset/test/path.ast"), FileHash(1024), false, __VA_ARGS__);\
         \
         MemorySerializer ms(16384);\
         meta.serialize(ms);\

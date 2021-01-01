@@ -27,10 +27,10 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/World.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "assets/metadata/MeshMetadata.hpp"
 #include "core/Engine.hpp"
-#include "core/configuration/Configuration.hpp"
+#include "configuration/Configuration.hpp"
 #include "graphics/GraphicsSystem.hpp"
 #include "physics/PhysicsSystem.hpp"
 #include "assets/typeManagers/MeshTypeManager.hpp"

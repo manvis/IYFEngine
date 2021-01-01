@@ -40,8 +40,8 @@ public:
     virtual std::string getWindowName() const final override;
     virtual ~MaterialEditor();
     
-    void setPath(fs::path path);
-    inline const fs::path& getPath() const {
+    void setPath(Path path);
+    inline const Path& getPath() const {
         return filePath;
     }
     
@@ -56,7 +56,7 @@ protected:
     
     std::vector<char> nameBuffer;
     std::vector<std::string> materialFamilyNames;
-    fs::path filePath;
+    Path filePath;
 };
 
 }

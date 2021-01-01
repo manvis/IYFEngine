@@ -55,7 +55,7 @@ void MetadataBase::serialize(Serializer& fw) const {
     fw.writeUInt8(systemAsset);
     fw.writeUInt16(getLatestSerializedDataVersion());
     fw.writeUInt64(fileHash.value());
-    fw.writeString(sourceAsset.generic_string(), StringLengthIndicator::UInt16);
+    fw.writeString(sourceAsset.getGenericString(), StringLengthIndicator::UInt16);
     fw.writeUInt64(sourceFileHash);
     
     fw.writeUInt8(tags.size());
@@ -115,7 +115,7 @@ void MetadataBase::serializeJSON(PrettyStringWriter& pw) const  {
     pw.Uint64(fileHash.value());
     
     pw.Key(SOURCE_ASSET_FIELD_NAME);
-    pw.String(sourceAsset.generic_string().c_str(), sourceAsset.generic_string().length(), true);
+    pw.String(sourceAsset.getGenericString().c_str(), sourceAsset.getGenericString().length(), true);
     
     pw.Key(SOURCE_FILE_HASH_FIELD_NAME);
     pw.Uint64(sourceFileHash);
@@ -149,7 +149,7 @@ void MetadataBase::deserializeJSON(JSONObject& jo) {
     }
     
     fileHash = FileHash(jo[FILE_HASH_FIELD_NAME].GetUint64());
-    sourceAsset = fs::path(jo[SOURCE_ASSET_FIELD_NAME].GetString());
+    sourceAsset = Path(jo[SOURCE_ASSET_FIELD_NAME].GetString());
     sourceFileHash = FileHash(jo[SOURCE_FILE_HASH_FIELD_NAME].GetUint64());
     
     std::uint16_t version = jo[SERIALIZED_DATA_VERSION_FIELD_NAME].GetInt();

@@ -46,40 +46,40 @@ public:
     InotifyFileSystemWatcher(FileSystemWatcherCreateInfo createInfo);
     
     virtual bool addDirectory(const MonitoredDirectory& monitoredDirectory) final override;
-    virtual bool removeDirectory(const fs::path& path) override final;
+    virtual bool removeDirectory(const Path& path) override final;
     
     virtual void poll() final override;
     
     virtual ~InotifyFileSystemWatcher();
     
-    virtual std::vector<fs::path> getMonitoredDirectories() const final override;
+    virtual std::vector<Path> getMonitoredDirectories() const final override;
 private:
-    bool addDirectoryImpl(const fs::path& path, FileSystemEventFlags flags);
+    bool addDirectoryImpl(const Path& path, FileSystemEventFlags flags);
     
     /// For use in addDirectoryImpl() and poll() ONLY. Required by poll(), since it and addDirectoryImpl() lock the same mutex
     /// and that results in a deadlock. poll() needs add directory functionality to automatically add newly created sub-directories
     /// to the watch list.
     /// 
     /// \remark I know about recursive mutexes, but they're slower and have been a source of bugs in the past so I'd rather do this.
-    bool addDirectoryImplNoLock(const fs::path& path, FileSystemEventFlags flags);
+    bool addDirectoryImplNoLock(const Path& path, FileSystemEventFlags flags);
     
     /// For use in removeDirectory() and poll() ONLY. Required by poll(), since it and removeDirectory() lock the same mutex
     /// and that results in a deadlock. poll() needs directory removal functionality to automatically remove moved or renamed
     /// directories from the watch list.
-    bool removeDirectoryImplNoLock(const fs::path& path, bool descriptorNeedsDeletion, bool recursive);
+    bool removeDirectoryImplNoLock(const Path& path, bool descriptorNeedsDeletion, bool recursive);
     
     /// Used internally by removeDirectoryImplNoLock().
     std::pair<std::unordered_map<std::string, int>::iterator, bool> removeDirectoryByIterator(std::unordered_map<std::string, int>::iterator it, bool descriptorNeedsDeletion);
     
     /// Adds newly created (or copied, or moved from an untracked location into a tracked one) directories 
-    void addNewlyCreatedOrMovedDirectories(const fs::path& dir);
+    void addNewlyCreatedOrMovedDirectories(const Path& dir);
     
     struct Paths {
-        Paths(FileSystemEventOrigin origin, fs::path source, fs::path destination) : origin(origin), source(source), destination(destination) {}
+        Paths(FileSystemEventOrigin origin, Path source, Path destination) : origin(origin), source(source), destination(destination) {}
         
         FileSystemEventOrigin origin;
-        fs::path source;
-        fs::path destination;
+        Path source;
+        Path destination;
     };
     
     virtual std::string getBackendName() const final override {

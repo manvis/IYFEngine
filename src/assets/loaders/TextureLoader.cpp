@@ -27,8 +27,8 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assets/loaders/TextureLoader.hpp"
-#include "core/serialization/MemorySerializer.hpp"
-#include "core/Logger.hpp"
+#include "io/serialization/MemorySerializer.hpp"
+#include "logging/Logger.hpp"
 
 namespace iyf {
 static const std::array<char, 4> MAGIC_NUMBER = {'I', 'Y', 'F', 'T'};

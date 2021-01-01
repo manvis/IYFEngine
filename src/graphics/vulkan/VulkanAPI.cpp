@@ -42,7 +42,7 @@
 #undef Bool
 
 #include "core/Engine.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "core/Debug.hpp"
 #include "graphics/Renderer.hpp"
 #include "graphics/vulkan/VulkanUtilities.hpp"

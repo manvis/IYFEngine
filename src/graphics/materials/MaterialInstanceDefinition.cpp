@@ -27,7 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "graphics/materials/MaterialInstanceDefinition.hpp"
-#include "core/filesystem/File.hpp"
+#include "io/File.hpp"
 #include "utilities/hashing/HashCombine.hpp"
 
 #include "rapidjson/prettywriter.h"

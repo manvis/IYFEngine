@@ -31,7 +31,7 @@
 
 #include "utilities/DataSizes.hpp"
 #include "assets/metadata/Metadata.hpp"
-#include "core/filesystem/File.hpp"
+#include "io/File.hpp"
 #include "graphics/VertexDataLayouts.hpp"
 #include "graphics/AnimationDataStructures.hpp"
 #include "graphics/culling/BoundingVolumes.hpp"
@@ -82,14 +82,14 @@ public:
     /// \param[out] skeleton pointer to an std::vector of bone transformation and hierarchy data. Must NOT be nullptr if the mesh has bones (check MemoryRequirements.boneCount). Must be resized to 
     /// MemoryRequirements.boneCount (or more) before being passed to this function.
     /// \return if the mesh loading succeeded or not.
-    bool loadMesh(const fs::path& path, LoadedMeshData& meshData, void* vertexBuffer, void* indexBuffer, std::vector<Bone>* skeleton = nullptr) const;
-    bool loadAnimation(const fs::path& path, Animation& buffer) const;
+    bool loadMesh(const Path& path, LoadedMeshData& meshData, void* vertexBuffer, void* indexBuffer, std::vector<Bone>* skeleton = nullptr) const;
+    bool loadAnimation(const Path& path, Animation& buffer) const;
     
     /// Get the amount of memory that the data of this mesh will require on the GPU directly from the file.
     /// To avoid unnecessary reads, use the getMeshMemoryRequirements(const Metadata&) const.
     /// \param[in] path Path to a mesh file.
     /// \return How much vertex, index and bone data the mesh has.
-    MemoryRequirements getMeshMemoryRequirements(const fs::path& path) const;
+    MemoryRequirements getMeshMemoryRequirements(const Path& path) const;
     
     /// Get the amount of memory that the data of this mesh will require on the GPU from a Metadata object.
     /// \param[in] metadata A metadata variant that must be convertable to MeshMetadata.

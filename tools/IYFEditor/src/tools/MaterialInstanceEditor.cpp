@@ -30,12 +30,13 @@
 #include "tools/MaterialInstanceEditor.hpp"
 
 #include "core/Engine.hpp"
-#include "core/Logger.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
+#include "logging/Logger.hpp"
 #include "assets/AssetManager.hpp"
 #include "assets/metadata/MaterialInstanceMetadata.hpp"
 #include "assets/metadata/MaterialTemplateMetadata.hpp"
 #include "graphics/materials/MaterialInstanceDefinition.hpp"
-#include "core/serialization/VirtualFileSystemSerializer.hpp"
+#include "io/serialization/FileSerializer.hpp"
 #include "utilities/ImGuiUtils.hpp"
 
 #include "rapidjson/prettywriter.h"
@@ -91,7 +92,7 @@ void MaterialInstanceEditor::show(bool* showing) {
 //     }
 /*    
     MaterialInstanceMetadata instanceMetadata = (*metadata).get<MaterialInstanceMetadata>();*/
-    const std::string windowName = LOC_SYS(LH("material_instance_editor", MaterialInstanceEditorLocNamespace), filePath.generic_string());
+    const std::string windowName = LOC_SYS(LH("material_instance_editor", MaterialInstanceEditorLocNamespace), filePath.getGenericString());
     if (ImGui::Begin(windowName.c_str(), showing)) {
         
         if (ImGui::Button("Save")) {
@@ -110,9 +111,9 @@ void MaterialInstanceEditor::show(bool* showing) {
             instanceDefinition->setMaterialTemplateDefinition(materialTemplateAsset, variableVector, textureVector);
             instanceDefinition->setRenderMode(materialRenderMode);
             
-            File output(filePath, File::OpenMode::Write);
+            auto output = VirtualFileSystem::Instance().openFile(filePath, FileOpenMode::Write);
             const std::string result = instanceDefinition->getJSONString();
-            output.writeBytes(result.data(), result.size());
+            output->writeBytes(result.data(), result.size());
         }
         
         ImGui::SameLine();
@@ -124,7 +125,7 @@ void MaterialInstanceEditor::show(bool* showing) {
         } else {
             const auto& value = templateMetadata.value();
             const MaterialTemplateMetadata& metadata = value.get<MaterialTemplateMetadata>();
-            const std::string text = fmt::format("Material template: {}", metadata.getSourceAssetPath().generic_string());
+            const std::string text = fmt::format("Material template: {}", metadata.getSourceAssetPath().getGenericString());
             util::AssetDragDropTarget(text.c_str(), AssetType::MaterialTemplate, std::bind(&MaterialInstanceEditor::changeAsset, this, std::placeholders::_1), ImVec2(dropTargetWidth, 0));
             
             int currentItem = static_cast<int>(materialRenderMode);
@@ -217,11 +218,11 @@ void MaterialInstanceEditor::show(bool* showing) {
         ImGui::End();
     }
 }
-void MaterialInstanceEditor::setFilePath(const fs::path& path) {
+void MaterialInstanceEditor::setFilePath(const Path& path) {
     filePath = path;
     
-    File in(filePath, File::OpenMode::Read);
-    auto wholeFile = in.readWholeFile();
+    auto in = VirtualFileSystem::Instance().openFile(filePath, FileOpenMode::Read);
+    auto wholeFile = in->readWholeFile();
     rj::Document document;
     document.Parse(wholeFile.first.get(), static_cast<std::size_t>(wholeFile.second));
     

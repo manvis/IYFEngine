@@ -46,7 +46,7 @@ class MeshConverter : public Converter {
     public:
         MeshConverter(const ConverterManager* manager);
         
-        virtual std::unique_ptr<ConverterState> initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const final override;
+        virtual std::unique_ptr<ConverterState> initializeConverter(const Path& inPath, PlatformIdentifier platformID) const final override;
         
         /// \brief Reads a mesh file and converts it to a format optimized for this engine.
         ///
@@ -84,7 +84,7 @@ class MeshConverter : public Converter {
         // Material is only generated when we create an actual instance of the mesh
 //        bool generateMaterial();
 
-        void outputError(const fs::path& inPath, const std::string &lacking, const aiMesh* mesh) const;
+        void outputError(const Path& inPath, const std::string &lacking, const aiMesh* mesh) const;
 };
 
 }

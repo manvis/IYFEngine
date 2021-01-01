@@ -73,7 +73,7 @@ public:
     virtual void cleanup() final override;
 private:
     void monitorCallback(std::vector<FileSystemEvent> events);
-    void printMonitoredDirectories(const std::vector<fs::path>& directories);
+    void printMonitoredDirectories(const std::vector<Path>& directories);
     std::string printEvent(const iyf::FileSystemEvent& event);
     static std::uint64_t WriteRandomFile(const std::string& path, std::size_t byteCount);
     

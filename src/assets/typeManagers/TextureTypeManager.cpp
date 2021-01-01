@@ -29,8 +29,9 @@
 #include "assets/typeManagers/TextureTypeManager.hpp"
 #include "assets/metadata/TextureMetadata.hpp"
 #include "core/Engine.hpp"
-#include "core/filesystem/File.hpp"
-#include "core/Logger.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
+#include "io/File.hpp"
+#include "logging/Logger.hpp"
 #include "assets/loaders/TextureLoader.hpp"
 #include "graphics/GraphicsAPI.hpp"
 
@@ -46,9 +47,9 @@ void TextureTypeManager::performFree(Texture& assetData) {
     }
 }
 
-std::unique_ptr<LoadedAssetData> TextureTypeManager::readFile(StringHash, const fs::path& path, const Metadata& meta, Texture& assetData) {
-    File file(path, File::OpenMode::Read);
-    return std::make_unique<LoadedAssetData>(meta, assetData, file.readWholeFile());
+std::unique_ptr<LoadedAssetData> TextureTypeManager::readFile(StringHash, const Path& path, const Metadata& meta, Texture& assetData) {
+    auto file = VirtualFileSystem::Instance().openFile(path, FileOpenMode::Read);
+    return std::make_unique<LoadedAssetData>(meta, assetData, file->readWholeFile());
 }
 
 void TextureTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAssetData, bool canBatch) {
@@ -67,7 +68,7 @@ void TextureTypeManager::enableAsset(std::unique_ptr<LoadedAssetData> loadedAsse
     
     ImageCreateInfo ici = gfx->buildImageCreateInfo(textureData);
     
-    const std::string textureName = fmt::format("Managed texture from {}", textureMeta.getSourceAssetPath().string());
+    const std::string textureName = fmt::format("Managed texture from {}", textureMeta.getSourceAssetPath().getGenericString());
     assetData.image = gfx->createImage(ici, textureName.c_str());
     if (canBatch) {
         memoryManager->updateImage(MemoryBatch::TextureAssetData, assetData.image, textureData);

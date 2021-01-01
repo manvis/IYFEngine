@@ -33,9 +33,9 @@
 #include "graphics/Lights.hpp"
 
 #include "core/EntitySystemManager.hpp"
-#include "core/interfaces/Configurable.hpp"
+#include "configuration/interfaces/Configurable.hpp"
 
-#include "core/interfaces/Serializable.hpp"
+#include "io/interfaces/Serializable.hpp"
 
 #include <unordered_map>
 #include <map>

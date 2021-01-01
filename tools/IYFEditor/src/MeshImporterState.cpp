@@ -28,7 +28,8 @@
 
 #include "MeshImporterState.h"
 #include "core/InputState.hpp"
-#include "core/filesystem/File.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
+#include "io/File.hpp"
 
 namespace iyf {
 namespace editor {
@@ -53,22 +54,23 @@ void MeshImporterState::initialize() {
     
     const char MAGIC_NUMBER[4] = {'I', 'Y', 'F', 'M'};
     
-    File fw("test", File::OpenMode::Write);
-    fw.writeBytes(MAGIC_NUMBER, sizeof(char) * 4);
-    fw.writeInt8(64);
-    fw.writeUInt8(200);
-    fw.writeUInt64(12345678901234567890ull);
+
+    auto fw = VirtualFileSystem::Instance().openFile("test", FileOpenMode::Write);
+    fw->writeBytes(MAGIC_NUMBER, sizeof(char) * 4);
+    fw->writeInt8(64);
+    fw->writeUInt8(200);
+    fw->writeUInt64(12345678901234567890ull);
     
-    File fr("test", File::OpenMode::Read);
+    auto fr = VirtualFileSystem::Instance().openFile("test", FileOpenMode::Read);
     std::int8_t r1;
     std::uint8_t r2;
     std::uint64_t r3;
     char mNum[4];
     
-    fr.readBytes(mNum, sizeof(char) * 4);
-    fr.readInt8(&r1);
-    fr.readUInt8(&r2);
-    fr.readUInt64(&r3);
+    fr->readBytes(mNum, sizeof(char) * 4);
+    fr->readInt8(&r1);
+    fr->readUInt8(&r2);
+    fr->readUInt64(&r3);
     
 //    LOG_D(mNum[0] << mNum[1] << mNum[2] << mNum[3] << " " << (r1 == 64) << " " << (r2 == 200) << " " << r3)
 }

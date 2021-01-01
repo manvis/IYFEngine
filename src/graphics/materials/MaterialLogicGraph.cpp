@@ -343,7 +343,8 @@ void MaterialOutputNode::serializeJSON(PrettyStringWriter& pw) const {
 
 const char* DEFAULT_TEXTURE_FIELD_NAME = "defaultTexture";
 
-TextureInputNode::TextureInputNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) : MaterialNodeBase(key, position, zIndex, 2), defaultTexture(HS(con::MissingTexture())) {
+TextureInputNode::TextureInputNode(MaterialNodeKey key, Vec2 position, std::uint32_t zIndex) :
+    MaterialNodeBase(key, position, zIndex, 2), defaultTexture(HS(con::MissingTexture().getGenericString())) {
     addInput(LH("uv", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec2, true, true);
     addOutput(LH("rgb", MaterialNodeLocalizationNamespace), MaterialNodeConnectorType::Vec3);
 }

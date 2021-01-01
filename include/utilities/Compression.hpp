@@ -30,7 +30,7 @@
 #define IYF_COMPRESSION_HPP
 
 #include <vector>
-#include "core/filesystem/cppFilesystem.hpp"
+#include "io/Path.hpp"
 
 namespace iyf::util {
 enum class CompressionLevel {
@@ -45,19 +45,19 @@ enum class CompressionLevel {
 };
 
 struct PathToCompress {
-    PathToCompress(fs::path filePath, fs::path archivePath) : filePath(std::move(filePath)), archivePath(std::move(archivePath)) {}
+    PathToCompress(Path filePath, Path archivePath) : filePath(std::move(filePath)), archivePath(std::move(archivePath)) {}
     
     /// Real file system path to the file you want to compress
-    fs::path filePath;
+    Path filePath;
     /// A path to the file in the zip archive
-    fs::path archivePath;
+    Path archivePath;
 };
 
 // Compress the specified directory to zip. If the zip file already exists, it will be overwritten.
-bool CompressDirectoryToZip(const fs::path& dir, const fs::path& zipPath, CompressionLevel level);
+bool CompressDirectoryToZip(const Path& dir, const Path& zipPath, CompressionLevel level);
 
 // Compress the specified files to zip. If the zip file already exists, it will be overwritten.
-bool CompressFileListToZip(const std::vector<PathToCompress>& paths, const fs::path& zipPath, CompressionLevel level);
+bool CompressFileListToZip(const std::vector<PathToCompress>& paths, const Path& zipPath, CompressionLevel level);
 }
 
 #endif // IYF_COMPRESSION_HPP

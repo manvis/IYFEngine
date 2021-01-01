@@ -76,7 +76,7 @@ public:
     
     virtual std::string generateLightProcessingFunctionSignature(const MaterialFamilyDefinition& definition, bool global) const final override;
     
-    virtual fs::path getShaderStageFileExtension(ShaderStageFlagBits stage) const final override;
+    virtual Path getShaderStageFileExtension(ShaderStageFlagBits stage) const final override;
 protected:
     virtual ShaderGenerationResult generateVertexShader(PlatformIdentifier platform, const MaterialFamilyDefinition& definition) const final override;
     virtual ShaderGenerationResult generateFragmentShader(PlatformIdentifier platform, const MaterialFamilyDefinition& definition, const MaterialLogicGraph* graph) const final override;

@@ -37,7 +37,6 @@
 
 #include "core/GameState.hpp"
 #include "core/Project.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
 
 namespace iyf {
 class Engine;
@@ -132,7 +131,7 @@ private:
     
     bool projectLoadRequested;
     bool pendingUserSetup;
-    fs::path projectToLoad;
+    Path projectToLoad;
     std::string messageText;
     std::mutex progressTextMutex;
     std::string progressText;

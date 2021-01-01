@@ -29,8 +29,8 @@
 #include "graphics/vulkan/VulkanAPI.hpp"
 
 #include "utilities/hashing/Hashing.hpp"
-#include "core/Logger.hpp"
-#include "core/configuration/Configuration.hpp"
+#include "logging/Logger.hpp"
+#include "configuration/Configuration.hpp"
 #include "utilities/StringUtilities.hpp"
 
 namespace iyf {

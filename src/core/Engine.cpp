@@ -51,15 +51,16 @@
 #include <imgui.h>
 #include "ImGuiImplementation.hpp"
 
+#include "io/DefaultFileSystem.hpp"
+
 #include "core/Constants.hpp"
-#include "core/filesystem/FileSystem.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
 #include "core/GameState.hpp"
 #include "core/InputState.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "core/Project.hpp"
 
-#include "core/configuration/Configuration.hpp"
+#include "configuration/Configuration.hpp"
 #include "localization/TextLocalization.hpp"
 #include "sound/SoundAPI.hpp"
 #include "assets/AssetManager.hpp"
@@ -310,7 +311,7 @@ bool Engine::parseCommandLine(int argc, char* argv[]) {
                     return false;
                 }
                 
-                fs::path finalPath = path;
+                Path finalPath = path;
                 finalPath /= name;
                 
                 project = std::make_unique<Project>(finalPath);
@@ -343,8 +344,10 @@ void Engine::init() {
         // the file system may not have been initialized
         throw std::runtime_error("Couldn't initialize SDL");
     }
-
-    fileSystem = std::unique_ptr<FileSystem>(new FileSystem(project.get(), isEditorMode(), argv0));
+    
+    VirtualFileSystem::argv = argv0;
+    fileSystem = std::unique_ptr<VirtualFileSystem>(new VirtualFileSystem());
+    fileSystem->initialize(project.get(), isEditorMode());
     
     // TODO set log direcotory here
     LOG_V("Sanitizer(s) that the engine was built with: {}", ACTIVE_SANITIZER_NAME);
@@ -355,15 +358,15 @@ void Engine::init() {
           static_cast<std::uint32_t>(linked.major), static_cast<std::uint32_t>(linked.minor), static_cast<std::uint32_t>(linked.patch), SDL_GetRevision());
     
     //Can't use_make unique because the constructor is private and accessed via a friend declaration.
-    fs::path userConfiguration = fileSystem->getPreferenceDirectory();
+    Path userConfiguration = fileSystem->getPreferenceDirectory();
     userConfiguration /= "config.cfg";
     
     LOG_D("User's configuration file path: {}", userConfiguration);
 
-    std::vector<ConfigurationFilePath> configPaths;
+    std::vector<ConfigurationPath> configPaths;
     configPaths.reserve(2);
-    configPaths.emplace_back("EngineBaseConfig.cfg", ConfigurationFilePath::PathType::Virtual);
-    configPaths.emplace_back(userConfiguration, ConfigurationFilePath::PathType::Real);
+    configPaths.emplace_back("EngineBaseConfig.cfg", &VirtualFileSystem::Instance());
+    configPaths.emplace_back(userConfiguration, &DefaultFileSystem::Instance());
     
     config = std::unique_ptr<Configuration>(new Configuration(configPaths, Configuration::Mode::Editable, nullptr));
     useDebugAndValidation = config->getValue(HS("debugAndValidation"), ConfigurationValueNamespace::Engine);

@@ -27,7 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assetImport/ConverterManager.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 
 #include "assetImport/converters/MaterialInstanceConverter.hpp"
 #include "assetImport/converters/MaterialTemplateConverter.hpp"
@@ -41,9 +41,9 @@
 #include <variant>
 
 #include "core/Constants.hpp"
-#include "core/filesystem/FileSystem.hpp"
-#include "core/filesystem/File.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
+#include "io/FileSystem.hpp"
+#include "io/File.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
 #include "assets/AssetManager.hpp"
 
 #include "utilities/Regexes.hpp"
@@ -55,7 +55,7 @@
 
 namespace iyf {
 namespace editor {
-ConverterManager::ConverterManager(const FileSystem* fileSystem, fs::path assetDestination) 
+ConverterManager::ConverterManager(const VirtualFileSystem* fileSystem, Path assetDestination) 
     : fileSystem(fileSystem), assetDestination(assetDestination) {
     typeToConverter[AssetType::Mesh] = std::make_unique<MeshConverter>(this);
     typeToConverter[AssetType::Texture] = std::make_unique<TextureConverter>(this);
@@ -68,7 +68,7 @@ ConverterManager::ConverterManager(const FileSystem* fileSystem, fs::path assetD
 
 ConverterManager::~ConverterManager() {}
 
-std::unique_ptr<ConverterState> ConverterManager::initializeConverter(const fs::path& sourcePath, PlatformIdentifier platformID) const {
+std::unique_ptr<ConverterState> ConverterManager::initializeConverter(const Path& sourcePath, PlatformIdentifier platformID) const {
     if (!fileSystem->exists(sourcePath)) {
         LOG_W("Cannot initialize the converter because file \"{}\" does not exist.", sourcePath)
         return nullptr;
@@ -90,18 +90,18 @@ std::unique_ptr<ConverterState> ConverterManager::initializeConverter(const fs::
     return converterState;
 }
 
-fs::path ConverterManager::makeLocaleStringPath(const fs::path& sourcePath, const fs::path& directory, PlatformIdentifier platformID) const {
-    if (!std::regex_match(sourcePath.filename().string(), SystemRegexes().LocalizationFileNameValidationRegex)) {
+Path ConverterManager::makeLocaleStringPath(const Path& sourcePath, const Path& directory, PlatformIdentifier platformID) const {
+    if (!std::regex_match(sourcePath.filename().getGenericString(), SystemRegexes().LocalizationFileNameValidationRegex)) {
         LOG_E("String files need to match a specific pattern filename.[LOCALE].csv, where [LOCALE] is en_US, lt_LT, etc.");
         throw std::runtime_error("Invalid source path format (check log)");
     }
     
-    std::string locale = sourcePath.stem().extension().string().substr(1);
+    std::string locale = sourcePath.stem().extension().getGenericString().substr(1);
     const StringHash nameHash = AssetManager::ComputeNameHash(sourcePath);
     return getAssetDestinationPath(platformID) / directory / (locale + "." + std::to_string(nameHash));
 }
 
-fs::path ConverterManager::makeFinalPathForAsset(const fs::path& sourcePath, AssetType type, PlatformIdentifier platformID) const {
+Path ConverterManager::makeFinalPathForAsset(const Path& sourcePath, AssetType type, PlatformIdentifier platformID) const {
     if (type == AssetType::Strings) {
         return makeLocaleStringPath(sourcePath, con::AssetTypeToPath(type), platformID);
     } else {
@@ -110,15 +110,15 @@ fs::path ConverterManager::makeFinalPathForAsset(const fs::path& sourcePath, Ass
     }
 }
 
-fs::path ConverterManager::makeFinalPathForSystemStrings(const fs::path& sourcePath, PlatformIdentifier platformID) const {
+Path ConverterManager::makeFinalPathForSystemStrings(const Path& sourcePath, PlatformIdentifier platformID) const {
     return makeLocaleStringPath(sourcePath, con::SystemStringPath(), platformID);
 }
 
-fs::path ConverterManager::getRealPath(const fs::path& path) const {
+Path ConverterManager::getRealPath(const Path& path) const {
     return fileSystem->getRealDirectory(path);
 }
 
-const fs::path ConverterManager::getAssetDestinationPath(PlatformIdentifier platformID) const {
+const Path ConverterManager::getAssetDestinationPath(PlatformIdentifier platformID) const {
     if (platformID == con::GetCurrentPlatform()) {
         return assetDestination;
     }
@@ -126,24 +126,24 @@ const fs::path ConverterManager::getAssetDestinationPath(PlatformIdentifier plat
     return assetDestination / con::PlatformIdentifierToName(platformID);
 }
 
-AssetType ConverterManager::getAssetType(const fs::path& sourcePath) const {
+AssetType ConverterManager::getAssetType(const Path& sourcePath) const {
     return AssetManager::GetAssetTypeFromExtension(sourcePath);
 }
 
-fs::path ConverterManager::makeImporterSettingsFilePath(const fs::path& sourcePath) const {
+Path ConverterManager::makeImporterSettingsFilePath(const Path& sourcePath) const {
     assert(sourcePath.extension() != con::ImportSettingsExtension());
     
-    fs::path pathJSON = sourcePath;
+    Path pathJSON = sourcePath;
     pathJSON += con::ImportSettingsExtension();
     return pathJSON;
 }
 
 bool ConverterManager::deserializeSettings(ConverterState& state) const {
-    const fs::path settingsPath = makeImporterSettingsFilePath(state.getSourceFilePath());
+    const Path settingsPath = makeImporterSettingsFilePath(state.getSourceFilePath());
     
     if (fileSystem->exists(settingsPath)) {
-        File jsonFile(settingsPath, File::OpenMode::Read);
-        const auto wholeFile = jsonFile.readWholeFile();
+        auto jsonFile = VirtualFileSystem::Instance().openFile(settingsPath, FileOpenMode::Read);
+        const auto wholeFile = jsonFile->readWholeFile();
         
         rj::Document document;
         document.Parse(wholeFile.first.get(), wholeFile.second);
@@ -167,10 +167,10 @@ bool ConverterManager::serializeSettings(ConverterState& state) const {
     const char* finalJSON = buffer.GetString();
     const std::size_t bufferSize = buffer.GetLength();
     
-    const fs::path pathJSON = makeImporterSettingsFilePath(state.getSourceFilePath());
-    File file(pathJSON, File::OpenMode::Write);
-    file.writeBytes(finalJSON, bufferSize);
-    file.close();
+    const Path pathJSON = makeImporterSettingsFilePath(state.getSourceFilePath());
+    auto file = VirtualFileSystem::Instance().openFile(pathJSON, FileOpenMode::Write);
+    file->writeBytes(finalJSON, bufferSize);
+    file->close();
     
     return true;
 }
@@ -210,11 +210,11 @@ bool ConverterManager::convert(ConverterState& state) const {
         
         assert(jsonString != nullptr && jsonByteCount != 0);
         
-        fs::path metadataPath = asset.getDestinationPath();
-        metadataPath += fs::path(con::TextMetadataExtension());
+        Path metadataPath = asset.getDestinationPath();
+        metadataPath += Path(con::TextMetadataExtension());
         
-        File metadataOutput(metadataPath, File::OpenMode::Write);
-        metadataOutput.writeBytes(jsonString, jsonByteCount);
+        auto metadataOutput = VirtualFileSystem::Instance().openFile(metadataPath, FileOpenMode::Write);
+        metadataOutput->writeBytes(jsonString, jsonByteCount);
     }
     
     return true;

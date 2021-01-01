@@ -27,9 +27,9 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "graphics/materials/MaterialFamilyDefinition.hpp"
-#include "core/filesystem/File.hpp"
-#include "core/serialization/MemorySerializer.hpp"
-#include "core/Logger.hpp"
+#include "io/File.hpp"
+#include "io/serialization/MemorySerializer.hpp"
+#include "logging/Logger.hpp"
 #include "utilities/StringUtilities.hpp"
 #include "utilities/Regexes.hpp"
 

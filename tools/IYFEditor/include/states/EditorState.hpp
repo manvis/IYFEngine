@@ -47,8 +47,6 @@
 
 #include "utilities/hashing/Hashing.hpp"
 
-#include "core/filesystem/cppFilesystem.hpp"
-
 namespace iyf {
 class Engine;
 class Renderer;
@@ -81,7 +79,7 @@ struct AssetListItem {
     StringHash hash;
     bool isDirectory;
     bool imported;
-    fs::path path;
+    Path path;
     Metadata metadata;
     
     inline bool operator<(const AssetListItem& other) const {
@@ -95,9 +93,9 @@ struct AssetListItem {
 
 struct NextAssetToDelete {
     NextAssetToDelete() : isDirectory(false), needToOpenModal(false) {}
-    NextAssetToDelete(fs::path path, bool isDirectory) : path(std::move(path)), isDirectory(isDirectory), needToOpenModal(true) {}
+    NextAssetToDelete(Path path, bool isDirectory) : path(std::move(path)), isDirectory(isDirectory), needToOpenModal(true) {}
     
-    fs::path path;
+    Path path;
     bool isDirectory;
     bool needToOpenModal;
 };
@@ -238,7 +236,7 @@ protected:
     bool assetDirUpdated;
     int currentlyPickedAssetType;
     std::vector<std::string> assetTypeNames;
-    fs::path currentlyOpenDir;
+    Path currentlyOpenDir;
     
     void showUnableToInstanceTooltip(const std::string& tooltip);
     std::deque<AssetData> assetClipboard;

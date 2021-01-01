@@ -34,7 +34,7 @@
 #include <cstdint>
 #include <variant>
 
-#include "core/interfaces/Configurable.hpp"
+#include "configuration/interfaces/Configurable.hpp"
 #include "graphics/GraphicsAPIConstants.hpp"
 #include "graphics/GraphicsAPIHandles.hpp"
 #include "utilities/DataSizes.hpp"

@@ -32,15 +32,19 @@
 #include <sys/select.h>
 #include <errno.h>
 #include <unistd.h>
-#include "core/filesystem/cppFilesystem.hpp"
+#include <cassert>
+#include <filesystem>
 #include "threading/ThreadProfiler.hpp"
 
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "utilities/StringUtilities.hpp"
 
 #include "fmt/ostream.h"
 
 namespace iyf {
+
+namespace fs = std::filesystem;
+
 struct PathReplacement {
     int wd;
     std::string source;
@@ -70,14 +74,14 @@ InotifyFileSystemWatcher::InotifyFileSystemWatcher(FileSystemWatcherCreateInfo c
     }
 }
 
-bool InotifyFileSystemWatcher::addDirectoryImplNoLock(const fs::path& path, FileSystemEventFlags /*flags*/) {
-    auto existingLookupResult = pathToDescriptor.find(path.string());
+bool InotifyFileSystemWatcher::addDirectoryImplNoLock(const Path& path, FileSystemEventFlags /*flags*/) {
+    auto existingLookupResult = pathToDescriptor.find(path.getNativeString());
     if (existingLookupResult != pathToDescriptor.end()) {
         LOG_W("INOTIFY tried to re-add a tracked path");
         return false;
     }
     
-    if (fs::exists(path)) {
+    if (fs::exists(path.getNativeString())) {
         int mask = 0;
         
 //         if (static_cast<bool>(flags & FileSystemEventFlags::Created)) {
@@ -120,7 +124,7 @@ bool InotifyFileSystemWatcher::addDirectoryImplNoLock(const fs::path& path, File
                IN_DELETE_SELF | // Reports a deletion of a tracked dir
                IN_MOVE_SELF | // Reports a move of a tracked dir
                IN_ONLYDIR; // This ensures only directories are tracked
-        int wd = inotify_add_watch(fd, path.c_str(), mask);
+        int wd = inotify_add_watch(fd, path.getCString(), mask);
         
         if (wd < 0) {
             std::stringstream ss;
@@ -135,8 +139,8 @@ bool InotifyFileSystemWatcher::addDirectoryImplNoLock(const fs::path& path, File
             return false;
         }
         
-        pathToDescriptor[path.string()] = wd;
-        descriptorToPath[wd] = path.string();
+        pathToDescriptor[path.getNativeString()] = wd;
+        descriptorToPath[wd] = path.getNativeString();
         
         if (createInfo.writeChangesToLog) {
             LOG_V("INOTIFY-NEW-DIR\n\t\t{}; WD: {}", path, wd);
@@ -145,13 +149,13 @@ bool InotifyFileSystemWatcher::addDirectoryImplNoLock(const fs::path& path, File
         return true;
     } else {
         std::string errorString = "Non existing path: ";
-        errorString.append(path.string());
+        errorString.append(path.getNativeString());
         LOG_E("{}", errorString)
         throw std::runtime_error(errorString);
     }
 }
 
-bool InotifyFileSystemWatcher::addDirectoryImpl(const fs::path& path, FileSystemEventFlags flags) {
+bool InotifyFileSystemWatcher::addDirectoryImpl(const Path& path, FileSystemEventFlags flags) {
     std::lock_guard<std::mutex> lock(inotifyMutex);
     
     return addDirectoryImplNoLock(path, flags);
@@ -168,7 +172,7 @@ bool InotifyFileSystemWatcher::addDirectory(const MonitoredDirectory& monitoredD
             return false;
         }
         
-        for (const auto& p: fs::recursive_directory_iterator(monitoredDirectory.path)) {
+        for (const auto& p: fs::recursive_directory_iterator(monitoredDirectory.path.getNativeString())) {
             if (!fs::is_directory(p)) {
                 // Only monitor directories
                 continue;
@@ -188,7 +192,7 @@ bool InotifyFileSystemWatcher::addDirectory(const MonitoredDirectory& monitoredD
     }
 }
 
-bool InotifyFileSystemWatcher::removeDirectory(const fs::path& path) {
+bool InotifyFileSystemWatcher::removeDirectory(const Path& path) {
     IYFT_PROFILE(RemoveMonitoredDirectory, iyft::ProfilerTag::AssetConversion);
     
     std::lock_guard<std::mutex> lock(inotifyMutex);
@@ -244,13 +248,13 @@ std::pair<std::unordered_map<std::string, int>::iterator, bool> InotifyFileSyste
     return {it, removalSucceeded};
 }
 
-bool InotifyFileSystemWatcher::removeDirectoryImplNoLock(const fs::path& path, bool descriptorNeedsDeletion, bool recursive) {
+bool InotifyFileSystemWatcher::removeDirectoryImplNoLock(const Path& path, bool descriptorNeedsDeletion, bool recursive) {
     if (recursive) {
         bool removalFailed = false;
         std::size_t removalCount = 0;
         
         for (auto it = pathToDescriptor.begin(); it != pathToDescriptor.end();) {
-            if (util::startsWith(it->first, path.string())) {
+            if (util::startsWith(it->first, path.getNativeString())) {
                 auto removalResult = removeDirectoryByIterator(it, descriptorNeedsDeletion);
                 it = removalResult.first;
                 
@@ -269,7 +273,7 @@ bool InotifyFileSystemWatcher::removeDirectoryImplNoLock(const fs::path& path, b
             return true;
         }
     } else {
-        auto resultPTD = pathToDescriptor.find(path.string());
+        auto resultPTD = pathToDescriptor.find(path.getNativeString());
         if (resultPTD == pathToDescriptor.end()) {
             return false;
         }
@@ -306,15 +310,15 @@ bool InotifyFileSystemWatcher::removeDirectoryImplNoLock(const fs::path& path, b
 //     return removalSucceeded;
 }
 
-void InotifyFileSystemWatcher::addNewlyCreatedOrMovedDirectories(const fs::path& dir) {
+void InotifyFileSystemWatcher::addNewlyCreatedOrMovedDirectories(const Path& dir) {
     // The mutex has already been locked here
-    bool result = addDirectoryImplNoLock(dir.string(), FileSystemEventFlags::All);
+    bool result = addDirectoryImplNoLock(dir.getNativeString(), FileSystemEventFlags::All);
     
     if (!result) {
-        LOG_W("Failed to add a dir to tracked list: {}", dir.string());
+        LOG_W("Failed to add a dir to tracked list: {}", dir);
     }
     
-    for (const auto& p : fs::recursive_directory_iterator(dir)) {
+    for (const auto& p : fs::recursive_directory_iterator(dir.getNativeString())) {
         const bool isDir = fs::is_directory(p);
         if (isDir) {
             result = addDirectoryImplNoLock(p.path().string(), FileSystemEventFlags::All);
@@ -324,7 +328,7 @@ void InotifyFileSystemWatcher::addNewlyCreatedOrMovedDirectories(const fs::path&
             }
         }
         
-        events.emplace_back(FileSystemEventFlags::Created, isDir ? FileSystemEventOrigin::Directory : FileSystemEventOrigin::File, p.path().string(), fs::path());
+        events.emplace_back(FileSystemEventFlags::Created, isDir ? FileSystemEventOrigin::Directory : FileSystemEventOrigin::File, p.path().string(), Path());
     }
 }
 
@@ -392,7 +396,7 @@ void InotifyFileSystemWatcher::poll() {
 //                     addDirectoryImplNoLock(p.path().string(), FileSystemEventFlags::All);
 //                 }
 //                 
-//                 events.emplace_back(FileSystemEventFlags::Created, FileSystemEventOrigin::File, p.path().string(), fs::path());
+//                 events.emplace_back(FileSystemEventFlags::Created, FileSystemEventOrigin::File, p.path().string(), Path());
 //             }
 //         }
         
@@ -403,7 +407,7 @@ void InotifyFileSystemWatcher::poll() {
                 throw std::runtime_error("INOTIFY file move event with empty source and destination paths.");
             } else if (p.source.empty()) {
                 // Move from an untracked directory is equivalent to the creation of a new item.
-                events.emplace_back(FileSystemEventFlags::Created, p.origin, p.destination, fs::path());
+                events.emplace_back(FileSystemEventFlags::Created, p.origin, p.destination, Path());
                 
                 // If a directory has been moved in from an untracked directory, all directories and files inside
                 // it are "new" and need to be added and reported
@@ -412,17 +416,17 @@ void InotifyFileSystemWatcher::poll() {
                 }
             } else if (p.destination.empty()) {
                 // Move to an untracked directory is equivalent to the deletion of an item.
-                events.emplace_back(FileSystemEventFlags::Deleted, p.origin, p.source, fs::path());
+                events.emplace_back(FileSystemEventFlags::Deleted, p.origin, p.source, Path());
                 
-                removeDirectoryImplNoLock(p.source.string(), true, true);
+                removeDirectoryImplNoLock(p.source.getNativeString(), true, true);
             } else {
                 // Presence of both a source and a destination means a move from one tracked directory to another or a rename
                 events.emplace_back(FileSystemEventFlags::Moved, p.origin, p.source, p.destination);
                 
                 // We need to update the descriptors
                 if (p.origin == FileSystemEventOrigin::Directory) {
-                    const std::string& sourceStr = p.source.string();
-                    const std::string& destinationStr = p.destination.string();
+                    const std::string& sourceStr = p.source.getNativeString();
+                    const std::string& destinationStr = p.destination.getNativeString();
                     // Get the descriptor
                     auto result = pathToDescriptor.find(sourceStr);
                     
@@ -552,7 +556,7 @@ void InotifyFileSystemWatcher::processEvent(struct inotify_event* e) {
         return;
     }
     
-    fs::path sourcePath = descriptorToPath[e->wd];
+    Path sourcePath = descriptorToPath[e->wd];
     if (e->len != 0) {
         sourcePath /= std::string(e->name);
     }
@@ -560,19 +564,19 @@ void InotifyFileSystemWatcher::processEvent(struct inotify_event* e) {
     if (e->mask & IN_DELETE_SELF) {
         // A deletion starts from the deepest subdirectory and goes up, which means all monitored directories
         // will trigger IN_DELETE_SELF events automatically. This is thr reason why the last parameter is false.
-        removeDirectoryImplNoLock(sourcePath.string(), false, false);
+        removeDirectoryImplNoLock(sourcePath.getNativeString(), false, false);
     }
     
     if (e->mask & IN_CREATE) {
-        events.emplace_back(FileSystemEventFlags::Created, origin, sourcePath, fs::path());
+        events.emplace_back(FileSystemEventFlags::Created, origin, sourcePath, Path());
         
         if (origin == FileSystemEventOrigin::Directory) {
             addNewlyCreatedOrMovedDirectories(sourcePath);
         }
     } else if (e->mask & IN_DELETE) {
-        events.emplace_back(FileSystemEventFlags::Deleted, origin, sourcePath, fs::path());
+        events.emplace_back(FileSystemEventFlags::Deleted, origin, sourcePath, Path());
     } else if (e->mask & IN_MODIFY) {
-        events.emplace_back(FileSystemEventFlags::Modified, origin, sourcePath, fs::path());
+        events.emplace_back(FileSystemEventFlags::Modified, origin, sourcePath, Path());
 //     } else if (e->mask & IN_CLOSE) {
 //          events.emplace_back(FileSystemEventFlags::Closed, origin, sourcePath);
 //     } else if (e->mask & IN_OPEN) {
@@ -590,12 +594,12 @@ void InotifyFileSystemWatcher::processEvent(struct inotify_event* e) {
     }
 }
 
-std::vector<fs::path> InotifyFileSystemWatcher::getMonitoredDirectories() const {
+std::vector<Path> InotifyFileSystemWatcher::getMonitoredDirectories() const {
     IYFT_PROFILE(ListMonitoredDirectories, iyft::ProfilerTag::AssetConversion);
     
     std::lock_guard<std::mutex> lock(inotifyMutex);
     
-    std::vector<fs::path> dirs;
+    std::vector<Path> dirs;
     dirs.reserve(pathToDescriptor.size());
     for (const auto& p : pathToDescriptor) {
         dirs.push_back(p.first);

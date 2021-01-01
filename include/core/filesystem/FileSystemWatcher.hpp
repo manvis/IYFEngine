@@ -37,7 +37,6 @@
 
 #include "utilities/NonCopyable.hpp"
 #include "core/filesystem/FileSystemWatcherCreateInfo.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
 
 namespace iyf {
 
@@ -58,7 +57,7 @@ public:
     
     virtual bool addDirectory(const MonitoredDirectory& monitoredDirectory) = 0;
     
-    virtual bool removeDirectory(const fs::path& path) = 0;
+    virtual bool removeDirectory(const Path& path) = 0;
     
     virtual std::string getBackendName() const = 0;
     
@@ -88,7 +87,7 @@ public:
         running = false;
     }
     
-    virtual std::vector<fs::path> getMonitoredDirectories() const = 0;
+    virtual std::vector<Path> getMonitoredDirectories() const = 0;
     
     virtual ~FileSystemWatcher() { }
 protected:

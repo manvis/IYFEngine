@@ -27,10 +27,11 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/Engine.hpp"
-#include "core/filesystem/FileSystem.hpp"
-#include "core/filesystem/File.hpp"
-#include "core/Logger.hpp"
+#include "io/FileSystem.hpp"
+#include "io/File.hpp"
+#include "logging/Logger.hpp"
 #include "core/Constants.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
 #include "tools/AssetCreatorWindow.hpp"
 #include "tools/MaterialEditor.hpp"
 #include "tools/MaterialInstanceEditor.hpp"
@@ -63,11 +64,11 @@ void AssetCreatorWindow::openPopup() {
 }
 
 void AssetCreatorWindow::executeOperation() {
-    fs::path finalPath = basePath;
+    Path finalPath = basePath;
     finalPath /= name;
     
     if (directory) {
-        FileSystem* fs = engine->getFileSystem();
+        VirtualFileSystem* fs = engine->getFileSystem();
         
         fs->createDirectory(finalPath);
     } else {
@@ -85,8 +86,8 @@ void AssetCreatorWindow::executeOperation() {
             throw std::runtime_error("Failed to create a new empty asset");
         }
         
-        File out(finalPath, File::OpenMode::Write);
-        out.writeBytes(json.data(), json.size());
+        auto out = VirtualFileSystem::Instance().openFile(finalPath, FileOpenMode::Write);
+        out->writeBytes(json.data(), json.size());
     }
 }
 

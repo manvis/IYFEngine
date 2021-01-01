@@ -37,39 +37,39 @@ namespace con {
 // ---   CHANGING THE NAMES OF DIRECTORIES WILL BREAK ALL CURRENT PROJECTS   ---
 // -------------------------------- WARNING ------------------------------------
 
-const fs::path& BaseAssetPath() {
-    static const fs::path path = u8"assets";
+const Path& BaseAssetPath() {
+    static const Path path(u8"assets");
     return path;
 }
 
-const fs::path& SystemStringPath() {
-    static const fs::path path = BaseAssetPath() / u8"systemStrings";
+const Path& SystemStringPath() {
+    static const Path path(BaseAssetPath() / u8"systemStrings");
     return path;
 }
 
 /// \brief Path to imports
-const fs::path& ImportPath() {
-    static const fs::path path = u8"imports";
+const Path& ImportPath() {
+    static const Path path(u8"imports");
     return path;
 }
 
-const fs::path& AssetTypeToPath(AssetType type) {
-    static const fs::path AnimationPath = BaseAssetPath() / u8"animations";
-    static const fs::path MeshPath = BaseAssetPath() / u8"meshes";
-    static const fs::path TexturePath = BaseAssetPath() / u8"textures";
-    static const fs::path FontPath = BaseAssetPath() / u8"fonts";
-    static const fs::path AudioPath = BaseAssetPath() / u8"audio";
-    static const fs::path VideoPath = BaseAssetPath() / u8"video";
-    static const fs::path ScriptPath = BaseAssetPath() / u8"scripts";
-    static const fs::path ShaderPath = BaseAssetPath() / u8"shaders";
-    static const fs::path StringPath = BaseAssetPath() / u8"strings";
-    static const fs::path CustomPath = BaseAssetPath() / u8"custom";
-    static const fs::path MaterialTemplatePath = BaseAssetPath() / u8"material_templates";
-    static const fs::path MaterialInstancePath = BaseAssetPath() / u8"materials";
+const Path& AssetTypeToPath(AssetType type) {
+    static const Path AnimationPath(BaseAssetPath() / u8"animations");
+    static const Path MeshPath(BaseAssetPath() / u8"meshes");
+    static const Path TexturePath(BaseAssetPath() / u8"textures");
+    static const Path FontPath(BaseAssetPath() / u8"fonts");
+    static const Path AudioPath(BaseAssetPath() / u8"audio");
+    static const Path VideoPath(BaseAssetPath() / u8"video");
+    static const Path ScriptPath(BaseAssetPath() / u8"scripts");
+    static const Path ShaderPath(BaseAssetPath() / u8"shaders");
+    static const Path StringPath(BaseAssetPath() / u8"strings");
+    static const Path CustomPath(BaseAssetPath() / u8"custom");
+    static const Path MaterialTemplatePath(BaseAssetPath() / u8"material_templates");
+    static const Path MaterialInstancePath(BaseAssetPath() / u8"materials");
     
-//     static const fs::path WorldPath = BaseAssetPath() / u8"worlds";
+//     static const Path WorldPath(BaseAssetPath() / u8"worlds";
 
-    static const std::array<fs::path, static_cast<std::size_t>(AssetType::COUNT)> AssetTypeToPathMap = {
+    static const std::array<Path, static_cast<std::size_t>(AssetType::COUNT)> AssetTypeToPathMap = {
         AnimationPath,        // 0
         MeshPath,             // 1
         TexturePath,          // 2
@@ -163,18 +163,18 @@ const std::string& LocalizationDatabase() {
     return file;
 }
 
-const fs::path& SystemAssetSource() {
-    static const fs::path path = u8"raw/system";
+const Path& SystemAssetSource() {
+    static const Path path(u8"raw/system");
     return path;
 }
 
-const fs::path& MissingTexture() {
-    static const fs::path file = SystemAssetSource() / u8"missingTexture.png";
+const Path& MissingTexture() {
+    static const Path file(SystemAssetSource() / u8"missingTexture.png");
     return file;
 }
 
-const fs::path& MissingMesh() {
-    static const fs::path file = SystemAssetSource() / u8"missing.dae";
+const Path& MissingMesh() {
+    static const Path file(SystemAssetSource() / u8"missing.dae");
     return file;
 }
 

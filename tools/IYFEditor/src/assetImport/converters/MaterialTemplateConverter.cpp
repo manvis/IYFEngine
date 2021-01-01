@@ -35,10 +35,11 @@
 #include "graphics/shaderGeneration/ShaderMacroCombiner.hpp"
 #include "graphics/shaderGeneration/VulkanGLSLShaderGenerator.hpp"
 
-#include "core/filesystem/File.hpp"
-#include "core/filesystem/FileSystem.hpp"
-#include "core/Logger.hpp"
-#include "core/serialization/MemorySerializer.hpp"
+#include "io/File.hpp"
+#include "io/FileSystem.hpp"
+#include "io/serialization/MemorySerializer.hpp"
+#include "logging/Logger.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
 #include "fmt/format.h"
 #include "fmt/ostream.h"
 
@@ -162,11 +163,11 @@ MaterialTemplateConverter::MaterialTemplateConverter(const ConverterManager* man
 
 MaterialTemplateConverter::~MaterialTemplateConverter() {}
 
-std::unique_ptr<ConverterState> MaterialTemplateConverter::initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const {
+std::unique_ptr<ConverterState> MaterialTemplateConverter::initializeConverter(const Path& inPath, PlatformIdentifier platformID) const {
     std::unique_ptr<MaterialTemplateConverterInternalState> internalState = std::make_unique<MaterialTemplateConverterInternalState>(this);
     
-    File shaderFile(inPath, File::OpenMode::Read);
-    auto result = shaderFile.readWholeFile();
+    auto shaderFile = VirtualFileSystem::Instance().openFile(inPath, FileOpenMode::Read);
+    auto result = shaderFile->readWholeFile();
     
     internalState->code = std::move(result.first);
     internalState->size = result.second;
@@ -298,7 +299,7 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     }
     assert(estimatedTotalShaders == totalShaders);
     
-     const fs::path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
+     const Path outputPath = manager->makeFinalPathForAsset(state.getSourceFilePath(), state.getType(), state.getPlatformIdentifier());
      
     FileHash hash = HF(ms.data(), ms.size());
     
@@ -309,8 +310,8 @@ bool MaterialTemplateConverter::convert(ConverterState& state) const {
     ImportedAssetData iad(state.getType(), metadata, outputPath);
     state.getImportedAssets().push_back(std::move(iad));
     
-    File fw(outputPath, File::OpenMode::Write);
-    fw.writeBytes(ms.data(), ms.size());
+    auto fw = VirtualFileSystem::Instance().openFile(outputPath, FileOpenMode::Write);
+    fw->writeBytes(ms.data(), ms.size());
     return true;
 }
 

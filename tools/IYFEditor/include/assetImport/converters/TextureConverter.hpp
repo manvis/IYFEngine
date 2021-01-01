@@ -49,13 +49,13 @@ public:
     TextureConverter(const ConverterManager* manager);
     ~TextureConverter();
     
-    virtual std::unique_ptr<ConverterState> initializeConverter(const fs::path& inPath, PlatformIdentifier platformID) const final override;
+    virtual std::unique_ptr<ConverterState> initializeConverter(const Path& inPath, PlatformIdentifier platformID) const final override;
     
     /// \brief Reads a texture file and converts it to a format optimized for this engine.
     virtual bool convert(ConverterState& state) const final override;
 protected:
 
-    bool importCompressed(const fs::path& inPath, std::vector<ImportedAssetData>& importedAssets) const;
+    bool importCompressed(const Path& inPath, std::vector<ImportedAssetData>& importedAssets) const;
     TextureCompressionFormat compressonatorDetermineFormat(const TextureConverterState& textureState) const;
     bool compressonatorCompress(Serializer& serializer, std::vector<MipmapLevelData>& mipMapLevelData, const TextureConverterState& textureState,
                                 std::size_t face, std::size_t level) const;

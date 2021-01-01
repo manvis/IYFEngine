@@ -27,8 +27,8 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/Engine.hpp"
-#include "core/Logger.hpp"
-#include "core/configuration/Configuration.hpp"
+#include "logging/Logger.hpp"
+#include "configuration/Configuration.hpp"
 #include "assets/AssetManager.hpp"
 #include "assets/typeManagers/TypeManager.hpp"
 
@@ -48,7 +48,7 @@ TypeManager::TypeManager(AssetManager* manager) : manager(manager) {
 }
 
 void TypeManager::logLeakedAsset(std::size_t id, StringHash nameHash, std::uint32_t count) const {
-    const fs::path path = *manager->getAssetPath(nameHash);
+    const Path path = *manager->getAssetPath(nameHash);
     LOG_W("Asset with id {} loaded from path {} still has {} live references.", id, path, count);
 }
 

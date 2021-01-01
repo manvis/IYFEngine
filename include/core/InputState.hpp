@@ -36,7 +36,7 @@
 #include <SDL2/SDL.h>
 
 #include "core/InputMappings.hpp"
-#include "core/interfaces/Configurable.hpp"
+#include "configuration/interfaces/Configurable.hpp"
 #include "utilities/NonCopyable.hpp"
 
 namespace iyf {

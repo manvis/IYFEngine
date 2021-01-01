@@ -32,9 +32,10 @@
 #include "graphics/GraphicsAPI.hpp"
 #include "core/DefaultWorld.hpp"
 #include "core/InputState.hpp"
-#include "core/configuration/Configuration.hpp"
-#include "core/Logger.hpp"
-#include "core/filesystem/FileSystem.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
+#include "configuration/Configuration.hpp"
+#include "logging/Logger.hpp"
+#include "io/DefaultFileSystem.hpp"
 #include "utilities/Regexes.hpp"
 
 #include "TestState.hpp"
@@ -46,8 +47,6 @@
 #include <thread>
 #include <chrono>
 #include <iomanip>
-
-#include "core/filesystem/cppFilesystem.hpp"
 
 #include "fmt/ostream.h"
 
@@ -211,7 +210,7 @@ void EditorWelcomeState::initialize() {
         ProjectData data;
         data.name = name;
         
-        if (!fs::exists(path)) {
+        if (!DefaultFileSystem::Instance().exists(path)) {
             LOG_V("Project {} no longer exists in {}. It will be removed from the project list.", name, path);
             data.path.clear();
         } else {
@@ -604,7 +603,7 @@ void EditorWelcomeState::frame(float delta) {
         
         openProjectAsyncTask = std::async(std::launch::async, [this](){
             auto project = std::make_unique<Project>(projectToLoad);
-            FileSystem* fileSystem = engine->getFileSystem();
+            VirtualFileSystem* fileSystem = engine->getFileSystem();
             
             LOG_V("Write path before project change: {}", fileSystem->getCurrentWriteDirectory());
             //engine->setProject(std::move(project));

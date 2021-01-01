@@ -35,7 +35,7 @@
 #include <bitset>
 
 #include "core/Constants.hpp"
-#include "core/interfaces/Serializable.hpp"
+#include "io/interfaces/Serializable.hpp"
 #include "graphics/materials/MaterialConstants.hpp"
 #include "graphics/ShaderConstants.hpp"
 #include "utilities/hashing/Hashing.hpp"

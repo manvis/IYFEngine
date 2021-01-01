@@ -29,7 +29,7 @@
 #include "graphics/MeshComponent.hpp"
 #include "core/EntitySystemManager.hpp"
 #include "core/TransformationComponent.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 
 namespace iyf {
 void MeshComponent::onTransformationChanged(TransformationComponent* transformation) {

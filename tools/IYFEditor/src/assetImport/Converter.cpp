@@ -27,7 +27,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "assetImport/Converter.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 
 namespace iyf::editor {
 

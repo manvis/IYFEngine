@@ -41,7 +41,6 @@
 #include "utilities/ForceInline.hpp"
 #include "localization/LocalizationHandle.hpp"
 #include "core/Constants.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
 #include "fmt/format.h"
 
 #define THROW_IF_MISSING
@@ -51,6 +50,7 @@ struct sqlite3_stmt;
 
 namespace iyf {
 class FileSystem;
+class Path;
 
 /// The TextLocalizer is responsible for managing and updating a database of localization strings.
 /// 
@@ -152,16 +152,16 @@ public:
     /// \param[in] locale A locale that you wish to use
     /// \param[in] clearIfNone Should the current strings be removed if no strings are found for the requested locale? 
     /// LoadResult::NoFilesForLocale will be returned regardless.
-    LoadResult loadStringsForLocale(const FileSystem* fs, const fs::path& localizationFileDirectory, const std::string& locale, bool clearIfNone);
+    LoadResult loadStringsForLocale(const FileSystem* fs, const Path& localizationFileDirectory, const std::string& locale, bool clearIfNone);
     
     /// A debug function that loads and compares the string maps of two locales. It returns a vector that contains the hashes of any missing strings.
     ///
     /// \todo Would be nice if this worked for multiple locales simultaneously instead of checking pairs.
-    static StringCheckResult checkForMissingStrings(const FileSystem* fs, const fs::path& localizationFileDirectory, const std::string& localeA, const std::string& localeB, std::vector<MissingString>& missingStrings);
+    static StringCheckResult checkForMissingStrings(const FileSystem* fs, const Path& localizationFileDirectory, const std::string& localeA, const std::string& localeB, std::vector<MissingString>& missingStrings);
     
     std::string loadResultToErrorString(LoadResult result) const; 
 protected:
-    static LoadResult loadToMap(const FileSystem* fs, const fs::path& localizationFileDirectory, const std::string& locale, std::unordered_map<StringHash, std::string>& map);
+    static LoadResult loadToMap(const FileSystem* fs, const Path& localizationFileDirectory, const std::string& locale, std::unordered_map<StringHash, std::string>& map);
     
     std::string logAndReturnMissingKey(StringHash hash) const;
     

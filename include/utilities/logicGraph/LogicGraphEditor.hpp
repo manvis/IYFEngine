@@ -30,7 +30,7 @@
 #define IYF_LOGIC_GRAPH_EDITOR_HPP
 
 #include "LogicGraph.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "utilities/hashing/HashCombine.hpp"
 #include "utilities/Flags.hpp"
 #include "localization/TextLocalization.hpp"

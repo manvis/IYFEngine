@@ -37,7 +37,7 @@
 #include "core/Engine.hpp"
 #include "core/InputState.hpp"
 #include "core/World.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "physics/PhysicsSystem.hpp"
 #include "threading/ThreadProfiler.hpp"
 

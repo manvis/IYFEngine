@@ -85,10 +85,10 @@ protected:
     /// \warning This function can only be used if the Engine is running in editor mode.
     ///
     /// \throws std::logic_error if the engine is running in game mode.
-    virtual bool refresh(StringHash nameHash, const fs::path& path, const Metadata& meta, std::uint32_t id) = 0;
+    virtual bool refresh(StringHash nameHash, const Path& path, const Metadata& meta, std::uint32_t id) = 0;
     
     /// Load an asset that has not been loaded yet
-    virtual std::pair<Asset*, AssetHandleRefCounter*> load(StringHash nameHash, const fs::path& path, const Metadata& meta, std::uint32_t& idOut, bool isAsync) = 0;
+    virtual std::pair<Asset*, AssetHandleRefCounter*> load(StringHash nameHash, const Path& path, const Metadata& meta, std::uint32_t& idOut, bool isAsync) = 0;
     
     /// Fetch a handle to an asset that has already been loaded
     virtual std::pair<Asset*, AssetHandleRefCounter*> fetch(std::uint32_t id) = 0;

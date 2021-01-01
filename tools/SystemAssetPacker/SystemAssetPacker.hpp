@@ -33,10 +33,10 @@
 
 #include "core/Constants.hpp"
 #include "core/Platform.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
+#include "io/Path.hpp"
 
 namespace iyf {
-class FileSystem;
+class VirtualFileSystem;
 
 namespace editor {
 class ConverterManager;
@@ -48,12 +48,12 @@ public:
     ~SystemAssetPacker();
     
     int pack();
-    void recursiveExport(const fs::path& path, const editor::ConverterManager& cm, PlatformIdentifier platformID);
+    void recursiveExport(const Path& path, const editor::ConverterManager& cm, PlatformIdentifier platformID);
 private:
-    fs::path makeArchiveName() const;
+    Path makeArchiveName() const;
     
-    std::unique_ptr<FileSystem> filesystem;
-    fs::path outputDir;
+    std::unique_ptr<VirtualFileSystem> filesystem;
+    Path outputDir;
     bool isValid;
 };
 

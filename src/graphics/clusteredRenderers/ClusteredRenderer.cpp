@@ -42,7 +42,7 @@
 #include "core/World.hpp"
 #include "core/Engine.hpp"
 #include "core/InputState.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 
 #include "physics/PhysicsSystem.hpp"
 

@@ -32,7 +32,7 @@
 #include <string>
 #include <vector>
 
-#include "cppFilesystem.hpp"
+#include "io/Path.hpp"
 #include "utilities/enum_flag_ops.hpp"
 
 namespace iyf {
@@ -92,7 +92,7 @@ enum class FileSystemEventOrigin : std::uint32_t {
 /// \todo these explanations below MAY BE INCORRECT on Windows
 class FileSystemEvent {
 public:
-    FileSystemEvent(FileSystemEventFlags eventType, FileSystemEventOrigin eventOrigin, fs::path source, fs::path destination)
+    FileSystemEvent(FileSystemEventFlags eventType, FileSystemEventOrigin eventOrigin, Path source, Path destination)
         : eventType(eventType), eventOrigin(eventOrigin), source(std::move(source)), destination(std::move(destination)) {}
 public:
     inline FileSystemEventFlags getType() const {
@@ -107,7 +107,7 @@ public:
     ///
     /// \remark Can be empty when getType() == FileSystemEventFlags::Moved. It happens when an item is moved from an untracked directory
     /// into a tracked one.
-    const fs::path& getSource() const {
+    const Path& getSource() const {
         return source;
     }
     
@@ -115,15 +115,15 @@ public:
     ///
     /// \remark This path may be empty even if getType() == FileSystemEventFlags::Moved. It happens when an item is moved from a tracked
     /// directory into an untracked one.
-    const fs::path& getDestination() const {
+    const Path& getDestination() const {
         return destination;
     }
 private:
     /// Type of the event
     FileSystemEventFlags eventType;
     FileSystemEventOrigin eventOrigin;
-    fs::path source;
-    fs::path destination;
+    Path source;
+    Path destination;
 };
 }
 

@@ -30,7 +30,7 @@
 #define IYF_TEST_BASE_HPP
 
 #include <string>
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 
 namespace iyf::test {
 

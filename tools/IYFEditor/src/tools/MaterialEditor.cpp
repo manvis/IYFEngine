@@ -28,8 +28,9 @@
 
 #include "tools/MaterialEditor.hpp"
 
-#include "core/Logger.hpp"
-#include "core/filesystem/File.hpp"
+#include "logging/Logger.hpp"
+#include "io/File.hpp"
+#include "core/filesystem/VirtualFileSystem.hpp"
 #include "graphics/GraphicsAPIConstants.hpp"
 #include "localization/TextLocalization.hpp"
 #include "utilities/logicGraph/LogicGraph.hpp"
@@ -97,7 +98,7 @@ MaterialEditor::MaterialEditor() : LogicGraphEditor(MakeNodeEditorSettings()) {
 }
 
 std::string MaterialEditor::getWindowName() const {
-    const std::string windowName = LOC_SYS(LH("material_editor", MaterialLogicGraph::GetMaterialNodeLocalizationNamespace()), filePath.generic_string());
+    const std::string windowName = LOC_SYS(LH("material_editor", MaterialLogicGraph::GetMaterialNodeLocalizationNamespace()), filePath.getGenericString());
 //     LOG_D(windowName);
     return windowName;
 }
@@ -110,8 +111,8 @@ void MaterialEditor::onButtonClick(LogicGraphEditorButtonFlagBits button) {
         case LogicGraphEditorButtonFlagBits::Save: {
             const std::string result = serializeJSON();
             
-            File output(filePath, File::OpenMode::Write);
-            output.writeBytes(result.data(), result.size());
+            auto output = VirtualFileSystem::Instance().openFile(filePath, FileOpenMode::Write);
+            output->writeBytes(result.data(), result.size());
             
             CodeGenerationResult cgr = graph->toCode(ShaderLanguage::GLSLVulkan);
             LOG_D("{}", cgr.getCode());
@@ -274,10 +275,10 @@ void MaterialEditor::drawNodeExtraProperties(MaterialNode& node) {
     }
 }
 
-void MaterialEditor::setPath(fs::path path) {
+void MaterialEditor::setPath(Path path) {
     filePath = std::move(path);
-    File in(filePath, File::OpenMode::Read);
-    auto wholeFile = in.readWholeFile();
+    auto in = VirtualFileSystem::Instance().openFile(filePath, FileOpenMode::Read);
+    auto wholeFile = in->readWholeFile();
     
     deserializeJSON(wholeFile.first.get(), wholeFile.second);
 }

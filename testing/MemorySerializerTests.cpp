@@ -28,7 +28,7 @@
 
 #include "MemorySerializerTests.hpp"
 
-#include "core/serialization/MemorySerializer.hpp"
+#include "io/serialization/MemorySerializer.hpp"
 
 #include <sstream>
 
@@ -86,27 +86,15 @@ void MemorySerializerTests::initialize() {
     
     // The serializers store data in little endian order. We need to flip the integer byte order
     // before we can build the test array
-    #if SDL_BYTEORDER == SDL_BIG_ENDIAN
-        std::uint16_t uint16ValCor = SDL_Swap16(uint16Val);
-        std::int16_t int16ValCor = SDL_Swap16(int16Val);
-        std::uint32_t uint32ValCor = SDL_Swap32(uint32Val);
-        std::int32_t int32ValCor = SDL_Swap32(int32Val);
-        std::uint64_t uint64ValCor = SDL_Swap64(uint64Val);
-        std::int64_t int64ValCor = SDL_Swap64(int64Val);
-        float floatValCor = SDL_SwapFloat(floatVal);
-        
-        std::int16_t lenCor = SDL_Swap16(15);
-    #else
-        std::uint16_t uint16ValCor = uint16Val;
-        std::int16_t int16ValCor = int16Val;
-        std::uint32_t uint32ValCor = uint32Val;
-        std::int32_t int32ValCor = int32Val;
-        std::uint64_t uint64ValCor = uint64Val;
-        std::int64_t int64ValCor = int64Val;
-        float floatValCor = floatVal;
-        
-        std::int16_t lenCor = 15;
-    #endif
+    std::uint16_t uint16ValCor = util::SwapLE(uint16Val);
+    std::int16_t int16ValCor = util::SwapLE(int16Val);
+    std::uint32_t uint32ValCor = util::SwapLE(uint32Val);
+    std::int32_t int32ValCor = util::SwapLE(int32Val);
+    std::uint64_t uint64ValCor = util::SwapLE(uint64Val);
+    std::int64_t int64ValCor = util::SwapLE(int64Val);
+    float floatValCor = util::SwapLE(floatVal);
+    
+    std::int16_t lenCor = util::SwapLE(15);
     
     std::memcpy(data + 2, &uint16ValCor, 2);
     std::memcpy(data + 4, &int16ValCor, 2);

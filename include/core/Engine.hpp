@@ -48,7 +48,7 @@ class Configuration;
 class AssetManager;
 class MaterialDatabase;
 class SoundAPI;
-class FileSystem;
+class VirtualFileSystem;
 class Renderer;
 class Project;
 struct EngineInternalData;
@@ -157,12 +157,12 @@ public:
         return renderer.get();
     }
     
-    /// \brief Get a non-owning pointer to a concrete iyf::FileSystem instance
+    /// \brief Get a non-owning pointer to a concrete iyf::VirtualFileSystem instance
     /// 
     /// The pointer is guaranteed to stay valid until the last GameState is disposed of after calling quit().
     ///
-    /// \return pointer to iyf::FileSystem
-    FileSystem* getFileSystem() const {
+    /// \return pointer to iyf::VirtualFileSystem
+    VirtualFileSystem* getFileSystem() const {
         return fileSystem.get();
     }
     
@@ -170,7 +170,7 @@ public:
     /// 
     /// The pointer is guaranteed to stay valid until the last GameState is disposed of after calling quit().
     ///
-    /// \return pointer to iyf::FileSystem
+    /// \return pointer to iyf::Project
     Project* getProject() const {
         return project.get();
     }
@@ -237,7 +237,7 @@ private:
     std::unique_ptr<Configuration> config;
     
     // File system
-    std::unique_ptr<FileSystem> fileSystem;
+    std::unique_ptr<VirtualFileSystem> fileSystem;
 
     void fetchLogString();
 

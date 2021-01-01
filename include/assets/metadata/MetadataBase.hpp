@@ -30,9 +30,9 @@
 #define IYF_METADATA_BASE_HPP
 
 #include "assets/AssetType.hpp"
-#include "core/filesystem/cppFilesystem.hpp"
-#include "core/interfaces/Serializable.hpp"
-#include "core/interfaces/TextSerializable.hpp"
+#include "io/interfaces/Serializable.hpp"
+#include "io/interfaces/TextSerializable.hpp"
+#include "io/Path.hpp"
 #include "utilities/hashing/Hashing.hpp"
 
 #include <cstdint>
@@ -50,7 +50,7 @@ class MetadataBase : public Serializable, public TextSerializable {
 public:
     inline MetadataBase(AssetType assetType) : assetType(assetType), metadataSource(MetadataSource::Constructor), complete(false), systemAsset(false), fileHash(0) {}
     
-    inline MetadataBase(AssetType assetType, FileHash fileHash, const fs::path& sourceAsset, FileHash sourceFileHash, bool systemAsset, const std::vector<std::string>& tags, bool complete) 
+    inline MetadataBase(AssetType assetType, FileHash fileHash, const Path& sourceAsset, FileHash sourceFileHash, bool systemAsset, const std::vector<std::string>& tags, bool complete) 
         : assetType(assetType), metadataSource(MetadataSource::Constructor), complete(complete), systemAsset(systemAsset), tags(tags), fileHash(fileHash), sourceAsset(sourceAsset), sourceFileHash(sourceFileHash) {}
     
     virtual ~MetadataBase() { }
@@ -73,7 +73,7 @@ public:
         return fileHash;
     }
     
-    const fs::path& getSourceAssetPath() const {
+    const Path& getSourceAssetPath() const {
         return sourceAsset;
     }
     
@@ -146,7 +146,7 @@ private:
     bool systemAsset;
     std::vector<std::string> tags;
     FileHash fileHash;
-    fs::path sourceAsset;
+    Path sourceAsset;
     FileHash sourceFileHash;
 };
 }

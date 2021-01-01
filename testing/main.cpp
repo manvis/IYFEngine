@@ -32,7 +32,7 @@
 #include <iostream>
 
 #include "core/Engine.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "TestState.hpp"
 #include "TestBase.hpp"
 #include "FileMonitorTests.hpp"

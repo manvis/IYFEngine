@@ -31,8 +31,8 @@
 #include "utilities/ConstantMapper.hpp"
 #include "assets/loaders/TextureLoader.hpp"
 #include "core/Engine.hpp"
-#include "core/Logger.hpp"
-#include "core/configuration/Configuration.hpp"
+#include "logging/Logger.hpp"
+#include "configuration/Configuration.hpp"
 // Needed to fetch the localized window name
 #include "localization/TextLocalization.hpp"
 

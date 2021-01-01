@@ -29,9 +29,10 @@
 #include "assets/AssetConstants.hpp"
 #include "core/Project.hpp"
 #include "core/Constants.hpp"
-#include "core/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "utilities/ReadWholeFile.hpp"
 #include "utilities/Regexes.hpp"
+#include "io/DefaultFileSystem.hpp"
 
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/document.h"
@@ -57,7 +58,7 @@ static const char* ENGINE_VERSION_MINOR_FIELD_NAME = "engine_version_minor";
 static const char* ENGINE_VERSION_PATCH_FIELD_NAME = "engine_version_patch";
 static const char* BASE_LOCALE_FIELD_NAME = "base_locale";
 
-Project::CreationResult Project::Create(const fs::path& newProjectPath, const std::string& projectName, const std::string& companyName,
+Project::CreationResult Project::Create(const Path& newProjectPath, const std::string& projectName, const std::string& companyName,
                                         std::function<void(const std::string&)> callback, const std::string& baseLocale) {
     if (callback != nullptr) {
         callback("Validating parameters");
@@ -70,23 +71,33 @@ Project::CreationResult Project::Create(const fs::path& newProjectPath, const st
     if (projectName.empty()) {
         return CreationResult::EmptyName;
     }
+
+    auto& fs = DefaultFileSystem::Instance();
     
-    const fs::file_status status = fs::status(newProjectPath);
-    if (!fs::exists(status) || !fs::is_directory(status)) {
+    FileStat stat;
+    if (fs.getStats(newProjectPath, stat) != FileSystemResult::Success ||
+        (stat.type != FileType::Directory)) {
         return CreationResult::NotADirectory;
     }
     
-    const fs::path finalPath = newProjectPath / projectName;
-    const bool finalPathExists = fs::exists(finalPath);
+    const Path finalPath = newProjectPath / projectName;
+
+    FileSystemResult result;
+    const bool finalPathExists = fs.exists(finalPath, result);
+
+    if (result != FileSystemResult::Success) {
+        return CreationResult::NotADirectory;
+    }
     
     if (callback != nullptr) {
         callback("Looking for existing directories");
     }
     
-    if (finalPathExists && !fs::is_empty(finalPath)) {
+    const bool isEmpty = fs.isEmpty(finalPath, result);
+    if (finalPathExists && isEmpty) {
         return CreationResult::NonEmptyDirectory;
     } else if (!finalPathExists) {
-        fs::create_directories(finalPath);
+        fs.createDirectory(finalPath);
     }
     
     if (callback != nullptr) {
@@ -112,7 +123,7 @@ Project::CreationResult Project::Create(const fs::path& newProjectPath, const st
     return CreationResult::CreatedSuccessfully;
 }
 
-bool Project::CreateProjectFile(const fs::path& path, const std::string& projectName, const std::string& companyName, const std::string& baseLocale, const Version& version) {
+bool Project::CreateProjectFile(const Path& path, const std::string& projectName, const std::string& companyName, const std::string& baseLocale, const Version& version) {
     if (path.empty() || projectName.empty() || companyName.empty() || baseLocale.empty()) {
         LOG_E("Couldn't create a new project file. At least one of the provided parameters was empty.");
         return false;
@@ -138,7 +149,7 @@ bool Project::CreateProjectFile(const fs::path& path, const std::string& project
     }
 }
 
-inline fs::path MakeAssetTypeSubdirPath(const fs::path& path, PlatformIdentifier platformID, AssetType assetType) {
+inline Path MakeAssetTypeSubdirPath(const Path& path, PlatformIdentifier platformID, AssetType assetType) {
     if (platformID == con::GetCurrentPlatform()) {
         return path / con::AssetTypeToPath(assetType);
     } else {
@@ -146,46 +157,35 @@ inline fs::path MakeAssetTypeSubdirPath(const fs::path& path, PlatformIdentifier
     }
 }
 
-bool Project::CreateImportedAssetDirectories(const fs::path& path, PlatformIdentifier platformID) {
+bool Project::CreateImportedAssetDirectories(const Path& path, PlatformIdentifier platformID) {
+    auto& fs = DefaultFileSystem::Instance();
+
     for (std::size_t i = 0; i < static_cast<std::size_t>(AssetType::COUNT); ++i) {
-        const fs::path assetTypeSubdir = MakeAssetTypeSubdirPath(path, platformID, static_cast<AssetType>(i));
-        
-        ErrorCode ec;
-        fs::create_directories(assetTypeSubdir, ec);
-        
-        if (ec) {
+        const Path assetTypeSubdir = MakeAssetTypeSubdirPath(path, platformID, static_cast<AssetType>(i));
+
+        if (fs.createDirectory(assetTypeSubdir) != FileSystemResult::Success) {
             return false;
         }
     }
     
     // Create the system string path
-    ErrorCode ec;
-    
+    FileSystemResult result = FileSystemResult::Success;
     if (platformID == con::GetCurrentPlatform()) {
-        fs::create_directories(path / con::SystemStringPath(), ec);
+        result = fs.createDirectory(path / con::SystemStringPath());
     } else {
-        fs::create_directories(path / con::PlatformIdentifierToName(platformID) / con::SystemStringPath(), ec);
+        result = fs.createDirectory(path / con::PlatformIdentifierToName(platformID) / con::SystemStringPath());
     }
     
-    if (ec) {
-        return false;
-    }
-    
-    return true;
+    return (result == FileSystemResult::Success);
 }
 
-bool Project::CreateImportsDirectory(const fs::path& path) {
-    ErrorCode ec;
-    fs::create_directories(path / con::ImportPath(), ec);
-    
-    if (ec) {
-        return false;
-    } else {
-        return true;
-    }
+bool Project::CreateImportsDirectory(const Path& path) {
+    auto& fs = DefaultFileSystem::Instance();
+
+    return (fs.createDirectory(path / con::ImportPath()) == FileSystemResult::Success);
 }
 
-Project::Project(fs::path root, bool deserializeFile) : root(std::move(root)), valid(false) {
+Project::Project(Path root, bool deserializeFile) : root(std::move(root)), valid(false) {
     if (deserializeFile && !deserialize()) {
         LOG_E("Failed to deserialize the project file  from {}", (this->root / con::ProjectFile()));
         return;
@@ -198,7 +198,7 @@ Project::Project(fs::path root, bool deserializeFile) : root(std::move(root)), v
     valid = true;
 }
 
-Project::Project(fs::path root) : Project(std::move(root), true) {}
+Project::Project(Path root) : Project(std::move(root), true) {}
 
 Project::~Project() {}
 
@@ -212,7 +212,7 @@ bool Project::makesJSONRoot() const {
     return false;
 }
 
-const fs::path& Project::getRootPath() const {
+const Path& Project::getRootPath() const {
     validOrFatalError();
     
     return root;
@@ -222,9 +222,9 @@ bool Project::serialize() const {
     validOrFatalError();
     
     std::string jsonString = getJSONString();
-    const fs::path finalPath = root / con::ProjectFile();
+    const Path finalPath = root / con::ProjectFile();
     
-    std::ofstream jsonFile(finalPath.string(), std::ios_base::out|std::ios_base::trunc|std::ios_base::binary);
+    std::ofstream jsonFile(finalPath.getNativeString(), std::ios_base::out|std::ios_base::trunc|std::ios_base::binary);
     
     if (!jsonFile.is_open()) {
         LOG_E("Failed to open a project file {} for serialization.", finalPath);
@@ -243,9 +243,9 @@ bool Project::serialize() const {
 }
 
 bool Project::deserialize() {
-    const fs::path finalPath = root / con::ProjectFile();
+    const Path finalPath = root / con::ProjectFile();
     
-    std::ifstream jsonFile(finalPath.string(), std::ios_base::in|std::ios_base::binary);
+    std::ifstream jsonFile(finalPath.getNativeString(), std::ios_base::in|std::ios_base::binary);
     
     if (!jsonFile.is_open()) {
         LOG_E("Failed to open a project file {} for deserialization.", finalPath);

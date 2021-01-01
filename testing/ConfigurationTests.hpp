@@ -30,10 +30,10 @@
 #define IYF_CONFIGURATION_TESTS_HPP
 
 #include "TestBase.hpp"
+#include "io/Path.hpp"
 
 #include <vector>
 #include <string>
-#include "core/filesystem/cppFilesystem.hpp"
 
 namespace iyf::test {
 
@@ -52,15 +52,15 @@ public:
     virtual void cleanup() final override;
 private:
     static const std::size_t expectedValueCount;
-    static const fs::path configFileDirName;
-    static const fs::path configFileName;
-    static const fs::path userConfigFileName;
+    static const Path configFileDirName;
+    static const Path configFileName;
+    static const Path userConfigFileName;
     
     std::string configFileContents;
     std::string userConfigFileContents;
-    fs::path destinationPath;
-    fs::path configFilePath;
-    fs::path userConfigFilePath;
+    Path destinationPath;
+    Path configFilePath;
+    Path userConfigFilePath;
     
     ExpectedConfigTestValues* expectedValues;
 };

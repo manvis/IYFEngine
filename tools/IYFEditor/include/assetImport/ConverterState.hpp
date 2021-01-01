@@ -31,7 +31,7 @@
 
 #include "core/Constants.hpp"
 #include "core/Platform.hpp"
-#include "core/interfaces/TextSerializable.hpp"
+#include "io/interfaces/TextSerializable.hpp"
 #include "utilities/NonCopyable.hpp"
 #include "assetImport/ImportedAssetData.hpp"
 
@@ -59,7 +59,7 @@ inline InternalConverterState::~InternalConverterState() {}
 
 class ConverterState : private NonCopyable, public TextSerializable {
 public:
-    ConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const fs::path& sourcePath, FileHash sourceFileHash)
+    ConverterState(PlatformIdentifier platformID, std::unique_ptr<InternalConverterState> internalState, const Path& sourcePath, FileHash sourceFileHash)
         : sourcePath(sourcePath), sourceFileHash(sourceFileHash), conversionComplete(false), debugOutputRequested(false), systemAsset(false),
           platformID(platformID), internalState(std::move(internalState)) {}
     
@@ -108,7 +108,7 @@ public:
         return internalState.get();
     }
     
-    inline const fs::path& getSourceFilePath() const {
+    inline const Path& getSourceFilePath() const {
         return sourcePath;
     }
     
@@ -152,7 +152,7 @@ protected:
 private:
     std::vector<ImportedAssetData> importedAssets;
     std::vector<std::string> tags;
-    fs::path sourcePath;
+    Path sourcePath;
     FileHash sourceFileHash;
     
     bool conversionComplete;
